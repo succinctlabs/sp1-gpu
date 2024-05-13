@@ -1,0 +1,5 @@
+# Cargo build
+**/target
+
+# Cargo config
+.cargo
