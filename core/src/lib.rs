@@ -1,8 +1,4 @@
-mod device;
-mod error;
-mod mem;
-mod ptr;
-
-pub mod prelude {
-    pub use crate::device::Device;
-}
+pub mod device;
+pub mod error;
+pub(crate) mod ffi;
+pub mod mem;

@@ -34,7 +34,7 @@ fn main() {
         nvcc.cuda(true);
         nvcc.include(base_dir);
 
-        nvcc.file("cuda/mem.cu").compile("core");
+        nvcc.file("cuda/api.cu").compile("core");
     }
 
     println!("cargo:rerun-if-changed=cuda");

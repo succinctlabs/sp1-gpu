@@ -7,14 +7,14 @@
 #include <sstream>
 #include <cuda_runtime.h>
 
-struct RustError
+struct RustCudaError
 {
     const char *message;
 };
 
-typedef struct RustError rustError_t;
+typedef struct RustCudaError rustCudaError_t;
 
-const rustError_t CUDA_SUCCESS = rustError_t{message : cudaGetErrorString(cudaSuccess)};
+extern "C" const rustCudaError_t CUDA_SUCCESS = rustCudaError_t{message : cudaGetErrorString(cudaSuccess)};
 
 #define CUDA_UNWRAP(expr)                                                             \
     do                                                                                \
@@ -30,12 +30,12 @@ const rustError_t CUDA_SUCCESS = rustError_t{message : cudaGetErrorString(cudaSu
         }                                                                             \
     } while (0)
 
-#define CUDA_OK(expr)                                               \
-    do                                                              \
-    {                                                               \
-        cudaError_t code = expr;                                    \
-        if (code != cudaSuccess)                                    \
-        {                                                           \
-            return rustError_t{message : cudaGetErrorString(code)}; \
-        }                                                           \
+#define CUDA_OK(expr)                                                   \
+    do                                                                  \
+    {                                                                   \
+        cudaError_t code = expr;                                        \
+        if (code != cudaSuccess)                                        \
+        {                                                               \
+            return rustCudaError_t{message : cudaGetErrorString(code)}; \
+        }                                                               \
     } while (0)

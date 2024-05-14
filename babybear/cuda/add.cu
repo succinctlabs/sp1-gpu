@@ -3,7 +3,7 @@
 #include <cuda_runtime.h>
 #include "../../core/cuda/exception.cuh"
 
-extern "C" rustError_t poseidon2_permute_cuda_error(bb31_t *in, bb31_t *out, bb31_t *external_rc, bb31_t *internal_rc, int n, int numBlocks, int threadsPerBlock)
+extern "C" rustCudaError_t poseidon2_permute_cuda_error(bb31_t *in, bb31_t *out, bb31_t *external_rc, bb31_t *internal_rc, int n, int numBlocks, int threadsPerBlock)
 {
     bb31_t *in_device;
     bb31_t *out_device;
