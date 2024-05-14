@@ -1,0 +1,20 @@
+[workspace]
+members = ["babybear"]
+
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+
+[profile.bench]
+opt-level = 3
+
+[profile.fast]
+inherits = "release"
+debug = true
+debug-assertions = true
+
+
+[workspace.dependencies]
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git" }

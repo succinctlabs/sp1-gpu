@@ -1,0 +1,42 @@
+// Based on https://github.com/supranational/sppark/blob/main/rust/build.rs
+
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let base_dir = manifest_dir.join("babybear");
+
+    let nvcc = which::which("nvcc");
+
+    if let Ok(nvcc) = nvcc {
+        let cuda_version = std::process::Command::new(nvcc)
+            .arg("--version")
+            .output()
+            .expect("impossible");
+        if !cuda_version.status.success() {
+            panic!("{:?}", cuda_version);
+        }
+        let cuda_version = String::from_utf8(cuda_version.stdout).unwrap();
+        let x = cuda_version
+            .find("release ")
+            .expect("can't find \"release X.Y,\" in --version output")
+            + 8;
+        let y = cuda_version[x..]
+            .find(',')
+            .expect("can't parse \"release X.Y,\" in --version output");
+        let v = cuda_version[x..x + y].parse::<f32>().unwrap();
+        if v < 12.0 {
+            panic!("Unsupported CUDA version {} < 12.0", v);
+        }
+
+        let mut nvcc = cc::Build::new();
+        nvcc.cuda(true);
+        nvcc.include(base_dir);
+
+        nvcc.file("cuda/add.cu").compile("babybear");
+    }
+
+    println!("cargo:rerun-if-changed=cuda");
+    println!("cargo:rerun-if-env-changed=CXXFLAGS");
+}
