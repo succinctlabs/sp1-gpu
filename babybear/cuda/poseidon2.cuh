@@ -6,7 +6,8 @@
 #define WIDTH 16
 #define D 7
 
-__device__ void mdsLightPermutation4x4(bb31_t state[4]) {
+__device__ void mdsLightPermutation4x4(bb31_t state[4])
+{
     bb31_t t01 = state[0] + state[1];
     bb31_t t23 = state[2] + state[3];
     bb31_t t0123 = t01 + t23;
@@ -26,7 +27,6 @@ __device__ void externalLinearLayer(bb31_t state[WIDTH])
     }
 
     bb31_t sums[4] = {state[0], state[1], state[2], state[3]};
-#pragma unroll
     for (int i = 4; i < WIDTH; i += 4)
     {
         sums[0] += state[i];
@@ -35,7 +35,6 @@ __device__ void externalLinearLayer(bb31_t state[WIDTH])
         sums[3] += state[i + 3];
     }
 
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] += sums[i % 4];
@@ -55,12 +54,11 @@ __global__ void testExternalLinearLayer(bb31_t state[WIDTH], int n)
 __device__ void matmulInternal(bb31_t state[WIDTH], bb31_t matInternalDiagM1[WIDTH])
 {
     bb31_t sum = bb31_t{0};
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         sum += state[i];
     }
-#pragma unroll
+
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] *= matInternalDiagM1[i];
@@ -90,7 +88,6 @@ __device__ void internalLinearLayer(bb31_t state[WIDTH])
         bb31_t(32768),
     };
     matmulInternal(state, matInternalDiagM1);
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] = state[i] * montyInverse;
@@ -109,7 +106,6 @@ __global__ void testInternalLinearLayer(bb31_t state[WIDTH], int n)
 
 __device__ void addRc(bb31_t state[WIDTH], bb31_t rc[WIDTH])
 {
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] += rc[i];
@@ -134,7 +130,6 @@ __global__ void poseidon2PermuteKernel(bb31_t *in, bb31_t *out, bb31_t *external
     }
 
     bb31_t state[WIDTH];
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] = in[idx * WIDTH + i];
@@ -143,7 +138,6 @@ __global__ void poseidon2PermuteKernel(bb31_t *in, bb31_t *out, bb31_t *external
     externalLinearLayer(state);
 
     int rounds_f_half = ROUNDS_F / 2;
-#pragma unroll
     for (int i = 0; i < rounds_f_half; i++)
     {
         addRc(state, external_rc + i * WIDTH);
@@ -151,7 +145,6 @@ __global__ void poseidon2PermuteKernel(bb31_t *in, bb31_t *out, bb31_t *external
         externalLinearLayer(state);
     }
 
-#pragma unroll
     for (int i = 0; i < ROUNDS_P; i++)
     {
         state[0] += internal_rc[i];
@@ -159,7 +152,6 @@ __global__ void poseidon2PermuteKernel(bb31_t *in, bb31_t *out, bb31_t *external
         internalLinearLayer(state);
     }
 
-#pragma unroll
     for (int i = rounds_f_half; i < ROUNDS_F; i++)
     {
         addRc(state, external_rc + i * WIDTH);
@@ -167,7 +159,6 @@ __global__ void poseidon2PermuteKernel(bb31_t *in, bb31_t *out, bb31_t *external
         externalLinearLayer(state);
     }
 
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         out[idx * WIDTH + i] = state[i];
