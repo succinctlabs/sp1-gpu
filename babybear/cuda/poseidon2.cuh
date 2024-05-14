@@ -114,7 +114,6 @@ __device__ void addRc(bb31_t state[WIDTH], bb31_t rc[WIDTH])
 
 __device__ void sbox(bb31_t state[WIDTH])
 {
-#pragma unroll
     for (int i = 0; i < WIDTH; i++)
     {
         state[i] ^= D;
