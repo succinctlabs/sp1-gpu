@@ -7,5 +7,5 @@ extern "C" {
 
     pub(crate) fn cuda_malloc(ptr: *mut *mut c_void, size: usize) -> CudaRustError;
 
-    pub(crate) fn cuda_free(ptr: *mut c_void) -> CudaRustError;
+    pub(crate) fn cuda_free(ptr: *const c_void) -> CudaRustError;
 }
