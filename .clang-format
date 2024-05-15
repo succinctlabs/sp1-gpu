@@ -1,0 +1,12 @@
+BasedOnStyle: google
+IndentWidth: 4
+AlwaysBreakTemplateDeclarations: Yes
+IncludeCategories:
+  - Regex:           '^<'
+    Priority:        4
+  - Regex:           '^"(llvm|llvm-c|clang|clang-c|mlir|mlir-c)/'
+    Priority:        3
+  - Regex:           '^"(qoda|\.\.)/'
+    Priority:        2
+  - Regex:           '.*'
+    Priority:        1
