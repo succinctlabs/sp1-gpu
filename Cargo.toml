@@ -1,5 +1,5 @@
 [workspace]
-members = ["babybear"]
+members = ["babybear", "core"]
 
 resolver = "2"
 
@@ -16,7 +16,7 @@ debug-assertions = true
 
 
 [workspace.dependencies]
-p3-field = { path = "../Plonky3/field" }
-p3-baby-bear = { path = "../Plonky3/baby-bear" }
-p3-poseidon2 = { path = "../Plonky3/poseidon2" }
-p3-symmetric = { path = "../Plonky3/symmetric" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }

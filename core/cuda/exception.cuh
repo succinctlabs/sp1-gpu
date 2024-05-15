@@ -5,8 +5,18 @@
 #include <thrust/system_error.h>
 #include <thrust/system/cuda/error.h>
 #include <sstream>
+#include <cuda_runtime.h>
 
-#define CUDA_OK(expr)                                                                 \
+struct RustCudaError
+{
+    const char *message;
+};
+
+typedef struct RustCudaError rustCudaError_t;
+
+extern "C" const rustCudaError_t CUDA_SUCCESS = rustCudaError_t{message : cudaGetErrorString(cudaSuccess)};
+
+#define CUDA_UNWRAP(expr)                                                             \
     do                                                                                \
     {                                                                                 \
         cudaError_t code = expr;                                                      \
@@ -18,4 +28,14 @@
             ss >> file_and_line;                                                      \
             throw thrust::system_error(code, thrust::cuda_category(), file_and_line); \
         }                                                                             \
+    } while (0)
+
+#define CUDA_OK(expr)                                                   \
+    do                                                                  \
+    {                                                                   \
+        cudaError_t code = expr;                                        \
+        if (code != cudaSuccess)                                        \
+        {                                                               \
+            return rustCudaError_t{message : cudaGetErrorString(code)}; \
+        }                                                               \
     } while (0)
