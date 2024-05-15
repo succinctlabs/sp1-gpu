@@ -1,51 +1,40 @@
 
-#include "poseidon2.cuh"
-#include <cuda_runtime.h>
+#include "poseidon2/kernels.cuh"
+
 #include "../../core/cuda/exception.cuh"
 
-extern "C" rustCudaError_t poseidon2_permute_cuda_error(bb31_t *in, bb31_t *out, bb31_t *external_rc, bb31_t *internal_rc, int n, int numBlocks, int threadsPerBlock)
-{
+#include <cuda_runtime.h>
+
+extern "C" void poseidon2_hash_cuda(bb31_t *in, int len, bb31_t *out,
+                                    bb31_t *external_rc, bb31_t *internal_rc,
+                                    int n, int numBlocks, int threadsPerBlock) {
     bb31_t *in_device;
     bb31_t *out_device;
     bb31_t *external_rc_device;
     bb31_t *internal_rc_device;
-    CUDA_OK(cudaMalloc((void **)&in_device, n * WIDTH * sizeof(bb31_t)));
-    CUDA_OK(cudaMalloc((void **)&out_device, n * WIDTH * sizeof(bb31_t)));
-    CUDA_OK(cudaMalloc((void **)&external_rc_device, WIDTH * ROUNDS_F * sizeof(bb31_t)));
-    CUDA_OK(cudaMalloc((void **)&internal_rc_device, WIDTH * ROUNDS_P * sizeof(bb31_t)));
-    CUDA_OK(cudaMemcpy(in_device, in, n * WIDTH * sizeof(bb31_t), cudaMemcpyHostToDevice));
-    CUDA_OK(cudaMemcpy(external_rc_device, external_rc, WIDTH * ROUNDS_F * sizeof(bb31_t), cudaMemcpyHostToDevice));
-    CUDA_OK(cudaMemcpy(internal_rc_device, internal_rc, WIDTH * ROUNDS_P * sizeof(bb31_t), cudaMemcpyHostToDevice));
-
-    poseidon2PermuteKernel<<<numBlocks, threadsPerBlock>>>(in_device, out_device, external_rc_device, internal_rc_device, n);
-
-    CUDA_OK(cudaMemcpy(out, out_device, n * WIDTH * sizeof(bb31_t), cudaMemcpyDeviceToHost));
-
-    CUDA_OK(cudaFree(in_device));
-    CUDA_OK(cudaFree(out_device));
-    CUDA_OK(cudaFree(external_rc_device));
-    CUDA_OK(cudaFree(internal_rc_device));
-
-    return CUDA_SUCCESS;
-}
-
-extern "C" void poseidon2_permute_cuda(bb31_t *in, bb31_t *out, bb31_t *external_rc, bb31_t *internal_rc, int n, int numBlocks, int threadsPerBlock)
-{
-    bb31_t *in_device;
-    bb31_t *out_device;
-    bb31_t *external_rc_device;
-    bb31_t *internal_rc_device;
-    CUDA_UNWRAP(cudaMalloc((void **)&in_device, n * WIDTH * sizeof(bb31_t)));
+    CUDA_UNWRAP(cudaMalloc((void **)&in_device, n * len * sizeof(bb31_t)));
     CUDA_UNWRAP(cudaMalloc((void **)&out_device, n * WIDTH * sizeof(bb31_t)));
-    CUDA_UNWRAP(cudaMalloc((void **)&external_rc_device, WIDTH * ROUNDS_F * sizeof(bb31_t)));
-    CUDA_UNWRAP(cudaMalloc((void **)&internal_rc_device, WIDTH * ROUNDS_P * sizeof(bb31_t)));
-    CUDA_UNWRAP(cudaMemcpy(in_device, in, n * WIDTH * sizeof(bb31_t), cudaMemcpyHostToDevice));
-    CUDA_UNWRAP(cudaMemcpy(external_rc_device, external_rc, WIDTH * ROUNDS_F * sizeof(bb31_t), cudaMemcpyHostToDevice));
-    CUDA_UNWRAP(cudaMemcpy(internal_rc_device, internal_rc, WIDTH * ROUNDS_P * sizeof(bb31_t), cudaMemcpyHostToDevice));
+    CUDA_UNWRAP(cudaMalloc((void **)&external_rc_device,
+                           WIDTH * ROUNDS_F * sizeof(bb31_t)));
+    CUDA_UNWRAP(cudaMalloc((void **)&internal_rc_device,
+                           WIDTH * ROUNDS_P * sizeof(bb31_t)));
 
-    poseidon2PermuteKernel<<<numBlocks, threadsPerBlock>>>(in_device, out_device, external_rc_device, internal_rc_device, n);
+    CUDA_UNWRAP(cudaMemcpy(in_device, in, n * len * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
+    CUDA_UNWRAP(cudaMemcpy(external_rc_device, external_rc,
+                           WIDTH * ROUNDS_F * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
+    CUDA_UNWRAP(cudaMemcpy(internal_rc_device, internal_rc,
+                           WIDTH * ROUNDS_P * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
 
-    CUDA_UNWRAP(cudaMemcpy(out, out_device, n * WIDTH * sizeof(bb31_t), cudaMemcpyDeviceToHost));
+    Poseidon2Device hasher =
+        Poseidon2Device(external_rc_device, internal_rc_device);
+    vectorPoseidon2Hash<<<numBlocks, threadsPerBlock>>>(hasher, in_device, len,
+                                                        out_device, n);
+
+    CUDA_UNWRAP(cudaMemcpy(out, out_device, n * DIGEST_WIDTH * sizeof(bb31_t),
+                           cudaMemcpyDeviceToHost));
 
     CUDA_UNWRAP(cudaFree(in_device));
     CUDA_UNWRAP(cudaFree(out_device));
@@ -53,8 +42,47 @@ extern "C" void poseidon2_permute_cuda(bb31_t *in, bb31_t *out, bb31_t *external
     CUDA_UNWRAP(cudaFree(internal_rc_device));
 }
 
-extern "C" void poseidon2_external_linear_layer_cuda(bb31_t *state, int n, int numBlocks, int threadsPerBlock)
-{
+extern "C" void poseidon2_permute_cuda(bb31_t *in, bb31_t *out,
+                                       bb31_t *external_rc, bb31_t *internal_rc,
+                                       int n, int numBlocks,
+                                       int threadsPerBlock) {
+    bb31_t *in_device;
+    bb31_t *out_device;
+    bb31_t *external_rc_device;
+    bb31_t *internal_rc_device;
+    CUDA_UNWRAP(cudaMalloc((void **)&in_device, n * WIDTH * sizeof(bb31_t)));
+    CUDA_UNWRAP(cudaMalloc((void **)&out_device, n * WIDTH * sizeof(bb31_t)));
+    CUDA_UNWRAP(cudaMalloc((void **)&external_rc_device,
+                           WIDTH * ROUNDS_F * sizeof(bb31_t)));
+    CUDA_UNWRAP(cudaMalloc((void **)&internal_rc_device,
+                           WIDTH * ROUNDS_P * sizeof(bb31_t)));
+
+    CUDA_UNWRAP(cudaMemcpy(in_device, in, n * WIDTH * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
+    CUDA_UNWRAP(cudaMemcpy(external_rc_device, external_rc,
+                           WIDTH * ROUNDS_F * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
+    CUDA_UNWRAP(cudaMemcpy(internal_rc_device, internal_rc,
+                           WIDTH * ROUNDS_P * sizeof(bb31_t),
+                           cudaMemcpyHostToDevice));
+
+    Poseidon2Device hasher =
+        Poseidon2Device(external_rc_device, internal_rc_device);
+    vectorPoseidon2Permute<<<numBlocks, threadsPerBlock>>>(hasher, in_device,
+                                                           out_device, n);
+
+    CUDA_UNWRAP(cudaMemcpy(out, out_device, n * WIDTH * sizeof(bb31_t),
+                           cudaMemcpyDeviceToHost));
+
+    CUDA_UNWRAP(cudaFree(in_device));
+    CUDA_UNWRAP(cudaFree(out_device));
+    CUDA_UNWRAP(cudaFree(external_rc_device));
+    CUDA_UNWRAP(cudaFree(internal_rc_device));
+}
+
+extern "C" void poseidon2_external_linear_layer_cuda(bb31_t *state, int n,
+                                                     int numBlocks,
+                                                     int threadsPerBlock) {
     int size = n * 16 * sizeof(bb31_t);
 
     bb31_t *in;
@@ -62,15 +90,16 @@ extern "C" void poseidon2_external_linear_layer_cuda(bb31_t *state, int n, int n
 
     CUDA_UNWRAP(cudaMemcpy(in, state, size, cudaMemcpyHostToDevice));
 
-    testExternalLinearLayer<<<numBlocks, threadsPerBlock>>>(in, n);
+    vectorExternalLinearLayer<<<numBlocks, threadsPerBlock>>>(in, n);
 
     CUDA_UNWRAP(cudaMemcpy(state, in, size, cudaMemcpyDeviceToHost));
 
     CUDA_UNWRAP(cudaFree(in));
 }
 
-extern "C" void poseidon2_internal_linear_layer_cuda(bb31_t *state, int n, int numBlocks, int threadsPerBlock)
-{
+extern "C" void poseidon2_internal_linear_layer_cuda(bb31_t *state, int n,
+                                                     int numBlocks,
+                                                     int threadsPerBlock) {
     int size = n * 16 * sizeof(bb31_t);
 
     bb31_t *in;
@@ -78,7 +107,7 @@ extern "C" void poseidon2_internal_linear_layer_cuda(bb31_t *state, int n, int n
 
     CUDA_UNWRAP(cudaMemcpy(in, state, size, cudaMemcpyHostToDevice));
 
-    testInternalLinearLayer<<<numBlocks, threadsPerBlock>>>(in, n);
+    vectorInternalLinearLayer<<<numBlocks, threadsPerBlock>>>(in, n);
 
     CUDA_UNWRAP(cudaMemcpy(state, in, size, cudaMemcpyDeviceToHost));
 
