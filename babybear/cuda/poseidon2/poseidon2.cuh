@@ -78,13 +78,13 @@ __device__ void sbox(bb31_t state[WIDTH]) {
     }
 }
 
-class Poseidon2 {
+class Poseidon2Device {
    private:
     bb31_t *external_rc;
     bb31_t *internal_rc;
 
    public:
-    __device__ Poseidon2(bb31_t *external_rc, bb31_t *internal_rc) {
+    Poseidon2Device(bb31_t *external_rc, bb31_t *internal_rc) {
         this->external_rc = external_rc;
         this->internal_rc = internal_rc;
     }

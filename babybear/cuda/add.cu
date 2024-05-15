@@ -27,8 +27,10 @@ extern "C" void poseidon2_hash_cuda(bb31_t *in, int len, bb31_t *out,
                        WIDTH * ROUNDS_P * sizeof(bb31_t),
                        cudaMemcpyHostToDevice));
 
-    vectorPoseidon2Hash<<<numBlocks, threadsPerBlock>>>(
-        in_device, len, out_device, external_rc_device, internal_rc_device, n);
+    Poseidon2Device hasher =
+        Poseidon2Device(external_rc_device, internal_rc_device);
+    vectorPoseidon2Hash<<<numBlocks, threadsPerBlock>>>(hasher, in_device, len,
+                                                        out_device, n);
 
     CUDA_OK(cudaMemcpy(out, out_device, n * DIGEST_WIDTH * sizeof(bb31_t),
                        cudaMemcpyDeviceToHost));
@@ -63,8 +65,10 @@ extern "C" void poseidon2_permute_cuda(bb31_t *in, bb31_t *out,
                        WIDTH * ROUNDS_P * sizeof(bb31_t),
                        cudaMemcpyHostToDevice));
 
-    vectorPoseidon2Permute<<<numBlocks, threadsPerBlock>>>(
-        in_device, out_device, external_rc_device, internal_rc_device, n);
+    Poseidon2Device hasher =
+        Poseidon2Device(external_rc_device, internal_rc_device);
+    vectorPoseidon2Permute<<<numBlocks, threadsPerBlock>>>(hasher, in_device,
+                                                           out_device, n);
 
     CUDA_OK(cudaMemcpy(out, out_device, n * WIDTH * sizeof(bb31_t),
                        cudaMemcpyDeviceToHost));
