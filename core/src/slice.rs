@@ -30,6 +30,18 @@ impl<T: Copy> DeviceSlice<T> {
         self.0.as_mut_ptr()
     }
 
+    #[inline]
+    pub fn split_at_mut(&mut self, mid: usize) -> (&mut Self, &mut Self) {
+        let (left, right) = self.0.split_at_mut(mid);
+        unsafe { (Self::from_slice_mut(left), Self::from_slice_mut(right)) }
+    }
+
+    #[inline]
+    pub fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        let (left, right) = self.0.split_at(mid);
+        unsafe { (Self::from_slice(left), Self::from_slice(right)) }
+    }
+
     #[inline(always)]
     pub(crate) unsafe fn from_slice(src: &[T]) -> &Self {
         &*(src as *const [T] as *const Self)
