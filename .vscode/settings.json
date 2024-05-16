@@ -7,15 +7,15 @@
     },
     "[c]": {
         "editor.defaultFormatter": "ms-vscode.cpptools",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": false
     },
     "[h]": {
         "editor.defaultFormatter": "ms-vscode.cpptools",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": false
     },
     "[cuda-cpp]": {
         "editor.defaultFormatter": "ms-vscode.cpptools",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": false
     },
     "editor.rulers": [
         100
