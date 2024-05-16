@@ -5,6 +5,8 @@ pub mod poseidon2_gpu {
 
     use crate::device::slice::DeviceSliceRaw;
 
+    #[allow(unused_attributes)]
+    #[link_name = "poseidon2_gpu"]
     extern "C" {
         pub fn permute(
             input: DeviceSliceRaw<[BabyBear; 16]>,
