@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-namespace poseidon2 {
+namespace poseidon2_bb31_16 {
 
 constexpr int ROUNDS_F = 8;
 constexpr int ROUNDS_P = 13;
@@ -177,4 +177,4 @@ class Hasher {
     }
 };
 
-}  // namespace poseidon2
+}  // namespace poseidon2_bb31_16

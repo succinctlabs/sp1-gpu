@@ -1,12 +1,12 @@
 pub mod constants;
 
-pub mod poseidon2_gpu {
+pub mod poseidon2_bb31_16_gpu {
     use p3_baby_bear::BabyBear;
 
     use crate::device::slice::DeviceSliceRaw;
 
     #[allow(unused_attributes)]
-    #[link_name = "poseidon2_gpu"]
+    #[link_name = "poseidon2_bb31_16_gpu"]
     extern "C" {
         pub fn permute(
             input: DeviceSliceRaw<[BabyBear; 16]>,
@@ -34,7 +34,7 @@ mod tests {
     use rand::thread_rng;
     use rand::Rng;
 
-    use super::poseidon2_gpu;
+    use super::poseidon2_bb31_16_gpu;
 
     const ROUNDS_F: usize = 8;
     const ROUNDS_P: usize = 13;
@@ -114,7 +114,7 @@ mod tests {
 
         // Execute the kernel.
         unsafe {
-            poseidon2_gpu::permute(
+            poseidon2_bb31_16_gpu::permute(
                 input_device.as_slice().raw(),
                 output_device.as_slice_mut().raw(),
                 external_rc_device.as_slice().raw(),
