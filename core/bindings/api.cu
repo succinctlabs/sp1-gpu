@@ -1,2 +1,2 @@
-#include "../../cuda/hashes/poseidon2_bb31_16/bindings.cuh"
+#include "../../cuda/mmcs/merkle_tree.cuh"
 #include "../../cuda/utils/memory.cuh"

@@ -4,6 +4,9 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+#ifndef __FF_BABY_BEAR__
+#define __FF_BABY_BEAR__
+
 #include <cstdint>
 
 // #ifdef __CUDA_ARCH_
@@ -370,4 +373,5 @@ class bb31_t {
 
 #undef inline
 #undef asm
-// #endif
+
+#endif  //__FF_BABY_BEAR__

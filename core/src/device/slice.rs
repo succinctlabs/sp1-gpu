@@ -8,6 +8,7 @@ use std::ops::{
 #[repr(transparent)]
 pub struct DeviceSlice<T>([T]);
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct DeviceSliceRaw<T: Copy> {
     pub items: *mut T,
