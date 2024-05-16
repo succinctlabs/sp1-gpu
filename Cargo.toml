@@ -1,5 +1,5 @@
 [workspace]
-members = ["babybear", "core"]
+members = ["core"]
 
 resolver = "2"
 
@@ -13,7 +13,6 @@ opt-level = 3
 inherits = "release"
 debug = true
 debug-assertions = true
-
 
 [workspace.dependencies]
 p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }

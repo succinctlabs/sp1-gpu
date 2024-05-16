@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use crate::error::CudaRustError;
+use crate::device::error::CudaRustError;
 
 extern "C" {
     pub(crate) static CUDA_SUCCESS: CudaRustError;

@@ -4,9 +4,10 @@ use std::{
     fmt::Display,
 };
 
-use crate::ffi::CUDA_SUCCESS;
+use crate::device::ffi::CUDA_SUCCESS;
 
 #[derive(Debug, Clone)]
+
 pub struct CudaError(String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

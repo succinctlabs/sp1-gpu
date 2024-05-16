@@ -1,6 +1,6 @@
 use std::{ffi::c_void, mem, ptr};
 
-use crate::{error::CudaError, ffi};
+use crate::{device::error::CudaError, device::ffi};
 
 /// A Rust interface for cudaMalloc.
 ///
