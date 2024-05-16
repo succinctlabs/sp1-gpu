@@ -37,8 +37,6 @@ mod tests {
     const ROUNDS_F: usize = 8;
     const ROUNDS_P: usize = 13;
     const WIDTH: usize = 16;
-    const DIGEST_WIDTH: usize = 8;
-    const RATE: usize = 8;
     const D_U64: u64 = 7;
 
     fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
