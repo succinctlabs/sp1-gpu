@@ -6,6 +6,7 @@ use std::path::PathBuf;
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let base_dir = manifest_dir.join("core");
+    println!("basedir: {:?}", base_dir);
 
     let nvcc = which::which("nvcc");
 
@@ -33,10 +34,9 @@ fn main() {
         let mut nvcc = cc::Build::new();
         nvcc.cuda(true);
         nvcc.include(base_dir);
-
-        nvcc.file("cuda/api.cu").compile("core");
+        nvcc.file("bindings/api.cu").compile("moongate_cuda");
     }
 
-    println!("cargo:rerun-if-changed=cuda");
+    println!("cargo:rerun-if-changed=bruh");
     println!("cargo:rerun-if-env-changed=CXXFLAGS");
 }

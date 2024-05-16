@@ -1,11 +1,10 @@
-use crate::mem::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
-
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 use std::slice;
 
-use crate::slice::DeviceSlice;
+use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
+use crate::device::slice::DeviceSlice;
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]

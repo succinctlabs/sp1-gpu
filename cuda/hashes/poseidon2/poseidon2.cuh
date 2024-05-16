@@ -1,13 +1,16 @@
-#include "../fields/bb31_t.cuh"
+#include "../../fields/bb31_t.cuh"
+#include "../../utils/vector.cuh"
 
 #include <stdio.h>
 
-#define ROUNDS_F 8
-#define ROUNDS_P 13
-#define WIDTH 16
-#define DIGEST_WIDTH 8
-#define RATE 8
-#define D 7
+namespace poseidon2 {
+
+constexpr int ROUNDS_F = 8;
+constexpr int ROUNDS_P = 13;
+constexpr int WIDTH = 16;
+constexpr int DIGEST_WIDTH = 8;
+constexpr int RATE = 8;
+constexpr int D = 7;
 
 __device__ void mdsLightPermutation4x4(bb31_t state[4]) {
     bb31_t t01 = state[0] + state[1];
@@ -78,13 +81,19 @@ __device__ void sbox(bb31_t state[WIDTH]) {
     }
 }
 
-class Poseidon2Device {
+struct HasherState {
+    bb31_t data[WIDTH];
+    int index;
+};
+
+class Hasher {
    private:
-    bb31_t *external_rc;
-    bb31_t *internal_rc;
+    DeviceSlice<bb31_t[WIDTH]> external_rc;
+    DeviceSlice<bb31_t> internal_rc;
 
    public:
-    Poseidon2Device(bb31_t *external_rc, bb31_t *internal_rc) {
+    Hasher(DeviceSlice<bb31_t[WIDTH]> external_rc,
+           DeviceSlice<bb31_t> internal_rc) {
         this->external_rc = external_rc;
         this->internal_rc = internal_rc;
     }
@@ -99,7 +108,7 @@ class Poseidon2Device {
 
         int rounds_f_half = ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addRc(state, external_rc + i * WIDTH);
+            addRc(state, external_rc[i]);
             sbox(state);
             externalLinearLayer(state);
         }
@@ -111,7 +120,7 @@ class Poseidon2Device {
         }
 
         for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addRc(state, external_rc + i * WIDTH);
+            addRc(state, external_rc[i]);
             sbox(state);
             externalLinearLayer(state);
         }
@@ -132,11 +141,11 @@ class Poseidon2Device {
         permute(state, state);
     }
 
-    __device__ void hash(bb31_t *in, int len, bb31_t out[DIGEST_WIDTH]) {
+    __device__ void hash(DeviceSlice<bb31_t> in, bb31_t out[DIGEST_WIDTH]) {
         bb31_t state[WIDTH];
-        for (int i = 0; i < len; i += RATE) {
+        for (int i = 0; i < in.length; i += RATE) {
             for (int j = 0; j < RATE; j++) {
-                if (i + j < len) {
+                if (i + j < in.length) {
                     state[j] = in[i + j];
                 }
             }
@@ -146,4 +155,26 @@ class Poseidon2Device {
             out[i] = state[i];
         }
     }
+
+    __device__ void absorb(DeviceSlice<bb31_t> in, HasherState state) {
+        for (int i = 0; i < in.length; i++) {
+            state.data[state.index] = in[i];
+            state.index++;
+            if (state.index == WIDTH) {
+                permute(state.data, state.data);
+                state.index = 0;
+            }
+        }
+    }
+
+    __device__ void finalize(HasherState state, bb31_t out[DIGEST_WIDTH]) {
+        if (state.index != 0) {
+            permute(state.data, state.data);
+        }
+        for (int i = 0; i < DIGEST_WIDTH; i++) {
+            out[i] = state.data[i];
+        }
+    }
 };
+
+}  // namespace poseidon2

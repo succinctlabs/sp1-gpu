@@ -1,15 +1,27 @@
+use crate::device::memory::{copy_device_to_host, copy_host_to_device};
 use core::slice;
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 
-use crate::mem::{copy_device_to_host, copy_host_to_device};
-
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct DeviceSlice<T>([T]);
 
+#[repr(C)]
+pub struct DeviceSliceRaw<T: Copy> {
+    pub items: *mut T,
+    pub length: usize,
+}
+
 impl<T: Copy> DeviceSlice<T> {
+    pub fn raw(&self) -> DeviceSliceRaw<T> {
+        DeviceSliceRaw {
+            items: self.0.as_ptr() as *mut T,
+            length: self.0.len(),
+        }
+    }
+
     #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()
