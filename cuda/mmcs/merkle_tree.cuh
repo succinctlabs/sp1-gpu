@@ -9,6 +9,7 @@ struct RowMajorMatrix {
     int height;
 };
 
+namespace mmcs {
 class FieldMerkleTree {
    private:
     poseidon2_bb31_16::Hasher hasher;
@@ -66,41 +67,4 @@ class FieldMerkleTree {
     }
 };
 
-// class FieldMerkleTree {
-//    private:
-//     Poseidon2 hasher;
-
-//    public:
-//     FieldMerkleTree(Poseidon2 hasher) : hasher(hasher) {
-//         this->hasher = hasher;
-//     }
-
-//     __device__ void firstDigestLayer(
-//         DeviceSlice<RowMajorMatrix> tallestMatrices,
-//         DeviceSlice<bb31_t> concatenatedRow, bb31_t digest[DIGEST_WIDTH]) {
-//         int rowIdx = 0;
-//         for (int i = 0; i < tallestMatrices.length; i++) {
-//             for (int j = 0; j < tallestMatrices[i].width; j++) {
-//                 concatenatedRow[rowIdx] = tallestMatrices[i].data[j];
-//                 rowIdx++;
-//             }
-//         }
-//         hasher.hash(concatenatedRow, digest);
-//     }
-// };
-
-// __global__ void vectorFirstDigestLayer(
-//     FieldMerkleTree tree, DeviceSlice<RowMajorMatrix> tallestMatrices,
-//     bb31_t *concatenatedRows, int concatenatedRowWidth,
-//     DeviceSlice<bb31_t[DIGEST_WIDTH]> digests) {
-//     int height = tallestMatrices[0].height;
-//     int idx = (blockIdx.x * blockDim.x) + threadIdx.x;
-//     if (idx >= height) {
-//         return;
-//     }
-
-//     DeviceSlice<bb31_t> concatenatedRow = DeviceSlice(
-//         concatenatedRows + idx * concatenatedRowWidth, concatenatedRowWidth);
-//     bb31_t *digest = digests[idx];
-//     tree.firstDigestLayer(tallestMatrices, concatenatedRow, digest);
-// }
+}  // namespace mmcs
