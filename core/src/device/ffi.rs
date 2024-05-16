@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use crate::device::error::CudaRustError;
 
 extern "C" {
-    pub(crate) static CUDA_SUCCESS: CudaRustError;
+    pub(crate) static CUDA_SUCCESS_MOON: CudaRustError;
 
     pub(crate) fn cuda_malloc(ptr: *mut *mut c_void, count: usize) -> CudaRustError;
 

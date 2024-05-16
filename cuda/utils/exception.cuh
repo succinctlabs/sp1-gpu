@@ -13,7 +13,7 @@ struct RustCudaError {
 
 typedef struct RustCudaError rustCudaError_t;
 
-extern "C" const rustCudaError_t CUDA_SUCCESS =
+extern "C" const rustCudaError_t CUDA_SUCCESS_MOON =
 rustCudaError_t{message : cudaGetErrorString(cudaSuccess)};
 
 #define CUDA_UNWRAP(expr)                                             \
