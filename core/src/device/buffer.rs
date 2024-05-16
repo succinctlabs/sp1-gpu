@@ -75,7 +75,7 @@ impl<T: Copy> DeviceBuffer<T> {
         unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
     }
 
-    pub fn copy_into_host(&self, dst: &mut [T]) {
+    pub fn copy_to_host(&self, dst: &mut [T]) {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -176,6 +176,22 @@ impl_index! {
     RangeToInclusive<usize>
 }
 
+pub trait ToDevice {
+    type DeviceType;
+
+    fn to_device(&self) -> Self::DeviceType;
+}
+
+impl<T: Copy> ToDevice for Vec<T> {
+    type DeviceType = DeviceBuffer<T>;
+
+    fn to_device(&self) -> Self::DeviceType {
+        let mut buffer = DeviceBuffer::new(self.len());
+        buffer.extend_from_host_slice(self);
+        buffer
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::{
@@ -199,7 +215,7 @@ mod tests {
         assert_eq!(buffer.len(), values.len());
 
         let mut values_back = vec![T::default(); len];
-        buffer.copy_into_host(&mut values_back);
+        buffer.copy_to_host(&mut values_back);
 
         for (val, exp) in values_back.into_iter().zip(values) {
             assert_eq!(val, exp);
