@@ -23,17 +23,18 @@ __global__ void compress(
         return;
     }
 
-    hasher.compress(left[idx], right[idx], out[idx]);
+    hasher.compress((bb31_t*)(left.items + idx), (bb31_t*)(right.items + idx),
+                    (bb31_t*)(out.items + idx));
 }
 
 __global__ void hash(poseidon2_bb31_16::Hasher hasher, DeviceSlice<bb31_t> in,
-                     int nIn, DeviceSlice<bb31_t> out, int n) {
+                     int nIn,
+                     DeviceSlice<bb31_t[poseidon2_bb31_16::DIGEST_WIDTH]> out,
+                     int n) {
     size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (idx >= n) {
         return;
     }
-
-    hasher.hash(in.slice(idx * nIn, nIn),
-                out.items + idx * poseidon2_bb31_16::WIDTH);
+    hasher.hash(in.slice(idx * nIn, nIn), (bb31_t*)(out.items + idx));
 }
 }  // namespace poseidon2_bb31_16_kernels

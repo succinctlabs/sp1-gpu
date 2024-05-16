@@ -133,12 +133,15 @@ class Hasher {
     __device__ void compress(bb31_t left[DIGEST_WIDTH],
                              bb31_t right[DIGEST_WIDTH],
                              bb31_t out[DIGEST_WIDTH]) {
-        bb31_t state[DIGEST_WIDTH];
+        bb31_t state[WIDTH];
         for (int i = 0; i < DIGEST_WIDTH; i++) {
             state[i] = left[i];
             state[i + DIGEST_WIDTH] = right[i];
         }
         permute(state, state);
+        for (int i = 0; i < DIGEST_WIDTH; i++) {
+            out[i] = state[i];
+        }
     }
 
     __device__ void hash(DeviceSlice<bb31_t> in, bb31_t out[DIGEST_WIDTH]) {
