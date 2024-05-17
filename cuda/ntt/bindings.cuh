@@ -12,4 +12,9 @@ extern "C"  {
         DftSppark sspark;
         sspark.dft(d_inout, lg_domain_size);
     }
+
+    void idft(bb31_t* d_inout, uint32_t lg_domain_size) {
+        DftSppark sspark;
+        sspark.idft(d_inout, lg_domain_size);
+    }
 };

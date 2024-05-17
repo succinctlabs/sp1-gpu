@@ -4,4 +4,6 @@ extern "C" {
     pub(crate) fn coset_lde(d_data: *mut BabyBear, log_degree: usize, log_blowup: usize);
 
     pub(crate) fn dft(d_data: *mut BabyBear, log_degree: usize);
+
+    pub(crate) fn idft(d_data: *mut BabyBear, log_degree: usize);
 }

@@ -37,6 +37,20 @@ class DftSppark {
         // gpu.sync();
     }
 
+    void idft(fr_t* d_inout, uint32_t lg_domain_size,
+        size_t device_id = 0,
+        cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) {
+
+        auto& gpu = select_gpu(device_id);
+
+        NTT::NTT_internal(d_inout, lg_domain_size,
+                         NTT::InputOutputOrder::NN, NTT::Direction::inverse,
+                         NTT::Type::standard, gpu);
+
+        // TODO: figure out if needed:
+        // gpu.sync();
+    }
+
     void coset_lde(fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup,
              size_t device_id = 0,
              cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) {
