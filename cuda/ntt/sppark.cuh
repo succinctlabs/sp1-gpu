@@ -25,7 +25,7 @@ class DftSppark {
    public:
        void dft(fr_t* d_inout, uint32_t lg_domain_size,
         size_t device_id = 0,
-        cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) {
+        cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) { 
 
         auto& gpu = select_gpu(device_id);
 
@@ -33,8 +33,10 @@ class DftSppark {
                          NTT::InputOutputOrder::NN, NTT::Direction::forward,
                          NTT::Type::standard, gpu);
 
+        CUDA_UNWRAP(cudaGetLastError());
+        
         // TODO: figure out if needed:
-        // gpu.sync();
+        gpu.sync();
     }
 
     void idft(fr_t* d_inout, uint32_t lg_domain_size,
@@ -48,12 +50,12 @@ class DftSppark {
                          NTT::Type::standard, gpu);
 
         // TODO: figure out if needed:
-        // gpu.sync();
+        gpu.sync();
     }
 
     void coset_lde(fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup,
-             size_t device_id = 0,
-             cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) {
+        size_t device_id = 0,
+        cudaStream_t hStream = cudaStream_t(cudaStreamDefault)) {
         size_t domain_size = (size_t)1 << lg_domain_size;
         size_t ext_domain_size = domain_size << lg_blowup;
 
@@ -76,8 +78,11 @@ class DftSppark {
         NTT::NTT_internal(ext_domain_data, lg_domain_size + lg_blowup,
                          NTT::InputOutputOrder::RN, NTT::Direction::forward,
                          NTT::Type::standard, gpu);
+
+        CUDA_UNWRAP(cudaGetLastError());
+
         // TODO: figure out if needed:
-        // gpu.sync();
+        gpu.sync();
     }
 };
 
