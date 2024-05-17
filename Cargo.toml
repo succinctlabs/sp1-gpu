@@ -21,3 +21,4 @@ p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }

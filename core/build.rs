@@ -39,6 +39,8 @@ fn main() {
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
             nvcc.include(include);
             nvcc.define("SPPARK", None);
+            nvcc.file("../sppark/rust/src/lib.cpp")
+                .file("../sppark/util/all_gpus.cpp");
         }
 
         nvcc.define("FEATURE_BABY_BEAR", None);
