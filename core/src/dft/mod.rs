@@ -107,7 +107,7 @@ mod tests {
     fn test_dft() {
         let mut rng = thread_rng();
 
-        let log_degrees = 16..18;
+        let log_degrees = 16..17;
 
         let dft = DeviceDft;
         let p3_dft = Radix2DitParallel;

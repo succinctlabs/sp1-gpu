@@ -137,7 +137,7 @@ private:
         }
     }
 
-public:
+protected:
     static void NTT_internal(fr_t* d_inout, uint32_t lg_domain_size,
                              InputOutputOrder order, Direction direction,
                              Type type, stream_t& stream)
@@ -223,7 +223,7 @@ public:
         return RustError{cudaSuccess};
     }
 
-public:
+protected:
     static void LDE_launch(stream_t& stream,
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],
