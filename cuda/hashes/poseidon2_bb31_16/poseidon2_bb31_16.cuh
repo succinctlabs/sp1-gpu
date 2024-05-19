@@ -145,6 +145,10 @@ class Hasher {
 
     __device__ void hash(bb31_t *in, size_t nIn, bb31_t out[DIGEST_WIDTH]) {
         bb31_t state[WIDTH];
+        for (int i = 0; i < WIDTH; i++) {
+            state[i] = bb31_t(0);
+        }
+
         for (int i = 0; i < nIn; i += RATE) {
             for (int j = 0; j < RATE; j++) {
                 if (i + j < nIn) {
@@ -153,6 +157,7 @@ class Hasher {
             }
             permute(state, state);
         }
+        
         for (int i = 0; i < DIGEST_WIDTH; i++) {
             out[i] = state[i];
         }

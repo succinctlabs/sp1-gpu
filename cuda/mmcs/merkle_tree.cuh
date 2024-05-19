@@ -37,11 +37,11 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
     }
 
     if (nMatricesToInject == 0) {
+        hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1], nextDigests[rowIdx]);
         return;
     }
 
     size_t nextLen = matricesToInject[0].height;
-    size_t nextLenPadded = nPrevLayer / 2;
 
     bb31_t defaultDigest[poseidon2_bb31_16::DIGEST_WIDTH] = {
         bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0)};
@@ -51,7 +51,7 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
 
     if (rowIdx < nextLen) {
         bb31_t tallestDigest[poseidon2_bb31_16::DIGEST_WIDTH];
-        poseidon2_bb31_16::HasherState state;
+        poseidon2_bb31_16::HasherState state = poseidon2_bb31_16::HasherState();
         for (int i = 0; i < nMatricesToInject; i++) {
             bb31_t *row =
                 matricesToInject[i].values + matricesToInject[i].width * rowIdx;
