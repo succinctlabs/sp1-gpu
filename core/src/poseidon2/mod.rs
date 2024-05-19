@@ -1,6 +1,6 @@
 pub mod constants;
 
-pub mod poseidon2_bb31_16_gpu {
+pub mod poseidon2_bb31_16_kernels {
     use p3_baby_bear::BabyBear;
 
     pub const ROUNDS_F: usize = 8;
@@ -56,16 +56,17 @@ pub mod tests {
     use p3_symmetric::CryptographicHasher;
     use p3_symmetric::PaddingFreeSponge;
     use p3_symmetric::Permutation;
+    use p3_symmetric::TruncatedPermutation;
     use rand::thread_rng;
     use rand::Rng;
 
-    use super::poseidon2_bb31_16_gpu;
-    use super::poseidon2_bb31_16_gpu::DIGEST_WIDTH;
-    use super::poseidon2_bb31_16_gpu::D_U64;
-    use super::poseidon2_bb31_16_gpu::RATE;
-    use super::poseidon2_bb31_16_gpu::ROUNDS_F;
-    use super::poseidon2_bb31_16_gpu::ROUNDS_P;
-    use super::poseidon2_bb31_16_gpu::WIDTH;
+    use super::poseidon2_bb31_16_kernels;
+    use super::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+    use super::poseidon2_bb31_16_kernels::D_U64;
+    use super::poseidon2_bb31_16_kernels::RATE;
+    use super::poseidon2_bb31_16_kernels::ROUNDS_F;
+    use super::poseidon2_bb31_16_kernels::ROUNDS_P;
+    use super::poseidon2_bb31_16_kernels::WIDTH;
 
     fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
         let mut round_constants = RC_16_30.to_vec();
@@ -109,6 +110,16 @@ pub mod tests {
     > {
         let perm = poseidon2_bb31_16_perm();
         PaddingFreeSponge::new(perm)
+    }
+
+    pub fn poseidon2_bb31_16_compressor() -> TruncatedPermutation<
+        Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
+        2,
+        8,
+        16,
+    > {
+        let perm = poseidon2_bb31_16_perm();
+        TruncatedPermutation::new(perm)
     }
 
     #[test]
@@ -185,7 +196,7 @@ pub mod tests {
         // Execute the kernel.
         unsafe {
             output_device.set_len(n * DIGEST_WIDTH);
-            poseidon2_bb31_16_gpu::permute(
+            poseidon2_bb31_16_kernels::permute(
                 input_device.as_ptr(),
                 output_device.as_mut_ptr(),
                 n,
@@ -242,7 +253,7 @@ pub mod tests {
 
         // Execute the kernel.
         unsafe {
-            poseidon2_bb31_16_gpu::compress(
+            poseidon2_bb31_16_kernels::compress(
                 left_device.as_slice().as_ptr(),
                 right_device.as_slice().as_ptr(),
                 output_device.as_slice_mut().as_mut_ptr(),
@@ -293,7 +304,7 @@ pub mod tests {
 
         // Execute the kernel.
         unsafe {
-            poseidon2_bb31_16_gpu::hash(
+            poseidon2_bb31_16_kernels::hash(
                 input_device.as_slice().as_ptr(),
                 N_INPUT,
                 output_device.as_slice_mut().as_mut_ptr(),
