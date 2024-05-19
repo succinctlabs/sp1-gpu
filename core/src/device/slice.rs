@@ -8,20 +8,7 @@ use std::ops::{
 #[repr(transparent)]
 pub struct DeviceSlice<T>([T]);
 
-#[repr(C)]
-pub struct DeviceSliceRaw<T: Copy> {
-    pub items: *mut T,
-    pub length: usize,
-}
-
 impl<T: Copy> DeviceSlice<T> {
-    pub fn raw(&self) -> DeviceSliceRaw<T> {
-        DeviceSliceRaw {
-            items: self.0.as_ptr() as *mut T,
-            length: self.0.len(),
-        }
-    }
-
     #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()

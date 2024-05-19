@@ -394,6 +394,7 @@ public:
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wunused-parameter"
 #  endif
+
 class bb31_t {
     uint32_t val;
     static const uint32_t M = 0x77ffffff;
