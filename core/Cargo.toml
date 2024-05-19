@@ -10,6 +10,7 @@ p3-field = { workspace = true }
 p3-dft = { workspace = true }
 p3-poseidon2 = { workspace = true }
 p3-symmetric = { workspace = true }
+rand = "0.8.5"
 
 [build-dependencies]
 cc = "1.0"
