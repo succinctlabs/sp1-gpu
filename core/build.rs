@@ -42,6 +42,10 @@ fn main() {
             nvcc.file("../sppark/rust/src/lib.cpp")
                 .file("../sppark/util/all_gpus.cpp");
         }
+        env::set_var("DEP_INPLACE_ROOT", "../inplace/inplace");
+        if let Some(include) = env::var_os("DEP_INPLACE_ROOT") {
+            nvcc.include(include);
+        }
 
         nvcc.define("FEATURE_BABY_BEAR", None);
 
