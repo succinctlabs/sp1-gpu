@@ -34,6 +34,17 @@ fn main() {
         let mut nvcc = cc::Build::new();
         nvcc.cuda(true);
         nvcc.include(base_dir);
+
+        env::set_var("DEP_SPPARK_ROOT", "../sppark");
+        if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
+            nvcc.include(include);
+            nvcc.define("SPPARK", None);
+            nvcc.file("../sppark/rust/src/lib.cpp")
+                .file("../sppark/util/all_gpus.cpp");
+        }
+
+        nvcc.define("FEATURE_BABY_BEAR", None);
+
         nvcc.file("bindings/api.cu").compile("moongate_cuda");
     }
 

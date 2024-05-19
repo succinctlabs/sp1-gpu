@@ -4,7 +4,7 @@ use std::{
     fmt::Display,
 };
 
-use crate::device::ffi::CUDA_SUCCESS;
+use crate::device::ffi::CUDA_SUCCESS_MOON;
 
 #[derive(Debug, Clone)]
 
@@ -19,7 +19,7 @@ pub struct CudaRustError {
 impl From<CudaRustError> for Result<(), CudaError> {
     fn from(value: CudaRustError) -> Self {
         unsafe {
-            if value == CUDA_SUCCESS {
+            if value == CUDA_SUCCESS_MOON {
                 Ok(())
             } else {
                 Err(CudaError(
