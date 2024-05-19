@@ -1,5 +1,8 @@
 #include <stdexcept>
 
+#ifndef __UTILS_VEC_MATRIX__
+#define __UTILS_VEC_MATRIX__
+
 template <typename T>
 struct DeviceSlice {
     T *items;
@@ -20,3 +23,5 @@ struct DeviceSlice {
         return DeviceSlice<T>(items + offset, length);
     }
 };
+
+#endif
