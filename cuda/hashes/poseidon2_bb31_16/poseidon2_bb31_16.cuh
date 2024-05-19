@@ -1,3 +1,5 @@
+#include "constants.cuh"
+
 #include "../../fields/bb31_t.cuh"
 #include "../../utils/vector.cuh"
 
@@ -87,16 +89,7 @@ struct HasherState {
 };
 
 class Hasher {
-   private:
-    DeviceSlice<bb31_t[WIDTH]> external_rc;
-    DeviceSlice<bb31_t> internal_rc;
-
    public:
-    Hasher(DeviceSlice<bb31_t[WIDTH]> external_rc,
-           DeviceSlice<bb31_t> internal_rc) {
-        this->external_rc = external_rc;
-        this->internal_rc = internal_rc;
-    }
 
     __device__ void permute(bb31_t in[WIDTH], bb31_t out[WIDTH]) {
         bb31_t state[WIDTH];
@@ -108,19 +101,19 @@ class Hasher {
 
         int rounds_f_half = ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addRc(state, external_rc[i]);
+            addRc(state, EXTERNAL_ROUND_CONSTANTS[i]);
             sbox(state);
             externalLinearLayer(state);
         }
 
         for (int i = 0; i < ROUNDS_P; i++) {
-            state[0] += internal_rc[i];
+            state[0] += INTERNAL_ROUND_CONSTANTS[i];
             state[0] ^= D;
             internalLinearLayer(state);
         }
 
         for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addRc(state, external_rc[i]);
+            addRc(state, EXTERNAL_ROUND_CONSTANTS[i]);
             sbox(state);
             externalLinearLayer(state);
         }
@@ -144,11 +137,11 @@ class Hasher {
         }
     }
 
-    __device__ void hash(DeviceSlice<bb31_t> in, bb31_t out[DIGEST_WIDTH]) {
+    __device__ void hash(bb31_t *in, size_t nIn, bb31_t out[DIGEST_WIDTH]) {
         bb31_t state[WIDTH];
-        for (int i = 0; i < in.length; i += RATE) {
+        for (int i = 0; i < nIn; i += RATE) {
             for (int j = 0; j < RATE; j++) {
-                if (i + j < in.length) {
+                if (i + j < nIn) {
                     state[j] = in[i + j];
                 }
             }

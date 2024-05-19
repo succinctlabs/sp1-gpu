@@ -3,8 +3,6 @@ pub mod constants;
 pub mod poseidon2_bb31_16_gpu {
     use p3_baby_bear::BabyBear;
 
-    use crate::device::slice::DeviceSliceRaw;
-
     pub const ROUNDS_F: usize = 8;
     pub const ROUNDS_P: usize = 13;
     pub const WIDTH: usize = 16;
@@ -16,32 +14,26 @@ pub mod poseidon2_bb31_16_gpu {
     #[link_name = "poseidon2_bb31_16_gpu"]
     extern "C" {
         pub fn permute(
-            input: DeviceSliceRaw<[BabyBear; WIDTH]>,
-            output: DeviceSliceRaw<[BabyBear; WIDTH]>,
-            external_rc: DeviceSliceRaw<[BabyBear; WIDTH]>,
-            internal_rc: DeviceSliceRaw<BabyBear>,
+            input: *const [BabyBear; WIDTH],
+            output: *mut [BabyBear; WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
 
         pub fn compress(
-            left: DeviceSliceRaw<[BabyBear; DIGEST_WIDTH]>,
-            right: DeviceSliceRaw<[BabyBear; DIGEST_WIDTH]>,
-            output: DeviceSliceRaw<[BabyBear; DIGEST_WIDTH]>,
-            external_rc: DeviceSliceRaw<[BabyBear; WIDTH]>,
-            internal_rc: DeviceSliceRaw<BabyBear>,
+            left: *const [BabyBear; DIGEST_WIDTH],
+            right: *const [BabyBear; DIGEST_WIDTH],
+            output: *mut [BabyBear; DIGEST_WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
 
         pub fn hash(
-            input: DeviceSliceRaw<BabyBear>,
+            input: *const BabyBear,
             n_input: usize,
-            output: DeviceSliceRaw<[BabyBear; DIGEST_WIDTH]>,
-            external_rc: DeviceSliceRaw<[BabyBear; WIDTH]>,
-            internal_rc: DeviceSliceRaw<BabyBear>,
+            output: *mut [BabyBear; DIGEST_WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
@@ -57,6 +49,7 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_baby_bear::DiffusionMatrixBabyBear;
     use p3_field::AbstractField;
+    use p3_field::PrimeField32;
     use p3_poseidon2::Poseidon2;
     use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
     use p3_symmetric::CryptographicHasher;
@@ -108,6 +101,49 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn test_codegen_round_constants_gpu() {
+        let (external_round_constants, internal_round_constants) = round_constants();
+
+        let mut lines = Vec::new();
+        lines.push(format!(
+            "__constant__ bb31_t EXTERNAL_ROUND_CONSTANTS[{}][{}] = {{",
+            external_round_constants.len(),
+            external_round_constants[0].len()
+        ));
+        for (i, round_constants) in external_round_constants.iter().enumerate() {
+            let mut line = "{".to_string()
+                + &round_constants
+                    .iter()
+                    .map(|rc| format!("bb31_t({})", rc.as_canonical_u32()))
+                    .collect::<Vec<_>>()
+                    .join(",")
+                + "}";
+            if i != external_round_constants.len() - 1 {
+                line += ",";
+            }
+            lines.push(line);
+        }
+        lines.push("};".to_string());
+
+        lines.push("".to_string());
+        lines.push(format!(
+            "__constant__ bb31_t INTERNAL_ROUND_CONSTANTS[{}] = {{",
+            internal_round_constants.len()
+        ));
+        lines.push(
+            internal_round_constants
+                .iter()
+                .map(|rc| format!("bb31_t({})", rc.as_canonical_u32()))
+                .collect::<Vec<_>>()
+                .join(","),
+        );
+        lines.push("};".to_string());
+
+        println!("{}", lines.join("\n"));
+    }
+
+    #[test]
     fn test_permute_gpu() {
         // Setup the random number generator.
         let mut rng = thread_rng();
@@ -118,7 +154,6 @@ mod tests {
         let num_blocks = n / threads_per_block + 1;
 
         // Generate the input data on the host.
-        let (external_round_constants, internal_round_constants) = round_constants();
         let input = (0..n)
             .map(|_| [rng.gen::<BabyBear>(); WIDTH])
             .collect::<Vec<_>>();
@@ -127,9 +162,7 @@ mod tests {
 
         // Copy the input data to the device.
         let input_device = input.to_device();
-        let output_device = output.to_device();
-        let external_rc_device = external_round_constants.to_device();
-        let internal_rc_device = internal_round_constants.to_device();
+        let mut output_device = output.to_device();
 
         // Execute the source implementation.
         let perm = perm();
@@ -143,10 +176,8 @@ mod tests {
         // Execute the kernel.
         unsafe {
             poseidon2_bb31_16_gpu::permute(
-                input_device.as_slice().raw(),
-                output_device.as_slice().raw(),
-                external_rc_device.as_slice().raw(),
-                internal_rc_device.as_slice().raw(),
+                input_device.as_slice().as_ptr(),
+                output_device.as_slice_mut().as_mut_ptr(),
                 n,
                 num_blocks,
                 threads_per_block,
@@ -171,7 +202,6 @@ mod tests {
         let num_blocks = n / threads_per_block + 1;
 
         // Generate the input data on the host.
-        let (external_round_constants, internal_round_constants) = round_constants();
         let left = (0..n)
             .map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH])
             .collect::<Vec<_>>();
@@ -184,9 +214,7 @@ mod tests {
         // Copy the input data to the device.
         let left_device = left.to_device();
         let right_device = right.to_device();
-        let output_device = output.to_device();
-        let external_rc_device = external_round_constants.to_device();
-        let internal_rc_device = internal_round_constants.to_device();
+        let mut output_device = output.to_device();
 
         // Execute the source implementation.
         let perm = perm();
@@ -205,11 +233,9 @@ mod tests {
         // Execute the kernel.
         unsafe {
             poseidon2_bb31_16_gpu::compress(
-                left_device.as_slice().raw(),
-                right_device.as_slice().raw(),
-                output_device.as_slice().raw(),
-                external_rc_device.as_slice().raw(),
-                internal_rc_device.as_slice().raw(),
+                left_device.as_slice().as_ptr(),
+                right_device.as_slice().as_ptr(),
+                output_device.as_slice_mut().as_mut_ptr(),
                 n,
                 num_blocks,
                 threads_per_block,
@@ -235,7 +261,6 @@ mod tests {
         let num_blocks = n / threads_per_block + 1;
 
         // Generate the input data on the host.
-        let (external_round_constants, internal_round_constants) = round_constants();
         let input = (0..n)
             .flat_map(|_| [rng.gen::<BabyBear>(); N_INPUT].to_vec())
             .collect::<Vec<_>>();
@@ -244,9 +269,7 @@ mod tests {
 
         // Copy the input data to the device.
         let input_device = input.to_device();
-        let output_device = output.to_device();
-        let external_rc_device = external_round_constants.to_device();
-        let internal_rc_device = internal_round_constants.to_device();
+        let mut output_device = output.to_device();
 
         // Execute the source implementation.
         let perm = perm();
@@ -267,11 +290,9 @@ mod tests {
         // Execute the kernel.
         unsafe {
             poseidon2_bb31_16_gpu::hash(
-                input_device.as_slice().raw(),
+                input_device.as_slice().as_ptr(),
                 N_INPUT,
-                output_device.as_slice().raw(),
-                external_rc_device.as_slice().raw(),
-                internal_rc_device.as_slice().raw(),
+                output_device.as_slice_mut().as_mut_ptr(),
                 n,
                 num_blocks,
                 threads_per_block,
