@@ -42,7 +42,7 @@ pub mod poseidon2_bb31_16_gpu {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use crate::device::buffer::DeviceBuffer;
     use crate::device::buffer::ToDevice;
@@ -82,8 +82,8 @@ mod tests {
         )
     }
 
-    fn perm() -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>
-    {
+    pub fn poseidon2_bb31_16_perm()
+    -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7> {
         let (external_round_constants, internal_round_constants) = round_constants();
         Poseidon2::<
             BabyBear,
@@ -99,6 +99,16 @@ mod tests {
             internal_round_constants,
             DiffusionMatrixBabyBear,
         )
+    }
+
+    pub fn poseidon2_bb31_16_hasher() -> PaddingFreeSponge<
+        Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
+        WIDTH,
+        RATE,
+        DIGEST_WIDTH,
+    > {
+        let perm = poseidon2_bb31_16_perm();
+        PaddingFreeSponge::new(perm)
     }
 
     #[test]
@@ -164,7 +174,7 @@ mod tests {
         let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
 
         // Execute the source implementation.
-        let perm = perm();
+        let perm = poseidon2_bb31_16_perm();
         let mut gt = Vec::new();
         #[allow(clippy::needless_range_loop)]
         for i in 0..n {
@@ -217,7 +227,7 @@ mod tests {
         let mut output_device = output.to_device();
 
         // Execute the source implementation.
-        let perm = perm();
+        let perm = poseidon2_bb31_16_perm();
         let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
         #[allow(clippy::needless_range_loop)]
         for i in 0..n {
@@ -272,13 +282,7 @@ mod tests {
         let mut output_device = output.to_device();
 
         // Execute the source implementation.
-        let perm = perm();
-        let sponge: PaddingFreeSponge<
-            Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
-            WIDTH,
-            RATE,
-            DIGEST_WIDTH,
-        > = PaddingFreeSponge::new(perm);
+        let sponge = poseidon2_bb31_16_hasher();
 
         let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
         #[allow(clippy::needless_range_loop)]

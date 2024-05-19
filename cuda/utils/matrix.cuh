@@ -7,8 +7,8 @@
 
 struct RowMajorMatrix {
     bb31_t *values;
-    int width;
-    int height;
+    size_t width;
+    size_t height;
 };
 
 
