@@ -78,6 +78,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -100,6 +109,7 @@ name = "moongate-core"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "itertools 0.13.0",
  "lazy_static",
  "p3-baby-bear",
  "p3-dft",
@@ -174,7 +184,7 @@ dependencies = [
 name = "p3-commit"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "p3-challenger",
  "p3-field",
  "p3-matrix",
@@ -197,7 +207,7 @@ dependencies = [
 name = "p3-field"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "num-bigint",
  "num-traits",
  "p3-util",
@@ -209,7 +219,7 @@ dependencies = [
 name = "p3-matrix"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "p3-field",
  "p3-maybe-rayon",
  "p3-util",
@@ -226,7 +236,7 @@ version = "0.1.0"
 name = "p3-mds"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "p3-dft",
  "p3-field",
  "p3-matrix",
@@ -239,7 +249,7 @@ dependencies = [
 name = "p3-merkle-tree"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "p3-commit",
  "p3-field",
  "p3-matrix",
@@ -265,7 +275,7 @@ dependencies = [
 name = "p3-symmetric"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.12.1",
  "p3-field",
  "serde",
 ]
