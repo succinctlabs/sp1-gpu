@@ -34,7 +34,7 @@ extern "C" rustCudaError_t sppark_init() {
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_OK(cudaDeviceSynchronize());
+    CUDA_UNWRAP(cudaDeviceSynchronize());
 
     NTT::Base(gpu,
               &inout[0],
@@ -50,8 +50,8 @@ extern "C" rustCudaError_t sppark_init() {
   return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t sppark_batch_expand(
-    fr_t* d_out, fr_t* d_in, uint32_t lg_domain_size, uint32_t lg_blowup, uint32_t poly_count) {
+extern "C" rustCudaError_t batch_lde_shift(
+    fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, uint32_t poly_count) {
   if (lg_domain_size == 0) {
     return CUDA_SUCCESS_MOON;
     }
@@ -65,8 +65,26 @@ extern "C" rustCudaError_t sppark_batch_expand(
     CUDA_UNWRAP(cudaDeviceSynchronize());
 
     for (size_t c = 0; c < poly_count; c++) {
-      NTT::LDE_expand(
-          gpu, &d_out[c * ext_domain_size], &d_in[c * domain_size], lg_domain_size, lg_blowup);
+      NTT::Base_dev_ptr(gpu,
+                        &d_inout[(c+1) * ext_domain_size - domain_size],
+                        lg_domain_size,
+                        NTT::InputOutputOrder::NR,
+                        NTT::Direction::inverse,
+                        NTT::Type::standard);
+
+      const auto gen_powers =
+          NTTParameters::all()[gpu.id()].partial_group_gen_powers;
+
+      NTT::LDE_launch(
+          gpu, &d_inout[c * ext_domain_size], &d_inout[(c + 1) * ext_domain_size - domain_size], 
+          gen_powers, lg_domain_size, lg_blowup);
+
+      NTT::Base_dev_ptr(gpu,
+                        &d_inout[c * ext_domain_size],
+                        lg_domain_size + lg_blowup,
+                        NTT::InputOutputOrder::RN,
+                        NTT::Direction::forward,
+                        NTT::Type::standard);
     }
 
     gpu.sync();
@@ -116,7 +134,7 @@ extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, ui
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_OK(cudaDeviceSynchronize());
+    CUDA_UNWRAP(cudaDeviceSynchronize());
 
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(gpu,

@@ -223,7 +223,7 @@ public:
         return RustError{cudaSuccess};
     }
 
-protected:
+public:
     static void LDE_launch(stream_t& stream,
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],

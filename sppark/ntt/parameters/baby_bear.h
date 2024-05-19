@@ -2,8 +2,8 @@
 
 // Values in Montgomery form
 
-const fr_t group_gen = fr_t(0x1f);
-const fr_t group_gen_inverse = fr_t(0x3def7be);
+const fr_t group_gen = fr_t(0xfffffbeu);
+const fr_t group_gen_inverse = fr_t(0x17bdef7cu);
 
 const int S = 27;
 
