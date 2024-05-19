@@ -19,7 +19,6 @@
 # error "no FEATURE"
 #endif
 
-
 #include <ntt/ntt.cuh>
 
 #ifndef __CUDA_ARCH__
@@ -93,7 +92,7 @@ extern "C" void batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * domain_size],
                         lg_domain_size,
-                        NTT::InputOutputOrder::RN,
+                        NTT::InputOutputOrder::NN,
                         NTT::Direction::forward,
                         NTT::Type::standard);
     }
@@ -122,7 +121,7 @@ batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * domain_size],
                         lg_domain_size,
-                        NTT::InputOutputOrder::NR,
+                        NTT::InputOutputOrder::NN,
                         NTT::Direction::inverse,
                         NTT::Type::standard);
     }

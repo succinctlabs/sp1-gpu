@@ -1,10 +1,17 @@
 use p3_baby_bear::BabyBear;
 
 extern "C" {
+    pub(crate) fn sppark_init();
 
-    pub(crate) fn coset_lde(d_data: *mut BabyBear, log_degree: usize, log_blowup: usize);
+    pub(crate) fn sppark_batch_expand(
+        d_out: *mut BabyBear,
+        d_in: *const BabyBear,
+        lg_domain_size: u32,
+        lg_blowup: u32,
+        poly_count: u32,
+    );
 
-    pub(crate) fn dft(d_data: *mut BabyBear, log_degree: usize);
+    pub(crate) fn batch_NTT(d_inout: *mut BabyBear, lg_domain_size: u32, poly_count: u32);
 
-    pub(crate) fn idft(d_data: *mut BabyBear, log_degree: usize);
+    pub(crate) fn batch_iNTT(d_inout: *mut BabyBear, lg_domain_size: u32, poly_count: u32);
 }
