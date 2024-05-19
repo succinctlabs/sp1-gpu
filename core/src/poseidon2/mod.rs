@@ -44,6 +44,7 @@ pub mod poseidon2_bb31_16_gpu {
 #[cfg(test)]
 mod tests {
 
+    use crate::device::buffer::DeviceBuffer;
     use crate::device::buffer::ToDevice;
     use crate::poseidon2::constants::RC_16_30;
     use p3_baby_bear::BabyBear;
@@ -157,12 +158,10 @@ mod tests {
         let input = (0..n)
             .map(|_| [rng.gen::<BabyBear>(); WIDTH])
             .collect::<Vec<_>>();
-        let mut output: Vec<[BabyBear; WIDTH]> = Vec::new();
-        output.resize(n, [BabyBear::zero(); WIDTH]);
 
         // Copy the input data to the device.
         let input_device = input.to_device();
-        let mut output_device = output.to_device();
+        let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
 
         // Execute the source implementation.
         let perm = perm();
@@ -175,9 +174,10 @@ mod tests {
 
         // Execute the kernel.
         unsafe {
+            output_device.set_len(n * DIGEST_WIDTH);
             poseidon2_bb31_16_gpu::permute(
-                input_device.as_slice().as_ptr(),
-                output_device.as_slice_mut().as_mut_ptr(),
+                input_device.as_ptr(),
+                output_device.as_mut_ptr(),
                 n,
                 num_blocks,
                 threads_per_block,
@@ -185,7 +185,7 @@ mod tests {
         }
 
         // Copy the result of the kernel to the host.
-        output_device.copy_to_host(&mut output[..]);
+        let output = output_device.to_host();
         for i in 0..n {
             assert_eq!(gt[i], output[i]);
         }

@@ -132,7 +132,7 @@ mod tests {
             let d = 1 << log_d;
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
-            let mut d_values = DeviceBuffer::new(d);
+            let mut d_values = DeviceBuffer::with_capacity(d);
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
@@ -202,7 +202,7 @@ mod tests {
             let d = 1 << log_d;
             let ext_d = d << log_blowup;
 
-            let mut d_values = DeviceBuffer::<BabyBear>::new(ext_d);
+            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d);
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 

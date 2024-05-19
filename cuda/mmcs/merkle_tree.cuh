@@ -5,8 +5,8 @@
 
 struct RowMajorMatrix {
     bb31_t *values;
-    int width;
-    int height;
+    size_t width;
+    size_t height;
 };
 
 namespace merkle_tree_kernels {
@@ -30,21 +30,23 @@ __global__ void firstDigestLayer(RowMajorMatrix *tallestMatrices,
     hasher.finalize(state, digests[rowIdx]);
 }
 
-__global__ void compressAndInject(DeviceSlice<bb31_t[DIGEST_WIDTH]> prevLayer,
-                                  DeviceSlice<RowMajorMatrix> matricesToInject,
-                                  DeviceSlice<bb31_t[DIGEST_WIDTH]> nextDigests,
+__global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
+                                  size_t nPrevLayer,
+                                  RowMajorMatrix *matricesToInject,
+                                  size_t nMatricesToInject,
+                                  bb31_t (*nextDigests)[DIGEST_WIDTH],
                                   poseidon2_bb31_16::Hasher hasher) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (rowIdx >= prevLayer.length / 2) {
+    if (rowIdx >= nPrevLayer / 2) {
         return;
     }
 
-    if (matricesToInject.length == 0) {
+    if (nMatricesToInject == 0) {
         return;
     }
 
     size_t nextLen = matricesToInject[0].height;
-    size_t nextLenPadded = prevLayer.length / 2;
+    size_t nextLenPadded = nPrevLayer / 2;
 
     bb31_t defaultDigest[poseidon2_bb31_16::DIGEST_WIDTH] = {
         bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0)};
@@ -55,7 +57,7 @@ __global__ void compressAndInject(DeviceSlice<bb31_t[DIGEST_WIDTH]> prevLayer,
     if (rowIdx < nextLen) {
         bb31_t tallestDigest[poseidon2_bb31_16::DIGEST_WIDTH];
         poseidon2_bb31_16::HasherState state;
-        for (int i = 0; i < matricesToInject.length; i++) {
+        for (int i = 0; i < nMatricesToInject; i++) {
             bb31_t *row =
                 matricesToInject[i].values + matricesToInject[i].width * rowIdx;
             hasher.absorb(row, matricesToInject[i].width, state);
@@ -82,12 +84,13 @@ extern "C" namespace merkle_tree_gpu {
     }
 
     extern "C" void compressAndInject(
-        DeviceSlice<bb31_t[DIGEST_WIDTH]> prevLayer,
-        DeviceSlice<RowMajorMatrix> matricesToInject,
-        DeviceSlice<bb31_t[DIGEST_WIDTH]> nextDigests, size_t nBlocks,
+        bb31_t(*prevLayer)[DIGEST_WIDTH], size_t nPrevLayer,
+        RowMajorMatrix * matricesToInject, size_t nMatricesToInject,
+        bb31_t(*nextDigests)[DIGEST_WIDTH], size_t nBlocks,
         size_t nThreadsPerBlock) {
         Hasher hasher = Hasher();
         merkle_tree_kernels::compressAndInject<<<nBlocks, nThreadsPerBlock>>>(
-            prevLayer, matricesToInject, nextDigests, hasher);
+            prevLayer, nPrevLayer, matricesToInject, nMatricesToInject,
+            nextDigests, hasher);
     }
 }

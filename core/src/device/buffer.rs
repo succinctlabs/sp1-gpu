@@ -19,7 +19,7 @@ unsafe impl<T: Send + Copy> Send for DeviceBuffer<T> {}
 unsafe impl<T: Sync + Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
-    pub fn new(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: usize) -> Self {
         let ptr = unsafe { cuda_malloc(capacity) }.unwrap();
 
         Self {
@@ -27,6 +27,14 @@ impl<T: Copy> DeviceBuffer<T> {
             len: 0,
             cap: capacity,
         }
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    #[inline]
+    pub unsafe fn set_len(&mut self, new_len: usize) {
+        self.len = new_len;
     }
 
     #[inline]
@@ -45,6 +53,14 @@ impl<T: Copy> DeviceBuffer<T> {
 
     pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<T> {
         &mut self[..]
+    }
+
+    pub fn as_ptr(&self) -> *const T {
+        self.buf
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.buf
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.
@@ -73,6 +89,15 @@ impl<T: Copy> DeviceBuffer<T> {
         }
 
         unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
+    }
+
+    pub fn to_host(&self) -> Vec<T> {
+        let mut host = Vec::with_capacity(self.len);
+        unsafe {
+            host.set_len(self.len);
+        }
+        self.copy_to_host(&mut host);
+        host
     }
 
     pub fn copy_to_host(&self, dst: &mut [T]) {
@@ -186,7 +211,7 @@ impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
     fn to_device(&self) -> Self::DeviceType {
-        let mut buffer = DeviceBuffer::new(self.len());
+        let mut buffer = DeviceBuffer::with_capacity(self.len());
         buffer.extend_from_host_slice(self);
         buffer
     }
@@ -207,7 +232,7 @@ mod tests {
         T: Debug + Copy + Default + Eq,
         Standard: Distribution<T>,
     {
-        let mut buffer = DeviceBuffer::<T>::new(len);
+        let mut buffer = DeviceBuffer::<T>::with_capacity(len);
         assert_eq!(buffer.len(), 0);
 
         let values = (0..len).map(|_| rng.gen()).collect::<Vec<_>>();
@@ -227,7 +252,7 @@ mod tests {
         T: Debug + Copy + Default + Eq,
         Standard: Distribution<T>,
     {
-        let mut buffer = DeviceBuffer::<T>::new(len);
+        let mut buffer = DeviceBuffer::<T>::with_capacity(len);
         assert_eq!(buffer.len(), 0);
 
         // Initialize the buffer to zero.
