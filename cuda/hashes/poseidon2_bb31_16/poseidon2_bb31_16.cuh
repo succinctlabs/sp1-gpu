@@ -90,7 +90,6 @@ struct HasherState {
 
 class Hasher {
    public:
-
     __device__ void permute(bb31_t in[WIDTH], bb31_t out[WIDTH]) {
         bb31_t state[WIDTH];
         for (int i = 0; i < WIDTH; i++) {
