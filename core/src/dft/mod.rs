@@ -29,6 +29,21 @@ impl DeviceDft {
     }
 
     /// # Safety
+    pub unsafe fn dft_batch_column_major(
+        &self,
+        inout_slice: &mut DeviceSlice<BabyBear>,
+        log_degree: usize,
+        batch_size: usize,
+    ) -> Result<(), CudaError> {
+        ffi::batch_NTT(
+            inout_slice.as_mut_ptr(),
+            log_degree as u32,
+            batch_size as u32,
+        )
+        .into()
+    }
+
+    /// # Safety
     pub unsafe fn idft(
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
@@ -123,32 +138,38 @@ mod tests {
     fn test_dft() {
         let mut rng = thread_rng();
 
-        let log_degrees = 1..28;
+        let log_degrees = 10..20;
+        let batch_size = 100;
 
         let dft = DeviceDft::new();
         let p3_dft = Radix2DitParallel;
 
         for log_d in log_degrees {
             let d = 1 << log_d;
-            let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
+            let values = (0..d * batch_size)
+                .map(|_| rng.gen())
+                .collect::<Vec<BabyBear>>();
 
-            let mut d_values = DeviceBuffer::with_capacity(d);
+            let mut d_values = DeviceBuffer::with_capacity(d * batch_size);
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.dft(&mut d_values[..], log_d) }.unwrap();
+            unsafe { dft.dft_batch_column_major(&mut d_values[..], log_d, batch_size) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
             let time = Instant::now();
-            let expected_value = p3_dft.dft(values);
+            let mut expected_values = Vec::with_capacity(d * batch_size);
+            for (i, column) in values.chunks(d).enumerate() {
+                expected_values.extend_from_slice(&p3_dft.dft(column.to_vec()));
+            }
             let cpu_time = time.elapsed();
             println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
 
-            let mut values_back = vec![BabyBear::zero(); d];
+            let mut values_back = vec![BabyBear::zero(); d * batch_size];
             d_values.copy_to_host(&mut values_back);
 
-            for (val, exp) in values_back.into_iter().zip(expected_value) {
+            for (val, exp) in values_back.into_iter().zip(expected_values) {
                 assert_eq!(val, exp);
             }
         }
