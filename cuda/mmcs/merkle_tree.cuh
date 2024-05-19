@@ -1,13 +1,8 @@
 #include "../fields/bb31_t.cuh"
 #include "../hashes/poseidon2_bb31_16/kernels.cuh"
+#include "../utils/matrix.cuh"
 
 #include <stdio.h>
-
-struct RowMajorMatrix {
-    bb31_t *values;
-    int width;
-    int height;
-};
 
 namespace merkle_tree_kernels {
 using namespace poseidon2_bb31_16;
