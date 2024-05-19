@@ -23,7 +23,7 @@
 
 #ifndef __CUDA_ARCH__
 
-extern "C" void sppark_init() {
+extern "C" rustCudaError_t sppark_init() {
   uint32_t lg_domain_size = 1;
   uint32_t domain_size = 1U << lg_domain_size;
 
@@ -34,7 +34,7 @@ extern "C" void sppark_init() {
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    CUDA_OK(cudaDeviceSynchronize());
 
     NTT::Base(gpu,
               &inout[0],
@@ -45,15 +45,15 @@ extern "C" void sppark_init() {
     gpu.sync();
   } catch (const cudaError_t& e) {
     gpu.sync();
-    CUDA_UNWRAP(e);
+    CUDA_OK(e);
   }
-
+  return CUDA_SUCCESS_MOON;
 }
 
-extern "C" void sppark_batch_expand(
+extern "C" rustCudaError_t sppark_batch_expand(
     fr_t* d_out, fr_t* d_in, uint32_t lg_domain_size, uint32_t lg_blowup, uint32_t poly_count) {
   if (lg_domain_size == 0) {
-    return;
+    return CUDA_SUCCESS_MOON;
     }
 
   uint32_t domain_size = 1U << lg_domain_size;
@@ -72,14 +72,16 @@ extern "C" void sppark_batch_expand(
     gpu.sync();
   } catch (const cudaError_t& e) {
     gpu.sync();
-    CUDA_UNWRAP(e);
+    CUDA_OK(e);
   }
+
+  return CUDA_SUCCESS_MOON;
 
 }
 
-extern "C" void batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
+extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
   if (lg_domain_size == 0)
-    return;
+    return CUDA_SUCCESS_MOON;
 
   uint32_t domain_size = 1U << lg_domain_size;
 
@@ -100,22 +102,21 @@ extern "C" void batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_
     gpu.sync();
   } catch (const cudaError_t& e) {
     gpu.sync();
-    CUDA_UNWRAP(e);
+    CUDA_OK(e);
   }
-
+  return CUDA_SUCCESS_MOON;
 }
 
-extern "C" void
-batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
+extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
   if (lg_domain_size == 0)
-    return;
+    return CUDA_SUCCESS_MOON;
 
   uint32_t domain_size = 1U << lg_domain_size;
 
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    CUDA_OK(cudaDeviceSynchronize());
 
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(gpu,
@@ -129,9 +130,9 @@ batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
     gpu.sync();
   } catch (const cudaError_t& e) {
     gpu.sync();
-    CUDA_UNWRAP(e);
+    CUDA_OK(e);
   }
-
+  return CUDA_SUCCESS_MOON;
 }
 
 #endif

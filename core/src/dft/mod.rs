@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use p3_baby_bear::BabyBear;
 
-use crate::device::slice::DeviceSlice;
+use crate::device::{error::CudaError, slice::DeviceSlice};
 
 mod ffi;
 
@@ -10,20 +10,31 @@ mod ffi;
 pub struct DeviceDft(PhantomData<()>);
 
 impl DeviceDft {
+    pub fn init() -> Result<Self, CudaError> {
+        Result::from(unsafe { ffi::sppark_init() })?;
+        Ok(Self(PhantomData))
+    }
+
     pub fn new() -> Self {
-        unsafe { ffi::sppark_init() };
-
-        Self(PhantomData)
+        Self::init().unwrap()
     }
 
     /// # Safety
-    pub unsafe fn dft(&self, inout_slice: &mut DeviceSlice<BabyBear>, log_degree: usize) {
-        unsafe { ffi::batch_NTT(inout_slice.as_mut_ptr(), log_degree as u32, 1) };
+    pub unsafe fn dft(
+        &self,
+        inout_slice: &mut DeviceSlice<BabyBear>,
+        log_degree: usize,
+    ) -> Result<(), CudaError> {
+        unsafe { ffi::batch_NTT(inout_slice.as_mut_ptr(), log_degree as u32, 1) }.into()
     }
 
     /// # Safety
-    pub unsafe fn idft(&self, inout_slice: &mut DeviceSlice<BabyBear>, log_degree: usize) {
-        unsafe { ffi::batch_iNTT(inout_slice.as_mut_ptr(), log_degree as u32, 1) };
+    pub unsafe fn idft(
+        &self,
+        inout_slice: &mut DeviceSlice<BabyBear>,
+        log_degree: usize,
+    ) -> Result<(), CudaError> {
+        unsafe { ffi::batch_iNTT(inout_slice.as_mut_ptr(), log_degree as u32, 1) }.into()
     }
 }
 
@@ -124,7 +135,7 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.dft(&mut d_values[..], log_d) };
+            unsafe { dft.dft(&mut d_values[..], log_d) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -161,7 +172,7 @@ mod tests {
             let mut d_values = values.clone().to_device();
 
             let time = Instant::now();
-            unsafe { dft.idft(&mut d_values[..], log_d) };
+            unsafe { dft.idft(&mut d_values[..], log_d) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu idft time log degree {}: {:?}", log_d, gpu_time);
 
