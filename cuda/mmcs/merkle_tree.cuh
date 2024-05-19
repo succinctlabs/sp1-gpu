@@ -16,13 +16,13 @@ __global__ void firstDigestLayer(RowMajorMatrix *tallestMatrices,
         return;
     }
 
-    poseidon2_bb31_16::HasherState state;
+    poseidon2_bb31_16::HasherState state = poseidon2_bb31_16::HasherState();
     for (int i = 0; i < nTallestMatrices; i++) {
         bb31_t *row =
             tallestMatrices[i].values + tallestMatrices[i].width * rowIdx;
-        hasher.absorb(row, tallestMatrices[i].width, state);
+        hasher.absorb(row, tallestMatrices[i].width, &state);
     }
-    hasher.finalize(state, digests[rowIdx]);
+    hasher.finalize(&state, digests[rowIdx]);
 }
 
 __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
@@ -55,9 +55,9 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
         for (int i = 0; i < nMatricesToInject; i++) {
             bb31_t *row =
                 matricesToInject[i].values + matricesToInject[i].width * rowIdx;
-            hasher.absorb(row, matricesToInject[i].width, state);
+            hasher.absorb(row, matricesToInject[i].width, &state);
         }
-        hasher.finalize(state, tallestDigest);
+        hasher.finalize(&state, tallestDigest);
         hasher.compress(digest, tallestDigest, nextDigests[rowIdx]);
     } else {
         hasher.compress((bb31_t *)digest, (bb31_t *)defaultDigest,

@@ -85,7 +85,14 @@ __device__ void sbox(bb31_t state[WIDTH]) {
 
 struct HasherState {
     bb31_t data[WIDTH];
-    int index;
+    size_t index;
+
+    __device__ HasherState() {
+        for (int i = 0; i < WIDTH; ++i) {
+            data[i] = bb31_t(0);
+        }
+        index = 0;
+    }
 };
 
 class Hasher {
@@ -151,23 +158,23 @@ class Hasher {
         }
     }
 
-    __device__ void absorb(bb31_t *in, size_t nIn, HasherState state) {
+    __device__ void absorb(bb31_t *in, size_t nIn, HasherState *state) {
         for (int i = 0; i < nIn; i++) {
-            state.data[state.index] = in[i];
-            state.index++;
-            if (state.index == WIDTH) {
-                permute(state.data, state.data);
-                state.index = 0;
+            state->data[state->index] = in[i];
+            state->index++;
+            if (state->index == RATE) {
+                permute(state->data, state->data);
+                state->index = 0;
             }
         }
     }
 
-    __device__ void finalize(HasherState state, bb31_t out[DIGEST_WIDTH]) {
-        if (state.index != 0) {
-            permute(state.data, state.data);
+    __device__ void finalize(HasherState *state, bb31_t out[DIGEST_WIDTH]) {
+        if (state->index != 0) {
+            permute(state->data, state->data);
         }
         for (int i = 0; i < DIGEST_WIDTH; i++) {
-            out[i] = state.data[i];
+            out[i] = state->data[i];
         }
     }
 };
