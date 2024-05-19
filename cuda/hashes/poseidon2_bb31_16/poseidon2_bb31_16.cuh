@@ -152,8 +152,8 @@ class Hasher {
         }
     }
 
-    __device__ void absorb(DeviceSlice<bb31_t> in, HasherState state) {
-        for (int i = 0; i < in.length; i++) {
+    __device__ void absorb(bb31_t *in, size_t nIn, HasherState state) {
+        for (int i = 0; i < nIn; i++) {
             state.data[state.index] = in[i];
             state.index++;
             if (state.index == WIDTH) {
