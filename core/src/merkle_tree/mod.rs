@@ -246,13 +246,13 @@ mod tests {
         let hasher = poseidon2_bb31_16_hasher();
         let compressor = poseidon2_bb31_16_compressor();
 
-        let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(100, n);
+        let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
         let start = std::time::Instant::now();
         let tallest_matrices = vec![matrix_device_1];
         let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
         let root_device = tree_device.root();
-        println!("time: {:?}", start.elapsed().as_secs_f64());
+        println!("Device time: {:?}", start.elapsed());
 
         let tallest_matrices = vec![matrix_host_1];
         let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
