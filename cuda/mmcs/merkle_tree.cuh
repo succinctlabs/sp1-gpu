@@ -20,16 +20,13 @@ __global__ void firstDigestLayer(Matrix *tallestMatrices,
 
     poseidon2_bb31_16::HasherState state = poseidon2_bb31_16::HasherState();
     for (int i = 0; i < nTallestMatrices; i++) {
-        bb31_t *row =
-            tallestMatrices[i].values + tallestMatrices[i].width * rowIdx;
-        hasher.absorb(row, tallestMatrices[i].width, &state);
+        hasher.absorb_row(&tallestMatrices[i], rowIdx, &state);
     }
     hasher.finalize(&state, digests[rowIdx]);
 }
 
 __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
-                                  size_t nPrevLayer,
-                                  Matrix *matricesToInject,
+                                  size_t nPrevLayer, Matrix *matricesToInject,
                                   size_t nMatricesToInject,
                                   bb31_t (*nextDigests)[DIGEST_WIDTH],
                                   poseidon2_bb31_16::Hasher hasher) {
@@ -39,7 +36,8 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
     }
 
     if (nMatricesToInject == 0) {
-        hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1], nextDigests[rowIdx]);
+        hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1],
+                        nextDigests[rowIdx]);
         return;
     }
 
@@ -56,9 +54,11 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
         bb31_t tallestDigest[poseidon2_bb31_16::DIGEST_WIDTH];
         poseidon2_bb31_16::HasherState state = poseidon2_bb31_16::HasherState();
         for (int i = 0; i < nMatricesToInject; i++) {
-            bb31_t *row =
-                matricesToInject[i].values + matricesToInject[i].width * rowIdx;
-            hasher.absorb(row, matricesToInject[i].width, &state);
+            // bb31_t *row =
+            //     matricesToInject[i].values + matricesToInject[i].width *
+            //     rowIdx;
+            // hasher.absorb(row, matricesToInject[i].width, &state);
+            hasher.absorb_row(&matricesToInject[i], rowIdx, &state);
         }
         hasher.finalize(&state, tallestDigest);
         hasher.compress(digest, tallestDigest, nextDigests[rowIdx]);
@@ -68,9 +68,7 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
     }
 }
 
-  namespace column_major {
-    
-  }
+namespace column_major {}
 }  // namespace merkle_tree_kernels
 
 extern "C" namespace merkle_tree_gpu {
