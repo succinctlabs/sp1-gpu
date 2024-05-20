@@ -1,6 +1,9 @@
+#pragma once
+
 #include "constants.cuh"
 
 #include "../../fields/bb31_t.cuh"
+#include "../../utils/matrix.cuh"
 #include "../../utils/vector.cuh"
 
 #include <stdio.h>
@@ -157,7 +160,7 @@ class Hasher {
             }
             permute(state, state);
         }
-        
+
         for (int i = 0; i < DIGEST_WIDTH; i++) {
             out[i] = state[i];
         }
@@ -170,6 +173,17 @@ class Hasher {
             if (state->index == RATE) {
                 permute(state->data, state->data);
                 state->index = 0;
+            }
+        }
+    }
+
+    __device__ void absorb_row(Matrix *in, int row_idx, HasherState *state) {
+        if (in->row_major) {
+            bb31_t *row = &in->values[in->width * row_idx];
+            absorb(row, in->width, state);
+        } else {
+            for (int j = 0; j < in->width; j++) {
+                absorb(&in->values[j * in->height + row_idx], 1, state);
             }
         }
     }

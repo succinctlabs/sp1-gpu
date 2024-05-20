@@ -1,0 +1,86 @@
+use p3_matrix::dense::RowMajorMatrix;
+use rand::distributions::{Distribution, Standard};
+use rand::Rng;
+
+use crate::device::buffer::DeviceBuffer;
+use crate::device::buffer::ToDevice;
+
+use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
+
+/// A matrix stored on the device in column major form.
+#[derive(Debug)]
+#[repr(C)]
+pub struct ColMajorMatrixDevice<T: Copy> {
+    pub values: DeviceBuffer<T>,
+    pub height: usize,
+}
+
+impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
+    pub fn new(values: DeviceBuffer<T>, height: usize) -> Self {
+        Self { values, height }
+    }
+
+    pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
+    where
+        Standard: Distribution<T>,
+    {
+        let mut rng = rand::thread_rng();
+        let data = (0..width * height).map(|_| rng.gen()).collect::<Vec<_>>();
+        let device = ColMajorMatrixDevice::new(data.to_device(), height);
+        let host = RowMajorMatrix::new(data, height).transpose();
+        (host, device)
+    }
+
+    /// Returns a view of the matrix in column major form.
+    pub fn view(&self) -> MatrixViewDevice<T> {
+        MatrixViewDevice {
+            values: self.values.as_ptr(),
+            width: self.width(),
+            height: self.height(),
+            row_major: false,
+        }
+    }
+
+    /// Returns a mutable view of the matrix in column major form.
+    pub fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        MatrixViewMutDevice {
+            values: self.values.as_mut_ptr(),
+            width: self.width(),
+            height: self.height(),
+            row_major: false,
+        }
+    }
+
+    /// Returns a host copy of the matrix in row major form.
+    pub fn to_host(&self) -> RowMajorMatrix<T> {
+        RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
+    }
+
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.values.len() / self.height
+    }
+
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.height
+    }
+}
+
+impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T> {
+    fn width(&self) -> usize {
+        self.width()
+    }
+
+    fn height(&self) -> usize {
+        self.height()
+    }
+
+    fn view(&self) -> MatrixViewDevice<T> {
+        self.view()
+    }
+
+    fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        self.view_mut()
+    }
+}

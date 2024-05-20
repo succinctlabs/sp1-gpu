@@ -1,20 +1,23 @@
 use crate::device::buffer::DeviceBuffer;
 use crate::device::buffer::ToDevice;
+use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
-use crate::matrix::RowMajorMatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use std::cmp::Reverse;
 
-pub struct FieldMerkleTreeGpu<F: Copy, D: Copy> {
-    pub leaves: Vec<RowMajorMatrixDevice<F>>,
+use crate::matrix::DeviceMatrix;
+
+pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
+    pub leaves: Vec<M>,
     pub digest_layers: Vec<DeviceBuffer<D>>,
+    _marker: std::marker::PhantomData<F>,
 }
 
-impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
-    pub fn new(leaves: Vec<RowMajorMatrixDevice<BabyBear>>) -> Self {
+impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M> {
+    pub fn new(leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| l.view())
@@ -72,6 +75,7 @@ impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         Self {
             leaves,
             digest_layers,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -83,7 +87,7 @@ impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 pub mod merkle_tree_gpu {
     use p3_baby_bear::BabyBear;
 
-    use crate::merkle_tree::RowMajorMatrixViewDevice;
+    use crate::merkle_tree::MatrixViewDevice;
     use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
     #[allow(unused_attributes)]
@@ -91,7 +95,7 @@ pub mod merkle_tree_gpu {
     extern "C" {
         #[link_name = "firstDigestLayer"]
         pub fn first_digest_layer(
-            tallest_matrices: *const RowMajorMatrixViewDevice<BabyBear>,
+            tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
             digests: *mut [BabyBear; DIGEST_WIDTH],
             n_blocks: usize,
@@ -102,7 +106,7 @@ pub mod merkle_tree_gpu {
         pub fn compress_and_inject(
             prev_layer: *const [BabyBear; DIGEST_WIDTH],
             n_prev_layer: usize,
-            matrices_to_inject: *const RowMajorMatrixViewDevice<BabyBear>,
+            matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [BabyBear; DIGEST_WIDTH],
             n_blocks: usize,
@@ -113,7 +117,7 @@ pub mod merkle_tree_gpu {
 
 #[cfg(test)]
 mod tests {
-    use crate::matrix::RowMajorMatrixDevice;
+    use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
     use crate::merkle_tree::FieldMerkleTreeGpu;
     use crate::poseidon2::tests::{poseidon2_bb31_16_compressor, poseidon2_bb31_16_hasher};
     use crate::{
@@ -227,7 +231,28 @@ mod tests {
         let tallest_matrices = vec![matrix_device_1];
         let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
         let root_device = tree_device.root();
-        println!("{:?}", start.elapsed().as_secs_f64());
+        println!("time: {:?}", start.elapsed().as_secs_f64());
+
+        let tallest_matrices = vec![matrix_host_1];
+        let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+        let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+
+        assert_eq!(root_device, root_host);
+    }
+
+    #[test]
+    fn test_col_major_commit_matrices() {
+        let n = 1 << 16;
+        let hasher = poseidon2_bb31_16_hasher();
+        let compressor = poseidon2_bb31_16_compressor();
+
+        let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
+
+        let start = std::time::Instant::now();
+        let tallest_matrices = vec![matrix_device_1];
+        let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+        let root_device = tree_device.root();
+        println!("Device time: {:?}", start.elapsed());
 
         let tallest_matrices = vec![matrix_host_1];
         let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
