@@ -31,6 +31,16 @@ pub struct MatrixViewDevice<T> {
     pub row_major: bool,
 }
 
+/// A view of a matrix stored on the device in row major form.
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct MatrixViewMutDevice<T> {
+    pub values: *mut T,
+    pub width: usize,
+    pub height: usize,
+    pub row_major: bool,
+}
+
 impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
     pub fn new(values: DeviceBuffer<T>, width: usize) -> Self {
         Self { values, width }
@@ -56,12 +66,25 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
         }
     }
 
+    pub fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        MatrixViewMutDevice {
+            values: self.values.as_mut_ptr(),
+            width: self.width,
+            height: self.values.len() / self.width,
+            row_major: true,
+        }
+    }
+
     pub fn to_host(&self) -> RowMajorMatrix<T> {
         RowMajorMatrix::new(self.values.to_host(), self.width)
     }
 
     pub fn height(&self) -> usize {
         self.values.len() / self.width
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
     }
 }
 
@@ -81,20 +104,38 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         (host, device)
     }
 
+    /// Returns a view of the matrix in column major form.
     pub fn view(&self) -> MatrixViewDevice<T> {
         MatrixViewDevice {
             values: self.values.as_ptr(),
-            width: self.height,
-            height: self.values.len() / self.height,
+            width: self.width(),
+            height: self.height(),
             row_major: false,
         }
     }
 
+    /// Returns a mutable view of the matrix in column major form.
+    pub fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        MatrixViewMutDevice {
+            values: self.values.as_mut_ptr(),
+            width: self.width(),
+            height: self.height(),
+            row_major: false,
+        }
+    }
+
+    /// Returns a host copy of the matrix in row major form.
     pub fn to_host(&self) -> RowMajorMatrix<T> {
         RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
     }
 
-    pub fn height(&self) -> usize {
+    #[inline]
+    pub fn width(&self) -> usize {
         self.values.len() / self.height
+    }
+
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.height
     }
 }
