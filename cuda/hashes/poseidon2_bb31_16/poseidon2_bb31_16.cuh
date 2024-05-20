@@ -1,7 +1,10 @@
+#pragma once
+
 #include "constants.cuh"
 
 #include "../../fields/bb31_t.cuh"
 #include "../../utils/vector.cuh"
+#include "../../utils/matrix.cuh"
 
 #include <stdio.h>
 
@@ -170,6 +173,18 @@ class Hasher {
             if (state->index == RATE) {
                 permute(state->data, state->data);
                 state->index = 0;
+            }
+        }
+    }
+
+    __device__ void absorb_row(Matrix *in, int row_idx, HasherState *state) {
+        if (in->row_major) {
+            bb31_t *row = &in->values[in->width * row_idx];
+            absorb(row, in->width, state);
+        }
+        else {
+            for (int i = 0; i < in->width; i++) {
+                absorb(&in->values[i * in->width + row_idx], 1, state);
             }
         }
     }

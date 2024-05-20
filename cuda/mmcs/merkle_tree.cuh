@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../fields/bb31_t.cuh"
 #include "../hashes/poseidon2_bb31_16/kernels.cuh"
 #include "../utils/matrix.cuh"
@@ -65,6 +67,10 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
                         (bb31_t *)nextDigests[rowIdx]);
     }
 }
+
+  namespace column_major {
+    
+  }
 }  // namespace merkle_tree_kernels
 
 extern "C" namespace merkle_tree_gpu {
