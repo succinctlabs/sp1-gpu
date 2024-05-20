@@ -3,8 +3,8 @@
 #include "constants.cuh"
 
 #include "../../fields/bb31_t.cuh"
-#include "../../utils/vector.cuh"
 #include "../../utils/matrix.cuh"
+#include "../../utils/vector.cuh"
 
 #include <stdio.h>
 
@@ -160,7 +160,7 @@ class Hasher {
             }
             permute(state, state);
         }
-        
+
         for (int i = 0; i < DIGEST_WIDTH; i++) {
             out[i] = state[i];
         }
@@ -181,10 +181,9 @@ class Hasher {
         if (in->row_major) {
             bb31_t *row = &in->values[in->width * row_idx];
             absorb(row, in->width, state);
-        }
-        else {
-            for (int i = 0; i < in->width; i++) {
-                absorb(&in->values[i * in->width + row_idx], 1, state);
+        } else {
+            for (int j = 0; j < in->width; j++) {
+                absorb(&in->values[j * in->height + row_idx], 1, state);
             }
         }
     }

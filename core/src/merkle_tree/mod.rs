@@ -8,13 +8,16 @@ use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use std::cmp::Reverse;
 
-pub struct FieldMerkleTreeGpu<F: Copy, D: Copy> {
-    pub leaves: Vec<RowMajorMatrixDevice<F>>,
+use crate::matrix::DeviceMatrix;
+
+pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
+    pub leaves: Vec<M>,
     pub digest_layers: Vec<DeviceBuffer<D>>,
+    _marker: std::marker::PhantomData<F>,
 }
 
-impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
-    pub fn new(leaves: Vec<RowMajorMatrixDevice<BabyBear>>) -> Self {
+impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M> {
+    pub fn new(leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| l.view())
@@ -72,6 +75,7 @@ impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         Self {
             leaves,
             digest_layers,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -236,24 +240,24 @@ mod tests {
         assert_eq!(root_device, root_host);
     }
 
-    // #[test]
-    // fn test_col_major_commit_matrices() {
-    //     let n = 1 << 16;
-    //     let hasher = poseidon2_bb31_16_hasher();
-    //     let compressor = poseidon2_bb31_16_compressor();
+    #[test]
+    fn test_col_major_commit_matrices() {
+        let n = 1 << 16;
+        let hasher = poseidon2_bb31_16_hasher();
+        let compressor = poseidon2_bb31_16_compressor();
 
-    //     let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(100, n);
+        let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(100, n);
 
-    //     let start = std::time::Instant::now();
-    //     let tallest_matrices = vec![matrix_device_1];
-    //     let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
-    //     let root_device = tree_device.root();
-    //     println!("time: {:?}", start.elapsed().as_secs_f64());
+        let start = std::time::Instant::now();
+        let tallest_matrices = vec![matrix_device_1];
+        let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+        let root_device = tree_device.root();
+        println!("time: {:?}", start.elapsed().as_secs_f64());
 
-    //     let tallest_matrices = vec![matrix_host_1];
-    //     let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-    //     let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+        let tallest_matrices = vec![matrix_host_1];
+        let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+        let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
 
-    //     assert_eq!(root_device, root_host);
-    // }
+        assert_eq!(root_device, root_host);
+    }
 }

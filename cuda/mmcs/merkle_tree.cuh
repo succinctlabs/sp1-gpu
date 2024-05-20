@@ -54,10 +54,6 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
         bb31_t tallestDigest[poseidon2_bb31_16::DIGEST_WIDTH];
         poseidon2_bb31_16::HasherState state = poseidon2_bb31_16::HasherState();
         for (int i = 0; i < nMatricesToInject; i++) {
-            // bb31_t *row =
-            //     matricesToInject[i].values + matricesToInject[i].width *
-            //     rowIdx;
-            // hasher.absorb(row, matricesToInject[i].width, &state);
             hasher.absorb_row(&matricesToInject[i], rowIdx, &state);
         }
         hasher.finalize(&state, tallestDigest);

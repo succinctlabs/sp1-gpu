@@ -5,7 +5,7 @@ use rand::Rng;
 use crate::device::buffer::DeviceBuffer;
 use crate::device::buffer::ToDevice;
 
-use super::{MatrixViewDevice, MatrixViewMutDevice};
+use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 
 /// A matrix stored on the device in column major form.
 #[derive(Debug)]
@@ -64,5 +64,23 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     #[inline]
     pub fn height(&self) -> usize {
         self.height
+    }
+}
+
+impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T> {
+    fn width(&self) -> usize {
+        self.width()
+    }
+
+    fn height(&self) -> usize {
+        self.height()
+    }
+
+    fn view(&self) -> MatrixViewDevice<T> {
+        self.view()
+    }
+
+    fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        self.view_mut()
     }
 }
