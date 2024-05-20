@@ -23,7 +23,7 @@ impl DeviceDft {
     }
 
     /// # Safety
-    pub unsafe fn dft(
+    pub unsafe fn dft_device(
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
@@ -32,13 +32,16 @@ impl DeviceDft {
     }
 
     /// # Safety
-    pub unsafe fn dft_batch(&self, matrix: MatrixViewMutDevice<BabyBear>) -> Result<(), CudaError> {
+    pub unsafe fn dft_batch_device(
+        &self,
+        matrix: MatrixViewMutDevice<BabyBear>,
+    ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
         ffi::batch_NTT(matrix.values, matrix.height.ilog2(), matrix.width as u32).into()
     }
 
     /// # Safety
-    pub unsafe fn idft(
+    pub unsafe fn idft_device(
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
@@ -47,7 +50,7 @@ impl DeviceDft {
     }
 
     /// # Safety
-    pub unsafe fn idft_batch(
+    pub unsafe fn idft_batch_device(
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
     ) -> Result<(), CudaError> {
@@ -56,7 +59,7 @@ impl DeviceDft {
     }
 
     /// # Safety
-    pub unsafe fn coset_lde(
+    pub unsafe fn coset_lde_device(
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
@@ -72,7 +75,7 @@ impl DeviceDft {
     }
 
     /// # Safety
-    pub unsafe fn coset_lde_batch(
+    pub unsafe fn coset_lde_batch_device(
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
         log_blowup: usize,
@@ -174,7 +177,7 @@ mod tests {
             assert_eq!(mat_d.height(), d);
 
             let time = Instant::now();
-            unsafe { dft.dft_batch(mat_d.view_mut()) }.unwrap();
+            unsafe { dft.dft_batch_device(mat_d.view_mut()) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -210,7 +213,7 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.dft(&mut d_values[..], log_d) }.unwrap();
+            unsafe { dft.dft_device(&mut d_values[..], log_d) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -244,7 +247,7 @@ mod tests {
             let mut d_values = values.clone().to_device();
 
             let time = Instant::now();
-            unsafe { dft.idft(&mut d_values[..], log_d) }.unwrap();
+            unsafe { dft.idft_device(&mut d_values[..], log_d) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu idft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -284,7 +287,7 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde(&mut d_values[..], log_d, log_blowup) }.unwrap();
+            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -334,7 +337,7 @@ mod tests {
             assert_eq!(mat_h.width(), batch_size);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_batch(mat_d.view_mut(), log_blowup) }.unwrap();
+            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
