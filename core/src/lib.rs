@@ -2,5 +2,6 @@
 
 pub mod device;
 pub mod dft;
+pub mod matrix;
 pub mod merkle_tree;
 pub mod poseidon2;

@@ -42,6 +42,7 @@ __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
     }
 
     size_t nextLen = matricesToInject[0].height;
+    size_t nextLenPadded = nPrevLayer / 2;
 
     bb31_t defaultDigest[poseidon2_bb31_16::DIGEST_WIDTH] = {
         bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0)};
