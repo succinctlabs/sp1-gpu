@@ -1,7 +1,7 @@
 use crate::device::buffer::DeviceBuffer;
 use crate::device::buffer::ToDevice;
+use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
-use crate::matrix::RowMajorMatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
 use itertools::Itertools;
@@ -83,7 +83,7 @@ impl FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 pub mod merkle_tree_gpu {
     use p3_baby_bear::BabyBear;
 
-    use crate::merkle_tree::RowMajorMatrixViewDevice;
+    use crate::merkle_tree::MatrixViewDevice;
     use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
     #[allow(unused_attributes)]
@@ -91,7 +91,7 @@ pub mod merkle_tree_gpu {
     extern "C" {
         #[link_name = "firstDigestLayer"]
         pub fn first_digest_layer(
-            tallest_matrices: *const RowMajorMatrixViewDevice<BabyBear>,
+            tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
             digests: *mut [BabyBear; DIGEST_WIDTH],
             n_blocks: usize,
@@ -102,7 +102,7 @@ pub mod merkle_tree_gpu {
         pub fn compress_and_inject(
             prev_layer: *const [BabyBear; DIGEST_WIDTH],
             n_prev_layer: usize,
-            matrices_to_inject: *const RowMajorMatrixViewDevice<BabyBear>,
+            matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [BabyBear; DIGEST_WIDTH],
             n_blocks: usize,
@@ -227,7 +227,7 @@ mod tests {
         let tallest_matrices = vec![matrix_device_1];
         let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
         let root_device = tree_device.root();
-        println!("{:?}", start.elapsed().as_secs_f64());
+        println!("time: {:?}", start.elapsed().as_secs_f64());
 
         let tallest_matrices = vec![matrix_host_1];
         let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
