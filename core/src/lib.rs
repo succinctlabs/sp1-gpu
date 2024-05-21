@@ -1,4 +1,5 @@
 #![allow(clippy::uninit_vec)]
+#![feature(generic_const_exprs)]
 
 pub mod device;
 pub mod dft;

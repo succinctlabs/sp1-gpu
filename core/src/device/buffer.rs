@@ -37,6 +37,14 @@ impl<T: Copy> DeviceBuffer<T> {
         self.len = new_len;
     }
 
+    /// # Safety
+    ///
+    /// TODO
+    #[inline]
+    pub unsafe fn set_max_len(&mut self) {
+        self.len = self.cap;
+    }
+
     #[inline]
     pub const fn len(&self) -> usize {
         self.len

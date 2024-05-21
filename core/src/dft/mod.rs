@@ -10,9 +10,9 @@ use crate::{
 mod ffi;
 
 #[derive(Debug, Clone, Copy)]
-pub struct DeviceDft(PhantomData<()>);
+pub struct DeviceDft<F = BabyBear>(PhantomData<F>);
 
-impl DeviceDft {
+impl DeviceDft<BabyBear> {
     pub fn init() -> Result<Self, CudaError> {
         Result::from(unsafe { ffi::sppark_init() })?;
         Ok(Self(PhantomData))
