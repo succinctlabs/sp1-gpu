@@ -6,7 +6,9 @@ use crate::{device::error::CudaError, time::CudaInstant};
 use super::{event::CudaEvent, ffi};
 
 #[repr(transparent)]
-pub struct CudaStream(pub(crate) *mut c_void);
+pub struct UnsafeCudaStream(pub(crate) *mut c_void);
+
+pub struct CudaStream(UnsafeCudaStream);
 
 pub struct StreamHandle<T> {
     value: T,
@@ -18,7 +20,7 @@ where
     F: FnOnce(&CudaStream) -> Result<T, CudaError> + Send + 'static,
     T: Send + 'static,
 {
-    let stream = CudaStream::new()?;
+    let stream = CudaStream(UnsafeCudaStream::create()?);
     let value = f(&stream)?;
     Ok(StreamHandle { value, stream })
 }
@@ -26,13 +28,93 @@ where
 impl<T: Copy> StreamHandle<T> {
     pub fn join(self) -> Result<T, CudaError> {
         let StreamHandle { value, stream } = self;
-        stream.synchronize()?;
+        stream.0.synchronize()?;
         Ok(value)
     }
 }
 
 impl CudaStream {
-    pub fn new() -> Result<Self, CudaError> {
+    pub fn sync(&self) -> Result<(), CudaError> {
+        self.0.synchronize()
+    }
+
+    pub fn now(&self) -> Result<CudaInstant, CudaError> {
+        self.0.now()
+    }
+
+    pub fn elasped(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
+        self.0.elasped(start)
+    }
+
+    pub fn wait(&self, event: &CudaEvent) -> Result<(), CudaError> {
+        self.0.wait_event(event)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
+        self.0.cuda_malloc_async(size)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
+        self.0.cuda_free_async(ptr)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_memcpy_device_to_device_async<T: Copy>(
+        &self,
+        dst: *mut T,
+        src: *const T,
+        count: usize,
+    ) -> Result<(), CudaError> {
+        self.0.cuda_memcpy_device_to_device_async(dst, src, count)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_memcpy_host_to_device_async<T: Copy>(
+        &self,
+        dst: *mut T,
+        src: *const T,
+        count: usize,
+    ) -> Result<(), CudaError> {
+        self.0.cuda_memcpy_host_to_device_async(dst, src, count)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_memcpy_device_to_host_async<T: Copy>(
+        &self,
+        dst: *mut T,
+        src: *const T,
+        count: usize,
+    ) -> Result<(), CudaError> {
+        self.0.cuda_memcpy_device_to_host_async(dst, src, count)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
+        &self,
+        dst: *mut T,
+        src: *const T,
+        count: usize,
+    ) -> Result<(), CudaError> {
+        self.0.cuda_memcpy_host_to_host_async(dst, src, count)
+    }
+}
+
+impl UnsafeCudaStream {
+    pub fn create() -> Result<Self, CudaError> {
         let mut ptr: *mut c_void = ptr::null_mut();
         unsafe { ffi::cuda_stream_create(&mut ptr as *mut *mut c_void) }.to_result()?;
         Ok(Self(ptr))
@@ -178,13 +260,13 @@ impl CudaStream {
     }
 }
 
-impl Default for CudaStream {
+impl Default for UnsafeCudaStream {
     fn default() -> Self {
         Self(unsafe { ffi::DEFAULT_STREAM })
     }
 }
 
-impl Drop for CudaStream {
+impl Drop for UnsafeCudaStream {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
             unsafe { ffi::cuda_stream_destroy(self.0) }
@@ -202,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_default_stream() {
-        let stream = CudaStream::default();
+        let stream = UnsafeCudaStream::default();
         let event = CudaEvent::new().unwrap();
         stream.record(&event).unwrap();
 

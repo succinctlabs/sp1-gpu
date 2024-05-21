@@ -2,19 +2,19 @@ use std::time::Duration;
 
 use crate::{
     device::error::CudaError,
-    runtime::{event::CudaEvent, ffi, stream::CudaStream},
+    runtime::{event::CudaEvent, ffi, stream::UnsafeCudaStream},
 };
 
 pub struct CudaInstant(pub(crate) CudaEvent);
 
 impl CudaInstant {
     pub fn now() -> Result<Self, CudaError> {
-        let default_stream = CudaStream::default();
+        let default_stream = UnsafeCudaStream::default();
         default_stream.now()
     }
 
     pub fn elasped(&self) -> Result<Duration, CudaError> {
-        let stream = CudaStream::default();
+        let stream = UnsafeCudaStream::default();
         let end = CudaEvent::new()?;
         stream.record(&end)?;
         stream.wait_event(&end)?;
