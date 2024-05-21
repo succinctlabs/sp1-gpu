@@ -1,3 +1,4 @@
 #include "../../cuda/mmcs/merkle_tree.cuh"
 #include "../../cuda/utils/memory.cuh"
 #include "../../cuda/ntt/sppark.cuh"
+#include "../../cuda/utils/runtime.cuh"

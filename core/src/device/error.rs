@@ -16,6 +16,12 @@ pub struct CudaRustError {
     pub(crate) message: *const c_char,
 }
 
+impl CudaRustError {
+    pub fn to_result(self) -> Result<(), CudaError> {
+        self.into()
+    }
+}
+
 impl From<CudaRustError> for Result<(), CudaError> {
     fn from(value: CudaRustError) -> Self {
         unsafe {
