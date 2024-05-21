@@ -63,13 +63,14 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use p3_commit::Pcs;
     use rand::thread_rng;
 
     use std::time::Instant;
 
     use p3_field::AbstractField;
 
-    use sp1_core::utils::BabyBearPoseidon2;
+    use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
 
     #[test]
     fn test_commit_from_host() {
@@ -77,6 +78,8 @@ mod tests {
         let log_degree = 22;
         let degree = 1 << log_degree;
         let n_cols = 100;
+
+        type SC = BabyBearPoseidon2;
 
         let mut rng = thread_rng();
         let trace = RowMajorMatrix::<BabyBear>::rand(&mut rng, degree, n_cols);
@@ -94,10 +97,10 @@ mod tests {
         let (_, _) = pcs.commit_from_host(evaluations);
         println!("time: {:?}", time.elapsed());
 
-        // let sp1_config = SC::default();
-        // let (_, _) = <<SC as StarkGenericConfig>::Pcs as Pcs<
-        //     <SC as StarkGenericConfig>::Challenge,
-        //     <SC as StarkGenericConfig>::Challenger,
-        // >>::commit(sp1_config.pcs(), evaluations_clone);
+        let sp1_config = SC::default();
+        let (_, _) = <<SC as StarkGenericConfig>::Pcs as Pcs<
+            <SC as StarkGenericConfig>::Challenge,
+            <SC as StarkGenericConfig>::Challenger,
+        >>::commit(sp1_config.pcs(), evaluations_clone);
     }
 }
