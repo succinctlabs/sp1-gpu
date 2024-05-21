@@ -1,5 +1,5 @@
-use std::{ffi::c_void, mem, ptr};
 use std::time::Duration;
+use std::{ffi::c_void, mem, ptr};
 
 use crate::{device::error::CudaError, time::CudaInstant};
 
