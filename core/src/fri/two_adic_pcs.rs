@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_matrix::dense::RowMajorMatrix;
@@ -65,8 +67,10 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
             })
             .collect::<Vec<_>>();
 
+        let start = Instant::now();
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
         let root_device = tree_device.root();
+        println!("commit time {:?}", start.elapsed());
 
         (root_device, tree_device)
     }
