@@ -48,9 +48,8 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 unsafe { lde_buffer.set_max_len() };
                 let mut lde_mat = ColMajorMatrixDevice::new(lde_buffer, ext_d);
 
-                let time = std::time::Instant::now();
                 let matrix = matrix.transpose();
-                println!("transpose time: {:?}", time.elapsed());
+
                 for j in 0..matrix.height() {
                     let col = matrix.row_slice(j);
                     lde_mat.values[j * ext_d + ext_d - d..(j + 1) * ext_d].copy_from_host(&col);
@@ -89,9 +88,9 @@ mod tests {
     #[test]
     fn test_commit_from_host() {
         let log_blowup = 2;
-        let log_degree = 16;
+        let log_degree = 22;
         let degree = 1 << log_degree;
-        let n_cols = 100;
+        let n_cols = 600;
 
         type SC = BabyBearPoseidon2;
 
