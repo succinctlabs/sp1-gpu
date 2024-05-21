@@ -6,6 +6,13 @@
 #include "exception.cuh"
 
 
+// Sync device 
+extern "C" rustCudaError_t cuda_device_synchronize() {
+    CUDA_OK(cudaDeviceSynchronize());
+    return CUDA_SUCCESS_MOON; 
+} 
+
+
 // Cuda events.
 
 extern "C" rustCudaError_t cuda_event_create(cudaEvent_t *event) {

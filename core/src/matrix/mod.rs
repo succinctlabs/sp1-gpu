@@ -19,3 +19,13 @@ pub trait DeviceMatrix<T: Copy> {
     /// A mutable view of the matrix.
     fn view_mut(&mut self) -> MatrixViewMutDevice<T>;
 }
+
+mod ffi {
+    use p3_baby_bear::BabyBear;
+
+    use super::MatrixViewDevice;
+
+    extern "C" {
+        pub fn transpose_naive(output: *mut BabyBear, input: MatrixViewDevice<BabyBear>);
+    }
+}

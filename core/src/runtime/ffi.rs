@@ -7,6 +7,7 @@ use crate::device::error::CudaRustError;
 extern "C" {
     pub(crate) static DEFAULT_STREAM: *mut c_void;
 
+    pub(crate) fn cuda_device_synchronize() -> CudaRustError;
     pub(crate) fn cuda_event_create(event: *mut *mut c_void) -> CudaRustError;
     pub(crate) fn cuda_event_destroy(event: *mut c_void) -> CudaRustError;
     pub(crate) fn cuda_event_record(event: *mut c_void, stream: *mut c_void) -> CudaRustError;
