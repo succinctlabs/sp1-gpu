@@ -27,5 +27,11 @@ mod ffi {
 
     extern "C" {
         pub fn transpose_naive(output: *mut BabyBear, input: MatrixViewDevice<BabyBear>);
+
+        pub fn transpose_blowup_naive(
+            output: *mut BabyBear,
+            input: MatrixViewDevice<BabyBear>,
+            log_blowup: usize,
+        );
     }
 }
