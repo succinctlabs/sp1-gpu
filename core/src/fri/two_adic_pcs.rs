@@ -75,26 +75,33 @@ mod tests {
     #[test]
     fn test_commit_from_host() {
         let log_blowup = 1;
-        let log_degree = 22;
-        let degree = 1 << log_degree;
-        let n_cols = 100;
+        let log_degrees = [22, 11, 10];
+        let columns = [100, 200, 1000];
 
         type SC = BabyBearPoseidon2;
 
         let mut rng = thread_rng();
-        let trace = RowMajorMatrix::<BabyBear>::rand(&mut rng, degree, n_cols);
 
-        let domain = TwoAdicMultiplicativeCoset::<BabyBear> {
-            log_n: log_degree,
-            shift: BabyBear::one(),
-        };
+        let domains_and_traces = log_degrees
+            .iter()
+            .zip(columns.iter())
+            .map(|(log_degree, cols)| {
+                let trace = RowMajorMatrix::<BabyBear>::rand(&mut rng, 1 << log_degree, *cols);
 
-        let evaluations = vec![(domain, trace)];
-        let evaluations_clone = evaluations.clone();
+                let domain = TwoAdicMultiplicativeCoset::<BabyBear> {
+                    log_n: *log_degree,
+                    shift: BabyBear::one(),
+                };
+
+                (domain, trace)
+            })
+            .collect::<Vec<_>>();
+
+        let evaluations_clone = domains_and_traces.clone();
 
         let pcs = TwoAdicFriPcs::new(log_blowup);
         let time = Instant::now();
-        let (_, _) = pcs.commit_from_host(evaluations);
+        let (_, _) = pcs.commit_from_host(domains_and_traces);
         println!("time: {:?}", time.elapsed());
 
         let sp1_config = SC::default();
