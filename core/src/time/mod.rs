@@ -8,7 +8,13 @@ use crate::{
 pub struct CudaInstant(pub(crate) CudaEvent);
 
 impl CudaInstant {
-    pub fn elasped(&self, stream: &CudaStream) -> Result<Duration, CudaError> {
+    pub fn now() -> Result<Self, CudaError> {
+        let default_stream = CudaStream::default();
+        default_stream.now()
+    }
+
+    pub fn elasped(&self) -> Result<Duration, CudaError> {
+        let stream = CudaStream::default();
         let end = CudaEvent::new()?;
         stream.record(&end)?;
         stream.wait_event(&end)?;

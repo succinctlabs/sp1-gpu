@@ -1,4 +1,5 @@
 use std::{ffi::c_void, mem, ptr};
+use std::time::Duration;
 
 use crate::{device::error::CudaError, time::CudaInstant};
 
@@ -49,6 +50,18 @@ impl CudaStream {
 
     pub fn record(&self, event: &CudaEvent) -> Result<(), CudaError> {
         unsafe { ffi::cuda_event_record(event.0, self.0) }.to_result()
+    }
+
+    pub fn elasped(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
+        let end = CudaEvent::new()?;
+        self.record(&end)?;
+        self.wait_event(&end)?;
+        end.synchronize()?;
+        let mut ms: f32 = 0.0;
+        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0 .0, end.0) }.to_result()?;
+
+        let s = ms as f64 * 1e-3;
+        Ok(Duration::from_secs_f64(s))
     }
 
     pub fn elapsed_time(&self, start: &CudaEvent, end: &CudaEvent) -> Result<f32, CudaError> {
@@ -198,23 +211,7 @@ mod tests {
         let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len());
         let time = stream.now().unwrap();
         buffer.extend_from_host_slice(&data);
-        let elapsed = time.elasped(&stream).unwrap();
-        println!("{:?}", elapsed);
-        stream.synchronize().unwrap();
-    }
-
-    #[test]
-    fn test_stream() {
-        let stream = CudaStream::new().unwrap();
-        let event = CudaEvent::new().unwrap();
-        stream.record(&event).unwrap();
-
-        // Get a big buffer and measure the time it takes to copy it.
-        let data = vec![0u32; 1 << 22];
-        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len());
-        let time = stream.now().unwrap();
-        buffer.extend_from_host_slice(&data);
-        let elapsed = time.elasped(&stream).unwrap();
+        let elapsed = stream.elasped(&time).unwrap();
         println!("{:?}", elapsed);
         stream.synchronize().unwrap();
     }
