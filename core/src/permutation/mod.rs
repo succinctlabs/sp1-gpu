@@ -1,13 +1,9 @@
 use p3_air::{PairCol, VirtualPairCol};
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, Field};
-use sp1_core::stark::permutation_trace_width;
-use sp1_core::{lookup::Interaction, stark::generate_interaction_rlc_elements};
+use p3_field::Field;
+use sp1_core::lookup::Interaction;
 
-use crate::{
-    device::buffer::{DeviceBuffer, ToDevice},
-    matrix::ColMajorMatrixDevice,
-};
+use crate::device::buffer::{DeviceBuffer, ToDevice};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -112,25 +108,25 @@ pub struct InteractionViewDevice<F: Field> {
     pub kind: usize,
 }
 
-fn generate_permutation_trace(
-    sends: &[Interaction<BabyBear>],
-    receives: &[Interaction<BabyBear>],
-    main: ColMajorMatrixDevice<BabyBear>,
-    random_elements: &[BinomialExtensionField<BabyBear, 4>],
-    batch_size: usize,
-) {
-    let (sends_device, send_device_values): (Vec<_>, Vec<_>) =
-        sends.iter().map(|s| InteractionDevice::from_p3(s)).unzip();
+// fn generate_permutation_trace(
+//     sends: &[Interaction<BabyBear>],
+//     receives: &[Interaction<BabyBear>],
+//     main: ColMajorMatrixDevice<BabyBear>,
+//     random_elements: &[BinomialExtensionField<BabyBear, 4>],
+//     batch_size: usize,
+// ) {
+//     let (sends_device, send_device_values): (Vec<_>, Vec<_>) =
+//         sends.iter().map(|s| InteractionDevice::from_p3(s)).unzip();
 
-    let alphas = generate_interaction_rlc_elements(sends, receives, random_elements[0]);
-    let beta = random_elements[1];
+//     let alphas = generate_interaction_rlc_elements(sends, receives, random_elements[0]);
+//     let beta = random_elements[1];
 
-    let permutation_trace_width = permutation_trace_width(sends.len() + receives.len(), batch_size);
-    let height = main.height();
+//     let permutation_trace_width = permutation_trace_width(sends.len() + receives.len(), batch_size);
+//     let height = main.height();
 
-    let mut permutation_trace = ColMajorMatrixDevice::new(
-        vec![BinomialExtensionField::<BabyBear, 4>::zero(); permutation_trace_width * height]
-            .to_device(),
-        height,
-    );
-}
+//     let mut permutation_trace = ColMajorMatrixDevice::new(
+//         vec![BinomialExtensionField::<BabyBear, 4>::zero(); permutation_trace_width * height]
+//             .to_device(),
+//         height,
+//     );
+// }
