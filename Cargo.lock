@@ -783,6 +783,7 @@ dependencies = [
  "cc",
  "itertools 0.13.0",
  "lazy_static",
+ "p3-air",
  "p3-baby-bear",
  "p3-commit",
  "p3-dft",

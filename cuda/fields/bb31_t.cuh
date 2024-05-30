@@ -446,6 +446,8 @@ public:
     {   return ((val*M)*(uint64_t)MOD + val) >> 32;  }
     inline void to()    { val = ((uint64_t)val<<32) % MOD;  }
     inline void from()  { val = *this; }
+
+    inline bb31_t reciprocal() const { return *this; }
 // #  if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_) // non-standard
 //     friend std::ostream& operator<<(std::ostream& os, const bb31_t& obj)
 //     {
