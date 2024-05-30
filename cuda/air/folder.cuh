@@ -1,7 +1,9 @@
 #pragma once
 
+/**  A constraint folder for calculating the constraint polynomial on device. */
 template <typename Val, typename Challenge, size_t N>
 struct ConstraintFolder {
+   public:
     Val* preprocessed_local;
     Val* preprocessed_next;
     Val* main_local;
@@ -47,6 +49,7 @@ struct ConstraintFolder {
     Challenge is_first_row() { return is_first_row; }
     Challenge is_last_row() { return is_last_row; }
     Challenge is_transition() { return is_transition; }
+    Challenge accumulator() { return accumulator; }
 
     Val* preprocessed_local() { return preprocessed_local; }
     Val* preprocessed_next() { return preprocessed_next; }
