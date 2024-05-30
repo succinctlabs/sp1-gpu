@@ -13,7 +13,7 @@ impl CudaInstant {
         default_stream.now()
     }
 
-    pub fn elasped(&self) -> Result<Duration, CudaError> {
+    pub fn elapsed(&self) -> Result<Duration, CudaError> {
         let stream = UnsafeCudaStream::default();
         let end = CudaEvent::new()?;
         stream.record(&end)?;

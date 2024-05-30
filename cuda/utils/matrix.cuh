@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../fields/bb31_t.cuh"
+#include "exception.cuh"
+
 
 struct Matrix {
     bb31_t *values;
