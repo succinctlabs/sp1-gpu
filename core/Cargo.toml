@@ -16,6 +16,7 @@ p3-matrix = { workspace = true }
 p3-commit = { workspace = true }
 itertools = "0.13.0"
 sp1-core = { workspace = true }
+p3-air = { workspace = true }
 
 [build-dependencies]
 cc = "1.0"

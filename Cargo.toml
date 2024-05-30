@@ -26,5 +26,6 @@ p3-matrix = { path = "../Plonky3/matrix" }
 p3-merkle-tree = { path = "../Plonky3/merkle-tree" }
 p3-commit = { path = "../Plonky3/commit" }
 p3-fri = { path = "../Plonky3/fri" }
+p3-air = { path = "../Plonky3/air" }
 
 sp1-core = { path = "../sp1/core" }

@@ -6,7 +6,7 @@ use crate::{device::error::CudaError, device::ffi};
 ///
 /// # Safety
 /// The pointer will not be dropped unless a `cudaFree` call is initiated.
-pub unsafe fn cuda_malloc<T: Copy>(len: usize) -> Result<*mut T, CudaError> {
+pub unsafe fn cuda_malloc<T>(len: usize) -> Result<*mut T, CudaError> {
     let mut ptr: *mut c_void = ptr::null_mut();
     Result::<(), CudaError>::from(ffi::cuda_malloc(
         &mut ptr as *mut *mut c_void,
@@ -20,7 +20,7 @@ pub unsafe fn cuda_malloc<T: Copy>(len: usize) -> Result<*mut T, CudaError> {
 ///
 /// # Safety
 /// The caller must guarantee that after this call no data will point to the value of the pointer.
-pub unsafe fn cuda_free<T: Copy>(ptr: *mut T) -> Result<(), CudaError> {
+pub unsafe fn cuda_free<T>(ptr: *mut T) -> Result<(), CudaError> {
     ffi::cuda_free(ptr as *mut c_void).into()
 }
 

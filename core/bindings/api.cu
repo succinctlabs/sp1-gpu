@@ -3,3 +3,4 @@
 #include "../../cuda/ntt/sppark.cuh"
 #include "../../cuda/utils/runtime.cuh"
 #include "../../cuda/transpose/transpose.cuh"
+#include "../../cuda/tests/tests.cuh"
