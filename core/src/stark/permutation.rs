@@ -1,3 +1,5 @@
+use std::ops::Mul;
+
 use p3_air::PairCol;
 use p3_field::{ExtensionField, Field, Powers};
 use sp1_core::lookup::Interaction;
@@ -9,9 +11,10 @@ use crate::device::{
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct PairColDevice {
+pub struct PairColDevice<F> {
     column_idx: usize,
     is_preprocessed: bool,
+    weight: F,
 }
 
 #[derive(Debug)]
@@ -21,10 +24,10 @@ pub struct HostInteractions<F: Field> {
     pub multiplicities_ptr: Vec<usize>,
     pub values_col_weights_ptr: Vec<usize>,
 
-    pub values_col_weights: Vec<(PairColDevice, F)>,
+    pub values_col_weights: Vec<PairColDevice<F>>,
     pub values_constants: Vec<F>,
 
-    pub mult_col_weights: Vec<(PairColDevice, F)>,
+    pub mult_col_weights: Vec<PairColDevice<F>>,
     pub mult_constants: Vec<F>,
 
     pub arg_indices: Vec<usize>,
@@ -39,10 +42,10 @@ pub struct DeviceInteractions<F: Field> {
     pub multiplicities_ptr: DeviceBuffer<usize>,
     pub values_col_weights_ptr: DeviceBuffer<usize>,
 
-    pub values_col_weights: DeviceBuffer<(PairColDevice, F)>,
+    pub values_col_weights: DeviceBuffer<PairColDevice<F>>,
     pub values_constants: DeviceBuffer<F>,
 
-    pub mult_col_weights: DeviceBuffer<(PairColDevice, F)>,
+    pub mult_col_weights: DeviceBuffer<PairColDevice<F>>,
     pub mult_constants: DeviceBuffer<F>,
 
     pub arg_indices: DeviceBuffer<usize>,
@@ -57,10 +60,10 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub multiplicities_ptr: &'a DeviceSlice<usize>,
     pub values_col_weights_ptr: &'a DeviceSlice<usize>,
 
-    pub values_col_weights: &'a DeviceSlice<(PairColDevice, F)>,
+    pub values_col_weights: &'a DeviceSlice<PairColDevice<F>>,
     pub values_constants: &'a DeviceSlice<F>,
 
-    pub mult_col_weights: &'a DeviceSlice<(PairColDevice, F)>,
+    pub mult_col_weights: &'a DeviceSlice<PairColDevice<F>>,
     pub mult_constants: &'a DeviceSlice<F>,
 
     pub arg_indices: &'a DeviceSlice<usize>,
@@ -68,15 +71,12 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub num_interactions: usize,
 }
 
-impl PairColDevice {
-    pub fn get<T>(&self, preprocessed: &[T], main: &[T]) -> T
-    where
-        T: Copy,
-    {
+impl<F: Field> PairColDevice<F> {
+    pub fn get(&self, preprocessed: &[F], main: &[F]) -> F {
         if self.is_preprocessed {
-            preprocessed[self.column_idx]
+            preprocessed[self.column_idx] * self.weight
         } else {
-            main[self.column_idx]
+            main[self.column_idx] * self.weight
         }
     }
 }
@@ -106,8 +106,8 @@ impl<F: Field> HostInteractions<F> {
             for value in interaction.values.iter() {
                 values_col_weights_ptr.push(curr_values_col_weight_ptr);
                 for (col, weight) in value.column_weights.iter() {
-                    let col = PairColDevice::from(*col);
-                    values_col_weights.push((col, *weight));
+                    let col = PairColDevice::<F>::from(*col) * *weight;
+                    values_col_weights.push(col);
                     curr_values_col_weight_ptr += 1;
                 }
                 values_constants.push(value.constant);
@@ -117,8 +117,8 @@ impl<F: Field> HostInteractions<F> {
             // Register the multiplicity values
             multiplicities_ptr.push(curr_mult_ptr);
             for (col, weight) in interaction.multiplicity.column_weights.iter() {
-                let col = PairColDevice::from(*col);
-                mult_col_weights.push((col, *weight));
+                let col = PairColDevice::<F>::from(*col) * *weight;
+                mult_col_weights.push(col);
                 curr_mult_ptr += 1;
             }
             mult_constants.push(interaction.multiplicity.constant);
@@ -199,8 +199,7 @@ impl<F: Field> HostInteractions<F> {
                     let beta = betas.next().unwrap();
                     let mut acc = self.values_constants[k];
                     for l in self.values_col_weights_ptr[k]..self.values_col_weights_ptr[k + 1] {
-                        let (col, weight) = self.values_col_weights[l];
-                        acc += col.get(preprocessed_row, main_row) * weight;
+                        acc += self.values_col_weights[l].get(preprocessed_row, main_row);
                     }
                     denominator += beta * acc;
                 }
@@ -209,8 +208,7 @@ impl<F: Field> HostInteractions<F> {
                 let is_send = self.is_send[index];
                 let mut mult = self.mult_constants[index];
                 for k in self.multiplicities_ptr[index]..self.multiplicities_ptr[index + 1] {
-                    let (col, weight) = self.mult_col_weights[k];
-                    mult += col.get(preprocessed_row, main_row) * weight;
+                    mult += self.mult_col_weights[k].get(preprocessed_row, main_row);
                 }
 
                 if !is_send {
@@ -247,17 +245,31 @@ impl<F: Field> DeviceInteractions<F> {
     }
 }
 
-impl From<PairCol> for PairColDevice {
+impl<F: Field> From<PairCol> for PairColDevice<F> {
     fn from(value: PairCol) -> Self {
         match value {
             PairCol::Preprocessed(column_idx) => Self {
                 column_idx,
                 is_preprocessed: true,
+                weight: F::one(),
             },
             PairCol::Main(column_idx) => Self {
                 column_idx,
                 is_preprocessed: false,
+                weight: F::one(),
             },
+        }
+    }
+}
+
+impl<F: Field> Mul<F> for PairColDevice<F> {
+    type Output = PairColDevice<F>;
+
+    fn mul(self, rhs: F) -> Self::Output {
+        PairColDevice {
+            column_idx: self.column_idx,
+            is_preprocessed: self.is_preprocessed,
+            weight: self.weight * rhs,
         }
     }
 }

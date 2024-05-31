@@ -4,3 +4,4 @@
 #include "../../cuda/utils/runtime.cuh"
 #include "../../cuda/transpose/transpose.cuh"
 #include "../../cuda/tests/tests.cuh"
+#include "../../cuda/stark/stark.cuh"

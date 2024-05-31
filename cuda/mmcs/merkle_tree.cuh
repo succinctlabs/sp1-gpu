@@ -9,7 +9,7 @@
 namespace merkle_tree_kernels {
 using namespace poseidon2_bb31_16;
 
-__global__ void firstDigestLayer(Matrix *tallestMatrices,
+__global__ void firstDigestLayer(Matrix<bb31_t> *tallestMatrices,
                                  size_t nTallestMatrices,
                                  bb31_t (*digests)[DIGEST_WIDTH],
                                  poseidon2_bb31_16::Hasher hasher) {
@@ -26,7 +26,7 @@ __global__ void firstDigestLayer(Matrix *tallestMatrices,
 }
 
 __global__ void compressAndInject(bb31_t (*prevLayer)[DIGEST_WIDTH],
-                                  size_t nPrevLayer, Matrix *matricesToInject,
+                                  size_t nPrevLayer, Matrix<bb31_t> *matricesToInject,
                                   size_t nMatricesToInject,
                                   bb31_t (*nextDigests)[DIGEST_WIDTH],
                                   poseidon2_bb31_16::Hasher hasher) {
@@ -70,7 +70,7 @@ namespace column_major {}
 extern "C" namespace merkle_tree_gpu {
     using namespace poseidon2_bb31_16;
 
-    extern "C" void firstDigestLayer(Matrix * tallestMatrices,
+    extern "C" void firstDigestLayer(Matrix<bb31_t> * tallestMatrices,
                                      size_t nTallestMatrices,
                                      bb31_t(*digests)[DIGEST_WIDTH],
                                      size_t nBlocks, size_t nThreadsPerBlock) {
@@ -81,7 +81,7 @@ extern "C" namespace merkle_tree_gpu {
 
     extern "C" void compressAndInject(
         bb31_t(*prevLayer)[DIGEST_WIDTH], size_t nPrevLayer,
-        Matrix * matricesToInject, size_t nMatricesToInject,
+        Matrix<bb31_t> * matricesToInject, size_t nMatricesToInject,
         bb31_t(*nextDigests)[DIGEST_WIDTH], size_t nBlocks,
         size_t nThreadsPerBlock) {
         Hasher hasher = Hasher();
