@@ -83,8 +83,8 @@ pub mod tests {
         )
     }
 
-    pub fn poseidon2_bb31_16_perm()
-    -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7> {
+    pub fn poseidon2_bb31_16_perm(
+    ) -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7> {
         let (external_round_constants, internal_round_constants) = round_constants();
         Poseidon2::<
             BabyBear,

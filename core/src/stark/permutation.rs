@@ -3,13 +3,129 @@ use p3_baby_bear::BabyBear;
 use p3_field::Field;
 use sp1_core::lookup::Interaction;
 
-use crate::device::buffer::{DeviceBuffer, ToDevice};
+use crate::device::{
+    buffer::{DeviceBuffer, ToDevice},
+    slice::DeviceSlice,
+};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct PairColDevice {
     column_idx: usize,
     is_preprocessed: bool,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct DeviceInteractions<F: Field> {
+    pub values_ptr: DeviceBuffer<usize>,
+    pub multiplicities_ptr: DeviceBuffer<usize>,
+    pub values_col_weights_ptr: DeviceBuffer<usize>,
+
+    pub values_col_weights: DeviceBuffer<(PairColDevice, F)>,
+    pub values_constants: DeviceBuffer<F>,
+
+    pub mult_col_weights: DeviceBuffer<(PairColDevice, F)>,
+    pub mult_constants: DeviceBuffer<F>,
+
+    pub arg_indices: DeviceBuffer<usize>,
+    pub is_send: DeviceBuffer<bool>,
+    pub num_interactions: usize,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct DeviceInteractionsView<'a, F: Field> {
+    pub values_ptr: &'a DeviceSlice<usize>,
+    pub multiplicities_ptr: &'a DeviceSlice<usize>,
+    pub values_col_weights_ptr: &'a DeviceSlice<usize>,
+
+    pub values_col_weights: &'a DeviceSlice<(PairColDevice, F)>,
+    pub values_constants: &'a DeviceSlice<F>,
+
+    pub mult_col_weights: &'a DeviceSlice<(PairColDevice, F)>,
+    pub mult_constants: &'a DeviceSlice<F>,
+
+    pub arg_indices: &'a DeviceSlice<usize>,
+    pub is_send: &'a DeviceSlice<bool>,
+    pub num_interactions: usize,
+}
+
+impl<F: Field> DeviceInteractions<F> {
+    pub fn from_p3(sends: &[Interaction<F>], receives: &[Interaction<F>]) -> Self {
+        let mut values_ptr = vec![];
+        let mut values_col_weights_ptr = vec![];
+        let mut multiplicities_ptr = vec![];
+        let mut arg_indices = vec![];
+        let mut is_send = vec![];
+        let mut mult_col_weights = vec![];
+        let mut mult_constants = vec![];
+        let mut values_col_weights = vec![];
+        let mut values_constants = vec![];
+
+        let num_interactions = sends.len() + receives.len();
+
+        let mut curr_values_ptr = 0;
+        let mut curr_values_col_weight_ptr = 0;
+        let mut curr_mult_ptr = 0;
+        for interaction in sends {
+            // Register the values
+            values_ptr.push(curr_values_ptr);
+            for value in interaction.values.iter() {
+                values_col_weights_ptr.push(curr_values_col_weight_ptr);
+                for (col, weight) in value.column_weights.iter() {
+                    let col = PairColDevice::from_p3(col);
+                    values_col_weights.push((col, *weight));
+                    curr_values_col_weight_ptr += 1;
+                }
+                values_constants.push(value.constant);
+                curr_values_ptr += 1;
+            }
+
+            // Register the multiplicity values
+            multiplicities_ptr.push(curr_mult_ptr);
+            for (col, weight) in interaction.multiplicity.column_weights.iter() {
+                let col = PairColDevice::from_p3(col);
+                mult_col_weights.push((col, *weight));
+                curr_mult_ptr += 1;
+            }
+            mult_constants.push(interaction.multiplicity.constant);
+
+            arg_indices.push(interaction.argument_index());
+            is_send.push(true);
+        }
+
+        Self {
+            values_ptr: values_ptr.to_device(),
+            values_col_weights_ptr: values_col_weights_ptr.to_device(),
+            multiplicities_ptr: multiplicities_ptr.to_device(),
+            values_col_weights: values_col_weights.to_device(),
+            values_constants: values_constants.to_device(),
+            mult_col_weights: mult_col_weights.to_device(),
+            mult_constants: mult_constants.to_device(),
+            arg_indices: arg_indices.to_device(),
+            is_send: is_send.to_device(),
+            num_interactions,
+        }
+    }
+
+    pub fn view(&self) -> DeviceInteractionsView<'_, F> {
+        DeviceInteractionsView {
+            values_ptr: self.values_ptr.as_slice(),
+            multiplicities_ptr: self.multiplicities_ptr.as_slice(),
+            values_col_weights_ptr: self.values_col_weights_ptr.as_slice(),
+
+            values_col_weights: self.values_col_weights.as_slice(),
+            values_constants: self.values_constants.as_slice(),
+
+            mult_col_weights: self.mult_col_weights.as_slice(),
+            mult_constants: self.mult_constants.as_slice(),
+
+            arg_indices: self.arg_indices.as_slice(),
+            is_send: self.is_send.as_slice(),
+            num_interactions: self.num_interactions,
+        }
+    }
 }
 
 impl PairColDevice {
