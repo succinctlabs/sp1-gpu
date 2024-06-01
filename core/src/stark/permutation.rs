@@ -1,7 +1,7 @@
 use std::ops::Mul;
 
 use p3_air::PairCol;
-use p3_field::{ExtensionField, Field, Powers};
+use p3_field::{ExtensionField, Field};
 use sp1_core::lookup::Interaction;
 
 use crate::device::{
@@ -30,7 +30,7 @@ pub struct HostInteractions<F: Field> {
     pub mult_col_weights: Vec<PairColDevice<F>>,
     pub mult_constants: Vec<F>,
 
-    pub arg_indices: Vec<usize>,
+    pub arg_indices: Vec<F>,
     pub is_send: Vec<bool>,
     pub num_interactions: usize,
 }
@@ -48,7 +48,7 @@ pub struct DeviceInteractions<F: Field> {
     pub mult_col_weights: DeviceBuffer<PairColDevice<F>>,
     pub mult_constants: DeviceBuffer<F>,
 
-    pub arg_indices: DeviceBuffer<usize>,
+    pub arg_indices: DeviceBuffer<F>,
     pub is_send: DeviceBuffer<bool>,
     pub num_interactions: usize,
 }
@@ -66,7 +66,7 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub mult_col_weights: &'a DeviceSlice<PairColDevice<F>>,
     pub mult_constants: &'a DeviceSlice<F>,
 
-    pub arg_indices: &'a DeviceSlice<usize>,
+    pub arg_indices: &'a DeviceSlice<F>,
     pub is_send: &'a DeviceSlice<bool>,
     pub num_interactions: usize,
 }
@@ -123,7 +123,7 @@ impl<F: Field> HostInteractions<F> {
             }
             mult_constants.push(interaction.multiplicity.constant);
 
-            arg_indices.push(interaction.argument_index());
+            arg_indices.push(F::from_canonical_usize(interaction.argument_index()));
 
             if i < num_sends {
                 is_send.push(true);
@@ -171,7 +171,7 @@ impl<F: Field> HostInteractions<F> {
         preprocessed_row: &[F],
         main_row: &[F],
         alpha: EF,
-        betas: Powers<EF>,
+        beta: EF,
         batch_size: usize,
     ) where
         F: Field,
@@ -188,20 +188,20 @@ impl<F: Field> HostInteractions<F> {
 
                 // Initialize the denominator and beta powers.
                 let mut denominator = alpha;
-                let mut betas = betas.clone();
+                let mut beta_power = EF::one();
 
                 // Add argument index to the denominator.
                 let argument_index = self.arg_indices[index];
-                denominator += betas.next().unwrap() * EF::from_canonical_usize(argument_index);
+                denominator += beta_power * EF::from_base(argument_index);
 
                 // Add the interaction values.
                 for k in self.values_ptr[index]..self.values_ptr[index + 1] {
-                    let beta = betas.next().unwrap();
+                    beta_power *= beta;
                     let mut acc = self.values_constants[k];
                     for l in self.values_col_weights_ptr[k]..self.values_col_weights_ptr[k + 1] {
                         acc += self.values_col_weights[l].get(preprocessed_row, main_row);
                     }
-                    denominator += beta * acc;
+                    denominator += beta_power * acc;
                 }
 
                 // Calculate the multiplicity values.
@@ -340,14 +340,8 @@ mod tests {
             );
 
             let mut row = vec![EF::zero(); perm_width];
-            host_interactions.populate_permutation_row(
-                &mut row,
-                &prep_row,
-                &main_row,
-                alpha,
-                beta.powers(),
-                batch_size,
-            );
+            host_interactions
+                .populate_permutation_row(&mut row, &prep_row, &main_row, alpha, beta, batch_size);
 
             for (exp, val) in expected_row.iter().zip(row.iter()) {
                 assert_eq!(exp, val, "row {} mismatch", i);

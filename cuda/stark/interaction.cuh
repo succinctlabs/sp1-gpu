@@ -23,7 +23,7 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub mult_col_weights: &'a DeviceSlice<PairColDevice<F>>,
     pub mult_constants: &'a DeviceSlice<F>,
 
-    pub arg_indices: &'a DeviceSlice<usize>,
+    pub arg_indices: &'a DeviceSlice<F>,
     pub is_send: &'a DeviceSlice<bool>,
     pub num_interactions: usize,
 }
@@ -34,6 +34,15 @@ template<typename F>struct PairCol {
     size_t column_idx;
     bool is_preprocessed;
     F weight;
+
+public: 
+    __device__ F get(F* preprocessed_row, F* main_row) {
+        if (is_preprocessed) {
+            return preprocessed_row[column_idx] * weight;
+        } else {
+            return main_row[column_idx] * weight;
+        }
+    }
 };
 
 
@@ -48,7 +57,7 @@ template<typename F> struct Interactions {
     PairCol<F> * mult_col_weights;
     F * mult_constants;
 
-    size_t * arg_indices;
+    F * arg_indices;
     bool * is_send;
     size_t num_interactions;
 };
