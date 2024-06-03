@@ -1,13 +1,16 @@
-use std::ops::Mul;
+use std::{marker::PhantomData, ops::Mul};
 
 use p3_air::PairCol;
-use p3_field::{ExtensionField, Field};
+use p3_baby_bear::BabyBear;
+use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::lookup::Interaction;
 
-use crate::device::{
-    buffer::{DeviceBuffer, ToDevice},
-    slice::DeviceSlice,
+use crate::{
+    device::buffer::{DeviceBuffer, ToDevice},
+    matrix::{MatrixViewDevice, MatrixViewMutDevice},
 };
+
+use super::ffi;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -56,19 +59,21 @@ pub struct DeviceInteractions<F: Field> {
 #[derive(Debug)]
 #[repr(C)]
 pub struct DeviceInteractionsView<'a, F: Field> {
-    pub values_ptr: &'a DeviceSlice<usize>,
-    pub multiplicities_ptr: &'a DeviceSlice<usize>,
-    pub values_col_weights_ptr: &'a DeviceSlice<usize>,
+    pub values_ptr: *const usize,
+    pub multiplicities_ptr: *const usize,
+    pub values_col_weights_ptr: *const usize,
 
-    pub values_col_weights: &'a DeviceSlice<PairColDevice<F>>,
-    pub values_constants: &'a DeviceSlice<F>,
+    pub values_col_weights: *const PairColDevice<F>,
+    pub values_constants: *const F,
 
-    pub mult_col_weights: &'a DeviceSlice<PairColDevice<F>>,
-    pub mult_constants: &'a DeviceSlice<F>,
+    pub mult_col_weights: *const PairColDevice<F>,
+    pub mult_constants: *const F,
 
-    pub arg_indices: &'a DeviceSlice<F>,
-    pub is_send: &'a DeviceSlice<bool>,
+    pub arg_indices: *const F,
+    pub is_send: *const bool,
     pub num_interactions: usize,
+
+    _marker: PhantomData<&'a F>,
 }
 
 impl<F: Field> PairColDevice<F> {
@@ -228,19 +233,73 @@ impl<F: Field> HostInteractions<F> {
 impl<F: Field> DeviceInteractions<F> {
     pub fn view(&self) -> DeviceInteractionsView<'_, F> {
         DeviceInteractionsView {
-            values_ptr: self.values_ptr.as_slice(),
-            multiplicities_ptr: self.multiplicities_ptr.as_slice(),
-            values_col_weights_ptr: self.values_col_weights_ptr.as_slice(),
+            values_ptr: self.values_ptr.as_ptr(),
+            multiplicities_ptr: self.multiplicities_ptr.as_ptr(),
+            values_col_weights_ptr: self.values_col_weights_ptr.as_ptr(),
 
-            values_col_weights: self.values_col_weights.as_slice(),
-            values_constants: self.values_constants.as_slice(),
+            values_col_weights: self.values_col_weights.as_ptr(),
+            values_constants: self.values_constants.as_ptr(),
 
-            mult_col_weights: self.mult_col_weights.as_slice(),
-            mult_constants: self.mult_constants.as_slice(),
+            mult_col_weights: self.mult_col_weights.as_ptr(),
+            mult_constants: self.mult_constants.as_ptr(),
 
-            arg_indices: self.arg_indices.as_slice(),
-            is_send: self.is_send.as_slice(),
+            arg_indices: self.arg_indices.as_ptr(),
+            is_send: self.is_send.as_ptr(),
             num_interactions: self.num_interactions,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl DeviceInteractions<BabyBear> {
+    pub fn populate_permutation_rows(
+        &self,
+        permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        self.view().populate_permutation_rows(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+    }
+}
+
+impl<'a> DeviceInteractionsView<'a, BabyBear> {
+    pub fn populate_permutation_rows(
+        self,
+        permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        unsafe {
+            ffi::populate_permutation_rows(
+                self,
+                permutation,
+                preprocessed,
+                main,
+                alpha,
+                beta,
+                batch_size,
+                num_blocks,
+                num_threads_per_block,
+            );
         }
     }
 }
@@ -276,6 +335,9 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 
 #[cfg(test)]
 mod tests {
+    use crate::matrix::ColMajorMatrixDevice;
+    use crate::matrix::RowMajorMatrixDevice;
+
     use super::*;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
@@ -299,7 +361,7 @@ mod tests {
     type EF = BinomialExtensionField<F, D>;
 
     #[test]
-    fn test_populate_permutation_row() {
+    fn test_populate_permutation_row_host() {
         let mut rng = thread_rng();
 
         let air = ByteChip::<F>::default();
@@ -343,6 +405,101 @@ mod tests {
             host_interactions
                 .populate_permutation_row(&mut row, &prep_row, &main_row, alpha, beta, batch_size);
 
+            for (exp, val) in expected_row.iter().zip(row.iter()) {
+                assert_eq!(exp, val, "row {} mismatch", i);
+            }
+        }
+    }
+
+    #[test]
+    fn test_populate_permutation_row_device() {
+        let mut rng = thread_rng();
+
+        let air = ByteChip::<F>::default();
+        let chip = Chip::new(air);
+
+        let program = Program::from(FIBONACCI_ELF);
+
+        let num_rows = 1 << 16;
+        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
+
+        // Generate a random trace.
+        let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+        for val in main_trace.values.iter_mut() {
+            *val = F::one();
+        }
+
+        // Get the host and devie interactions.
+        let host_interactions = HostInteractions::new(chip.sends(), chip.receives());
+        let device_interactions = host_interactions.to_device();
+
+        // For every row, compute the permutation row and compare the values.
+
+        let batch_size = 1;
+        let perm_width =
+            permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
+
+        let mut perm_buffer = DeviceBuffer::<EF>::with_capacity(perm_width * num_rows);
+        unsafe {
+            perm_buffer.set_max_len();
+        }
+        let mut perm_d = ColMajorMatrixDevice::new(perm_buffer, num_rows);
+
+        // Transfer perm and main traces to the device.
+        let prep_trace_d = preprocessed_trace.values.to_device();
+        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
+        let prep_d = prep_d.to_column_major();
+
+        let main_trace_d = main_trace.values.to_device();
+        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
+        let main_d = main_d.to_column_major();
+
+        // Get randomness.
+        let alpha = EF::one(); // rng.gen::<EF>();
+        let beta = EF::one(); //rng.gen::<EF>();
+
+        // Generate the permutation rows on device.
+        let num_threads_per_block = 256;
+        let num_blocks = num_rows.div_ceil(num_threads_per_block);
+        device_interactions.populate_permutation_rows(
+            perm_d.view_mut(),
+            prep_d.view(),
+            main_d.view(),
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+
+        let perm_h = perm_d.to_host();
+
+        // Compare the values to the host values.
+        for i in 0..num_rows {
+            let prep_row = preprocessed_trace.row_slice(i);
+            let main_row = main_trace.row_slice(i);
+
+            let mut expected_row = vec![EF::zero(); perm_width];
+            // populate_permutation_row(
+            //     &mut expected_row,
+            //     &prep_row,
+            //     &main_row,
+            //     chip.sends(),
+            //     chip.receives(),
+            //     alpha,
+            //     beta.powers(),
+            //     batch_size,
+            // );
+            host_interactions.populate_permutation_row(
+                &mut expected_row,
+                &prep_row,
+                &main_row,
+                alpha,
+                beta,
+                batch_size,
+            );
+
+            let row = perm_h.row_slice(i);
             for (exp, val) in expected_row.iter().zip(row.iter()) {
                 assert_eq!(exp, val, "row {} mismatch", i);
             }

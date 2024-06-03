@@ -36,11 +36,11 @@ template<typename F>struct PairCol {
     F weight;
 
 public: 
-    __device__ F get(F* preprocessed_row, F* main_row) {
+    __device__ F get(Matrix<F> preprocessed, Matrix<F> main, size_t RowIdx) {
         if (is_preprocessed) {
-            return preprocessed_row[column_idx] * weight;
+            return preprocessed.values[column_idx * preprocessed.height + RowIdx] * weight;
         } else {
-            return main_row[column_idx] * weight;
+            return main.values[column_idx * main.height + RowIdx] * weight;
         }
     }
 };

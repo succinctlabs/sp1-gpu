@@ -4,15 +4,15 @@
 #include "../utils/matrix.cuh"
 
 template<typename F, typename EF> __global__ void populate_permutation_rows(
-    Interactions<F> const interactions,
-    Matrix<EF> permutation, Matrix<F> const preprocessed, 
-    Matrix<F> const main, EF alpha, EF beta, size_t batch_size) {
+    Interactions<F> interactions,
+    Matrix<EF> permutation, Matrix<F> preprocessed, 
+    Matrix<F> main, EF alpha, EF beta, size_t batch_size) {
 
         size_t RowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-        F *main_row = main.values + RowIdx * main.width;
-        F *prep_row = preprocessed.values + RowIdx * preprocessed.width;
-        EF *perm_row = permutation.values + RowIdx * permutation.width;
+        if (RowIdx >= permutation.height) {
+            return;
+        }
 
         for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
             EF value = EF::zero();
@@ -35,31 +35,31 @@ template<typename F, typename EF> __global__ void populate_permutation_rows(
                 // Add the interaction values.
                 for (size_t k = interactions.values_ptr[index]; k < interactions.values_ptr[index + 1]; k++) {
                     beta_power *= beta;
-                    EF acc = interactions.values_constants[k];
+                    EF acc = EF(interactions.values_constants[k]);
                     for (size_t l = interactions.values_col_weights_ptr[k]; l < interactions.values_col_weights_ptr[k + 1]; l++) {
-                        acc += interactions.values_col_weights[l].get(prep_row, main_row);
+                        acc += EF(interactions.values_col_weights[l].get(preprocessed, main, RowIdx));
                     }
                     denominator += beta_power * acc;
                 }
 
                 // Calculate the multiplicity values.
                 bool is_send = interactions.is_send[index];
-                EF mult = interactions.mult_constants[index];
+                F mult = interactions.mult_constants[index];
 
                 for (size_t k = interactions.multiplicities_ptr[index]; k < interactions.multiplicities_ptr[index + 1]; k++) {
-                    mult += interactions.mult_col_weights[k].get(prep_row, main_row);
+                    mult += interactions.mult_col_weights[k].get(preprocessed, main, RowIdx);
                 }
 
                 if (!is_send) {
-                    mult = EF::zero() -mult;
+                    mult = F(0) - mult;
                 }
 
                 // Add `mult/ denominator` to the sum.
                 value += EF(mult) / denominator;
             }
             // Assign the value to the row.
-            size_t row_index = i / batch_size;
-            permutation.values[row_index] = value;
+            size_t perm_index = i / batch_size;
+            permutation.values[perm_index * permutation.height + RowIdx] = value;
         }
 
     };
