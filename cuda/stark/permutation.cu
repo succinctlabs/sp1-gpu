@@ -1,12 +1,10 @@
-
-
 #include "interaction.cuh"
 #include "../utils/matrix.cuh"
 
 template<typename F, typename EF> __global__ void populate_permutation_rows(
-    Interactions<F> interactions,
-    Matrix<EF> permutation, Matrix<F> preprocessed, 
-    Matrix<F> main, EF alpha, EF beta, size_t batch_size) {
+    Interactions<F> const interactions,
+    Matrix<EF> permutation, Matrix<F> const preprocessed, 
+    Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
 
         size_t RowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
 

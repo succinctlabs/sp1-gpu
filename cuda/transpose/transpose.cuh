@@ -1,5 +1,6 @@
-#include "../utils/matrix.cuh"
+#pragma once
 
+#include "../utils/matrix.cuh"
 
 const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;
