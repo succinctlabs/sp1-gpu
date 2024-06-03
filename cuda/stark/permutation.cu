@@ -14,6 +14,7 @@ template<typename F, typename EF> __global__ void populate_permutation_rows(
             return;
         }
 
+        EF row_cumulative_sum = EF::zero();
         for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
             EF value = EF::zero();
             for (size_t j = 0; j < batch_size; j++) {
@@ -57,10 +58,14 @@ template<typename F, typename EF> __global__ void populate_permutation_rows(
                 // Add `mult/ denominator` to the sum.
                 value += EF(mult) / denominator;
             }
+            // Accumulate the sum of values.
+            row_cumulative_sum += value;
             // Assign the value to the row.
             size_t perm_index = i / batch_size;
             permutation.values[perm_index * permutation.height + RowIdx] = value;
         }
 
+        // Assign the cumulative sum of values to the last column.
+        permutation.values[(permutation.width - 1) * permutation.height + RowIdx] = row_cumulative_sum;
     };
 

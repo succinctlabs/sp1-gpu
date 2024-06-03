@@ -494,6 +494,8 @@ mod tests {
                 beta.powers(),
                 batch_size,
             );
+            let sum = expected_row.iter().copied().sum::<EF>();
+            *expected_row.last_mut().unwrap() = sum;
 
             let row = perm_h.row_slice(i);
             for (exp, val) in expected_row.iter().zip(row.iter()) {
