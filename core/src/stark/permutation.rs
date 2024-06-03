@@ -337,6 +337,7 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 mod tests {
     use crate::matrix::ColMajorMatrixDevice;
     use crate::matrix::RowMajorMatrixDevice;
+    use crate::time::CudaInstant;
 
     use super::*;
     use p3_air::BaseAir;
@@ -435,7 +436,7 @@ mod tests {
 
         // For every row, compute the permutation row and compare the values.
 
-        let batch_size = 1;
+        let batch_size = 2;
         let perm_width =
             permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
 
@@ -459,6 +460,7 @@ mod tests {
         let beta = EF::one(); //rng.gen::<EF>();
 
         // Generate the permutation rows on device.
+        let time = CudaInstant::now().unwrap();
         let num_threads_per_block = 256;
         let num_blocks = num_rows.div_ceil(num_threads_per_block);
         device_interactions.populate_permutation_rows(
@@ -471,6 +473,8 @@ mod tests {
             num_blocks,
             num_threads_per_block,
         );
+        let elapsed = time.elapsed().unwrap();
+        println!("populate_permutation_rows: {:?}", elapsed);
 
         let perm_h = perm_d.to_host();
 
@@ -480,22 +484,14 @@ mod tests {
             let main_row = main_trace.row_slice(i);
 
             let mut expected_row = vec![EF::zero(); perm_width];
-            // populate_permutation_row(
-            //     &mut expected_row,
-            //     &prep_row,
-            //     &main_row,
-            //     chip.sends(),
-            //     chip.receives(),
-            //     alpha,
-            //     beta.powers(),
-            //     batch_size,
-            // );
-            host_interactions.populate_permutation_row(
+            populate_permutation_row(
                 &mut expected_row,
                 &prep_row,
                 &main_row,
+                chip.sends(),
+                chip.receives(),
                 alpha,
-                beta,
+                beta.powers(),
                 batch_size,
             );
 
