@@ -1,5 +1,6 @@
 use std::ops::{
-    Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
+    Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
+    RangeToInclusive,
 };
 use std::slice;
 
@@ -219,6 +220,22 @@ impl<T: Copy> ToDevice for Vec<T> {
         let mut buffer = DeviceBuffer::with_capacity(self.len());
         buffer.extend_from_host_slice(self);
         buffer
+    }
+}
+
+impl<T: Copy> Deref for DeviceBuffer<T> {
+    type Target = DeviceSlice<T>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self[..]
+    }
+}
+
+impl<T: Copy> DerefMut for DeviceBuffer<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self[..]
     }
 }
 

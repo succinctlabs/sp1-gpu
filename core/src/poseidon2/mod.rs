@@ -254,8 +254,8 @@ pub mod tests {
         // Execute the kernel.
         unsafe {
             poseidon2_bb31_16_kernels::compress(
-                left_device.as_slice().as_ptr(),
-                right_device.as_slice().as_ptr(),
+                left_device.as_ptr(),
+                right_device.as_ptr(),
                 output_device.as_slice_mut().as_mut_ptr(),
                 n,
                 num_blocks,
