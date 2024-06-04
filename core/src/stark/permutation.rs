@@ -6,11 +6,7 @@ use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::lookup::Interaction;
 
 use crate::{
-    device::{
-        buffer::{DeviceBuffer, ToDevice},
-        error::CudaError,
-        slice::DeviceSlice,
-    },
+    device::{buffer::DeviceBuffer, error::CudaError, memory::ToDevice, slice::DeviceSlice},
     matrix::{MatrixViewDevice, MatrixViewMutDevice},
 };
 

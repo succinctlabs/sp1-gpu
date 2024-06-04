@@ -5,7 +5,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
 use crate::device::buffer::DeviceBuffer;
-use crate::device::buffer::ToDevice;
+use crate::device::memory::{ToDevice, ToHost};
 
 use super::ffi::{transpose_blowup_naive, transpose_naive};
 use super::{ColMajorMatrixDevice, DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -105,6 +105,8 @@ impl RowMajorMatrixDevice<BabyBear> {
 mod tests {
 
     use p3_matrix::Matrix;
+
+    use crate::device::memory::ToHost;
 
     use super::*;
 
