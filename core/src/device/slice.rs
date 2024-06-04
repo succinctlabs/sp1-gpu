@@ -4,6 +4,8 @@ use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 
+use super::memory::ToHost;
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct DeviceSlice<T>([T]);
@@ -147,4 +149,17 @@ impl_index! {
     RangeInclusive<usize>
     RangeTo<usize>
     RangeToInclusive<usize>
+}
+
+impl<T: Copy> ToHost for DeviceSlice<T> {
+    type HostType = Vec<T>;
+
+    fn to_host(&self) -> Vec<T> {
+        let mut host = Vec::with_capacity(self.len());
+        unsafe {
+            host.set_len(self.len());
+        }
+        self.copy_into_host(&mut host);
+        host
+    }
 }

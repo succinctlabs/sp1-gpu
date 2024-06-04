@@ -177,7 +177,7 @@ class Hasher {
         }
     }
 
-    __device__ void absorbRow(Matrix *in, int row_idx, HasherState *state) {
+    __device__ void absorbRow(Matrix<bb31_t> *in, int row_idx, HasherState *state) {
         if (in->row_major) {
             bb31_t *row = &in->values[in->width * row_idx];
             absorb(row, in->width, state);

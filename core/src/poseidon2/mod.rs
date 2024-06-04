@@ -45,7 +45,8 @@ pub mod poseidon2_bb31_16_kernels {
 pub mod tests {
 
     use crate::device::buffer::DeviceBuffer;
-    use crate::device::buffer::ToDevice;
+    use crate::device::memory::ToDevice;
+    use crate::device::memory::ToHost;
     use crate::poseidon2::constants::RC_16_30;
     use p3_baby_bear::BabyBear;
     use p3_baby_bear::DiffusionMatrixBabyBear;
@@ -83,8 +84,8 @@ pub mod tests {
         )
     }
 
-    pub fn poseidon2_bb31_16_perm()
-    -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7> {
+    pub fn poseidon2_bb31_16_perm(
+    ) -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7> {
         let (external_round_constants, internal_round_constants) = round_constants();
         Poseidon2::<
             BabyBear,
@@ -254,8 +255,8 @@ pub mod tests {
         // Execute the kernel.
         unsafe {
             poseidon2_bb31_16_kernels::compress(
-                left_device.as_slice().as_ptr(),
-                right_device.as_slice().as_ptr(),
+                left_device.as_ptr(),
+                right_device.as_ptr(),
                 output_device.as_slice_mut().as_mut_ptr(),
                 n,
                 num_blocks,

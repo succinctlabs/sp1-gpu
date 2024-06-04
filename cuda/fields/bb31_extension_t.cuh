@@ -5,7 +5,7 @@
 class bb31_extension_t {
    public:
     static constexpr size_t D = 4;
-    static constexpr bb31_t W = bb31_t(11);
+    static constexpr bb31_t W = bb31_t {11};
 
     bb31_t value[D];
 
@@ -30,7 +30,7 @@ class bb31_extension_t {
     }
 
     static __device__ __forceinline__ const bb31_extension_t one() {
-        bb31_t values[D] = {bb31_t(1), bb31_t(0), bb31_t(0), bb31_t(0)};
+        bb31_t values[D] = {bb31_t::one(), bb31_t(0), bb31_t(0), bb31_t(0)};
         return bb31_extension_t(values);
     }
 
@@ -59,11 +59,11 @@ class bb31_extension_t {
     }
 
     __device__ __forceinline__ bb31_extension_t& operator*=(const bb31_extension_t b) {
-        bb31_t product[4];
+        bb31_t product[4] = {bb31_t(0), bb31_t(0), bb31_t(0), bb31_t(0)};
         for (size_t i = 0; i < D; i++) {
             for (size_t j = 0; j < D; j++) {
-                if (i + j >= 4) {
-                    product[i + j - 4] += value[i] * b.value[i] * bb31_t(11);
+                if (i + j >= D) {
+                    product[i + j - D] += value[i] * b.value[j] * W;
                 } else {
                     product[i + j] += value[i] * b.value[j];
                 }

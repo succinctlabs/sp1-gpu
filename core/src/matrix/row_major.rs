@@ -5,7 +5,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
 use crate::device::buffer::DeviceBuffer;
-use crate::device::buffer::ToDevice;
+use crate::device::memory::{ToDevice, ToHost};
 
 use super::ffi::{transpose_blowup_naive, transpose_naive};
 use super::{ColMajorMatrixDevice, DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -106,6 +106,8 @@ mod tests {
 
     use p3_matrix::Matrix;
 
+    use crate::device::memory::ToHost;
+
     use super::*;
 
     #[test]
@@ -120,12 +122,18 @@ mod tests {
         let cpu_time = start.elapsed().unwrap();
         println!("time: {:?}", cpu_time);
 
-        let mat_d_values = mat_d_col.values.to_host();
-        let mat_h_transposed = mat_h.transpose();
+        let mat_d_h = mat_d_col.to_host();
 
-        for (val, exp) in mat_d_values.into_iter().zip(mat_h_transposed.values) {
+        for (val, exp) in mat_d_h.values.into_iter().zip(mat_h.values) {
             assert_eq!(val, exp);
         }
+
+        // let mat_d_values = mat_d_col.values.to_host();
+        // let mat_h_transposed = mat_h.transpose();
+
+        // for (val, exp) in mat_d_values.into_iter().zip(mat_h_transposed.values) {
+        //     assert_eq!(val, exp);
+        // }
     }
 
     #[test]

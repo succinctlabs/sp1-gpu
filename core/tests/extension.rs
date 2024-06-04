@@ -1,8 +1,10 @@
 use itertools::izip;
 use moongate_core::device::buffer::DeviceBuffer;
-use moongate_core::device::buffer::ToDevice;
+use moongate_core::device::memory::ToDevice;
+use moongate_core::device::memory::ToHost;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_field::AbstractField;
 use rand::thread_rng;
 use rand::Rng;
 
@@ -32,8 +34,11 @@ fn test_device_extension() {
 
     let mut rng = thread_rng();
 
-    let a_h = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
-    let b_h = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+    let mut a_h = (0..n - 2).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+    a_h.push(EF::zero());
+    a_h.push(EF::one());
+    let mut b_h = (0..n - 1).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+    b_h.push(EF::one());
 
     let a = a_h.to_device();
     let b = b_h.to_device();
@@ -44,6 +49,10 @@ fn test_device_extension() {
     let mut div = DeviceBuffer::<EF>::with_capacity(n);
 
     unsafe {
+        add.set_max_len();
+        sub.set_max_len();
+        mul.set_max_len();
+        div.set_max_len();
         test_bb31_extension(
             a.as_ptr(),
             b.as_ptr(),
@@ -62,10 +71,10 @@ fn test_device_extension() {
     let mul_h = mul.to_host();
     let div_h = div.to_host();
 
-    for (a, b, add, sub, mul, div) in izip!(a_h, b_h, add_h, sub_h, mul_h, div_h) {
-        assert_eq!(a + b, add);
-        assert_eq!(a - b, sub);
-        assert_eq!(a * b, mul);
-        assert_eq!(a / b, div);
+    for (i, (a, b, add, sub, mul, div)) in izip!(a_h, b_h, add_h, sub_h, mul_h, div_h).enumerate() {
+        assert_eq!(a + b, add, "i={}", i);
+        assert_eq!(a - b, sub, "i={}", i);
+        assert_eq!(a * b, mul, "i={}", i);
+        assert_eq!(a / b, div, "i={}", i);
     }
 }

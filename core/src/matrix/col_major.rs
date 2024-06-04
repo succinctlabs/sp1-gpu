@@ -3,7 +3,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
 use crate::device::buffer::DeviceBuffer;
-use crate::device::buffer::ToDevice;
+use crate::device::memory::{ToDevice, ToHost};
 
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 
