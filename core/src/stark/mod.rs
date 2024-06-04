@@ -1,6 +1,8 @@
 mod permutation;
+mod prover;
 
 pub use permutation::*;
+pub use prover::*;
 
 pub(super) mod ffi {
     use p3_baby_bear::BabyBear;
