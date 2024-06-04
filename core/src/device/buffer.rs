@@ -1,5 +1,6 @@
 use std::ops::{
-    Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
+    Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
+    RangeToInclusive,
 };
 use std::slice;
 
@@ -22,6 +23,21 @@ impl<T: Copy> DeviceBuffer<T> {
         Self {
             buf: ptr,
             len: 0,
+            cap: capacity,
+        }
+    }
+
+    /// Returns a new buffer from a pointer, length, and capacity.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must be valid, it must have allocated memory in the size of
+    /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
+    /// about to be initialized in a foreign CUDA call.
+    pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+        Self {
+            buf: ptr,
+            len: length,
             cap: capacity,
         }
     }
@@ -219,6 +235,22 @@ impl<T: Copy> ToDevice for Vec<T> {
         let mut buffer = DeviceBuffer::with_capacity(self.len());
         buffer.extend_from_host_slice(self);
         buffer
+    }
+}
+
+impl<T: Copy> Deref for DeviceBuffer<T> {
+    type Target = DeviceSlice<T>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self[..]
+    }
+}
+
+impl<T: Copy> DerefMut for DeviceBuffer<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self[..]
     }
 }
 

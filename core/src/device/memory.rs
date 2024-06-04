@@ -2,6 +2,18 @@ use std::{ffi::c_void, mem, ptr};
 
 use crate::{device::error::CudaError, device::ffi};
 
+pub trait ToDevice {
+    type DeviceType;
+
+    fn to_device(&self) -> Self::DeviceType;
+}
+
+pub trait ToHost {
+    type HostType;
+
+    fn to_host(&self) -> Self::HostType;
+}
+
 /// A Rust interface for cudaMalloc.
 ///
 /// # Safety
