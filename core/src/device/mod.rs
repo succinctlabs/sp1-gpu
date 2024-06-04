@@ -2,7 +2,7 @@ pub mod buffer;
 pub mod error;
 pub(crate) mod ffi;
 pub mod memory;
-mod scan;
+mod ops;
 pub mod slice;
 
-pub use scan::*;
+pub use ops::*;
