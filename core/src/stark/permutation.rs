@@ -6,7 +6,11 @@ use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::lookup::Interaction;
 
 use crate::{
-    device::buffer::{DeviceBuffer, ToDevice},
+    device::{
+        buffer::{DeviceBuffer, ToDevice},
+        error::CudaError,
+        slice::DeviceSlice,
+    },
     matrix::{MatrixViewDevice, MatrixViewMutDevice},
 };
 
@@ -274,6 +278,39 @@ impl DeviceInteractions<BabyBear> {
             num_threads_per_block,
         );
     }
+
+    pub fn generate_permutation_trace(
+        &self,
+        permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) -> Result<(), CudaError> {
+        // Populate the permutation rows.
+        self.populate_permutation_rows(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+
+        // Collect the cumulative sums using a scan in place.
+        let col = permutation.width - 1;
+        let height = permutation.height;
+        unsafe {
+            let last_col_ptr = permutation.values.add(col * height);
+            let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
+            cumulative_column.scan_inplace()
+        }
+    }
 }
 
 impl<'a> DeviceInteractionsView<'a, BabyBear> {
@@ -348,6 +385,7 @@ mod tests {
     use rand::thread_rng;
     use rand::Rng;
 
+    use sp1_core::stark::generate_permutation_trace;
     use sp1_core::stark::permutation_trace_width;
     use sp1_core::utils::tests::FIBONACCI_ELF;
 
@@ -413,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn test_populate_permutation_row_device() {
+    fn test_generate_permutation_trace_device() {
         let mut rng = thread_rng();
 
         let air = ByteChip::<F>::default();
@@ -463,44 +501,42 @@ mod tests {
         let time = CudaInstant::now().unwrap();
         let num_threads_per_block = 256;
         let num_blocks = num_rows.div_ceil(num_threads_per_block);
-        device_interactions.populate_permutation_rows(
-            perm_d.view_mut(),
-            prep_d.view(),
-            main_d.view(),
-            alpha,
-            beta,
-            batch_size,
-            num_blocks,
-            num_threads_per_block,
-        );
+        device_interactions
+            .generate_permutation_trace(
+                perm_d.view_mut(),
+                prep_d.view(),
+                main_d.view(),
+                alpha,
+                beta,
+                batch_size,
+                num_blocks,
+                num_threads_per_block,
+            )
+            .unwrap();
         let elapsed = time.elapsed().unwrap();
-        println!("populate_permutation_rows: {:?}", elapsed);
+        println!("Device generate_permutation_trace: {:?}", elapsed);
 
         let perm_h = perm_d.to_host();
 
+        let time = std::time::Instant::now();
+        let expected_perm_trace = generate_permutation_trace(
+            chip.sends(),
+            chip.receives(),
+            Some(&preprocessed_trace),
+            &main_trace,
+            &[alpha, beta],
+            batch_size,
+        );
+        println!("Host generate_permutation_trace: {:?}", time.elapsed());
+
         // Compare the values to the host values.
-        for i in 0..num_rows {
-            let prep_row = preprocessed_trace.row_slice(i);
-            let main_row = main_trace.row_slice(i);
-
-            let mut expected_row = vec![EF::zero(); perm_width];
-            populate_permutation_row(
-                &mut expected_row,
-                &prep_row,
-                &main_row,
-                chip.sends(),
-                chip.receives(),
-                alpha,
-                beta.powers(),
-                batch_size,
-            );
-            let sum = expected_row.iter().copied().sum::<EF>();
-            *expected_row.last_mut().unwrap() = sum;
-
-            let row = perm_h.row_slice(i);
-            for (exp, val) in expected_row.iter().zip(row.iter()) {
-                assert_eq!(exp, val, "row {} mismatch", i);
-            }
+        for (i, (exp, res)) in expected_perm_trace
+            .values
+            .iter()
+            .zip(perm_h.values.iter())
+            .enumerate()
+        {
+            assert_eq!(exp, res, "at index {}", i);
         }
     }
 }

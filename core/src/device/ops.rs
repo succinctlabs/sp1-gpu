@@ -19,6 +19,13 @@ impl<T> DeviceSlice<T> {
         assert_eq!(result.len(), self.len());
         unsafe { T::cuda_scan(result.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }
     }
+
+    pub fn scan_inplace(&mut self) -> Result<(), CudaError>
+    where
+        T: CudaScan,
+    {
+        unsafe { T::cuda_scan(self.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }
+    }
 }
 
 impl<T: Copy> DeviceBuffer<T> {
@@ -30,5 +37,12 @@ impl<T: Copy> DeviceBuffer<T> {
         unsafe { result.set_max_len() };
         self.scan_into(&mut result)?;
         Ok(result)
+    }
+
+    pub fn scan_inplace(&mut self) -> Result<(), CudaError>
+    where
+        T: CudaScan,
+    {
+        self.as_slice_mut().scan_inplace()
     }
 }

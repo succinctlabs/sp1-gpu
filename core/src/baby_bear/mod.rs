@@ -75,9 +75,11 @@ mod tests {
 
         for n in [small_n, large_n] {
             let a_h = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
-            let a = a_h.to_device();
+            let mut a = a_h.to_device();
 
-            let res = a.scan().unwrap();
+            // let res = a.scan().unwrap();
+            a.scan_inplace().unwrap();
+            let res = a;
             let res_h = res.to_host();
 
             for (i, (exp, res)) in a_h

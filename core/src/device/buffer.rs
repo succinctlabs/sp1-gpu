@@ -27,6 +27,14 @@ impl<T: Copy> DeviceBuffer<T> {
         }
     }
 
+    pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+        Self {
+            buf: ptr,
+            len: length,
+            cap: capacity,
+        }
+    }
+
     /// # Safety
     ///
     /// TODO
