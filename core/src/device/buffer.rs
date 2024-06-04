@@ -27,6 +27,13 @@ impl<T: Copy> DeviceBuffer<T> {
         }
     }
 
+    /// Returns a new buffer from a pointer, length, and capacity.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must be valid, it must have allocated memory in the size of
+    /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
+    /// about to be initialized in a foreign CUDA call.
     pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
         Self {
             buf: ptr,
