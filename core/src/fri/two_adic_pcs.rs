@@ -10,7 +10,7 @@ use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
-use crate::device::buffer::ToDevice;
+use crate::device::memory::ToDevice;
 
 pub struct TwoAdicFriPcs<F, D, M = ColMajorMatrixDevice<F>> {
     dft: DeviceDft<F>,

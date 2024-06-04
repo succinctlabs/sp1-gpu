@@ -7,6 +7,8 @@ use std::slice;
 use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
+use super::memory::{ToDevice, ToHost};
+
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
 #[repr(C)]
@@ -112,15 +114,6 @@ impl<T: Copy> DeviceBuffer<T> {
         unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
     }
 
-    pub fn to_host(&self) -> Vec<T> {
-        let mut host = Vec::with_capacity(self.len);
-        unsafe {
-            host.set_len(self.len);
-        }
-        self.copy_to_host(&mut host);
-        host
-    }
-
     pub fn copy_to_host(&self, dst: &mut [T]) {
         // The panic code path was put into a cold function to not bloat the
         // call site.
@@ -222,12 +215,6 @@ impl_index! {
     RangeToInclusive<usize>
 }
 
-pub trait ToDevice {
-    type DeviceType;
-
-    fn to_device(&self) -> Self::DeviceType;
-}
-
 impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
@@ -235,6 +222,19 @@ impl<T: Copy> ToDevice for Vec<T> {
         let mut buffer = DeviceBuffer::with_capacity(self.len());
         buffer.extend_from_host_slice(self);
         buffer
+    }
+}
+
+impl<T: Copy> ToHost for DeviceBuffer<T> {
+    type HostType = Vec<T>;
+
+    fn to_host(&self) -> Vec<T> {
+        let mut host = Vec::with_capacity(self.len);
+        unsafe {
+            host.set_len(self.len);
+        }
+        self.copy_to_host(&mut host);
+        host
     }
 }
 

@@ -1,6 +1,7 @@
 use itertools::izip;
 use moongate_core::device::buffer::DeviceBuffer;
-use moongate_core::device::buffer::ToDevice;
+use moongate_core::device::memory::ToDevice;
+use moongate_core::device::memory::ToHost;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractField;
