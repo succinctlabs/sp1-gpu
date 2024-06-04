@@ -70,7 +70,7 @@ namespace column_major {}
 extern "C" namespace merkle_tree_gpu {
     using namespace poseidon2_bb31_16;
 
-    extern "C" void firstDigestLayer(Matrix<bb31_t> * tallestMatrices,
+    extern "C" void first_digest_layer(Matrix<bb31_t> * tallestMatrices,
                                      size_t nTallestMatrices,
                                      bb31_t(*digests)[DIGEST_WIDTH],
                                      size_t nBlocks, size_t nThreadsPerBlock) {
@@ -79,7 +79,7 @@ extern "C" namespace merkle_tree_gpu {
             tallestMatrices, nTallestMatrices, digests, hasher);
     }
 
-    extern "C" void compressAndInject(
+    extern "C" void compress_and_inject(
         bb31_t(*prevLayer)[DIGEST_WIDTH], size_t nPrevLayer,
         Matrix<bb31_t> * matricesToInject, size_t nMatricesToInject,
         bb31_t(*nextDigests)[DIGEST_WIDTH], size_t nBlocks,

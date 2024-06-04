@@ -93,7 +93,6 @@ pub mod merkle_tree_gpu {
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_gpu"]
     extern "C" {
-        #[link_name = "firstDigestLayer"]
         pub fn first_digest_layer(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
@@ -102,7 +101,6 @@ pub mod merkle_tree_gpu {
             n_threads_per_block: usize,
         );
 
-        #[link_name = "compressAndInject"]
         pub fn compress_and_inject(
             prev_layer: *const [BabyBear; DIGEST_WIDTH],
             n_prev_layer: usize,
@@ -136,7 +134,7 @@ mod tests {
 
         let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
         let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-        let tallest_matrices = [matrix_device_1.view(), matrix_device_2.view()];
+        let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
         let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
 
         unsafe {
@@ -168,7 +166,7 @@ mod tests {
         let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
         let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
 
-        let tallest_matrices = [matrix_device_1.view()];
+        let tallest_matrices = vec![matrix_device_1.view()].to_device();
         let mut first_layer_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
         unsafe {
             first_layer_digests.set_len(n);
