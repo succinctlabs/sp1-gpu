@@ -1,5 +1,5 @@
 use crate::device::buffer::DeviceBuffer;
-use crate::device::buffer::ToDevice;
+use crate::device::memory::ToDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
@@ -115,12 +115,12 @@ pub mod merkle_tree_gpu {
 
 #[cfg(test)]
 mod tests {
+    use crate::device::memory::ToDevice;
     use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
     use crate::merkle_tree::FieldMerkleTreeGpu;
     use crate::poseidon2::tests::{poseidon2_bb31_16_compressor, poseidon2_bb31_16_hasher};
     use crate::{
-        device::buffer::{DeviceBuffer, ToDevice},
-        merkle_tree::merkle_tree_gpu,
+        device::buffer::DeviceBuffer, merkle_tree::merkle_tree_gpu,
         poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
     };
 

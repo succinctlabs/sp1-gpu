@@ -34,7 +34,7 @@ mod tests {
     use p3_field::AbstractField;
     use rand::{thread_rng, Rng};
 
-    use crate::device::buffer::ToDevice;
+    use crate::device::memory::ToDevice;
 
     use super::*;
 

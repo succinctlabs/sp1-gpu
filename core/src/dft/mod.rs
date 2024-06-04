@@ -108,7 +108,7 @@ mod tests {
 
     use super::DeviceDft;
     use crate::{
-        device::buffer::{DeviceBuffer, ToDevice},
+        device::{buffer::DeviceBuffer, memory::ToDevice},
         matrix::ColMajorMatrixDevice,
     };
     use p3_field::{AbstractField, Field, PrimeField32, TwoAdicField};

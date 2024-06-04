@@ -6,11 +6,7 @@ use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::lookup::Interaction;
 
 use crate::{
-    device::{
-        buffer::{DeviceBuffer, ToDevice},
-        error::CudaError,
-        slice::DeviceSlice,
-    },
+    device::{buffer::DeviceBuffer, error::CudaError, memory::ToDevice, slice::DeviceSlice},
     matrix::{MatrixViewDevice, MatrixViewMutDevice},
 };
 
@@ -372,6 +368,7 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 
 #[cfg(test)]
 mod tests {
+    use crate::device::memory::ToDevice;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::matrix::RowMajorMatrixDevice;
     use crate::time::CudaInstant;

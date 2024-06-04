@@ -7,6 +7,8 @@ use std::slice;
 use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
+use super::memory::ToDevice;
+
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
 #[repr(C)]
@@ -220,12 +222,6 @@ impl_index! {
     RangeInclusive<usize>
     RangeTo<usize>
     RangeToInclusive<usize>
-}
-
-pub trait ToDevice {
-    type DeviceType;
-
-    fn to_device(&self) -> Self::DeviceType;
 }
 
 impl<T: Copy> ToDevice for Vec<T> {

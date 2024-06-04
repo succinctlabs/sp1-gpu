@@ -45,7 +45,7 @@ pub mod poseidon2_bb31_16_kernels {
 pub mod tests {
 
     use crate::device::buffer::DeviceBuffer;
-    use crate::device::buffer::ToDevice;
+    use crate::device::memory::ToDevice;
     use crate::poseidon2::constants::RC_16_30;
     use p3_baby_bear::BabyBear;
     use p3_baby_bear::DiffusionMatrixBabyBear;
