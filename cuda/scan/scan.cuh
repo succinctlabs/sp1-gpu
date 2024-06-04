@@ -6,7 +6,7 @@
 
 #include "../fields/bb31_extension_t.cuh"
 
-template<typename T> RustCudaError scan_template(T * d_in, T * d_out, size_t n) {
+template<typename T> RustCudaError scan_template(T * d_out, T * d_in, size_t n) {
     if((2 * n) <= SECTION_SIZE)
         single_block_scan<<<1, n>>>(d_out, d_in, n);
     else {
@@ -31,10 +31,11 @@ template<typename T> RustCudaError scan_template(T * d_in, T * d_out, size_t n) 
 }
 
 
-extern "C" RustCudaError scan_baby_bear(bb31_t * d_in, bb31_t * d_out, size_t n) {
-    return scan_template(d_in, d_out, n);
+extern "C" RustCudaError scan_baby_bear(bb31_t * d_out, bb31_t* d_in, size_t n) {
+    return scan_template(d_out, d_in, n);
 }
 
-extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_in, bb31_extension_t * d_out, size_t n) {
-    return scan_template(d_in, d_out, n);
+extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_out, 
+   bb31_extension_t  *d_in, size_t n) {
+    return scan_template(d_out, d_in, n);
 }

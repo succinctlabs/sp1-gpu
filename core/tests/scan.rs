@@ -10,7 +10,7 @@ use rand::Rng;
 type F = BabyBear;
 
 extern "C" {
-    pub fn scan_baby_bear(a: *const F, b: *const F, n: usize) -> CudaRustError;
+    pub fn scan_baby_bear(a: *mut F, b: *const F, n: usize) -> CudaRustError;
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn test_device_small_scan() {
     let mut res = DeviceBuffer::<F>::with_capacity(n);
     unsafe {
         res.set_max_len();
-        scan_baby_bear(a.as_ptr(), res.as_mut_ptr(), n)
+        scan_baby_bear(res.as_mut_ptr(), a.as_ptr(), n)
             .to_result()
             .unwrap();
     }
@@ -56,7 +56,7 @@ fn test_device_large_scan() {
     let time = CudaInstant::now().unwrap();
     unsafe {
         res.set_max_len();
-        scan_baby_bear(a.as_ptr(), res.as_mut_ptr(), n)
+        scan_baby_bear(res.as_mut_ptr(), a.as_ptr(), n)
             .to_result()
             .unwrap();
     }

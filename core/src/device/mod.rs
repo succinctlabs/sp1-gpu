@@ -2,11 +2,7 @@ pub mod buffer;
 pub mod error;
 pub(crate) mod ffi;
 pub mod memory;
+mod scan;
 pub mod slice;
 
-#[repr(C)]
-pub struct Device {
-    cuda_id: usize,
-}
-
-impl Device {}
+pub use scan::*;
