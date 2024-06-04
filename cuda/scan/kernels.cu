@@ -1,7 +1,7 @@
 
 const size_t SECTION_SIZE = 1024;
 
-template<typename T> __device__ __inline__ void Brent_Kung_scan(T *d_out, T * d_in, T* aux, 
+template<typename T> __device__ __inline__ void BrentKungScan(T *d_out, T * d_in, T* aux, 
 size_t block_idx, size_t block_dim, size_t thread_idx, size_t n) {
     size_t i = 2 * block_idx * block_dim + thread_idx;
     if (i < n) 
@@ -33,15 +33,15 @@ size_t block_idx, size_t block_dim, size_t thread_idx, size_t n) {
         d_out[i + block_dim] = aux[thread_idx + block_dim];
 }
 
-template<typename T> __global__ void single_block_scan(T *d_out, T* d_in, size_t n) {
+template<typename T> __global__ void SingleBlockScan(T *d_out, T* d_in, size_t n) {
     __shared__ T aux[SECTION_SIZE];
     size_t block_idx = blockIdx.x;
     size_t block_dim = blockDim.x;
     size_t thread_idx = threadIdx.x;
-    Brent_Kung_scan(d_out, d_in, aux, block_idx, block_dim, thread_idx, n);
+    BrentKungScan(d_out, d_in, aux, block_idx, block_dim, thread_idx, n);
 }
 
-template<typename T> __global__ void scan(T *d_out, T * d_in, size_t n, 
+template<typename T> __global__ void Scan(T *d_out, T * d_in, size_t n, 
   T* scan_values, unsigned int * BlockCounter, unsigned int* flags) {
 
     // Set up a global block_id to make contiguous blocks which are scheduled sequentially.
@@ -54,7 +54,7 @@ template<typename T> __global__ void scan(T *d_out, T * d_in, size_t n,
 
     // Peform a scan on the local block.
     __shared__ T aux[SECTION_SIZE];
-    Brent_Kung_scan(d_out, d_in, aux, bid, blockDim.x, threadIdx.x, n);
+    BrentKungScan(d_out, d_in, aux, bid, blockDim.x, threadIdx.x, n);
 
     // Get the sum of the previous block, add it to the sum of the current block and broadcast it 
     // to the next block.

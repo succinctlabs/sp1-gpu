@@ -10,6 +10,6 @@ extern "C" void populate_permutation_rows(Interactions<bb31_t> const interaction
                         assert(!permutation.row_major);
                         assert(!main.row_major);
                         assert(!preprocessed.row_major);
-                        populate_permutation_rows<<<nBlocks, nThreadsPerBlock>>>(
+                        PopulatePermutationRows<<<nBlocks, nThreadsPerBlock>>>(
                             interactions, permutation, preprocessed, main, alpha, beta, batch_size);
                     }

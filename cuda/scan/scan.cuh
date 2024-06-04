@@ -6,9 +6,9 @@
 
 #include "../fields/bb31_extension_t.cuh"
 
-template<typename T> RustCudaError scan_template(T * d_out, T * d_in, size_t n) {
+template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n) {
     if((2 * n) <= SECTION_SIZE)
-        single_block_scan<<<1, n>>>(d_out, d_in, n);
+        SingleBlockScan<<<1, n>>>(d_out, d_in, n);
     else {
        size_t block_dim = 512;
        size_t num_blocks = ceil(n / (float)block_dim);
@@ -23,7 +23,7 @@ template<typename T> RustCudaError scan_template(T * d_out, T * d_in, size_t n) 
        CUDA_OK(cudaMalloc(&flags, flag_size));
        CUDA_OK(cudaMemset(flags, 0, flag_size));
        CUDA_OK(cudaMemset(flags, 1, sizeof(unsigned int)));
-       scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scan_values, BlockCounter, flags);
+       Scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scan_values, BlockCounter, flags);
        CUDA_OK(cudaFree(BlockCounter));
        CUDA_OK(cudaFree(flags));
     }
@@ -32,10 +32,10 @@ template<typename T> RustCudaError scan_template(T * d_out, T * d_in, size_t n) 
 
 
 extern "C" RustCudaError scan_baby_bear(bb31_t * d_out, bb31_t* d_in, size_t n) {
-    return scan_template(d_out, d_in, n);
+    return ScanTemplate(d_out, d_in, n);
 }
 
 extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_out, 
     bb31_extension_t  *d_in, size_t n) {
-    return scan_template(d_out, d_in, n);
+    return ScanTemplate(d_out, d_in, n);
 }
