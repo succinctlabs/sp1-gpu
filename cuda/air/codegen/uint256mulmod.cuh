@@ -6,6 +6,9 @@
 
 class Uint256MulModAir {
    public:
+    static constexpr size_t PREP_WIDTH = 0;
+    static constexpr size_t MAIN_WIDTH = 447;
+    static constexpr size_t PERM_WIDTH = 98;
     __device__ void eval(ConstraintFolder<bb31_t, bb31_extension_t, 2> *builder) {
        bb31_extension_t tmp0 = builder->isFirstRow * builder->mainLocal[3];
        builder->accumulator *= builder->alpha;

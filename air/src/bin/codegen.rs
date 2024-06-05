@@ -1,3 +1,4 @@
+use p3_air::BaseAir;
 use sp1_core::air::MachineAir;
 use sp1_core::stark::RiscvAir;
 use sp1_core::utils::BabyBearPoseidon2;
@@ -15,6 +16,9 @@ fn main() {
         let mut template = TEMPLATE.to_string();
         template = template.replace("Template", chip.name().as_str());
         template = template.replace("CODEGEN", &code.join("\n       "));
+        template = template.replace("PREP_WIDTH_VALUE", &chip.preprocessed_width().to_string());
+        template = template.replace("MAIN_WIDTH_VALUE", &chip.width().to_string());
+        template = template.replace("PERM_WIDTH_VALUE", &chip.permutation_width().to_string());
         fs::write(path, template).unwrap();
     }
 }

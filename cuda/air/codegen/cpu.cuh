@@ -6,6 +6,9 @@
 
 class CPUAir {
    public:
+    static constexpr size_t PREP_WIDTH = 0;
+    static constexpr size_t MAIN_WIDTH = 151;
+    static constexpr size_t PERM_WIDTH = 18;
     __device__ void eval(ConstraintFolder<bb31_t, bb31_extension_t, 2> *builder) {
        bb31_extension_t tmp0 = builder->mainLocal[42] + builder->mainLocal[43];
        bb31_extension_t tmp1 = tmp0 + builder->mainLocal[44];

@@ -6,6 +6,9 @@
 
 class ShiftLeftAir {
    public:
+    static constexpr size_t PREP_WIDTH = 0;
+    static constexpr size_t MAIN_WIDTH = 45;
+    static constexpr size_t PERM_WIDTH = 4;
     __device__ void eval(ConstraintFolder<bb31_t, bb31_extension_t, 2> *builder) {
        bb31_extension_t tmp0 = builder->isFirstRow * builder->mainLocal[2];
        builder->accumulator *= builder->alpha;
