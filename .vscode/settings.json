@@ -110,6 +110,8 @@
         "__hash_table": "cpp",
         "__tree": "cpp",
         "locale": "cpp",
-        "stream_ref": "cpp"
+        "stream_ref": "cpp",
+        "queue": "cpp",
+        "stack": "cpp"
     },
 }

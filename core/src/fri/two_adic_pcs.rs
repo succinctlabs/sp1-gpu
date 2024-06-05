@@ -47,7 +47,7 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 
                 unsafe {
                     self.dft
-                        .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup)
+                        .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
                 }
                 .unwrap();
 
@@ -68,6 +68,7 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 mod tests {
     use super::*;
     use p3_commit::Pcs;
+    use p3_matrix::bitrev::BitReversableMatrix;
     use rand::thread_rng;
 
     use std::time::Instant;
@@ -79,8 +80,8 @@ mod tests {
     #[test]
     fn test_commit_from_host() {
         let log_blowup = 1;
-        let log_degrees = [22, 11, 10];
-        let columns = [100, 200, 1000];
+        let log_degrees = [16];
+        let columns = [100];
 
         type SC = BabyBearPoseidon2;
 

@@ -70,6 +70,7 @@ impl DeviceDft<BabyBear> {
             log_degree as u32,
             log_blowup as u32,
             1,
+            false,
         )
         .into()
     }
@@ -79,6 +80,7 @@ impl DeviceDft<BabyBear> {
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
         log_blowup: usize,
+        bit_rev: bool,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
         ffi::batch_lde_shift(
@@ -86,6 +88,7 @@ impl DeviceDft<BabyBear> {
             matrix.height.ilog2() - log_blowup as u32,
             log_blowup as u32,
             matrix.width as u32,
+            bit_rev,
         )
         .into()
     }
@@ -337,7 +340,7 @@ mod tests {
             assert_eq!(mat_h.width(), batch_size);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup) }.unwrap();
+            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, false) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 

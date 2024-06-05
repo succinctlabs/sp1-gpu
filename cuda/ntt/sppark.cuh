@@ -51,7 +51,7 @@ extern "C" rustCudaError_t sppark_init() {
 }
 
 extern "C" rustCudaError_t batch_lde_shift(
-    fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, uint32_t poly_count) {
+    fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, uint32_t poly_count, bool bit_rev_output) {
   if (lg_domain_size == 0) {
     return CUDA_SUCCESS_MOON;
     }
@@ -79,10 +79,12 @@ extern "C" rustCudaError_t batch_lde_shift(
           gpu, &d_inout[c * ext_domain_size], &d_inout[(c + 1) * ext_domain_size - domain_size], 
           gen_powers, lg_domain_size, lg_blowup);
 
+      NTT::InputOutputOrder order = bit_rev_output ? NTT::InputOutputOrder::RR : NTT::InputOutputOrder::RN;
+
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * ext_domain_size],
                         lg_domain_size + lg_blowup,
-                        NTT::InputOutputOrder::RN,
+                        order,
                         NTT::Direction::forward,
                         NTT::Type::standard);
     }

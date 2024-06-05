@@ -10,6 +10,7 @@ extern "C" {
         lg_domain_size: u32,
         lg_blowup: u32,
         poly_count: u32,
+        is_bit_rev: bool,
     ) -> CudaRustError;
 
     pub(crate) fn batch_NTT(
