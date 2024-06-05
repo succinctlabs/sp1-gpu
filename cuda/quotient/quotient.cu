@@ -85,7 +85,7 @@ __global__ void quotientValues(Air air, Challenge cumulativeSum,
 
 }  // namespace quotient
 
-extern "C" void computeQuotientValues(
+extern "C" void quotient_values(
     bb31_extension_t cumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
