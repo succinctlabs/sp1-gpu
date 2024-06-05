@@ -21,6 +21,7 @@ extern "C" void populate_permutation_rows_flattened(Interactions<bb31_t> const i
                         assert(!permutation.row_major);
                         assert(!main.row_major);
                         assert(!preprocessed.row_major);
+                        assert(permutation.height == main.height);
                         PopulatePermutationRowsFlattened<<<nBlocks, nThreadsPerBlock>>>(
                             interactions, permutation, preprocessed, main, alpha, beta, batch_size);
                     }

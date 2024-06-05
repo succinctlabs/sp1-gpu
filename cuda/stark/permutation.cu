@@ -65,7 +65,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRows(
 
         EF row_cumulative_sum = EF::zero();
         for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
-            EF value = InteractionValue(i, RowIdx,interactions, preprocessed, main, alpha, beta, batch_size);
+            EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size);
             // Accumulate the sum of values.
             row_cumulative_sum += value;
             // Assign the value to the row.
@@ -91,24 +91,25 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
 
         EF row_cumulative_sum = EF::zero();
         for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
-            EF value = InteractionValue(i, RowIdx,interactions, preprocessed, main, alpha, beta, batch_size);
+            EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size);
             // Accumulate the sum of values.
             row_cumulative_sum += value;
             // Assign the value to the row.
-            size_t perm_index = i / batch_size;
+            size_t perm_index = (i / batch_size) * EF::D;
 
             #pragma unroll
             for (size_t k = 0; k < EF::D; k++) {
-                size_t fatten_perm_index = perm_index * EF::D + k;
-                permutation.values[fatten_perm_index * permutation.height + RowIdx] = value.value[k];
+                size_t flatten_perm_index = perm_index + k;
+                permutation.values[flatten_perm_index * permutation.height + RowIdx] = value.value[k];
             }
         }
 
         // Assign the cumulative sum of values to the last column.
+        size_t last_col_index = permutation.width - EF::D;
         #pragma unroll
         for (size_t k = 0; k < EF::D; k++) {
-            size_t fatten_perm_index = (permutation.width - 1) * EF::D + k;
-            permutation.values[fatten_perm_index * permutation.height + RowIdx] = row_cumulative_sum.value[k];
+            size_t flatten_perm_index = last_col_index + k;
+            permutation.values[flatten_perm_index * permutation.height + RowIdx] = row_cumulative_sum.value[k];
         }
     }
 

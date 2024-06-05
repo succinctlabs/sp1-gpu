@@ -2,7 +2,7 @@ use std::ops::{
     Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
 };
-use std::slice;
+use std::{mem, slice};
 
 use p3_field::{ExtensionField, Field, PrimeField32};
 
@@ -190,6 +190,9 @@ impl<T: Copy> DeviceBuffer<T> {
         let len = self.len * T::D;
         let cap = self.cap * T::D;
 
+        // Prevent the buffer from being dropped.
+        mem::forget(self);
+
         DeviceBuffer::from_raw_parts(buff, len, cap)
     }
 
@@ -209,6 +212,9 @@ impl<T: Copy> DeviceBuffer<T> {
         assert!(self.cap % E::D == 0);
         let len = self.len / E::D;
         let cap = self.cap / E::D;
+
+        // Prevent the buffer from being dropped.
+        mem::forget(self);
 
         DeviceBuffer::from_raw_parts(buff, len, cap)
     }
