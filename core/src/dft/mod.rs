@@ -107,7 +107,10 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use super::DeviceDft;
-    use crate::{device::{buffer::DeviceBuffer, memory::ToDevice}, matrix::ColMajorMatrixDevice};
+    use crate::{
+        device::{buffer::DeviceBuffer, memory::ToDevice},
+        matrix::ColMajorMatrixDevice,
+    };
     use p3_field::{AbstractField, Field, PrimeField32, TwoAdicField};
 
     #[test]

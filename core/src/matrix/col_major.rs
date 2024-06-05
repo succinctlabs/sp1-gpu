@@ -20,6 +20,25 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         Self { values, height }
     }
 
+    pub fn with_capacity(width: usize, height: usize) -> Self {
+        let buffer = DeviceBuffer::with_capacity(width * height);
+        Self::new(buffer, height)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn set_width(&mut self, width: usize) {
+        self.values.set_len(width * self.height);
+    }
+
+    /// # Safety
+    ///
+    /// See [Self::set_height]
+    pub unsafe fn set_max_width(&mut self) {
+        self.values.set_max_len();
+    }
+
     pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
     where
         Standard: Distribution<T>,

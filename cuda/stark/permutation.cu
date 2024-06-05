@@ -1,21 +1,13 @@
 #include "interaction.cuh"
 #include "../utils/matrix.cuh"
 
-template<typename F, typename EF> __global__ void PopulatePermutationRows(
-    Interactions<F> const interactions,
-    Matrix<EF> permutation, Matrix<F> const preprocessed, 
-    Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
 
-        size_t RowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-        if (RowIdx >= permutation.height) {
-            return;
-        }
-
-        EF row_cumulative_sum = EF::zero();
-        for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
-            EF value = EF::zero();
-            for (size_t j = 0; j < batch_size; j++) {
+template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue(
+    size_t i, size_t RowIdx, Interactions<F> const interactions,
+    Matrix<F> const preprocessed,  Matrix<F> const main, EF const alpha, EF const beta, 
+    size_t const batch_size) {
+        EF value = EF::zero(); 
+        for (size_t j = 0; j < batch_size; j++) {
                 // Calculate the interaction index.
                 size_t index = i + j;
 
@@ -56,6 +48,24 @@ template<typename F, typename EF> __global__ void PopulatePermutationRows(
                 // Add `mult/ denominator` to the sum.
                 value += EF(mult) / denominator;
             }
+
+            return value;
+    }
+
+template<typename F, typename EF> __global__ void PopulatePermutationRows(
+    Interactions<F> const interactions,
+    Matrix<EF> permutation, Matrix<F> const preprocessed, 
+    Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
+
+        size_t RowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+        if (RowIdx >= permutation.height) {
+            return;
+        }
+
+        EF row_cumulative_sum = EF::zero();
+        for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
+            EF value = InteractionValue(i, RowIdx,interactions, preprocessed, main, alpha, beta, batch_size);
             // Accumulate the sum of values.
             row_cumulative_sum += value;
             // Assign the value to the row.

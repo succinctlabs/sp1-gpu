@@ -101,6 +101,15 @@ impl RowMajorMatrixDevice<BabyBear> {
     }
 }
 
+impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
+    type DeviceType = RowMajorMatrixDevice<T>;
+
+    fn to_device(&self) -> Self::DeviceType {
+        let values = self.values.to_device();
+        RowMajorMatrixDevice::new(values, self.width)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

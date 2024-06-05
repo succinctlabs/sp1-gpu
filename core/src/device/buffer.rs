@@ -4,6 +4,8 @@ use std::ops::{
 };
 use std::slice;
 
+use p3_field::{ExtensionField, Field, PrimeField32};
+
 use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
@@ -17,6 +19,9 @@ pub struct DeviceBuffer<T: Copy> {
     len: usize,
     cap: usize,
 }
+
+unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
+unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -167,6 +172,45 @@ impl<T: Copy> DeviceBuffer<T> {
 
         // Extend the length of the buffer to include the new elements.
         self.len += src.len();
+    }
+
+    /// # Safety
+    ///
+    /// A device slice of type `T` should be castable to device slice of type `B`.
+    pub unsafe fn flatten_to_base<B>(self) -> DeviceBuffer<B>
+    where
+        B: PrimeField32,
+        T: ExtensionField<B>,
+    {
+        // Cast the device pointer to the base type.
+        let buff = self.buf as *mut B;
+
+        // The new length/capacity are the product of the old length/capacity and the extension
+        // degree.
+        let len = self.len * T::D;
+        let cap = self.cap * T::D;
+
+        DeviceBuffer::from_raw_parts(buff, len, cap)
+    }
+
+    /// # Safety
+    ///
+    /// A device slice of type `T` should be castable to device slice of type `B`.
+    pub unsafe fn as_extension_buffer<E>(self) -> DeviceBuffer<E>
+    where
+        T: Field,
+        E: ExtensionField<T>,
+    {
+        // Cast the device pointer to the extension type.
+        let buff = self.buf as *mut E;
+
+        // The legth and capacity must be divisible by the degree.
+        assert!(self.len % E::D == 0);
+        assert!(self.cap % E::D == 0);
+        let len = self.len / E::D;
+        let cap = self.cap / E::D;
+
+        DeviceBuffer::from_raw_parts(buff, len, cap)
     }
 }
 
