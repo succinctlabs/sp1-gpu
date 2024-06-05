@@ -6509,7 +6509,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp6495 = tmp6433 - bb31_t{16384};
        bb31_extension_t tmp6496 = tmp6434 - bb31_t{16384};
        bb31_extension_t tmp6497 = tmp6435 - bb31_t{16384};
-       bb31_extension_t tmp6498 = -1 * bb31_t{256};
+       bb31_extension_t tmp6498 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp6499 = bb31_t{0};
        bb31_extension_t tmp6500 = tmp6436 * tmp6498;
        bb31_extension_t tmp6501 = tmp6499 + tmp6500;
@@ -13629,7 +13629,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp13489 = tmp13427 - bb31_t{16384};
        bb31_extension_t tmp13490 = tmp13428 - bb31_t{16384};
        bb31_extension_t tmp13491 = tmp13429 - bb31_t{16384};
-       bb31_extension_t tmp13492 = -1 * bb31_t{256};
+       bb31_extension_t tmp13492 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp13493 = bb31_t{0};
        bb31_extension_t tmp13494 = tmp13430 * tmp13492;
        bb31_extension_t tmp13495 = tmp13493 + tmp13494;
@@ -18635,7 +18635,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp18369 = tmp18307 - bb31_t{16384};
        bb31_extension_t tmp18370 = tmp18308 - bb31_t{16384};
        bb31_extension_t tmp18371 = tmp18309 - bb31_t{16384};
-       bb31_extension_t tmp18372 = -1 * bb31_t{256};
+       bb31_extension_t tmp18372 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp18373 = bb31_t{0};
        bb31_extension_t tmp18374 = tmp18310 * tmp18372;
        bb31_extension_t tmp18375 = tmp18373 + tmp18374;
@@ -23641,7 +23641,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp23249 = tmp23187 - bb31_t{16384};
        bb31_extension_t tmp23250 = tmp23188 - bb31_t{16384};
        bb31_extension_t tmp23251 = tmp23189 - bb31_t{16384};
-       bb31_extension_t tmp23252 = -1 * bb31_t{256};
+       bb31_extension_t tmp23252 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp23253 = bb31_t{0};
        bb31_extension_t tmp23254 = tmp23190 * tmp23252;
        bb31_extension_t tmp23255 = tmp23253 + tmp23254;
@@ -28647,7 +28647,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp28129 = tmp28067 - bb31_t{16384};
        bb31_extension_t tmp28130 = tmp28068 - bb31_t{16384};
        bb31_extension_t tmp28131 = tmp28069 - bb31_t{16384};
-       bb31_extension_t tmp28132 = -1 * bb31_t{256};
+       bb31_extension_t tmp28132 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp28133 = bb31_t{0};
        bb31_extension_t tmp28134 = tmp28070 * tmp28132;
        bb31_extension_t tmp28135 = tmp28133 + tmp28134;
@@ -33653,7 +33653,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp33009 = tmp32947 - bb31_t{16384};
        bb31_extension_t tmp33010 = tmp32948 - bb31_t{16384};
        bb31_extension_t tmp33011 = tmp32949 - bb31_t{16384};
-       bb31_extension_t tmp33012 = -1 * bb31_t{256};
+       bb31_extension_t tmp33012 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp33013 = bb31_t{0};
        bb31_extension_t tmp33014 = tmp32950 * tmp33012;
        bb31_extension_t tmp33015 = tmp33013 + tmp33014;
@@ -38691,7 +38691,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp37921 = tmp37859 - bb31_t{16384};
        bb31_extension_t tmp37922 = tmp37860 - bb31_t{16384};
        bb31_extension_t tmp37923 = tmp37861 - bb31_t{16384};
-       bb31_extension_t tmp37924 = -1 * bb31_t{256};
+       bb31_extension_t tmp37924 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp37925 = bb31_t{0};
        bb31_extension_t tmp37926 = tmp37862 * tmp37924;
        bb31_extension_t tmp37927 = tmp37925 + tmp37926;
@@ -43729,7 +43729,7 @@ class EdAddAssignAir {
        bb31_extension_t tmp42833 = tmp42771 - bb31_t{16384};
        bb31_extension_t tmp42834 = tmp42772 - bb31_t{16384};
        bb31_extension_t tmp42835 = tmp42773 - bb31_t{16384};
-       bb31_extension_t tmp42836 = -1 * bb31_t{256};
+       bb31_extension_t tmp42836 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp42837 = bb31_t{0};
        bb31_extension_t tmp42838 = tmp42774 * tmp42836;
        bb31_extension_t tmp42839 = tmp42837 + tmp42838;

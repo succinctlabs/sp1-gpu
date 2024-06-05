@@ -138,7 +138,7 @@ impl AbstractField for SymbolicFolderValue {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         let output = SymbolicFolderValue::alloc();
         code.push(format!(
-            "bb31_extension_t {} = -1 * bb31_t{{1}};",
+            "bb31_extension_t {} = bb31_t{{0}} - bb31_t{{1}};",
             output.id()
         ));
         output
@@ -331,7 +331,7 @@ impl Neg for SymbolicFolderValue {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         let output = SymbolicFolderValue::alloc();
         code.push(format!(
-            "bb31_extension_t {} = -1 * {};",
+            "bb31_extension_t {} = bb31_t{{0}} - {};",
             output.id(),
             self.id()
         ));

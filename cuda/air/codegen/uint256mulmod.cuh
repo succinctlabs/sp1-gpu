@@ -4428,7 +4428,7 @@ class Uint256MulModAir {
        bb31_extension_t tmp4406 = tmp2196 - tmp4339;
        bb31_extension_t tmp4407 = tmp2198 - tmp4341;
        bb31_extension_t tmp4408 = tmp2200 - tmp4343;
-       bb31_extension_t tmp4409 = -1 * tmp4345;
+       bb31_extension_t tmp4409 = bb31_t{0} - tmp4345;
        bb31_extension_t tmp4410 = builder->mainLocal[383] * bb31_t{256};
        bb31_extension_t tmp4411 = builder->mainLocal[384] * bb31_t{256};
        bb31_extension_t tmp4412 = builder->mainLocal[385] * bb31_t{256};
@@ -4618,7 +4618,7 @@ class Uint256MulModAir {
        bb31_extension_t tmp4596 = tmp4533 - bb31_t{16384};
        bb31_extension_t tmp4597 = tmp4534 - bb31_t{16384};
        bb31_extension_t tmp4598 = tmp4535 - bb31_t{16384};
-       bb31_extension_t tmp4599 = -1 * bb31_t{256};
+       bb31_extension_t tmp4599 = bb31_t{0} - bb31_t{256};
        bb31_extension_t tmp4600 = bb31_t{0};
        bb31_extension_t tmp4601 = tmp4536 * tmp4599;
        bb31_extension_t tmp4602 = tmp4600 + tmp4601;
