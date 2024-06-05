@@ -19,11 +19,6 @@ pub struct MainTraceData<SC: StarkGenericConfig> {
     pub public_values: Vec<SC::Val>,
 }
 
-// pub trait Matrix<T> {
-//     type View;
-//     type ViewMut;
-// }
-
 // pub type MatrixView<P, T> = <<P as ProverConfig>::Matrix<T> as Matrix<T>>::View;
 // pub type MatrixViewMut<P, T> = <<P as ProverConfig>::Matrix<T> as Matrix<T>>::ViewMut;
 

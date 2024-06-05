@@ -105,13 +105,17 @@ mod tests {
 
         let pcs = TwoAdicFriPcs::new(log_blowup);
         let time = Instant::now();
-        let (_, _) = pcs.commit_from_host(domains_and_traces);
+        let (commit, _) = pcs.commit_from_host(domains_and_traces);
         println!("time: {:?}", time.elapsed());
 
         let sp1_config = SC::default();
-        let (_, _) = <<SC as StarkGenericConfig>::Pcs as Pcs<
+        let (expected_commit, _) = <<SC as StarkGenericConfig>::Pcs as Pcs<
             <SC as StarkGenericConfig>::Challenge,
             <SC as StarkGenericConfig>::Challenger,
         >>::commit(sp1_config.pcs(), evaluations_clone);
+
+        let expected_commit: [BabyBear; DIGEST_WIDTH] = expected_commit.into();
+
+        assert_eq!(commit, expected_commit);
     }
 }
