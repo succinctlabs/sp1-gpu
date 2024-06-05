@@ -15,7 +15,11 @@ dependencies = [
 name = "air"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "p3-air",
+ "p3-baby-bear",
+ "p3-field",
+ "sp1-core",
 ]
 
 [[package]]
