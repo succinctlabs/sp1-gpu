@@ -1,6 +1,5 @@
 #pragma once
 
-/**  A constraint folder for calculating the constraint polynomial on device. */
 template <typename Val, typename Challenge, size_t N>
 struct ConstraintFolder {
    public:
@@ -8,16 +7,11 @@ struct ConstraintFolder {
     Val* prepNext;
     Val* mainLocal;
     Val* mainNext;
-
     Val* publicValues;
-
     Val* permLocal;
     Val* permNext;
-
     Challenge permChallenges[N];
-
     Challenge cumulativeSum;
-
     Challenge isFirstRow;
     Challenge isLastRow;
     Challenge isTransition;
@@ -44,34 +38,5 @@ struct ConstraintFolder {
         this->permutation_challenges = permutation_challenges;
         this->cumulative_sum = cumulative_sum;
         this->accumulator = accumulator;
-    }
-
-    Challenge is_first_row() { return is_first_row; }
-    Challenge is_last_row() { return is_last_row; }
-    Challenge is_transition() { return is_transition; }
-    Challenge accumulator() { return accumulator; }
-
-    Val* preprocessed_local() { return preprocessed_local; }
-    Val* preprocessed_next() { return preprocessed_next; }
-    Val* main_local() { return main_local; }
-    Val* main_next() { return main_next; }
-    Challenge* permutation_local() { return permutation_local; }
-    Challenge* permutation_next() { return permutation_next; }
-
-    void assert_zero(Val val) {
-        x = Challenge::from_base(val);
-        accumulator *= alpha;
-        accumulator += x;
-    }
-
-    void assert_eq(Val lhs, Val rhs) { assert_zero(lhs - rhs); }
-
-    void assert_zero_ext(Challenge c) {
-        accumulator *= alpha;
-        accumulator += c;
-    }
-
-    void assert_eq_ext(Challenge lhs, Challenge rhs) {
-        assert_zero_ext(lhs - rhs);
     }
 };
