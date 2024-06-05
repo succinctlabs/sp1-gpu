@@ -4,23 +4,23 @@
 template <typename Val, typename Challenge, size_t N>
 struct ConstraintFolder {
    public:
-    Val* preprocessed_local;
-    Val* preprocessed_next;
-    Val* main_local;
-    Val* main_next;
+    Val* prepLocal;
+    Val* prepNext;
+    Val* mainLocal;
+    Val* mainNext;
 
-    Val* public_values;
+    Val* publicValues;
 
-    Val* permutation_local;
-    Val* permutation_next;
+    Val* permLocal;
+    Val* permNext;
 
-    Challenge permutation_challenges[N];
+    Challenge permChallenges[N];
 
-    Challenge cumulative_sum;
+    Challenge cumulativeSum;
 
-    Challenge is_first_row;
-    Challenge is_last_row;
-    Challenge is_transition;
+    Challenge isFirstRow;
+    Challenge isLastRow;
+    Challenge isTransition;
     Challenge alpha;
     Challenge accumulator;
 

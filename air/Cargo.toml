@@ -9,3 +9,7 @@ p3-air = { workspace = true }
 sp1-core = { workspace = true }
 p3-baby-bear = { workspace = true }
 p3-field = { workspace = true }
+
+[[bin]]
+name = "codegen"
+path = "src/bin/codegen.rs"

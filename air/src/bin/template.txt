@@ -1,0 +1,12 @@
+
+#pragma once
+
+#include "../../fields/bb31_extension_t.cuh"
+#include "../folder.cuh"
+
+class TemplateAir {
+   public:
+    __device__ void eval(ConstraintFolder<bb31_t, bb31_extension_t, 2> *builder) {
+       CODEGEN
+    }
+};
