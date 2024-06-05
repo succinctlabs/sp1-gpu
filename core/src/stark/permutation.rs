@@ -3,14 +3,52 @@ use std::{marker::PhantomData, ops::Mul};
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
-use sp1_core::lookup::Interaction;
+use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
 use crate::{
     device::{buffer::DeviceBuffer, error::CudaError, memory::ToDevice, slice::DeviceSlice},
-    matrix::{MatrixViewDevice, MatrixViewMutDevice},
+    matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
 
 use super::ffi;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PermutationTraceGenerator<F, EF, A>(PhantomData<(F, EF, A)>);
+
+impl<F, EF, A> PermutationTraceGenerator<F, EF, A>
+where
+    F: Field,
+    EF: ExtensionField<F>,
+    A: MachineAir<F>,
+{
+    fn generate_permutation_trace(
+        &self,
+        chip: &Chip<F, A>,
+        preprocessed_trace: &Option<ColMajorMatrixDevice<F>>,
+        main_trace: &ColMajorMatrixDevice<F>,
+    ) -> Result<ColMajorMatrixDevice<EF>, CudaError> {
+        let device_interactions = HostInteractions::new(chip.sends(), chip.receives()).to_device();
+
+        let perm_width = chip.permutation_width();
+        let height = main_trace.height();
+        let mut perm_buffer = DeviceBuffer::<EF>::with_capacity(perm_width * main_trace.height);
+        unsafe {
+            perm_buffer.set_max_len();
+        }
+        let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
+
+        todo!()
+    }
+
+    fn generate_flattened_permutation_trace(
+        &self,
+        chip: &Chip<F, A>,
+        preprocessed_trace: &ColMajorMatrixDevice<F>,
+        main_trace: &ColMajorMatrixDevice<F>,
+    ) -> Result<ColMajorMatrixDevice<EF>, CudaError> {
+        todo!()
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -275,6 +313,29 @@ impl DeviceInteractions<BabyBear> {
         );
     }
 
+    pub fn populate_permutation_rows_flattened(
+        &self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        self.view().populate_permutation_rows_flattened(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+    }
+
     pub fn generate_permutation_trace(
         &self,
         permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
@@ -288,6 +349,39 @@ impl DeviceInteractions<BabyBear> {
     ) -> Result<(), CudaError> {
         // Populate the permutation rows.
         self.populate_permutation_rows(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+
+        // Collect the cumulative sums using a scan in place.
+        let col = permutation.width - 1;
+        let height = permutation.height;
+        unsafe {
+            let last_col_ptr = permutation.values.add(col * height);
+            let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
+            cumulative_column.scan_inplace()
+        }
+    }
+
+    pub fn generate_flattened_permutation_trace(
+        &self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) -> Result<(), CudaError> {
+        // Populate the permutation rows.
+        self.populate_permutation_rows_flattened(
             permutation,
             preprocessed,
             main,
@@ -323,6 +417,32 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
     ) {
         unsafe {
             ffi::populate_permutation_rows(
+                self,
+                permutation,
+                preprocessed,
+                main,
+                alpha,
+                beta,
+                batch_size,
+                num_blocks,
+                num_threads_per_block,
+            );
+        }
+    }
+
+    pub fn populate_permutation_rows_flattened(
+        self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        unsafe {
+            ffi::populate_permutation_rows_flattened(
                 self,
                 permutation,
                 preprocessed,
