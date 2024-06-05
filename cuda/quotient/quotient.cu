@@ -1,4 +1,6 @@
+#include "../air/codegen/addsub.cuh"
 #include "../air/folder.cuh"
+#include "../fields/bb31_extension_t.cuh"
 #include "../utils/matrix.cuh"
 
 template <typename Val>
@@ -19,16 +21,16 @@ struct LagrangeSelectors {
 
 namespace quotient {
 template <typename Air, typename Val, typename Challenge>
-__global__ void quotient_values(Challenge cumulativeSum,
-                                TwoAdicMultiplicativeCoset<Val> traceDomain,
-                                TwoAdicMultiplicativeCoset<Val> quotientDomain,
-                                Matrix<Val> preprocessedTraceOnQuotientDomain,
-                                Matrix<Val> mainTraceOnQuotientDomain,
-                                Matrix<Val> permutationTraceOnQuotientDomain,
-                                Challenge *permChallenges, Challenge alpha,
-                                Val *publicValues,
-                                LagrangeSelectors<Val> selectors,
-                                Challenge *quotientValues) {
+__global__ void quotientValues(Air air, Challenge cumulativeSum,
+                               TwoAdicMultiplicativeCoset<Val> traceDomain,
+                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
+                               Matrix<Val> preprocessedTraceOnQuotientDomain,
+                               Matrix<Val> mainTraceOnQuotientDomain,
+                               Matrix<Val> permutationTraceOnQuotientDomain,
+                               Challenge *permChallenges, Challenge alpha,
+                               Val *publicValues,
+                               LagrangeSelectors<Val> selectors,
+                               Challenge *quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
     size_t mainWidth = mainTraceOnQuotientDomain.width;
@@ -77,8 +79,27 @@ __global__ void quotient_values(Challenge cumulativeSum,
         ConstraintFolder(prepLocal, prepNext, mainLocal, mainNext, permLocal,
                          permNext, alpha, isFirstRow, isLastRow, isTransition,
                          permChallenges, cumulativeSum, accumulator);
-    Air::eval(folder);
+    air.eval(folder);
     quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
 }
 
 }  // namespace quotient
+
+extern "C" void computeQuotientValues(
+    bb31_extension_t cumulativeSum,
+    TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
+    TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
+    Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
+    Matrix<bb31_t> mainTraceOnQuotientDomain,
+    Matrix<bb31_t> permutationTraceOnQuotientDomain,
+    bb31_extension_t *permChallenges, bb31_extension_t alpha,
+    bb31_t *publicValues, LagrangeSelectors<bb31_t> selectors,
+    bb31_extension_t *quotientValues, size_t const nBlocks,
+    size_t const nThreadsPerBlock) {
+    AddSubAir air;
+    quotient::quotientValues<<<nBlocks, nThreadsPerBlock>>>(
+        air, cumulativeSum, traceDomain, quotientDomain,
+        preprocessedTraceOnQuotientDomain, mainTraceOnQuotientDomain,
+        permutationTraceOnQuotientDomain, permChallenges, alpha, publicValues,
+        selectors, quotientValues);
+}
