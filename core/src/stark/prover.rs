@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::HashMap};
+use std::{borrow::Borrow, cmp::Reverse, collections::HashMap};
 
 use rayon::prelude::*;
 
@@ -9,10 +9,8 @@ use p3_commit::Pcs;
 
 use sp1_core::{
     air::MachineAir,
-    io::SP1Stdin,
-    runtime::Program,
-    stark::{Com, Dom, MachineRecord, StarkGenericConfig, StarkMachine, Val},
-    utils::{BabyBearPoseidon2, SP1CoreOpts},
+    stark::{Com, Dom, MachineRecord, PcsProverData, StarkGenericConfig, StarkMachine, Val},
+    utils::BabyBearPoseidon2,
 };
 
 use crate::{
@@ -21,6 +19,7 @@ use crate::{
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
     poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
+    time::CudaInstant,
 };
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
@@ -31,12 +30,23 @@ pub struct FriGpuProver<SC: StarkGenericConfig, A> {
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
 }
-pub type GpuMainTraceData<SC> = MainTraceData<Val<SC>, CudaSync<ColMajorMatrixDevice<Val<SC>>>>;
 
-pub type GpuMainProverData<SC> = MainProverData<
+pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
+
+pub type GpuMainTraceData<SC> = MainTraceData<Val<SC>, GpuMatrix<Val<SC>>>;
+
+pub type GpuProverData<SC> = ProverData<
     SC,
     FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], ColMajorMatrixDevice<Val<SC>>>,
 >;
+
+pub type GpuMainData<SC> = MainData<
+    SC,
+    CudaSync<ColMajorMatrixDevice<Val<SC>>>,
+    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], ColMajorMatrixDevice<Val<SC>>>,
+>;
+
+pub type CpuMainData<SC> = MainData<SC, RowMajorMatrix<Val<SC>>, PcsProverData<SC>>;
 
 pub struct MainTraceData<F, M> {
     pub index: usize,
@@ -45,9 +55,14 @@ pub struct MainTraceData<F, M> {
     pub public_values: Vec<F>,
 }
 
-pub struct MainProverData<SC: StarkGenericConfig, Data> {
-    pub main_commit: Com<SC>,
-    pub main_data: Data,
+pub struct MainData<SC: StarkGenericConfig, M, Data> {
+    pub trace_data: MainTraceData<SC::Val, M>,
+    pub prover_data: ProverData<SC, Data>,
+}
+
+pub struct ProverData<SC: StarkGenericConfig, Data> {
+    pub commit: Com<SC>,
+    pub data: Data,
 }
 
 impl<SC, A> FriGpuProver<SC, A>
@@ -74,7 +89,7 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
-    pub fn generate_traces(&self, shard: &A::Record, index: usize) -> GpuMainTraceData<SC> {
+    pub fn generate_main_traces(&self, shard: &A::Record, index: usize) -> GpuMainTraceData<SC> {
         // Filter the chips based on what is used.
         let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
 
@@ -120,7 +135,15 @@ where
         )
     }
 
-    pub fn commit_traces(&self, trace_data: &GpuMainTraceData<SC>) -> GpuMainProverData<SC> {
+    pub fn commit<M>(&self, evaluations: &[(Dom<SC>, M)]) -> GpuProverData<SC>
+    where
+        M: Send + Sync + Borrow<ColMajorMatrixDevice<BabyBear>>,
+    {
+        let (commit, data) = self.gpu_pcs.commit(evaluations);
+        GpuProverData { commit, data }
+    }
+
+    pub fn commit_main_traces(&self, trace_data: &GpuMainTraceData<SC>) -> GpuProverData<SC> {
         let domains_and_traces = trace_data
             .traces
             .iter()
@@ -130,12 +153,25 @@ where
             })
             .collect::<Vec<_>>();
 
-        // Commit to the batch of traces.
-        let (main_commit, main_data) = self.gpu_pcs.commit(&domains_and_traces);
+        self.commit(&domains_and_traces)
+    }
 
-        MainProverData {
-            main_commit: main_commit.into(),
-            main_data,
+    pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
+        let time = CudaInstant::now().unwrap();
+        let trace_data = self.generate_main_traces(shard, index);
+        println!(
+            "Device: time to generate traces: {:?}",
+            time.elapsed().unwrap()
+        );
+        let time = CudaInstant::now().unwrap();
+        let prover_data = self.commit_main_traces(&trace_data);
+        println!(
+            "Device: time to commit traces: {:?}",
+            time.elapsed().unwrap()
+        );
+        GpuMainData {
+            trace_data,
+            prover_data,
         }
     }
 }
@@ -160,7 +196,7 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
-    pub fn generate_traces(
+    pub fn generate_main_traces(
         &self,
         shard: &A::Record,
         index: usize,
@@ -198,6 +234,54 @@ where
             chip_ordering,
             index,
             public_values: shard.public_values(),
+        }
+    }
+
+    pub fn natural_domain_for_degree(&self, degree: usize) -> Dom<SC> {
+        <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::natural_domain_for_degree(
+            self.machine.config().pcs(),
+            degree,
+        )
+    }
+
+    pub fn commit(
+        &self,
+        evaluations: Vec<(Dom<SC>, RowMajorMatrix<SC::Val>)>,
+    ) -> ProverData<SC, PcsProverData<SC>> {
+        let (commit, data) = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::commit(
+            self.machine.config().pcs(),
+            evaluations,
+        );
+        ProverData { commit, data }
+    }
+
+    pub fn commit_main_traces(
+        &self,
+        trace_data: &MainTraceData<SC::Val, RowMajorMatrix<SC::Val>>,
+    ) -> ProverData<SC, PcsProverData<SC>> {
+        let domains_and_traces = trace_data
+            .traces
+            .iter()
+            .map(|trace| {
+                let domain = self.natural_domain_for_degree(trace.height());
+                (domain, trace.clone())
+            })
+            .collect::<Vec<_>>();
+
+        // Commit to the batch of traces.
+        self.commit(domains_and_traces)
+    }
+
+    pub fn commit_main(&self, shard: &A::Record, index: usize) -> CpuMainData<SC> {
+        let time = std::time::Instant::now();
+        let trace_data = self.generate_main_traces(shard, index);
+        println!("Host: time to generate traces: {:?}", time.elapsed());
+        let time = std::time::Instant::now();
+        let prover_data = self.commit_main_traces(&trace_data);
+        println!("Host: time to commit traces: {:?}", time.elapsed());
+        CpuMainData {
+            trace_data,
+            prover_data,
         }
     }
 }
@@ -464,10 +548,56 @@ where
 
 #[cfg(test)]
 mod tests {
+    use sp1_core::{
+        runtime::{ExecutionRecord, Program, Runtime},
+        stark::{Challenge, RiscvAir},
+        utils::{tests::FIBONACCI_ELF, SP1CoreOpts},
+    };
+
     use super::*;
 
+    type F = BabyBear;
+    type SC = BabyBearPoseidon2;
+    type EF = Challenge<SC>;
+
+    fn execute_core(program: Program) -> ExecutionRecord {
+        let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+        runtime.run().unwrap();
+        runtime.record
+    }
+
     #[test]
-    fn test_commit() {}
+    fn test_commit_main() {
+        let program = Program::from(FIBONACCI_ELF);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let gpu_prover = FriGpuProver::new(machine);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let cpu_prover = FriCpuProver::new(machine);
+
+        // Execute the program.
+        let record = execute_core(program);
+
+        let shards = gpu_prover.shard(record);
+
+        for shard in shards {
+            let time = std::time::Instant::now();
+            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
+            println!("Device commit time: {:?}", time.elapsed());
+
+            let time = std::time::Instant::now();
+            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+            println!("Host commit time: {:?}", time.elapsed());
+
+            assert_eq!(
+                gpu_main_data.prover_data.commit,
+                cpu_main_data.prover_data.commit
+            );
+        }
+    }
 
     #[test]
     fn test_permutation_generation() {}

@@ -4,13 +4,18 @@ use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
+use p3_symmetric::Hash;
 
+use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
 use crate::device::memory::ToDevice;
+use crate::runtime::sync_default_stream;
+
+use rayon::prelude::*;
 
 pub struct TwoAdicFriPcs<F, D, M = ColMajorMatrixDevice<F>> {
     dft: DeviceDft<F>,
@@ -27,18 +32,19 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn commit<M>(
         &self,
         evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
     ) -> (
-        [BabyBear; DIGEST_WIDTH],
+        Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
         FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>,
     )
     where
-        M: Borrow<ColMajorMatrixDevice<BabyBear>>,
+        M: Send + Sync + Borrow<ColMajorMatrixDevice<BabyBear>>,
     {
         let lde_evaluations = evaluations
-            .iter()
+            .par_iter()
             .map(|(domain, matrix)| {
                 let matrix = matrix.borrow();
                 assert_eq!(domain.size(), matrix.height());
@@ -56,7 +62,7 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
             .collect::<Vec<_>>();
 
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
-        let root_device = tree_device.root();
+        let root_device = tree_device.root().into();
 
         (root_device, tree_device)
     }
@@ -84,6 +90,8 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                         .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
                 }
                 .unwrap();
+
+                sync_default_stream().unwrap();
 
                 lde_mat
             })
@@ -196,8 +204,6 @@ mod tests {
             <SC as StarkGenericConfig>::Challenge,
             <SC as StarkGenericConfig>::Challenger,
         >>::commit(sp1_config.pcs(), domains_and_traces);
-
-        let expected_commit: [BabyBear; DIGEST_WIDTH] = expected_commit.into();
 
         assert_eq!(commit, expected_commit);
     }

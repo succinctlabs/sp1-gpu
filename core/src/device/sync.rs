@@ -3,8 +3,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::device::error::CudaError;
-use crate::runtime::sync_default_stream;
+use crate::{
+    device::error::CudaError,
+    matrix::{DeviceMatrix, MatrixViewDevice},
+};
+use crate::{matrix::MatrixViewMutDevice, runtime::sync_default_stream};
 
 #[repr(transparent)]
 pub struct CudaSync<T>(T);
@@ -35,12 +38,6 @@ impl<T> AsRef<T> for CudaSync<T> {
     }
 }
 
-impl<T> AsMut<T> for CudaSync<T> {
-    fn as_mut(&mut self) -> &mut T {
-        &mut self.0
-    }
-}
-
 impl<T> Deref for CudaSync<T> {
     type Target = T;
 
@@ -49,8 +46,20 @@ impl<T> Deref for CudaSync<T> {
     }
 }
 
-impl<T> DerefMut for CudaSync<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+impl<T: Copy, M: DeviceMatrix<T>> DeviceMatrix<T> for CudaSync<M> {
+    fn width(&self) -> usize {
+        self.0.width()
+    }
+
+    fn height(&self) -> usize {
+        self.0.height()
+    }
+
+    fn view(&self) -> MatrixViewDevice<T> {
+        self.0.view()
+    }
+
+    fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+        panic!("Unsafe")
     }
 }
