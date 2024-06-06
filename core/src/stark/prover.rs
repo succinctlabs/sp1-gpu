@@ -1,27 +1,53 @@
 use std::{cmp::Reverse, collections::HashMap};
 
+use rayon::prelude::*;
+
 use p3_baby_bear::BabyBear;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
+
+use p3_commit::Pcs;
+
 use sp1_core::{
     air::MachineAir,
-    stark::{MachineRecord, StarkGenericConfig, StarkMachine},
-    utils::BabyBearPoseidon2,
+    io::SP1Stdin,
+    runtime::Program,
+    stark::{Com, Dom, MachineRecord, StarkGenericConfig, StarkMachine, Val},
+    utils::{BabyBearPoseidon2, SP1CoreOpts},
 };
 
-use crate::{device::memory::ToDevice, matrix::ColMajorMatrixDevice};
+use crate::{
+    device::{memory::ToDevice, CudaSync},
+    fri::TwoAdicFriPcs,
+    matrix::ColMajorMatrixDevice,
+    merkle_tree::FieldMerkleTreeGpu,
+    poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
+};
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
+    gpu_pcs: TwoAdicFriPcs<SC::Val, [SC::Val; DIGEST_WIDTH]>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
 }
+pub type GpuMainTraceData<SC> = MainTraceData<Val<SC>, CudaSync<ColMajorMatrixDevice<Val<SC>>>>;
+
+pub type GpuMainProverData<SC> = MainProverData<
+    SC,
+    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], ColMajorMatrixDevice<Val<SC>>>,
+>;
 
 pub struct MainTraceData<F, M> {
     pub index: usize,
     pub traces: Vec<M>,
     pub chip_ordering: HashMap<String, usize>,
     pub public_values: Vec<F>,
+}
+
+pub struct MainProverData<SC: StarkGenericConfig, Data> {
+    pub main_commit: Com<SC>,
+    pub main_data: Data,
 }
 
 impl<SC, A> FriGpuProver<SC, A>
@@ -35,50 +61,144 @@ where
     A: MachineAir<BabyBear>,
     A::Record: Sync,
 {
-    pub fn run(&self) {}
+    pub fn new(machine: StarkMachine<SC, A>) -> Self {
+        let log_blowup = machine.config().pcs().fri_config().log_blowup;
+        Self {
+            machine,
+            gpu_pcs: TwoAdicFriPcs::new(log_blowup),
+        }
+    }
+
+    pub fn shard(&self, record: A::Record) -> Vec<A::Record> {
+        self.machine
+            .shard(record, &<A::Record as MachineRecord>::Config::default())
+    }
+
+    pub fn generate_traces(&self, shard: &A::Record, index: usize) -> GpuMainTraceData<SC> {
+        // Filter the chips based on what is used.
+        let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
+
+        // For each chip, generate the trace, copy to the device, and transpose.
+
+        let mut named_traces = shard_chips
+            .par_iter()
+            .map(|chip| {
+                let host_trace = chip.generate_trace(shard, &mut A::Record::default());
+                let host_trace = host_trace.to_device().to_column_major();
+                let device_trace = CudaSync::new(host_trace).unwrap();
+                (chip.name(), device_trace)
+            })
+            .collect::<Vec<_>>();
+
+        // Order the chips and traces by trace size (biggest first), and get the ordering map.
+        named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+        // Get the chip ordering.
+        let chip_ordering = named_traces
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (name.to_owned(), i))
+            .collect();
+
+        let traces = named_traces
+            .into_iter()
+            .map(|(_, trace)| trace)
+            .collect::<Vec<_>>();
+
+        MainTraceData {
+            traces,
+            chip_ordering,
+            index,
+            public_values: shard.public_values(),
+        }
+    }
+
+    pub fn natural_domain_for_degree(&self, degree: usize) -> Dom<SC> {
+        <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::natural_domain_for_degree(
+            self.machine.config().pcs(),
+            degree,
+        )
+    }
+
+    pub fn commit_traces(&self, trace_data: &GpuMainTraceData<SC>) -> GpuMainProverData<SC> {
+        let domains_and_traces = trace_data
+            .traces
+            .iter()
+            .map(|trace| {
+                let domain = self.natural_domain_for_degree(trace.height());
+                (domain, trace.as_ref())
+            })
+            .collect::<Vec<_>>();
+
+        // Commit to the batch of traces.
+        let (main_commit, main_data) = self.gpu_pcs.commit(&domains_and_traces);
+
+        MainProverData {
+            main_commit: main_commit.into(),
+            main_data,
+        }
+    }
+}
+
+impl<SC, A> FriCpuProver<SC, A>
+where
+    SC: StarkGenericConfig<
+        Val = BabyBear,
+        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+    >,
+    A: MachineAir<BabyBear>,
+    A::Record: Sync,
+{
+    pub fn new(machine: StarkMachine<SC, A>) -> Self {
+        Self { machine }
+    }
+
+    pub fn shard(&self, record: A::Record) -> Vec<A::Record> {
+        self.machine
+            .shard(record, &<A::Record as MachineRecord>::Config::default())
+    }
 
     pub fn generate_traces(
         &self,
         shard: &A::Record,
         index: usize,
-    ) -> MainTraceData<SC::Val, ColMajorMatrixDevice<SC::Val>> {
+    ) -> MainTraceData<SC::Val, RowMajorMatrix<SC::Val>> {
         // Filter the chips based on what is used.
         let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
 
-        todo!()
-
         // For each chip, generate the trace, copy to the device, and transpose.
 
-        // let mut named_traces = shard_chips
-        //     .iter()
-        //     .map(|chip| {
-        //         let host_trace = chip.generate_trace(shard, &mut A::Record::default());
-        //         let device_trace = host_trace.to_device().to_column_major();
-        //         (chip.name(), device_trace)
-        //     })
-        //     .collect::<Vec<_>>();
+        let mut named_traces = shard_chips
+            .par_iter()
+            .map(|chip| {
+                let trace = chip.generate_trace(shard, &mut A::Record::default());
+                (chip.name(), trace)
+            })
+            .collect::<Vec<_>>();
 
-        // // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        // named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+        // Order the chips and traces by trace size (biggest first), and get the ordering map.
+        named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
 
-        // // Get the chip ordering.
-        // let chip_ordering = named_traces
-        //     .iter()
-        //     .enumerate()
-        //     .map(|(i, (name, _))| (name.to_owned(), i))
-        //     .collect();
+        // Get the chip ordering.
+        let chip_ordering = named_traces
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (name.to_owned(), i))
+            .collect();
 
-        // let traces = named_traces
-        //     .into_iter()
-        //     .map(|(_, trace)| trace)
-        //     .collect::<Vec<_>>();
+        let traces = named_traces
+            .into_iter()
+            .map(|(_, trace)| trace)
+            .collect::<Vec<_>>();
 
-        // MainTraceData {
-        //     traces,
-        //     chip_ordering,
-        //     index,
-        //     public_values: shard.public_values(),
-        // }
+        MainTraceData {
+            traces,
+            chip_ordering,
+            index,
+            public_values: shard.public_values(),
+        }
     }
 }
 
@@ -342,7 +462,19 @@ where
 //     }
 // }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_commit() {}
+
+    #[test]
+    fn test_permutation_generation() {}
+
+    #[test]
+    fn test_quotient_values() {}
+
+    #[test]
+    fn test_prove() {}
+}

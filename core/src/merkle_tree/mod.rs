@@ -7,6 +7,9 @@ use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
+use p3_field::Field;
+use p3_matrix::dense::RowMajorMatrix;
+use p3_merkle_tree::FieldMerkleTree;
 use std::cmp::Reverse;
 
 use crate::matrix::DeviceMatrix;
@@ -111,6 +114,25 @@ pub mod merkle_tree_gpu {
             n_blocks: usize,
             n_threads_per_block: usize,
         );
+    }
+}
+
+impl<F, M> ToHost for FieldMerkleTreeGpu<F, [F; DIGEST_WIDTH], M>
+where
+    F: Field,
+    M: DeviceMatrix<F> + ToHost<HostType = RowMajorMatrix<F>>,
+{
+    type HostType = FieldMerkleTree<F, F, RowMajorMatrix<F>, DIGEST_WIDTH>;
+
+    fn to_host(&self) -> Self::HostType {
+        let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
+        let digest_layers = self
+            .digest_layers
+            .iter()
+            .map(|l| l.to_host())
+            .collect::<Vec<_>>();
+
+        FieldMerkleTree::from_parts(leaves, digest_layers)
     }
 }
 

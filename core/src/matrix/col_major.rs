@@ -1,3 +1,4 @@
+use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
@@ -6,6 +7,7 @@ use crate::device::buffer::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 
+use super::ffi::transpose_naive;
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 
 /// A matrix stored on the device in column major form.
@@ -24,6 +26,10 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     pub fn with_capacity(width: usize, height: usize) -> Self {
         let buffer = DeviceBuffer::with_capacity(width * height);
         Self::new(buffer, height)
+    }
+
+    pub fn to_host_naive(&self) -> RowMajorMatrix<T> {
+        RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
     }
 
     /// # Safety
@@ -71,11 +77,6 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         }
     }
 
-    /// Returns a host copy of the matrix in row major form.
-    pub fn to_host(&self) -> RowMajorMatrix<T> {
-        RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
-    }
-
     #[inline]
     pub fn width(&self) -> usize {
         self.values.len() / self.height
@@ -110,6 +111,20 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     }
 }
 
+impl ToHost for ColMajorMatrixDevice<BabyBear> {
+    type HostType = RowMajorMatrix<BabyBear>;
+
+    /// Returns a host copy of the matrix in row major form.
+    fn to_host(&self) -> Self::HostType {
+        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width());
+        unsafe {
+            ret_values.set_max_len();
+            transpose_naive(ret_values.as_mut_ptr(), self.view())
+        };
+        RowMajorMatrix::new(ret_values.to_host(), self.width())
+    }
+}
+
 impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T> {
     fn width(&self) -> usize {
         self.width()
@@ -125,5 +140,43 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
 
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         self.view_mut()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use p3_baby_bear::BabyBear;
+    use rand::thread_rng;
+
+    use crate::{device::memory::ToHost, runtime::sync_device};
+
+    use super::*;
+
+    #[test]
+    fn test_col_major_to_host() {
+        let height = 1 << 18;
+        let width = 200;
+
+        let mut rng = thread_rng();
+        let values = (0..width * height)
+            .map(|_| rng.gen::<BabyBear>())
+            .collect::<Vec<_>>()
+            .to_device();
+
+        let matrix = ColMajorMatrixDevice::new(values, height);
+
+        sync_device().unwrap();
+
+        let time = std::time::Instant::now();
+        let matrix_host_naive = matrix.to_host_naive();
+        println!("Naive time: {:?}", time.elapsed());
+
+        let time = std::time::Instant::now();
+        let matrix_host = matrix.to_host();
+        println!("time: {:?}", time.elapsed());
+
+        for (val, exp) in matrix_host.values.into_iter().zip(matrix_host_naive.values) {
+            assert_eq!(val, exp);
+        }
     }
 }

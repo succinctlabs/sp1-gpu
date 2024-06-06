@@ -101,6 +101,14 @@ impl RowMajorMatrixDevice<BabyBear> {
     }
 }
 
+impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
+    type HostType = RowMajorMatrix<T>;
+
+    fn to_host(&self) -> Self::HostType {
+        RowMajorMatrix::new(self.values.to_host(), self.width)
+    }
+}
+
 impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
     type DeviceType = RowMajorMatrixDevice<T>;
 

@@ -546,6 +546,7 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 
 #[cfg(test)]
 mod tests {
+    use crate::device::memory::ToHost;
     use crate::matrix::RowMajorMatrixDevice;
     use crate::time::CudaInstant;
 
@@ -662,7 +663,7 @@ mod tests {
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
 
-        let perm_h = perm_d.to_host();
+        let perm_h = perm_d.to_host_naive();
 
         let time = std::time::Instant::now();
         let expected_perm_trace = chip.generate_permutation_trace(
