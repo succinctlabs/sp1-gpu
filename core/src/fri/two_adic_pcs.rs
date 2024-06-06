@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
@@ -25,6 +25,40 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
             log_blowup,
             _marker: std::marker::PhantomData,
         }
+    }
+
+    pub fn commit<M>(
+        &self,
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+    ) -> (
+        [BabyBear; DIGEST_WIDTH],
+        FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>,
+    )
+    where
+        M: Borrow<ColMajorMatrixDevice<BabyBear>>,
+    {
+        let lde_evaluations = evaluations
+            .iter()
+            .map(|(domain, matrix)| {
+                let matrix = matrix.borrow();
+                assert_eq!(domain.size(), matrix.height());
+
+                let mut lde_mat;
+
+                unsafe {
+                    lde_mat = matrix.embed_as_blowup(self.log_blowup).unwrap();
+                    self.dft
+                        .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
+                        .unwrap();
+                }
+                lde_mat
+            })
+            .collect::<Vec<_>>();
+
+        let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
+        let root_device = tree_device.root();
+
+        (root_device, tree_device)
     }
 
     pub fn commit_from_host(
@@ -55,10 +89,8 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
             })
             .collect::<Vec<_>>();
 
-        let start = Instant::now();
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
         let root_device = tree_device.root();
-        println!("commit time {:?}", start.elapsed());
 
         (root_device, tree_device)
     }
@@ -66,6 +98,8 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 
 #[cfg(test)]
 mod tests {
+    use crate::time::CudaInstant;
+
     use super::*;
     use p3_commit::Pcs;
     use rand::thread_rng;
@@ -113,6 +147,55 @@ mod tests {
             <SC as StarkGenericConfig>::Challenge,
             <SC as StarkGenericConfig>::Challenger,
         >>::commit(sp1_config.pcs(), evaluations_clone);
+
+        let expected_commit: [BabyBear; DIGEST_WIDTH] = expected_commit.into();
+
+        assert_eq!(commit, expected_commit);
+    }
+
+    #[test]
+    fn test_commit_device() {
+        let log_blowup = 1;
+        let log_degrees = [16];
+        let columns = [100];
+
+        type SC = BabyBearPoseidon2;
+
+        let mut rng = thread_rng();
+
+        let domains_and_traces = log_degrees
+            .iter()
+            .zip(columns.iter())
+            .map(|(log_degree, cols)| {
+                let trace = RowMajorMatrix::<BabyBear>::rand(&mut rng, 1 << log_degree, *cols);
+
+                let domain = TwoAdicMultiplicativeCoset::<BabyBear> {
+                    log_n: *log_degree,
+                    shift: BabyBear::one(),
+                };
+
+                (domain, trace)
+            })
+            .collect::<Vec<_>>();
+
+        let evaluations = domains_and_traces
+            .iter()
+            .map(|(domain, trace)| {
+                let trace = trace.to_device().to_column_major();
+                (*domain, trace)
+            })
+            .collect::<Vec<_>>();
+
+        let pcs = TwoAdicFriPcs::new(log_blowup);
+        let time = CudaInstant::now().unwrap();
+        let (commit, _) = pcs.commit(&evaluations);
+        println!("time: {:?}", time.elapsed().unwrap());
+
+        let sp1_config = SC::default();
+        let (expected_commit, _) = <<SC as StarkGenericConfig>::Pcs as Pcs<
+            <SC as StarkGenericConfig>::Challenge,
+            <SC as StarkGenericConfig>::Challenger,
+        >>::commit(sp1_config.pcs(), domains_and_traces);
 
         let expected_commit: [BabyBear; DIGEST_WIDTH] = expected_commit.into();
 

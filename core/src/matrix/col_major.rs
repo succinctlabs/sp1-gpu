@@ -3,6 +3,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
 use crate::device::buffer::DeviceBuffer;
+use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -83,6 +84,29 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     #[inline]
     pub fn height(&self) -> usize {
         self.height
+    }
+
+    /// # Safety
+    ///
+    /// The memory returened by this function is only partially initialized.
+    pub unsafe fn embed_as_blowup(
+        &self,
+        log_blowup: usize,
+    ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
+        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup);
+        unsafe { blowup_values.set_max_len() };
+
+        let blowup_height = self.height << log_blowup;
+
+        // Copy the columns from the source buffer into the correct place in the destination buffer.
+        for j in 0..self.width() {
+            let src = &self.values[j * self.height..(j + 1) * self.height];
+            let dst = &mut blowup_values
+                [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
+            dst.copy_from_device(src)?;
+        }
+
+        Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
     }
 }
 

@@ -1,10 +1,10 @@
-use crate::device::memory::{copy_device_to_host, copy_host_to_device};
+use crate::device::memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device};
 use core::slice;
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 
-use super::memory::ToHost;
+use super::{error::CudaError, memory::ToHost};
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -117,6 +117,34 @@ impl<T: Copy> DeviceSlice<T> {
         }
 
         unsafe { copy_device_to_host(dst.as_mut_ptr(), self.0.as_ptr(), dst.len()) }.unwrap()
+    }
+
+    /// Copies all elements from `src` into `self`, using a cudaMemcpy.
+    ///
+    /// The length of `src` must be the same as `self`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the two slices have different lengths or if cudaMalloc
+    /// returned an error.
+    pub fn copy_from_device(&mut self, src: &DeviceSlice<T>) -> Result<(), CudaError> {
+        // The panic code path was put into a cold function to not bloat the
+        // call site.
+        #[inline(never)]
+        #[cold]
+        #[track_caller]
+        fn len_mismatch_fail(dst_len: usize, src_len: usize) -> ! {
+            panic!(
+                "source slice length ({}) does not match destination slice length ({})",
+                src_len, dst_len,
+            );
+        }
+
+        if self.len() != src.len() {
+            len_mismatch_fail(self.len(), src.len());
+        }
+
+        unsafe { copy_device_to_device(self.as_mut_ptr(), src.0.as_ptr(), src.len()) }
     }
 }
 
