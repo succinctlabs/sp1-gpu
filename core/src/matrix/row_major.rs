@@ -97,7 +97,7 @@ impl RowMajorMatrixDevice<BabyBear> {
         unsafe { transpose_blowup_naive(ret_values.as_mut_ptr(), self.view(), log_blowup) };
         unsafe { ret_values.set_max_len() };
 
-        ColMajorMatrixDevice::new(ret_values, self.height())
+        ColMajorMatrixDevice::new(ret_values, self.height() << log_blowup)
     }
 }
 
@@ -161,8 +161,20 @@ mod tests {
         let time = start.elapsed().unwrap();
         println!("time: {:?}", time);
 
+        assert_eq!(mad_d_col.height(), ext_height);
+        assert_eq!(mad_d_col.width(), width);
+
         // Check the transposed matrix.
         let mad_d_to_h = mad_d_col.values.to_host();
+
+        for i in 0..height {
+            for j in 0..width {
+                assert_eq!(
+                    mad_d_to_h[j * ext_height + ext_height - height + i],
+                    matrix_h.values[i * width + j]
+                );
+            }
+        }
 
         for (j, col) in mad_d_to_h.chunks(ext_height).enumerate() {
             for i in 0..height {

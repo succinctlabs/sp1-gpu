@@ -1,4 +1,3 @@
-use p3_field::{ExtensionField, Field};
 use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;

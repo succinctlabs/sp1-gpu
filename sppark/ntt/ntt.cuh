@@ -22,7 +22,7 @@ public:
     enum class Type { standard, coset };
     enum class Algorithm { GS, CT };
 
-protected:
+public:
     static void bit_rev(fr_t* d_out, const fr_t* d_inp,
                         uint32_t lg_domain_size, stream_t& stream)
     {

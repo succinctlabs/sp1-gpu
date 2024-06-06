@@ -79,14 +79,17 @@ extern "C" rustCudaError_t batch_lde_shift(
           gpu, &d_inout[c * ext_domain_size], &d_inout[(c + 1) * ext_domain_size - domain_size], 
           gen_powers, lg_domain_size, lg_blowup);
 
-      NTT::InputOutputOrder order = bit_rev_output ? NTT::InputOutputOrder::RR : NTT::InputOutputOrder::RN;
-
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * ext_domain_size],
                         lg_domain_size + lg_blowup,
-                        order,
+                        NTT::InputOutputOrder::RN,
                         NTT::Direction::forward,
                         NTT::Type::standard);
+
+      if (bit_rev_output) {
+           NTT::bit_rev(&d_inout[c * ext_domain_size], &d_inout[c * ext_domain_size], 
+               lg_domain_size + lg_blowup, gpu);
+      }
     }
 
     gpu.sync();

@@ -68,7 +68,6 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
 mod tests {
     use super::*;
     use p3_commit::Pcs;
-    use p3_matrix::bitrev::BitReversableMatrix;
     use rand::thread_rng;
 
     use std::time::Instant;
