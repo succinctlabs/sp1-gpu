@@ -55,7 +55,7 @@ class LtAir {
        bb31_extension_t tmp28 = builder->mainLocal[30] * tmp27;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp28;
-       bb31_extension_t tmp29 = builder->mainLocal[30] - bb31_t{1};
+       bb31_extension_t tmp29 = builder->mainLocal[30] - bb31_t{268435454};
        bb31_extension_t tmp30 = builder->mainLocal[26] + builder->mainLocal[27];
        bb31_extension_t tmp31 = bb31_t{1};
        bb31_extension_t tmp32 = tmp30 - tmp31;
@@ -124,7 +124,7 @@ class LtAir {
        tmp67 += tmp69;
        bb31_extension_t tmp70 = tmp11 * builder->mainLocal[20];
        tmp68 += tmp70;
-       bb31_extension_t tmp71 = tmp66 - bb31_t{1};
+       bb31_extension_t tmp71 = tmp66 - bb31_t{268435454};
        bb31_extension_t tmp72 = tmp8 - tmp11;
        bb31_extension_t tmp73 = tmp71 * tmp72;
        builder->accumulator *= builder->alpha;
@@ -137,7 +137,7 @@ class LtAir {
        tmp67 += tmp75;
        bb31_extension_t tmp76 = builder->mainLocal[15] * builder->mainLocal[19];
        tmp68 += tmp76;
-       bb31_extension_t tmp77 = tmp66 - bb31_t{1};
+       bb31_extension_t tmp77 = tmp66 - bb31_t{268435454};
        bb31_extension_t tmp78 = builder->mainLocal[11] - builder->mainLocal[15];
        bb31_extension_t tmp79 = tmp77 * tmp78;
        builder->accumulator *= builder->alpha;
@@ -150,7 +150,7 @@ class LtAir {
        tmp67 += tmp81;
        bb31_extension_t tmp82 = builder->mainLocal[14] * builder->mainLocal[18];
        tmp68 += tmp82;
-       bb31_extension_t tmp83 = tmp66 - bb31_t{1};
+       bb31_extension_t tmp83 = tmp66 - bb31_t{268435454};
        bb31_extension_t tmp84 = builder->mainLocal[10] - builder->mainLocal[14];
        bb31_extension_t tmp85 = tmp83 * tmp84;
        builder->accumulator *= builder->alpha;
@@ -163,7 +163,7 @@ class LtAir {
        tmp67 += tmp87;
        bb31_extension_t tmp88 = builder->mainLocal[13] * builder->mainLocal[17];
        tmp68 += tmp88;
-       bb31_extension_t tmp89 = tmp66 - bb31_t{1};
+       bb31_extension_t tmp89 = tmp66 - bb31_t{268435454};
        bb31_extension_t tmp90 = builder->mainLocal[9] - builder->mainLocal[13];
        bb31_extension_t tmp91 = tmp89 * tmp90;
        builder->accumulator *= builder->alpha;
@@ -177,7 +177,7 @@ class LtAir {
        bb31_extension_t tmp94 = builder->mainLocal[32] - tmp68;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp94;
-       bb31_extension_t tmp95 = builder->mainLocal[29] - bb31_t{1};
+       bb31_extension_t tmp95 = builder->mainLocal[29] - bb31_t{268435454};
        bb31_extension_t tmp96 = builder->mainLocal[31] - builder->mainLocal[32];
        bb31_extension_t tmp97 = builder->mainLocal[23] * tmp96;
        bb31_extension_t tmp98 = tmp97 - tmp5;
@@ -217,7 +217,7 @@ class LtAir {
        bb31_extension_t tmp122 = tmp121 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp122;
-       bb31_extension_t tmp123 = builder->permLocal[2] - builder->mainLocal[1000];
+       bb31_extension_t tmp123 = builder->permLocal[2] - builder->cumulativeSum;
        bb31_extension_t tmp124 = tmp123 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp124;

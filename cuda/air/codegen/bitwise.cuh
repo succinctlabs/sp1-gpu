@@ -74,7 +74,7 @@ class BitwiseAir {
        bb31_extension_t tmp47 = tmp46 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp47;
-       bb31_extension_t tmp48 = builder->permLocal[3] - builder->mainLocal[1000];
+       bb31_extension_t tmp48 = builder->permLocal[3] - builder->cumulativeSum;
        bb31_extension_t tmp49 = tmp48 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp49;

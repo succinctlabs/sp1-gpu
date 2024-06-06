@@ -26,7 +26,6 @@ pub(super) mod ffi {
         );
 
         pub fn quotient_values(
-            chip_id: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
@@ -36,10 +35,8 @@ pub(super) mod ffi {
             perm_challenges: *const BinomialExtensionField<BabyBear, 4>,
             alpha: BinomialExtensionField<BabyBear, 4>,
             public_values: *const BabyBear,
-            quotient_values: *mut BinomialExtensionField<BabyBear, 4>,
             selectors: LagrangeSelectorsView<BabyBear>,
-            n_blocks: usize,
-            n_threads_per_block: usize,
+            quotient_values: *mut BinomialExtensionField<BabyBear, 4>,
         );
     }
 }

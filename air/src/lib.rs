@@ -57,6 +57,7 @@ pub enum SymbolicFolderValue {
     PermutationLocal(usize),
     PermutationNext(usize),
     PermutationChallenge(usize),
+    CumulativeSum(),
     PublicValue(usize),
     IsFirstRow(),
     IsLastRow(),
@@ -86,6 +87,7 @@ impl SymbolicFolderValue {
             SymbolicFolderValue::PermutationChallenge(id) => {
                 format!("builder->permChallenge[{}]", id)
             }
+            SymbolicFolderValue::CumulativeSum() => "builder->cumulativeSum".to_string(),
             SymbolicFolderValue::PublicValue(id) => format!("builder->publicValues[{}]", id),
             SymbolicFolderValue::IsFirstRow() => "builder->isFirstRow".to_string(),
             SymbolicFolderValue::IsLastRow() => "builder->isLastRow".to_string(),
@@ -394,7 +396,7 @@ where
         main: main.view(),
         perm: perm.view(),
         perm_challenges: &perm_challenges,
-        cumulative_sum: SymbolicFolderValue::MainLocal(1000),
+        cumulative_sum: SymbolicFolderValue::CumulativeSum(),
         public_values: &public_values,
         is_first_row: SymbolicFolderValue::IsFirstRow(),
         is_last_row: SymbolicFolderValue::IsLastRow(),

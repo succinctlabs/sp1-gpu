@@ -35,7 +35,7 @@ class MemoryProgramAir {
        bb31_extension_t tmp14 = tmp13 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp14;
-       bb31_extension_t tmp15 = builder->permLocal[1] - builder->mainLocal[1000];
+       bb31_extension_t tmp15 = builder->permLocal[1] - builder->cumulativeSum;
        bb31_extension_t tmp16 = tmp15 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp16;

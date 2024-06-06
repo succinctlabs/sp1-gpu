@@ -1508,7 +1508,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1073 = builder->mainLocal[167] * tmp1072;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1073;
-       bb31_extension_t tmp1074 = bb31_extension_t((bb31_t[4]){ bb31_t{1}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[3];
+       bb31_extension_t tmp1074 = bb31_extension_t((bb31_t[4]){ bb31_t{268435454}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[3];
        tmp1069 += tmp1074;
        bb31_extension_t tmp1075 = bb31_t{1};
        bb31_extension_t tmp1076 = builder->mainLocal[4] - tmp1075;
@@ -1516,7 +1516,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1078 = builder->mainLocal[167] * tmp1077;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1078;
-       bb31_extension_t tmp1079 = bb31_extension_t((bb31_t[4]){ bb31_t{2}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[4];
+       bb31_extension_t tmp1079 = bb31_extension_t((bb31_t[4]){ bb31_t{536870908}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[4];
        tmp1069 += tmp1079;
        bb31_extension_t tmp1080 = bb31_t{1};
        bb31_extension_t tmp1081 = builder->mainLocal[5] - tmp1080;
@@ -1524,7 +1524,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1083 = builder->mainLocal[167] * tmp1082;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1083;
-       bb31_extension_t tmp1084 = bb31_extension_t((bb31_t[4]){ bb31_t{4}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[5];
+       bb31_extension_t tmp1084 = bb31_extension_t((bb31_t[4]){ bb31_t{1073741816}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[5];
        tmp1069 += tmp1084;
        bb31_extension_t tmp1085 = bb31_t{1};
        bb31_extension_t tmp1086 = builder->mainLocal[6] - tmp1085;
@@ -1532,7 +1532,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1088 = builder->mainLocal[167] * tmp1087;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1088;
-       bb31_extension_t tmp1089 = bb31_extension_t((bb31_t[4]){ bb31_t{8}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[6];
+       bb31_extension_t tmp1089 = bb31_extension_t((bb31_t[4]){ bb31_t{134217711}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[6];
        tmp1069 += tmp1089;
        bb31_extension_t tmp1090 = bb31_t{1};
        bb31_extension_t tmp1091 = builder->mainLocal[7] - tmp1090;
@@ -1540,7 +1540,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1093 = builder->mainLocal[167] * tmp1092;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1093;
-       bb31_extension_t tmp1094 = bb31_extension_t((bb31_t[4]){ bb31_t{16}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[7];
+       bb31_extension_t tmp1094 = bb31_extension_t((bb31_t[4]){ bb31_t{268435422}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[7];
        tmp1069 += tmp1094;
        bb31_extension_t tmp1095 = bb31_t{1};
        bb31_extension_t tmp1096 = builder->mainLocal[8] - tmp1095;
@@ -1548,7 +1548,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1098 = builder->mainLocal[167] * tmp1097;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1098;
-       bb31_extension_t tmp1099 = bb31_extension_t((bb31_t[4]){ bb31_t{32}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[8];
+       bb31_extension_t tmp1099 = bb31_extension_t((bb31_t[4]){ bb31_t{536870844}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[8];
        tmp1069 += tmp1099;
        bb31_extension_t tmp1100 = bb31_t{1};
        bb31_extension_t tmp1101 = builder->mainLocal[9] - tmp1100;
@@ -1556,7 +1556,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1103 = builder->mainLocal[167] * tmp1102;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1103;
-       bb31_extension_t tmp1104 = bb31_extension_t((bb31_t[4]){ bb31_t{64}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[9];
+       bb31_extension_t tmp1104 = bb31_extension_t((bb31_t[4]){ bb31_t{1073741688}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[9];
        tmp1069 += tmp1104;
        bb31_extension_t tmp1105 = bb31_t{1};
        bb31_extension_t tmp1106 = builder->mainLocal[10] - tmp1105;
@@ -1564,7 +1564,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1108 = builder->mainLocal[167] * tmp1107;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1108;
-       bb31_extension_t tmp1109 = bb31_extension_t((bb31_t[4]){ bb31_t{128}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[10];
+       bb31_extension_t tmp1109 = bb31_extension_t((bb31_t[4]){ bb31_t{134217455}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[10];
        tmp1069 += tmp1109;
        bb31_extension_t tmp1110 = bb31_t{1};
        bb31_extension_t tmp1111 = builder->mainLocal[11] - tmp1110;
@@ -1572,7 +1572,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1113 = builder->mainLocal[167] * tmp1112;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1113;
-       bb31_extension_t tmp1114 = bb31_extension_t((bb31_t[4]){ bb31_t{256}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[11];
+       bb31_extension_t tmp1114 = bb31_extension_t((bb31_t[4]){ bb31_t{268434910}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[11];
        tmp1069 += tmp1114;
        bb31_extension_t tmp1115 = bb31_t{1};
        bb31_extension_t tmp1116 = builder->mainLocal[12] - tmp1115;
@@ -1580,7 +1580,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1118 = builder->mainLocal[167] * tmp1117;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1118;
-       bb31_extension_t tmp1119 = bb31_extension_t((bb31_t[4]){ bb31_t{512}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[12];
+       bb31_extension_t tmp1119 = bb31_extension_t((bb31_t[4]){ bb31_t{536869820}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[12];
        tmp1069 += tmp1119;
        bb31_extension_t tmp1120 = bb31_t{1};
        bb31_extension_t tmp1121 = builder->mainLocal[13] - tmp1120;
@@ -1588,7 +1588,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1123 = builder->mainLocal[167] * tmp1122;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1123;
-       bb31_extension_t tmp1124 = bb31_extension_t((bb31_t[4]){ bb31_t{1024}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[13];
+       bb31_extension_t tmp1124 = bb31_extension_t((bb31_t[4]){ bb31_t{1073739640}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[13];
        tmp1069 += tmp1124;
        bb31_extension_t tmp1125 = bb31_t{1};
        bb31_extension_t tmp1126 = builder->mainLocal[14] - tmp1125;
@@ -1596,7 +1596,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1128 = builder->mainLocal[167] * tmp1127;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1128;
-       bb31_extension_t tmp1129 = bb31_extension_t((bb31_t[4]){ bb31_t{2048}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[14];
+       bb31_extension_t tmp1129 = bb31_extension_t((bb31_t[4]){ bb31_t{134213359}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[14];
        tmp1069 += tmp1129;
        bb31_extension_t tmp1130 = bb31_t{1};
        bb31_extension_t tmp1131 = builder->mainLocal[15] - tmp1130;
@@ -1604,7 +1604,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1133 = builder->mainLocal[167] * tmp1132;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1133;
-       bb31_extension_t tmp1134 = bb31_extension_t((bb31_t[4]){ bb31_t{4096}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[15];
+       bb31_extension_t tmp1134 = bb31_extension_t((bb31_t[4]){ bb31_t{268426718}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[15];
        tmp1069 += tmp1134;
        bb31_extension_t tmp1135 = bb31_t{1};
        bb31_extension_t tmp1136 = builder->mainLocal[16] - tmp1135;
@@ -1612,7 +1612,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1138 = builder->mainLocal[167] * tmp1137;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1138;
-       bb31_extension_t tmp1139 = bb31_extension_t((bb31_t[4]){ bb31_t{8192}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[16];
+       bb31_extension_t tmp1139 = bb31_extension_t((bb31_t[4]){ bb31_t{536853436}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[16];
        tmp1069 += tmp1139;
        bb31_extension_t tmp1140 = bb31_t{1};
        bb31_extension_t tmp1141 = builder->mainLocal[17] - tmp1140;
@@ -1620,7 +1620,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1143 = builder->mainLocal[167] * tmp1142;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1143;
-       bb31_extension_t tmp1144 = bb31_extension_t((bb31_t[4]){ bb31_t{16384}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[17];
+       bb31_extension_t tmp1144 = bb31_extension_t((bb31_t[4]){ bb31_t{1073706872}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[17];
        tmp1069 += tmp1144;
        bb31_extension_t tmp1145 = bb31_t{1};
        bb31_extension_t tmp1146 = builder->mainLocal[18] - tmp1145;
@@ -1628,7 +1628,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1148 = builder->mainLocal[167] * tmp1147;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1148;
-       bb31_extension_t tmp1149 = bb31_extension_t((bb31_t[4]){ bb31_t{32768}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[18];
+       bb31_extension_t tmp1149 = bb31_extension_t((bb31_t[4]){ bb31_t{134147823}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[18];
        tmp1069 += tmp1149;
        bb31_extension_t tmp1150 = bb31_t{1};
        bb31_extension_t tmp1151 = builder->mainLocal[19] - tmp1150;
@@ -1636,7 +1636,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1153 = builder->mainLocal[167] * tmp1152;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1153;
-       bb31_extension_t tmp1154 = bb31_extension_t((bb31_t[4]){ bb31_t{65536}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[19];
+       bb31_extension_t tmp1154 = bb31_extension_t((bb31_t[4]){ bb31_t{268295646}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[19];
        tmp1069 += tmp1154;
        bb31_extension_t tmp1155 = bb31_t{1};
        bb31_extension_t tmp1156 = builder->mainLocal[20] - tmp1155;
@@ -1644,7 +1644,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1158 = builder->mainLocal[167] * tmp1157;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1158;
-       bb31_extension_t tmp1159 = bb31_extension_t((bb31_t[4]){ bb31_t{131072}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[20];
+       bb31_extension_t tmp1159 = bb31_extension_t((bb31_t[4]){ bb31_t{536591292}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[20];
        tmp1069 += tmp1159;
        bb31_extension_t tmp1160 = bb31_t{1};
        bb31_extension_t tmp1161 = builder->mainLocal[21] - tmp1160;
@@ -1652,7 +1652,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1163 = builder->mainLocal[167] * tmp1162;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1163;
-       bb31_extension_t tmp1164 = bb31_extension_t((bb31_t[4]){ bb31_t{262144}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[21];
+       bb31_extension_t tmp1164 = bb31_extension_t((bb31_t[4]){ bb31_t{1073182584}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[21];
        tmp1069 += tmp1164;
        bb31_extension_t tmp1165 = bb31_t{1};
        bb31_extension_t tmp1166 = builder->mainLocal[22] - tmp1165;
@@ -1660,7 +1660,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1168 = builder->mainLocal[167] * tmp1167;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1168;
-       bb31_extension_t tmp1169 = bb31_extension_t((bb31_t[4]){ bb31_t{524288}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[22];
+       bb31_extension_t tmp1169 = bb31_extension_t((bb31_t[4]){ bb31_t{133099247}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[22];
        tmp1069 += tmp1169;
        bb31_extension_t tmp1170 = bb31_t{1};
        bb31_extension_t tmp1171 = builder->mainLocal[23] - tmp1170;
@@ -1668,7 +1668,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1173 = builder->mainLocal[167] * tmp1172;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1173;
-       bb31_extension_t tmp1174 = bb31_extension_t((bb31_t[4]){ bb31_t{1048576}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[23];
+       bb31_extension_t tmp1174 = bb31_extension_t((bb31_t[4]){ bb31_t{266198494}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[23];
        tmp1069 += tmp1174;
        bb31_extension_t tmp1175 = bb31_t{1};
        bb31_extension_t tmp1176 = builder->mainLocal[24] - tmp1175;
@@ -1676,7 +1676,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1178 = builder->mainLocal[167] * tmp1177;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1178;
-       bb31_extension_t tmp1179 = bb31_extension_t((bb31_t[4]){ bb31_t{2097152}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[24];
+       bb31_extension_t tmp1179 = bb31_extension_t((bb31_t[4]){ bb31_t{532396988}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[24];
        tmp1069 += tmp1179;
        bb31_extension_t tmp1180 = bb31_t{1};
        bb31_extension_t tmp1181 = builder->mainLocal[25] - tmp1180;
@@ -1684,7 +1684,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1183 = builder->mainLocal[167] * tmp1182;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1183;
-       bb31_extension_t tmp1184 = bb31_extension_t((bb31_t[4]){ bb31_t{4194304}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[25];
+       bb31_extension_t tmp1184 = bb31_extension_t((bb31_t[4]){ bb31_t{1064793976}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[25];
        tmp1069 += tmp1184;
        bb31_extension_t tmp1185 = bb31_t{1};
        bb31_extension_t tmp1186 = builder->mainLocal[26] - tmp1185;
@@ -1692,7 +1692,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1188 = builder->mainLocal[167] * tmp1187;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1188;
-       bb31_extension_t tmp1189 = bb31_extension_t((bb31_t[4]){ bb31_t{8388608}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[26];
+       bb31_extension_t tmp1189 = bb31_extension_t((bb31_t[4]){ bb31_t{116322031}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[26];
        tmp1069 += tmp1189;
        bb31_extension_t tmp1190 = bb31_t{1};
        bb31_extension_t tmp1191 = builder->mainLocal[27] - tmp1190;
@@ -1700,7 +1700,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1193 = builder->mainLocal[167] * tmp1192;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1193;
-       bb31_extension_t tmp1194 = bb31_extension_t((bb31_t[4]){ bb31_t{16777216}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[27];
+       bb31_extension_t tmp1194 = bb31_extension_t((bb31_t[4]){ bb31_t{232644062}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[27];
        tmp1069 += tmp1194;
        bb31_extension_t tmp1195 = bb31_t{1};
        bb31_extension_t tmp1196 = builder->mainLocal[28] - tmp1195;
@@ -1708,7 +1708,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1198 = builder->mainLocal[167] * tmp1197;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1198;
-       bb31_extension_t tmp1199 = bb31_extension_t((bb31_t[4]){ bb31_t{33554432}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[28];
+       bb31_extension_t tmp1199 = bb31_extension_t((bb31_t[4]){ bb31_t{465288124}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[28];
        tmp1069 += tmp1199;
        bb31_extension_t tmp1200 = bb31_t{1};
        bb31_extension_t tmp1201 = builder->mainLocal[29] - tmp1200;
@@ -1716,7 +1716,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1203 = builder->mainLocal[167] * tmp1202;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1203;
-       bb31_extension_t tmp1204 = bb31_extension_t((bb31_t[4]){ bb31_t{67108864}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[29];
+       bb31_extension_t tmp1204 = bb31_extension_t((bb31_t[4]){ bb31_t{930576248}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[29];
        tmp1069 += tmp1204;
        bb31_extension_t tmp1205 = bb31_t{1};
        bb31_extension_t tmp1206 = builder->mainLocal[30] - tmp1205;
@@ -1724,7 +1724,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1208 = builder->mainLocal[167] * tmp1207;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1208;
-       bb31_extension_t tmp1209 = bb31_extension_t((bb31_t[4]){ bb31_t{134217728}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[30];
+       bb31_extension_t tmp1209 = bb31_extension_t((bb31_t[4]){ bb31_t{1861152496}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[30];
        tmp1069 += tmp1209;
        bb31_extension_t tmp1210 = bb31_t{1};
        bb31_extension_t tmp1211 = builder->mainLocal[31] - tmp1210;
@@ -1732,7 +1732,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1213 = builder->mainLocal[167] * tmp1212;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1213;
-       bb31_extension_t tmp1214 = bb31_extension_t((bb31_t[4]){ bb31_t{268435456}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[31];
+       bb31_extension_t tmp1214 = bb31_extension_t((bb31_t[4]){ bb31_t{1709039071}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[31];
        tmp1069 += tmp1214;
        bb31_extension_t tmp1215 = bb31_t{1};
        bb31_extension_t tmp1216 = builder->mainLocal[32] - tmp1215;
@@ -1740,7 +1740,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1218 = builder->mainLocal[167] * tmp1217;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1218;
-       bb31_extension_t tmp1219 = bb31_extension_t((bb31_t[4]){ bb31_t{536870912}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[32];
+       bb31_extension_t tmp1219 = bb31_extension_t((bb31_t[4]){ bb31_t{1404812221}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[32];
        tmp1069 += tmp1219;
        bb31_extension_t tmp1220 = bb31_t{1};
        bb31_extension_t tmp1221 = builder->mainLocal[33] - tmp1220;
@@ -1748,7 +1748,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1223 = builder->mainLocal[167] * tmp1222;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1223;
-       bb31_extension_t tmp1224 = bb31_extension_t((bb31_t[4]){ bb31_t{1073741824}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[33];
+       bb31_extension_t tmp1224 = bb31_extension_t((bb31_t[4]){ bb31_t{796358521}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[33];
        tmp1069 += tmp1224;
        bb31_extension_t tmp1225 = bb31_t{1};
        bb31_extension_t tmp1226 = builder->mainLocal[34] - tmp1225;
@@ -1756,7 +1756,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1228 = builder->mainLocal[167] * tmp1227;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1228;
-       bb31_extension_t tmp1229 = bb31_extension_t((bb31_t[4]){ bb31_t{134217727}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[34];
+       bb31_extension_t tmp1229 = bb31_extension_t((bb31_t[4]){ bb31_t{1592717042}, bb31_t{0}, bb31_t{0}, bb31_t{0} }) * builder->mainLocal[34];
        tmp1069 += tmp1229;
        bb31_extension_t tmp1230 = tmp1069 - builder->mainLocal[2];
        bb31_extension_t tmp1231 = builder->mainLocal[167] * tmp1230;
@@ -1812,12 +1812,12 @@ class MemoryInitAir {
        bb31_extension_t tmp1271 = builder->mainLocal[167] * tmp1270;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1271;
-       bb31_extension_t tmp1272 = builder->mainLocal[167] - bb31_t{1};
+       bb31_extension_t tmp1272 = builder->mainLocal[167] - bb31_t{268435454};
        bb31_extension_t tmp1273 = tmp1272 * builder->mainNext[167];
        bb31_extension_t tmp1274 = builder->isTransition * tmp1273;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1274;
-       bb31_extension_t tmp1275 = builder->mainLocal[1] - bb31_t{1};
+       bb31_extension_t tmp1275 = builder->mainLocal[1] - bb31_t{268435454};
        bb31_extension_t tmp1276 = builder->mainLocal[167] * tmp1275;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1276;
@@ -1931,7 +1931,7 @@ class MemoryInitAir {
        bb31_extension_t tmp1316 = tmp1315 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1316;
-       bb31_extension_t tmp1317 = builder->permLocal[1] - builder->mainLocal[1000];
+       bb31_extension_t tmp1317 = builder->permLocal[1] - builder->cumulativeSum;
        bb31_extension_t tmp1318 = tmp1317 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp1318;

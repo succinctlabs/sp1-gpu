@@ -291,7 +291,7 @@ class ByteAir {
        bb31_extension_t tmp276 = tmp275 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp276;
-       bb31_extension_t tmp277 = builder->permLocal[72] - builder->mainLocal[1000];
+       bb31_extension_t tmp277 = builder->permLocal[72] - builder->cumulativeSum;
        bb31_extension_t tmp278 = tmp277 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp278;

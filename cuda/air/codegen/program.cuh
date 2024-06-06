@@ -21,7 +21,7 @@ class ProgramAir {
        bb31_extension_t tmp6 = tmp5 * builder->isFirstRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp6;
-       bb31_extension_t tmp7 = builder->permLocal[1] - builder->mainLocal[1000];
+       bb31_extension_t tmp7 = builder->permLocal[1] - builder->cumulativeSum;
        bb31_extension_t tmp8 = tmp7 * builder->isLastRow;
        builder->accumulator *= builder->alpha;
        builder->accumulator += tmp8;

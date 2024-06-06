@@ -89,6 +89,7 @@ mod tests {
         utils::{log2_strict_usize, tests::FIBONACCI_ELF},
     };
 
+    use crate::device::memory::ToHost;
     use crate::stark::ffi;
     use crate::{
         device::{buffer::DeviceBuffer, memory::ToDevice},
@@ -182,7 +183,8 @@ mod tests {
             alpha,
             &public_values,
         );
-        let selectors_device = trace_domain.selectors_on_coset(quotient_domain).to_device();
+        let selectors = trace_domain.selectors_on_coset(quotient_domain);
+        let selectors_device = selectors.to_device();
 
         let trace_domain_device = trace_domain.to_device();
         let quotient_domain_device = quotient_domain.to_device();
@@ -211,11 +213,9 @@ mod tests {
         let public_values_device = public_values.to_device();
 
         let mut quotient_output = DeviceBuffer::with_capacity(quotient_domain.size());
-
         unsafe {
             quotient_output.set_len(quotient_domain.size());
             ffi::quotient_values(
-                0,
                 cumulative_sum,
                 trace_domain_device,
                 quotient_domain_device,
@@ -225,11 +225,17 @@ mod tests {
                 permutation_challenges_device.as_ptr(),
                 alpha,
                 public_values_device.as_ptr(),
-                quotient_output.as_mut_ptr(),
                 selectors_device.to_view(),
-                1,
-                1,
+                quotient_output.as_mut_ptr(),
             );
+        }
+
+        let data = quotient_output.to_host();
+
+        println!("output_len: {}", data.len());
+        println!("result.len: {}", result.len());
+        for i in 0..result.len() {
+            assert_eq!(data[i], result[i], "failed at index {}", i);
         }
     }
 }
