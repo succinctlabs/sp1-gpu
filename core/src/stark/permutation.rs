@@ -12,8 +12,14 @@ use crate::{
 
 use super::ffi;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct PermutationTraceGenerator<F, EF, A>(PhantomData<(F, EF, A)>);
+
+impl<F, EF, A> Default for PermutationTraceGenerator<F, EF, A> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl<A> PermutationTraceGenerator<BabyBear, BinomialExtensionField<BabyBear, 4>, A>
 where

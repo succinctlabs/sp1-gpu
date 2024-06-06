@@ -9,18 +9,23 @@ use p3_commit::Pcs;
 
 use sp1_core::{
     air::MachineAir,
-    stark::{Com, Dom, MachineRecord, PcsProverData, StarkGenericConfig, StarkMachine, Val},
+    stark::{
+        Com, Dom, MachineRecord, PcsProverData, ShardProof, StarkGenericConfig, StarkMachine,
+        StarkProvingKey, Val,
+    },
     utils::BabyBearPoseidon2,
 };
 
 use crate::{
-    device::{memory::ToDevice, CudaSync},
+    device::{error::CudaError, memory::ToDevice, CudaSync},
     fri::TwoAdicFriPcs,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
     poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
     time::CudaInstant,
 };
+
+use super::PermutationTraceGenerator;
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
@@ -33,10 +38,14 @@ pub struct FriCpuProver<SC: StarkGenericConfig, A> {
 
 pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
 
-pub type GpuMainTraceData<SC> = MainTraceData<Val<SC>, GpuMatrix<Val<SC>>>;
+pub type GpuMainTraceData<SC> = MainTraceData<SC, GpuMatrix<Val<SC>>>;
 
 pub type GpuProverData<SC> =
     ProverData<SC, FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>>;
+
+pub type CpuMatrix<F> = RowMajorMatrix<F>;
+
+pub type CpuMainTraceData<SC> = MainTraceData<SC, RowMajorMatrix<Val<SC>>>;
 
 pub type GpuMainData<SC> = MainData<
     SC,
@@ -46,15 +55,16 @@ pub type GpuMainData<SC> = MainData<
 
 pub type CpuMainData<SC> = MainData<SC, RowMajorMatrix<Val<SC>>, PcsProverData<SC>>;
 
-pub struct MainTraceData<F, M> {
+pub struct MainTraceData<SC: StarkGenericConfig, M> {
     pub index: usize,
     pub traces: Vec<M>,
+    pub domains: Vec<Dom<SC>>,
     pub chip_ordering: HashMap<String, usize>,
-    pub public_values: Vec<F>,
+    pub public_values: Vec<SC::Val>,
 }
 
 pub struct MainData<SC: StarkGenericConfig, M, Data> {
-    pub trace_data: MainTraceData<SC::Val, M>,
+    pub trace_data: MainTraceData<SC, M>,
     pub prover_data: ProverData<SC, Data>,
 }
 
@@ -113,17 +123,51 @@ where
             .map(|(i, (name, _))| (name.to_owned(), i))
             .collect();
 
-        let traces = named_traces
+        let (domains, traces): (Vec<_>, Vec<_>) = named_traces
             .into_iter()
-            .map(|(_, trace)| trace)
-            .collect::<Vec<_>>();
+            .map(|(_, trace)| (self.natural_domain_for_degree(trace.height()), trace))
+            .unzip();
 
         MainTraceData {
             traces,
+            domains,
             chip_ordering,
             index,
             public_values: shard.public_values(),
         }
+    }
+
+    pub fn generate_permutation_traces(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        trace_data: &GpuMainTraceData<SC>,
+        random_elements: &[SC::Challenge],
+    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
+        let generator = PermutationTraceGenerator::<SC::Val, SC::Challenge, A>::default();
+
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&trace_data.chip_ordering)
+            .collect::<Vec<_>>();
+
+        shard_chips
+            .par_iter()
+            .zip(trace_data.traces.par_iter())
+            .map(|(chip, main_trace)| {
+                let preprocessed_trace = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| pk.traces[index].to_device().to_column_major());
+
+                let flatenned_trace = generator.generate_flattened_permutation_trace(
+                    chip,
+                    preprocessed_trace.as_ref(),
+                    main_trace,
+                    random_elements,
+                )?;
+                CudaSync::new(flatenned_trace)
+            })
+            .collect::<Result<Vec<_>, CudaError>>()
     }
 
     pub fn natural_domain_for_degree(&self, degree: usize) -> Dom<SC> {
@@ -140,12 +184,10 @@ where
 
     pub fn commit_main_traces(&self, trace_data: &GpuMainTraceData<SC>) -> GpuProverData<SC> {
         let domains_and_traces = trace_data
-            .traces
+            .domains
             .iter()
-            .map(|trace| {
-                let domain = self.natural_domain_for_degree(trace.height());
-                (domain, trace)
-            })
+            .copied()
+            .zip(trace_data.traces.iter())
             .collect::<Vec<_>>();
 
         self.commit(&domains_and_traces)
@@ -169,6 +211,14 @@ where
             prover_data,
         }
     }
+
+    pub fn prove_shard(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        shard_data: GpuMainData<SC>,
+        challenger: &mut SC::Challenger,
+    ) {
+    }
 }
 
 impl<SC, A> FriCpuProver<SC, A>
@@ -191,11 +241,7 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
-    pub fn generate_main_traces(
-        &self,
-        shard: &A::Record,
-        index: usize,
-    ) -> MainTraceData<SC::Val, RowMajorMatrix<SC::Val>> {
+    pub fn generate_main_traces(&self, shard: &A::Record, index: usize) -> CpuMainTraceData<SC> {
         // Filter the chips based on what is used.
         let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
 
@@ -219,17 +265,44 @@ where
             .map(|(i, (name, _))| (name.to_owned(), i))
             .collect();
 
-        let traces = named_traces
+        let (domains, traces): (Vec<_>, Vec<_>) = named_traces
             .into_iter()
-            .map(|(_, trace)| trace)
-            .collect::<Vec<_>>();
+            .map(|(_, trace)| (self.natural_domain_for_degree(trace.height()), trace))
+            .unzip();
 
         MainTraceData {
             traces,
+            domains,
             chip_ordering,
             index,
             public_values: shard.public_values(),
         }
+    }
+
+    pub fn generate_permutation_traces(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        trace_data: &CpuMainTraceData<SC>,
+        random_elements: &[SC::Challenge],
+    ) -> Vec<CpuMatrix<SC::Val>> {
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&trace_data.chip_ordering)
+            .collect::<Vec<_>>();
+
+        shard_chips
+            .par_iter()
+            .zip(trace_data.traces.par_iter())
+            .map(|(chip, main_trace)| {
+                let preprocessed_trace = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| &pk.traces[index]);
+
+                chip.generate_permutation_trace(preprocessed_trace, main_trace, random_elements)
+                    .flatten_to_base()
+            })
+            .collect::<Vec<_>>()
     }
 
     pub fn natural_domain_for_degree(&self, degree: usize) -> Dom<SC> {
@@ -252,18 +325,15 @@ where
 
     pub fn commit_main_traces(
         &self,
-        trace_data: &MainTraceData<SC::Val, RowMajorMatrix<SC::Val>>,
+        trace_data: &CpuMainTraceData<SC>,
     ) -> ProverData<SC, PcsProverData<SC>> {
         let domains_and_traces = trace_data
-            .traces
+            .domains
             .iter()
-            .map(|trace| {
-                let domain = self.natural_domain_for_degree(trace.height());
-                (domain, trace.clone())
-            })
+            .copied()
+            .zip(trace_data.traces.iter().cloned())
             .collect::<Vec<_>>();
 
-        // Commit to the batch of traces.
         self.commit(domains_and_traces)
     }
 
@@ -278,6 +348,14 @@ where
             trace_data,
             prover_data,
         }
+    }
+
+    pub fn prove_shard(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        shard_data: GpuMainData<SC>,
+        challenger: &mut SC::Challenger,
+    ) {
     }
 }
 
@@ -543,6 +621,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use rand::{thread_rng, Rng};
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
         stark::{Challenge, RiscvAir},
@@ -595,7 +674,83 @@ mod tests {
     }
 
     #[test]
-    fn test_permutation_generation() {}
+    fn test_permutation_generation() {
+        let program = Program::from(FIBONACCI_ELF);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let gpu_prover = FriGpuProver::new(machine);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let cpu_prover = FriCpuProver::new(machine);
+
+        let (pk, vk) = gpu_prover.machine.setup(&program);
+
+        // Execute the program.
+        let record = execute_core(program);
+
+        let shards = gpu_prover.shard(record);
+
+        let mut rng = thread_rng();
+        for shard in shards {
+            let time = std::time::Instant::now();
+            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
+            println!("Device commit time: {:?}", time.elapsed());
+
+            let time = std::time::Instant::now();
+            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+            println!("Host commit time: {:?}", time.elapsed());
+
+            assert_eq!(
+                gpu_main_data.prover_data.commit,
+                cpu_main_data.prover_data.commit
+            );
+
+            let random_elements: [EF; 2] = rng.gen();
+
+            // Generate the permutation traces and commit to them on Device.
+            let time = std::time::Instant::now();
+            let gpu_permutation_traces = gpu_prover
+                .generate_permutation_traces(&pk, &gpu_main_data.trace_data, &random_elements)
+                .unwrap();
+            // Commit to the permutation traces.
+            let domains_and_traces = gpu_main_data
+                .trace_data
+                .domains
+                .iter()
+                .copied()
+                .zip(gpu_permutation_traces.iter())
+                .collect::<Vec<_>>();
+            gpu_prover.commit(&domains_and_traces);
+            let elapsed = time.elapsed();
+            println!(
+                "Device permutation generation and commit time: {:?}",
+                elapsed
+            );
+
+            // Generate the permutation traces and commit to them on Host.
+            let time = std::time::Instant::now();
+            let cpu_permutation_traces = cpu_prover.generate_permutation_traces(
+                &pk,
+                &cpu_main_data.trace_data,
+                &random_elements,
+            );
+            let elapsed = time.elapsed();
+            println!("Host permutation generation time: {:?}", elapsed);
+            // Commit to the permutation traces.
+            let domains_and_traces = cpu_main_data
+                .trace_data
+                .domains
+                .iter()
+                .copied()
+                .zip(cpu_permutation_traces)
+                .collect::<Vec<_>>();
+            cpu_prover.commit(domains_and_traces);
+            let elapsed = time.elapsed();
+            println!("Host permutation generation and commit time: {:?}", elapsed);
+        }
+    }
 
     #[test]
     fn test_quotient_values() {}
