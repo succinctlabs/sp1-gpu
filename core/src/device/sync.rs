@@ -1,7 +1,4 @@
-use std::{
-    borrow::Borrow,
-    ops::{Deref, DerefMut},
-};
+use std::{borrow::Borrow, ops::Deref};
 
 use crate::{
     device::error::CudaError,

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp::Reverse, collections::HashMap};
+use std::{cmp::Reverse, collections::HashMap};
 
 use rayon::prelude::*;
 
@@ -133,10 +133,7 @@ where
         )
     }
 
-    pub fn commit<M>(&self, evaluations: &[(Dom<SC>, M)]) -> GpuProverData<SC>
-    where
-        M: Send + Sync + Borrow<ColMajorMatrixDevice<BabyBear>>,
-    {
+    pub fn commit(&self, evaluations: &[(Dom<SC>, &GpuMatrix<SC::Val>)]) -> GpuProverData<SC> {
         let (commit, data) = self.gpu_pcs.commit(evaluations);
         GpuProverData { commit, data }
     }
@@ -147,7 +144,7 @@ where
             .iter()
             .map(|trace| {
                 let domain = self.natural_domain_for_degree(trace.height());
-                (domain, trace.as_ref())
+                (domain, trace)
             })
             .collect::<Vec<_>>();
 

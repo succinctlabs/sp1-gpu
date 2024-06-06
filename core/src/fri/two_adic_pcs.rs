@@ -16,7 +16,7 @@ use crate::device::memory::ToDevice;
 
 use rayon::prelude::*;
 
-pub struct TwoAdicFriPcs<F, D, M = ColMajorMatrixDevice<F>> {
+pub struct TwoAdicFriPcs<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
     dft: DeviceDft<F>,
     log_blowup: usize,
     _marker: std::marker::PhantomData<(D, M)>,
@@ -32,9 +32,9 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn commit<M>(
+    pub fn commit<Matrix>(
         &self,
-        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, Matrix)],
     ) -> (
         Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
         FieldMerkleTreeGpu<
@@ -44,24 +44,25 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         >,
     )
     where
-        M: Send + Sync + Borrow<ColMajorMatrixDevice<BabyBear>>,
+        Matrix: Send + Sync + Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
     {
         let lde_evaluations = evaluations
             .par_iter()
-            .map(|(domain, matrix)| {
-                let matrix = matrix.borrow();
-                assert_eq!(domain.size(), matrix.height());
+            .map(
+                |(domain, matrix)| -> CudaSync<ColMajorMatrixDevice<BabyBear>> {
+                    let matrix: &CudaSync<ColMajorMatrixDevice<BabyBear>> = matrix.borrow();
+                    assert_eq!(domain.size(), matrix.height());
 
-                let mut lde_mat;
+                    unsafe {
+                        let mut lde_mat = matrix.embed_as_blowup(self.log_blowup).unwrap();
+                        self.dft
+                            .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
+                            .unwrap();
 
-                unsafe {
-                    lde_mat = matrix.embed_as_blowup(self.log_blowup).unwrap();
-                    self.dft
-                        .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
-                        .unwrap();
-                }
-                CudaSync::new(lde_mat).unwrap()
-            })
+                        CudaSync::new(lde_mat).unwrap()
+                    }
+                },
+            )
             .collect::<Vec<_>>();
 
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
@@ -192,6 +193,7 @@ mod tests {
             .iter()
             .map(|(domain, trace)| {
                 let trace = trace.to_device().to_column_major();
+                let trace = CudaSync::new(trace).unwrap();
                 (*domain, trace)
             })
             .collect::<Vec<_>>();
