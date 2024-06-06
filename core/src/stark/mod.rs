@@ -26,6 +26,7 @@ pub(super) mod ffi {
         );
 
         pub fn quotient_values(
+            chip_id: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,

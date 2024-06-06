@@ -1,6 +1,6 @@
-
-
 #include "../air/codegen/byte.cuh"
+#include "../air/codegen/bitwise.cuh"
+#include "../air/codegen/addsub.cuh"
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
 #include "../utils/matrix.cuh"
@@ -82,12 +82,6 @@ __global__ void quotientValues(Air air, Challenge cumulativeSum,
                     .values[(i * 4 + j) *
                                 permutationTraceOnQuotientDomain.height +
                             ((quotientIdx + nextStep) % quotientSize)];
-            if (quotientIdx == 65536) {
-                printf("permLocal[%d].value[%d] = %d\n", i, j,
-                       permLocal[i].value[j]);
-                printf("permNext[%d].value[%d] = %d\n", i, j,
-                       permNext[i].value[j]);
-            }
         }
     }
 
@@ -118,7 +112,7 @@ __global__ void quotientValues(Air air, Challenge cumulativeSum,
 }  // namespace quotient
 
 extern "C" void quotient_values(
-    bb31_extension_t cumulativeSum,
+    size_t chipId, bb31_extension_t cumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
     Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
@@ -127,12 +121,32 @@ extern "C" void quotient_values(
     bb31_extension_t *permChallenges, bb31_extension_t alpha,
     bb31_t *publicValues, LagrangeSelectors<bb31_t> selectors,
     bb31_extension_t *quotientValues) {
-    ByteAir air;
-    printf("quotientValues: %p\n", quotientValues);
-    quotient::quotientValues<<<4096, 32>>>(
-        air, cumulativeSum, traceDomain, quotientDomain,
-        preprocessedTraceOnQuotientDomain, mainTraceOnQuotientDomain,
-        permutationTraceOnQuotientDomain, permChallenges, alpha, publicValues,
-        selectors, quotientValues);
+    switch (chipId) {
+        case 17:
+            AddSubAir addSubAir;
+            quotient::quotientValues<<<16384, 512>>>(
+                addSubAir, cumulativeSum, traceDomain, quotientDomain,
+                preprocessedTraceOnQuotientDomain, mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain, permChallenges, alpha,
+                publicValues, selectors, quotientValues);
+            break;
+        case 18:
+            BitwiseAir bitwiseAir;
+            quotient::quotientValues<<<16384, 512>>>(
+                bitwiseAir, cumulativeSum, traceDomain, quotientDomain,
+                preprocessedTraceOnQuotientDomain, mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain, permChallenges, alpha,
+                publicValues, selectors, quotientValues);
+            break;
+        case 26:
+            ByteAir byteAir;
+            quotient::quotientValues<<<16384, 512>>>(
+                byteAir, cumulativeSum, traceDomain, quotientDomain,
+                preprocessedTraceOnQuotientDomain, mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain, permChallenges, alpha,
+                publicValues, selectors, quotientValues);
+            break;
+    }
+
     cudaDeviceSynchronize();
 }

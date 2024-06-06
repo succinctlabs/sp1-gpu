@@ -277,7 +277,7 @@ impl Sub<F> for SymbolicFolderValue {
 impl SubAssign for SymbolicFolderValue {
     fn sub_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(format!("{} -= {};", self.id(), rhs.id()));
+        code.push(format!("{} = {} - {};", self.id(), self.id(), rhs.id()));
     }
 }
 
