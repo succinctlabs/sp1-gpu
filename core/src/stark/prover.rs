@@ -35,15 +35,13 @@ pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
 
 pub type GpuMainTraceData<SC> = MainTraceData<Val<SC>, GpuMatrix<Val<SC>>>;
 
-pub type GpuProverData<SC> = ProverData<
-    SC,
-    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], ColMajorMatrixDevice<Val<SC>>>,
->;
+pub type GpuProverData<SC> =
+    ProverData<SC, FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>>;
 
 pub type GpuMainData<SC> = MainData<
     SC,
     CudaSync<ColMajorMatrixDevice<Val<SC>>>,
-    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], ColMajorMatrixDevice<Val<SC>>>,
+    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>,
 >;
 
 pub type CpuMainData<SC> = MainData<SC, RowMajorMatrix<Val<SC>>, PcsProverData<SC>>;

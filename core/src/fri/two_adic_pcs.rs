@@ -13,7 +13,6 @@ use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 
 use crate::device::memory::ToDevice;
-use crate::runtime::sync_default_stream;
 
 use rayon::prelude::*;
 
@@ -38,7 +37,11 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
     ) -> (
         Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
-        FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>,
+        FieldMerkleTreeGpu<
+            BabyBear,
+            [BabyBear; DIGEST_WIDTH],
+            CudaSync<ColMajorMatrixDevice<BabyBear>>,
+        >,
     )
     where
         M: Send + Sync + Borrow<ColMajorMatrixDevice<BabyBear>>,
@@ -57,7 +60,7 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                         .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
                         .unwrap();
                 }
-                lde_mat
+                CudaSync::new(lde_mat).unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -67,6 +70,7 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         (root_device, tree_device)
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn commit_from_host(
         &self,
         evaluations: Vec<(
@@ -90,8 +94,6 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                         .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
                 }
                 .unwrap();
-
-                sync_default_stream().unwrap();
 
                 lde_mat
             })
