@@ -4,7 +4,10 @@ mod quotient;
 pub use permutation::*;
 
 pub(super) mod ffi {
-    use super::{quotient::LagrangeSelectorsView, DeviceInteractionsView};
+    use super::{
+        quotient::{LagrangeSelectorsView, TwoAdicMultiplicativeCosetDevice},
+        DeviceInteractionsView,
+    };
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
@@ -23,16 +26,17 @@ pub(super) mod ffi {
         );
 
         pub fn quotient_values(
+            chip_id: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
-            trace_domain: MatrixViewDevice<BabyBear>,
-            quotient_domain: MatrixViewDevice<BabyBear>,
+            trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
+            quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             preprocessed_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
             main_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
             permutation_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
             perm_challenges: *const BinomialExtensionField<BabyBear, 4>,
             alpha: BinomialExtensionField<BabyBear, 4>,
-            public_values: BinomialExtensionField<BabyBear, 4>,
-            quotient_values: BinomialExtensionField<BabyBear, 4>,
+            public_values: *const BabyBear,
+            quotient_values: *mut BinomialExtensionField<BabyBear, 4>,
             selectors: LagrangeSelectorsView<BabyBear>,
             n_blocks: usize,
             n_threads_per_block: usize,

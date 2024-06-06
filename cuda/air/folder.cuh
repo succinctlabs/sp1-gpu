@@ -8,35 +8,16 @@ struct ConstraintFolder {
     Val* mainLocal;
     Val* mainNext;
     Val* publicValues;
-    Val* permLocal;
-    Val* permNext;
-    Challenge permChallenges[N];
+    Challenge* permLocal;
+    Challenge* permNext;
+    Challenge* permChallenges;
     Challenge cumulativeSum;
-    Challenge isFirstRow;
-    Challenge isLastRow;
-    Challenge isTransition;
+    Val isFirstRow;
+    Val isLastRow;
+    Val isTransition;
     Challenge alpha;
     Challenge accumulator;
 
    public:
-    ConstraintFolder(Val* prep_local, Val* prep_next, Val* main_local,
-                     Val* main_next, Val* perm_local, Val* perm_next,
-                     Challenge alpha, Challenge is_first_row,
-                     Challenge is_last_row, Challenge is_transition,
-                     Challenge[N] permutation_challenges,
-                     Challenge cumulative_sum, Challenge accumulator) {
-        this->preprocessed_local = prep_local;
-        this->preprocessed_next = prep_next;
-        this->main_local = main_local;
-        this->main_next = main_next;
-        this->permutation_local = perm_local;
-        this->permutation_next = perm_next;
-        this->alpha = alpha;
-        this->is_first_row = is_first_row;
-        this->is_last_row = is_last_row;
-        this->is_transition = is_transition;
-        this->permutation_challenges = permutation_challenges;
-        this->cumulative_sum = cumulative_sum;
-        this->accumulator = accumulator;
-    }
+    __device__ ConstraintFolder() {}
 };
