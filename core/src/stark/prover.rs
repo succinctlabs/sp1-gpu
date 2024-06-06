@@ -19,8 +19,7 @@ pub struct MainTraceData<SC: StarkGenericConfig> {
     pub public_values: Vec<SC::Val>,
 }
 
-// pub type MatrixView<P, T> = <<P as ProverConfig>::Matrix<T> as Matrix<T>>::View;
-// pub type MatrixViewMut<P, T> = <<P as ProverConfig>::Matrix<T> as Matrix<T>>::ViewMut;
+impl<SC: StarkGenericConfig, A: MachineAir<SC::Val>> FriGpuProver<SC, A> {}
 
 // pub trait ProverConfig {
 //     type Val: PrimeField32;
