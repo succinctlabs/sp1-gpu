@@ -1,25 +1,86 @@
-use std::collections::HashMap;
+use std::{cmp::Reverse, collections::HashMap};
 
-use p3_field::{ExtensionField, PrimeField32};
+use p3_baby_bear::BabyBear;
 use sp1_core::{
     air::MachineAir,
-    stark::{StarkGenericConfig, StarkMachine},
+    stark::{MachineRecord, StarkGenericConfig, StarkMachine},
+    utils::BabyBearPoseidon2,
 };
 
-use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
+use crate::{device::memory::ToDevice, matrix::ColMajorMatrixDevice};
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
 }
 
-pub struct MainTraceData<SC: StarkGenericConfig> {
-    pub index: usize,
-    pub traces: Vec<ColMajorMatrixDevice<SC::Val>>,
-    pub chip_ordering: HashMap<String, usize>,
-    pub public_values: Vec<SC::Val>,
+pub struct FriCpuProver<SC: StarkGenericConfig, A> {
+    machine: StarkMachine<SC, A>,
 }
 
-impl<SC: StarkGenericConfig, A: MachineAir<SC::Val>> FriGpuProver<SC, A> {}
+pub struct MainTraceData<F, M> {
+    pub index: usize,
+    pub traces: Vec<M>,
+    pub chip_ordering: HashMap<String, usize>,
+    pub public_values: Vec<F>,
+}
+
+impl<SC, A> FriGpuProver<SC, A>
+where
+    SC: StarkGenericConfig<
+        Val = BabyBear,
+        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+    >,
+    A: MachineAir<BabyBear>,
+    A::Record: Sync,
+{
+    pub fn run(&self) {}
+
+    pub fn generate_traces(
+        &self,
+        shard: &A::Record,
+        index: usize,
+    ) -> MainTraceData<SC::Val, ColMajorMatrixDevice<SC::Val>> {
+        // Filter the chips based on what is used.
+        let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
+
+        todo!()
+
+        // For each chip, generate the trace, copy to the device, and transpose.
+
+        // let mut named_traces = shard_chips
+        //     .iter()
+        //     .map(|chip| {
+        //         let host_trace = chip.generate_trace(shard, &mut A::Record::default());
+        //         let device_trace = host_trace.to_device().to_column_major();
+        //         (chip.name(), device_trace)
+        //     })
+        //     .collect::<Vec<_>>();
+
+        // // Order the chips and traces by trace size (biggest first), and get the ordering map.
+        // named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+        // // Get the chip ordering.
+        // let chip_ordering = named_traces
+        //     .iter()
+        //     .enumerate()
+        //     .map(|(i, (name, _))| (name.to_owned(), i))
+        //     .collect();
+
+        // let traces = named_traces
+        //     .into_iter()
+        //     .map(|(_, trace)| trace)
+        //     .collect::<Vec<_>>();
+
+        // MainTraceData {
+        //     traces,
+        //     chip_ordering,
+        //     index,
+        //     public_values: shard.public_values(),
+        // }
+    }
+}
 
 // pub trait ProverConfig {
 //     type Val: PrimeField32;

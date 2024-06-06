@@ -136,13 +136,6 @@ mod tests {
         for (val, exp) in mat_d_h.values.into_iter().zip(mat_h.values) {
             assert_eq!(val, exp);
         }
-
-        // let mat_d_values = mat_d_col.values.to_host();
-        // let mat_h_transposed = mat_h.transpose();
-
-        // for (val, exp) in mat_d_values.into_iter().zip(mat_h_transposed.values) {
-        //     assert_eq!(val, exp);
-        // }
     }
 
     #[test]

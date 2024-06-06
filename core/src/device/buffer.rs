@@ -21,7 +21,6 @@ pub struct DeviceBuffer<T: Copy> {
 }
 
 unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
-unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
     pub fn with_capacity(capacity: usize) -> Self {
