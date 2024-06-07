@@ -8,10 +8,14 @@ pub trait ToDevice {
     fn to_device(&self) -> Self::DeviceType;
 }
 
-pub trait ToHost {
+pub trait ToHost: Sized {
     type HostType;
 
     fn to_host(&self) -> Self::HostType;
+
+    fn into_host(self) -> Self::HostType {
+        self.to_host()
+    }
 }
 
 /// A Rust interface for cudaMalloc.

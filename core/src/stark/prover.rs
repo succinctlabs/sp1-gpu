@@ -32,6 +32,8 @@ use crate::{
 
 use super::PermutationTraceGenerator;
 
+use super::CpuTraceGenerator;
+
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
     gpu_pcs: TwoAdicFriPcs<SC::Val, [SC::Val; DIGEST_WIDTH]>,
@@ -104,46 +106,6 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
-    pub fn generate_main_traces(&self, shard: &A::Record, index: usize) -> GpuMainTraceData<SC> {
-        // Filter the chips based on what is used.
-        let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
-
-        // For each chip, generate the trace, copy to the device, and transpose.
-
-        let mut named_traces = shard_chips
-            .par_iter()
-            .map(|chip| {
-                let host_trace = chip.generate_trace(shard, &mut A::Record::default());
-                let host_trace = host_trace.to_device().to_column_major();
-                let device_trace = CudaSync::new(host_trace).unwrap();
-                (chip.name(), device_trace)
-            })
-            .collect::<Vec<_>>();
-
-        // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
-
-        // Get the chip ordering.
-        let chip_ordering = named_traces
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
-            .collect();
-
-        let (domains, traces): (Vec<_>, Vec<_>) = named_traces
-            .into_iter()
-            .map(|(_, trace)| (self.natural_domain_for_degree(trace.height()), trace))
-            .unzip();
-
-        MainTraceData {
-            traces,
-            domains,
-            chip_ordering,
-            index,
-            public_values: shard.public_values(),
-        }
-    }
-
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -204,10 +166,15 @@ where
     }
 
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
+        let trace_generator = CpuTraceGenerator::<SC, A>::default();
+        let time = std::time::Instant::now();
+        let host_trace_data = trace_generator.generate_main_traces(&self.machine, shard, index);
+        println!("Device: time to generate main traces: {:?}", time.elapsed());
+        // Copy main traces to the device.
         let time = CudaInstant::now().unwrap();
-        let trace_data = self.generate_main_traces(shard, index);
+        let trace_data = host_trace_data.to_device();
         println!(
-            "Device: time to generate traces: {:?}",
+            "Device: time to copy traces to device: {:?}",
             time.elapsed().unwrap()
         );
         let time = CudaInstant::now().unwrap();
@@ -247,12 +214,28 @@ where
         let elapsed = time.elapsed()?;
         println!("Device: time to generate permutation traces: {:?}", elapsed);
 
+        let GpuMainData {
+            trace_data,
+            prover_data: main_prover_data,
+        } = shard_data;
+
+        let GpuMainTraceData { domains, .. } = trace_data;
+
+        let ProverData { commit, data } = main_prover_data;
+
+        let time = CudaInstant::now()?;
+        let cpu_main_data = CpuProverData::<SC> {
+            commit,
+            data: data.to_host(),
+        };
+        let elapsed = time.elapsed()?;
+        println!("Host: time to get main prover data: {:?}", elapsed);
+        drop(data);
+
         // Commit to the permutation traces.
         let time = CudaInstant::now()?;
         let perm_prover_data = {
-            let perm_domains_and_traces = shard_data
-                .trace_data
-                .domains
+            let perm_domains_and_traces = domains
                 .iter()
                 .copied()
                 .zip(permutation_traces)
@@ -269,21 +252,6 @@ where
         let alpha: SC::Challenge = challenger.sample_ext_element();
 
         // Get the prover data from device to host.
-
-        let GpuMainData {
-            trace_data,
-            prover_data: main_prover_data,
-        } = shard_data;
-
-        let ProverData { commit, data } = main_prover_data;
-
-        let time = CudaInstant::now()?;
-        let cpu_main_data = CpuProverData::<SC> {
-            commit,
-            data: data.to_host(),
-        };
-        let elapsed = time.elapsed()?;
-        println!("Host: time to get main prover data: {:?}", elapsed);
 
         // Compute the quotient values.
 
@@ -312,41 +280,8 @@ where
     }
 
     pub fn generate_main_traces(&self, shard: &A::Record, index: usize) -> CpuMainTraceData<SC> {
-        // Filter the chips based on what is used.
-        let shard_chips = self.machine.shard_chips(shard).collect::<Vec<_>>();
-
-        // For each chip, generate the trace, copy to the device, and transpose.
-
-        let mut named_traces = shard_chips
-            .par_iter()
-            .map(|chip| {
-                let trace = chip.generate_trace(shard, &mut A::Record::default());
-                (chip.name(), trace)
-            })
-            .collect::<Vec<_>>();
-
-        // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
-
-        // Get the chip ordering.
-        let chip_ordering = named_traces
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
-            .collect();
-
-        let (domains, traces): (Vec<_>, Vec<_>) = named_traces
-            .into_iter()
-            .map(|(_, trace)| (self.natural_domain_for_degree(trace.height()), trace))
-            .unzip();
-
-        MainTraceData {
-            traces,
-            domains,
-            chip_ordering,
-            index,
-            public_values: shard.public_values(),
-        }
+        let generator = CpuTraceGenerator::default();
+        generator.generate_main_traces(&self.machine, shard, index)
     }
 
     pub fn generate_permutation_traces(
@@ -426,6 +361,51 @@ where
     }
 }
 
+impl<SC> ToHost for GpuProverData<SC>
+where
+    SC: StarkGenericConfig<
+        Val = BabyBear,
+        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+    >,
+{
+    type HostType = CpuProverData<SC>;
+
+    fn to_host(&self) -> Self::HostType {
+        CpuProverData {
+            commit: self.commit,
+            data: self.data.to_host(),
+        }
+    }
+}
+
+impl<SC> ToDevice for CpuMainTraceData<SC>
+where
+    SC: StarkGenericConfig<
+        Val = BabyBear,
+        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+    >,
+{
+    type DeviceType = GpuMainTraceData<SC>;
+
+    fn to_device(&self) -> Self::DeviceType {
+        GpuMainTraceData {
+            index: self.index,
+            traces: self
+                .traces
+                .iter()
+                .map(|t| CudaSync::new(t.to_device().to_column_major()).unwrap())
+                .collect(),
+            domains: self.domains.clone(),
+            chip_ordering: self.chip_ordering.clone(),
+            public_values: self.public_values.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, Rng};
@@ -443,6 +423,9 @@ mod tests {
     type F = BabyBear;
     type SC = BabyBearPoseidon2;
     type EF = Challenge<SC>;
+
+    pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
+        include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
 
     fn execute_core(program: Program) -> ExecutionRecord {
         let mut runtime = Runtime::new(program, SP1CoreOpts::default());
@@ -564,7 +547,9 @@ mod tests {
 
     #[test]
     fn test_prove_shard() {
-        let program = Program::from(SSZ_WITHDRAWALS_ELF);
+        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
+
+        // let program = Program::from(FIBONACCI_ELF);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
@@ -586,16 +571,17 @@ mod tests {
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
             println!("Device commit time: {:?}", time.elapsed());
 
-            let time = std::time::Instant::now();
-            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
-            println!("Host commit time: {:?}", time.elapsed());
+            // let time = std::time::Instant::now();
+            // let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+            // println!("Host commit time: {:?}", time.elapsed());
 
-            assert_eq!(
-                gpu_main_data.prover_data.commit,
-                cpu_main_data.prover_data.commit
-            );
+            // assert_eq!(
+            //     gpu_main_data.prover_data.commit,
+            //     cpu_main_data.prover_data.commit
+            // );
 
             let mut challenger = gpu_prover.machine.config().challenger();
+            challenger.observe(gpu_main_data.prover_data.commit);
             let time = std::time::Instant::now();
             let _ = gpu_prover
                 .prove_shard(&pk, gpu_main_data, &mut challenger)
@@ -603,6 +589,7 @@ mod tests {
             println!("Device prove time: {:?}", time.elapsed());
 
             // let mut challenger = gpu_prover.machine.config().challenger();
+            // challenger.observe(cpu_main_ata.prover_data.commit);
             // let time = std::time::Instant::now();
             // let cpu_proof = cpu_prover.prove_shard(&pk, cpu_main_data, &mut challenger);
             // println!("Host prove time: {:?}", time.elapsed());

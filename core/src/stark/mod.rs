@@ -1,8 +1,12 @@
 mod permutation;
 mod prover;
+mod trace;
+mod utils;
 
 pub use permutation::*;
 pub use prover::*;
+pub use trace::*;
+pub use utils::*;
 
 pub(super) mod ffi {
     use p3_baby_bear::BabyBear;
