@@ -6,6 +6,8 @@ use crate::{
 };
 use crate::{matrix::MatrixViewMutDevice, runtime::sync_default_stream};
 
+use super::memory::ToHost;
+
 #[repr(transparent)]
 pub struct CudaSync<T>(T);
 
@@ -58,5 +60,13 @@ impl<T: Copy, M: DeviceMatrix<T>> DeviceMatrix<T> for CudaSync<M> {
 
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         panic!("Unsafe")
+    }
+}
+
+impl<T: ToHost> ToHost for CudaSync<T> {
+    type HostType = T::HostType;
+
+    fn to_host(&self) -> Self::HostType {
+        self.0.to_host()
     }
 }
