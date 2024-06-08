@@ -545,6 +545,7 @@ where
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -922,7 +923,7 @@ mod tests {
                 .copied()
                 .zip(gpu_permutation_traces.iter())
                 .collect::<Vec<_>>();
-            gpu_prover.commit(&domains_and_traces);
+            let gpu_data = gpu_prover.commit(&domains_and_traces);
             let elapsed = time.elapsed();
             println!(
                 "Device permutation generation and commit time: {:?}",
@@ -946,9 +947,11 @@ mod tests {
                 .copied()
                 .zip(cpu_permutation_traces)
                 .collect::<Vec<_>>();
-            cpu_prover.commit(domains_and_traces);
+            let cpu_data = cpu_prover.commit(domains_and_traces);
             let elapsed = time.elapsed();
             println!("Host permutation generation and commit time: {:?}", elapsed);
+
+            assert_eq!(gpu_data.commit, cpu_data.commit);
         }
     }
 
