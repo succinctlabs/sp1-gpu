@@ -179,7 +179,7 @@ impl_index! {
     RangeToInclusive<usize>
 }
 
-impl<'a, T: Copy> ToHost for &'a DeviceSlice<T> {
+impl<T: Copy> ToHost for DeviceSlice<T> {
     type HostType = Vec<T>;
 
     fn to_host(&self) -> Vec<T> {

@@ -8,12 +8,15 @@ pub trait ToDevice {
     fn to_device(&self) -> Self::DeviceType;
 }
 
-pub trait ToHost: Sized {
+pub trait ToHost {
     type HostType;
 
     fn to_host(&self) -> Self::HostType;
 
-    fn into_host(self) -> Self::HostType {
+    fn into_host(self) -> Self::HostType
+    where
+        Self: Sized,
+    {
         self.to_host()
     }
 }

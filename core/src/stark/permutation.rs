@@ -672,11 +672,8 @@ mod tests {
         let perm_h = perm_d.to_host_naive();
 
         let time = std::time::Instant::now();
-        let expected_perm_trace = chip.generate_permutation_trace(
-            Some(&preprocessed_trace),
-            &mut main_trace,
-            &[alpha, beta],
-        );
+        let expected_perm_trace =
+            chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.
@@ -737,7 +734,7 @@ mod tests {
 
         let time = std::time::Instant::now();
         let expected_perm_trace = chip
-            .generate_permutation_trace(Some(&preprocessed_trace), &mut main_trace, &[alpha, beta])
+            .generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta])
             .flatten_to_base::<F>();
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 

@@ -7,23 +7,17 @@ use p3_matrix::Matrix;
 
 use sp1_core::{
     air::MachineAir,
-    stark::{MachineRecord, StarkGenericConfig, StarkMachine},
-    utils::BabyBearPoseidon2,
+    stark::{MachineRecord, StarkMachine},
 };
 
-use super::{natural_domain_for_degree, CpuMainTraceData, MainTraceData};
+use super::{natural_domain_for_degree, BabyBearPoseidon2Config, CpuMainTraceData, MainTraceData};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CpuTraceGenerator<SC, A>(PhantomData<(SC, A)>);
 
 impl<SC, A> CpuTraceGenerator<SC, A>
 where
-    SC: StarkGenericConfig<
-        Val = BabyBear,
-        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
-        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
-        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
-    >,
+    SC: BabyBearPoseidon2Config,
     A: MachineAir<BabyBear>,
     A::Record: Sync,
 {

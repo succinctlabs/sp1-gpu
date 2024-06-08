@@ -1,44 +1,34 @@
+pub(super) mod ffi;
 mod permutation;
 mod prover;
+mod quotient;
 mod trace;
 mod utils;
 
+use p3_baby_bear::BabyBear;
 pub use permutation::*;
 pub use prover::*;
+pub use quotient::*;
+use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
 pub use trace::*;
 pub use utils::*;
 
-pub(super) mod ffi {
-    use p3_baby_bear::BabyBear;
-    use p3_field::extension::BinomialExtensionField;
+pub trait BabyBearPoseidon2Config:
+    StarkGenericConfig<
+    Val = BabyBear,
+    Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+    Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+    Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+>
+{
+}
 
-    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
-
-    use super::DeviceInteractionsView;
-
-    extern "C" {
-        pub fn populate_permutation_rows(
-            interactions: DeviceInteractionsView<BabyBear>,
-            permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
-            preprocessed: MatrixViewDevice<BabyBear>,
-            main: MatrixViewDevice<BabyBear>,
-            alpha: BinomialExtensionField<BabyBear, 4>,
-            beta: BinomialExtensionField<BabyBear, 4>,
-            batch_size: usize,
-            num_blocks: usize,
-            num_threads_per_block: usize,
-        );
-
-        pub fn populate_permutation_rows_flattened(
-            interactions: DeviceInteractionsView<BabyBear>,
-            permutation: MatrixViewMutDevice<BabyBear>,
-            preprocessed: MatrixViewDevice<BabyBear>,
-            main: MatrixViewDevice<BabyBear>,
-            alpha: BinomialExtensionField<BabyBear, 4>,
-            beta: BinomialExtensionField<BabyBear, 4>,
-            batch_size: usize,
-            num_blocks: usize,
-            num_threads_per_block: usize,
-        );
-    }
+impl<SC> BabyBearPoseidon2Config for SC where
+    SC: StarkGenericConfig<
+        Val = BabyBear,
+        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
+        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
+        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
+    >
+{
 }
