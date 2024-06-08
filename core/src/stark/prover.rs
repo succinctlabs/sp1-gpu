@@ -242,7 +242,7 @@ where
             .map(|(_, trace)| {
                 let row_idx = trace.height() - 1;
                 let start_col_idx =
-                    trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D - 1;
+                    trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
                 SC::Challenge::from_base_fn(|i| {
                     let index = (start_col_idx + i) * trace.height() + row_idx;
                     let val = trace.values[index..index + 1].to_host();
@@ -364,6 +364,7 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
+        let time = std::time::Instant::now();
         let (openings, opening_proof) = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::open(
             self.machine.config().pcs(),
             vec![
@@ -374,6 +375,7 @@ where
             ],
             challenger,
         );
+        println!("Device: Time to open: {:?}", time.elapsed());
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
@@ -541,6 +543,231 @@ where
             trace_data,
             prover_data,
         }
+    }
+
+    pub fn prove_shard(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        shard_data: CpuMainData<SC>,
+        challenger: &mut SC::Challenger,
+    ) -> Result<ShardProof<SC>, ()>
+    where
+        A: for<'a> Air<ProverConstraintFolder<'a, SC>>,
+    {
+        let CpuMainData {
+            trace_data: main_trace_data,
+            prover_data: main_prover_data,
+        } = shard_data;
+
+        let host_main_prover_data = main_prover_data;
+
+        // Get the permutation challenges.
+        let permutation_challenges = (0..2)
+            .map(|_| challenger.sample_ext_element())
+            .collect::<Vec<_>>();
+        // Generate permutation traces.
+        let permutation_traces =
+            self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges);
+
+        let perm_domains_and_traces = main_trace_data
+            .domains
+            .iter()
+            .copied()
+            .zip(permutation_traces)
+            .collect::<Vec<_>>();
+
+        let cumulative_sums = perm_domains_and_traces
+            .iter()
+            .map(|(_, trace)| {
+                let row_idx = trace.height() - 1;
+                let start_col_idx =
+                    trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
+                SC::Challenge::from_base_fn(|i| {
+                    let index = row_idx * trace.width() + start_col_idx + i;
+                    trace.values[index]
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let perm_prover_data = self.commit(perm_domains_and_traces);
+
+        // Observe the permutation commitment.
+        challenger.observe(perm_prover_data.commit);
+
+        // Get a challenge for folding the constraints.
+        //
+        // *Remark*: this is called `alpha` in [sp1_core].
+        let folding_challenge: SC::Challenge = challenger.sample_ext_element();
+
+        let host_perm_prover_data = perm_prover_data;
+
+        // Compute quotient values.
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&main_trace_data.chip_ordering)
+            .collect::<Vec<_>>();
+
+        // Compute values
+        let time = std::time::Instant::now();
+        let quotient_generator = CpuQuotientValuesGenerator::<SC, A>::default();
+        let quotient_values = shard_chips
+            .iter()
+            .enumerate()
+            .map(|(i, chip)| {
+                let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
+                quotient_generator.generate_quotient_values(
+                    self.machine.config(),
+                    chip,
+                    main_trace_data.domains[i],
+                    (preprocessed_index, &pk.data),
+                    (i, &host_main_prover_data),
+                    (i, &host_perm_prover_data),
+                    &permutation_challenges,
+                    folding_challenge,
+                    &main_trace_data.public_values,
+                    cumulative_sums[i],
+                )
+            })
+            .collect::<Vec<_>>();
+        let elapsed = time.elapsed();
+        println!("Host: time to compute quotient values: {:?}", elapsed);
+
+        // Commit to the quotient values
+        let quotient_domains_and_chunks = quotient_values
+            .into_iter()
+            .flat_map(|values| {
+                let QuotientValues {
+                    quotient_chunks,
+                    quotient_chunk_domains,
+                } = values;
+
+                quotient_chunk_domains.into_iter().zip(quotient_chunks)
+            })
+            .collect::<Vec<_>>();
+        let num_quotient_chunks = quotient_domains_and_chunks.len();
+        let quotient_prover_data = self.commit(quotient_domains_and_chunks);
+
+        // Transfer the quotient data to the host.
+        let host_quotient_prover_data = quotient_prover_data;
+
+        // Observe the quotient commitment.
+        challenger.observe(host_quotient_prover_data.commit);
+
+        // Generate the opening proof and assemble the shard proof.
+
+        // Compute the opening challenge.
+        let zeta: SC::Challenge = challenger.sample_ext_element();
+
+        let preprocessed_opening_points = pk
+            .traces
+            .iter()
+            .map(|trace| {
+                let domain = natural_domain_for_degree(self.machine.config(), trace.height());
+                vec![zeta, domain.next_point(zeta).unwrap()]
+            })
+            .collect::<Vec<_>>();
+
+        let trace_opening_points = main_trace_data
+            .domains
+            .iter()
+            .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+            .collect::<Vec<_>>();
+
+        // Compute quotient openning points, open every chunk at zeta.
+        let quotient_opening_points = (0..num_quotient_chunks)
+            .map(|_| vec![zeta])
+            .collect::<Vec<_>>();
+
+        let time = std::time::Instant::now();
+        let (openings, opening_proof) = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::open(
+            self.machine.config().pcs(),
+            vec![
+                (&pk.data, preprocessed_opening_points),
+                (&host_main_prover_data.data, trace_opening_points.clone()),
+                (&host_perm_prover_data.data, trace_opening_points),
+                (&host_quotient_prover_data.data, quotient_opening_points),
+            ],
+            challenger,
+        );
+        println!("Host: Time to open: {:?}", time.elapsed());
+
+        // Collect the opened values for each chip.
+        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+            openings.try_into().unwrap();
+        assert!(main_values.len() == shard_chips.len());
+        let preprocessed_opened_values = preprocessed_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+
+        let main_opened_values = main_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+        let permutation_opened_values = permutation_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+        let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
+        for chip in shard_chips.iter() {
+            let log_quotient_degree = chip.log_quotient_degree();
+            let degree = 1 << log_quotient_degree;
+            let slice = quotient_values.drain(0..degree);
+            quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
+        }
+
+        let opened_values = main_opened_values
+            .into_iter()
+            .zip_eq(permutation_opened_values)
+            .zip_eq(quotient_opened_values)
+            .zip_eq(cumulative_sums)
+            .zip_eq(shard_chips.iter())
+            .enumerate()
+            .map(
+                |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                    let preprocessed = pk
+                        .chip_ordering
+                        .get(&chip.name())
+                        .map(|&index| preprocessed_opened_values[index].clone())
+                        .unwrap_or(AirOpenedValues {
+                            local: vec![],
+                            next: vec![],
+                        });
+                    let log_degree = main_trace_data.domains[i].size().ilog2() as usize;
+                    ChipOpenedValues {
+                        preprocessed,
+                        main,
+                        permutation,
+                        quotient,
+                        cumulative_sum,
+                        log_degree,
+                    }
+                },
+            )
+            .collect::<Vec<_>>();
+
+        Ok(ShardProof::<SC> {
+            commitment: ShardCommitment {
+                main_commit: host_main_prover_data.commit,
+                permutation_commit: host_perm_prover_data.commit,
+                quotient_commit: host_quotient_prover_data.commit,
+            },
+            opened_values: ShardOpenedValues {
+                chips: opened_values,
+            },
+            opening_proof,
+            chip_ordering: main_trace_data.chip_ordering,
+            public_values: main_trace_data.public_values,
+        })
     }
 }
 
@@ -727,9 +954,9 @@ mod tests {
 
     #[test]
     fn test_prove_shard() {
-        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
+        // let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
-        // let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
@@ -745,11 +972,11 @@ mod tests {
 
         let shards = gpu_prover.shard(record);
 
-        for shard in shards {
+        shards.into_iter().for_each(|shard| {
             let time = std::time::Instant::now();
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
             let commit_time = time.elapsed();
-            println!("Device commit time: {:?}", commit_time);
+            println!("Commit time: {:?}", commit_time);
 
             let main_commit = gpu_main_data.prover_data.commit;
 
@@ -760,11 +987,7 @@ mod tests {
                 .prove_shard(&pk, gpu_main_data, &mut challenger)
                 .unwrap();
             let prove_shard_time = time.elapsed();
-            println!("Device prove_shard time: {:?}", prove_shard_time);
-
-            // Print total time:
-            let total_time = commit_time + prove_shard_time;
-            println!("Device: Total time: {:?}", total_time);
+            println!("Prove Shard time: {:?}", prove_shard_time);
 
             // Verify the proof.
             let mut challenger = machine.config().challenger();
@@ -781,6 +1004,38 @@ mod tests {
                 &proof,
             )
             .unwrap();
-        }
+
+            // let time = std::time::Instant::now();
+            // let gpu_main_data = gpu_prover.commit_main(&shard, 1);
+            // let commit_time = time.elapsed();
+            // println!("Device commit time: {:?}", commit_time);
+
+            // let main_commit = gpu_main_data.prover_data.commit;
+
+            // let mut challenger = gpu_prover.machine.config().challenger();
+            // challenger.observe(main_commit);
+            // let time = std::time::Instant::now();
+            // let proof = gpu_prover
+            //     .prove_shard(&pk, gpu_main_data, &mut challenger)
+            //     .unwrap();
+            // let prove_shard_time = time.elapsed();
+            // println!("Device prove_shard time: {:?}", prove_shard_time);
+
+            // // Verify the proof.
+            // let mut challenger = machine.config().challenger();
+            // challenger.observe(main_commit);
+            // let shard_chips = machine
+            //     .shard_chips_ordered(&proof.chip_ordering)
+            //     .collect::<Vec<_>>();
+            // // machine.verify_shard(&vk, proof, &mut challenger).unwrap();
+            // Verifier::<SC, _>::verify_shard(
+            //     machine.config(),
+            //     &vk,
+            //     &shard_chips,
+            //     &mut challenger,
+            //     &proof,
+            // )
+            // .unwrap();
+        });
     }
 }
