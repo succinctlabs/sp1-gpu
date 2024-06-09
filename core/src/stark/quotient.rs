@@ -18,6 +18,7 @@ use super::{BabyBearPoseidon2Config, CpuProverData};
 #[derive(Clone, Copy, Debug)]
 pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
 
+#[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
     pub quotient_chunks: Vec<RowMajorMatrix<SC::Val>>,
     pub quotient_chunk_domains: Vec<Dom<SC>>,

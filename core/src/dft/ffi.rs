@@ -9,6 +9,7 @@ extern "C" {
         d_inout: *mut BabyBear,
         lg_domain_size: u32,
         lg_blowup: u32,
+        shift: BabyBear,
         poly_count: u32,
         is_bit_rev: bool,
     ) -> CudaRustError;

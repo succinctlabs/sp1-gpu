@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
+use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use p3_symmetric::Hash;
@@ -53,10 +54,17 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                     let matrix: &CudaSync<ColMajorMatrixDevice<BabyBear>> = matrix.borrow();
                     assert_eq!(domain.size(), matrix.height());
 
+                    let shift = domain.shift.inverse();
+
                     unsafe {
                         let mut lde_mat = matrix.embed_as_blowup(self.log_blowup).unwrap();
                         self.dft
-                            .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
+                            .coset_lde_batch_device(
+                                lde_mat.view_mut(),
+                                self.log_blowup,
+                                shift,
+                                true,
+                            )
                             .unwrap();
 
                         CudaSync::new(lde_mat).unwrap()
@@ -90,9 +98,15 @@ impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 let matrix = RowMajorMatrixDevice::new(matrix.values.to_device(), matrix.width());
                 let mut lde_mat = matrix.to_column_major_blowup(self.log_blowup);
 
+                let shift = domain.shift.inverse();
+
                 unsafe {
-                    self.dft
-                        .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, true)
+                    self.dft.coset_lde_batch_device(
+                        lde_mat.view_mut(),
+                        self.log_blowup,
+                        shift,
+                        true,
+                    )
                 }
                 .unwrap();
 

@@ -236,6 +236,9 @@ where
         let elapsed = time.elapsed()?;
         println!("Device: time to commit permutation traces: {:?}", elapsed);
 
+        // Observe the permutation commitment.
+        challenger.observe(perm_prover_data.commit);
+
         // Get the cumulative sums from device.
         let cumulative_sums = perm_domains_and_traces
             .iter()
@@ -252,9 +255,6 @@ where
             .collect::<Vec<_>>();
         // drop the permutation traces.
         drop(perm_domains_and_traces);
-
-        // Observe the permutation commitment.
-        challenger.observe(perm_prover_data.commit);
 
         // Get a challenge for folding the constraints.
         //
@@ -311,19 +311,18 @@ where
                     quotient_chunk_domains,
                 } = values;
 
-                let quotient_chunks = quotient_chunks
+                let quotient_chunks_device = quotient_chunks
                     .into_iter()
                     .map(|chunk| CudaSync::new(chunk.to_device().to_column_major()));
 
                 quotient_chunk_domains
                     .into_iter()
-                    .zip(quotient_chunks)
+                    .zip(quotient_chunks_device)
                     .map(|(domain, result)| result.map(|c| (domain, c)))
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
         let quotient_prover_data = self.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
-        drop(quotient_domains_and_chunks);
         println!(
             "Device: time to commit quotient values: {:?}",
             time.elapsed()?
@@ -335,6 +334,8 @@ where
             "Device: time to transfer quotient prover data from device: {:?}",
             time.elapsed()?
         );
+
+        drop(quotient_domains_and_chunks);
 
         // Observe the quotient commitment.
         challenger.observe(host_quotient_prover_data.commit);
@@ -551,7 +552,7 @@ where
         pk: &StarkProvingKey<SC>,
         shard_data: CpuMainData<SC>,
         challenger: &mut SC::Challenger,
-    ) -> Result<ShardProof<SC>, ()>
+    ) -> ShardProof<SC>
     where
         A: for<'a> Air<ProverConstraintFolder<'a, SC>>,
     {
@@ -756,7 +757,7 @@ where
             )
             .collect::<Vec<_>>();
 
-        Ok(ShardProof::<SC> {
+        ShardProof::<SC> {
             commitment: ShardCommitment {
                 main_commit: host_main_prover_data.commit,
                 permutation_commit: host_perm_prover_data.commit,
@@ -768,7 +769,7 @@ where
             opening_proof,
             chip_ordering: main_trace_data.chip_ordering,
             public_values: main_trace_data.public_values,
-        })
+        }
     }
 }
 
@@ -828,7 +829,6 @@ mod tests {
 
     use super::*;
 
-    type F = BabyBear;
     type SC = BabyBearPoseidon2;
     type EF = Challenge<SC>;
 
@@ -956,9 +956,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prove_shard() {
-        // let program = Program::from(TENDERMINT_BENCHMARK_ELF);
-
+    fn test_fibonacci_prove() {
         let program = Program::from(FIBONACCI_ELF);
 
         let config = SC::default();
@@ -967,6 +965,9 @@ mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
+        let cpu_prover = FriCpuProver::new(machine);
+
+        let config = SC::default();
 
         let (pk, vk) = gpu_prover.machine.setup(&program);
 
@@ -975,14 +976,34 @@ mod tests {
 
         let shards = gpu_prover.shard(record);
 
-        shards.into_iter().for_each(|shard| {
-            let time = std::time::Instant::now();
+        for shard in shards {
+            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+
+            let main_commit = cpu_main_data.prover_data.commit;
+
+            let mut challenger = cpu_prover.machine.config().challenger();
+            challenger.observe(main_commit);
+            let cpu_proof = cpu_prover.prove_shard(&pk, cpu_main_data, &mut challenger);
+
+            // Verify the proof.
+            let mut challenger = config.challenger();
+            challenger.observe(main_commit);
+            let shard_chips = cpu_prover
+                .machine
+                .shard_chips_ordered(&cpu_proof.chip_ordering)
+                .collect::<Vec<_>>();
+            Verifier::<SC, _>::verify_shard(
+                &config,
+                &vk,
+                &shard_chips,
+                &mut challenger,
+                &cpu_proof,
+            )
+            .unwrap();
+
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
-            let commit_time = time.elapsed();
-            println!("Commit time: {:?}", commit_time);
-
+            // Observe the main commit.
             let main_commit = gpu_main_data.prover_data.commit;
-
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
             let time = std::time::Instant::now();
@@ -990,55 +1011,64 @@ mod tests {
                 .prove_shard(&pk, gpu_main_data, &mut challenger)
                 .unwrap();
             let prove_shard_time = time.elapsed();
-            println!("Prove Shard time: {:?}", prove_shard_time);
+            println!("Device prove_shard time: {:?}", prove_shard_time);
 
             // Verify the proof.
-            let mut challenger = machine.config().challenger();
+            let mut challenger = config.challenger();
             challenger.observe(main_commit);
-            let shard_chips = machine
+            let shard_chips = gpu_prover
+                .machine
                 .shard_chips_ordered(&proof.chip_ordering)
                 .collect::<Vec<_>>();
-            // machine.verify_shard(&vk, proof, &mut challenger).unwrap();
+            Verifier::<SC, _>::verify_shard(&config, &vk, &shard_chips, &mut challenger, &proof)
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_tendermint_benchmark() {
+        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let gpu_prover = FriGpuProver::new(machine);
+
+        let (pk, vk) = gpu_prover.machine.setup(&program);
+        // Execute the program.
+        let record = execute_core(program);
+
+        let time = std::time::Instant::now();
+        let shards = gpu_prover.shard(record);
+        println!("time to shard: {:?}", time.elapsed());
+
+        shards.into_iter().for_each(|shard| {
+            let main_data = gpu_prover.commit_main(&shard, 1);
+            // Observe the main commit.
+            let main_commit = main_data.prover_data.commit;
+            let mut challenger = gpu_prover.machine.config().challenger();
+            challenger.observe(main_commit);
+            let time = std::time::Instant::now();
+            let proof = gpu_prover
+                .prove_shard(&pk, main_data, &mut challenger)
+                .unwrap();
+            let prove_shard_time = time.elapsed();
+            println!("Device prove_shard time: {:?}", prove_shard_time);
+
+            // Verify the proof.
+            let mut challenger = gpu_prover.machine.config().challenger();
+            challenger.observe(main_commit);
+            let shard_chips = gpu_prover
+                .machine
+                .shard_chips_ordered(&proof.chip_ordering)
+                .collect::<Vec<_>>();
             Verifier::<SC, _>::verify_shard(
-                machine.config(),
+                gpu_prover.machine.config(),
                 &vk,
                 &shard_chips,
                 &mut challenger,
                 &proof,
             )
             .unwrap();
-
-            // let time = std::time::Instant::now();
-            // let gpu_main_data = gpu_prover.commit_main(&shard, 1);
-            // let commit_time = time.elapsed();
-            // println!("Device commit time: {:?}", commit_time);
-
-            // let main_commit = gpu_main_data.prover_data.commit;
-
-            // let mut challenger = gpu_prover.machine.config().challenger();
-            // challenger.observe(main_commit);
-            // let time = std::time::Instant::now();
-            // let proof = gpu_prover
-            //     .prove_shard(&pk, gpu_main_data, &mut challenger)
-            //     .unwrap();
-            // let prove_shard_time = time.elapsed();
-            // println!("Device prove_shard time: {:?}", prove_shard_time);
-
-            // // Verify the proof.
-            // let mut challenger = machine.config().challenger();
-            // challenger.observe(main_commit);
-            // let shard_chips = machine
-            //     .shard_chips_ordered(&proof.chip_ordering)
-            //     .collect::<Vec<_>>();
-            // // machine.verify_shard(&vk, proof, &mut challenger).unwrap();
-            // Verifier::<SC, _>::verify_shard(
-            //     machine.config(),
-            //     &vk,
-            //     &shard_chips,
-            //     &mut challenger,
-            //     &proof,
-            // )
-            // .unwrap();
         });
     }
 }

@@ -239,7 +239,7 @@ public:
         CUDA_UNWRAP_SPPARK(cudaGetLastError());
 
         generate_partial_twiddles<<<WINDOW_SIZE/32, 32, 0, gpu>>>
-            (partial_group_gen_powers, inverse ? group_gen_inverse
+            (partial_group_gen_powers, inverse ? group_gen_inverse 
                                                : group_gen);
         CUDA_UNWRAP_SPPARK(cudaGetLastError());
     }

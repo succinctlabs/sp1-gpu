@@ -228,7 +228,7 @@ public:
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],
                            uint32_t lg_domain_size, uint32_t lg_blowup,
-                           bool perform_shift = true, bool ext_pow = false)
+                           bool perform_shift = true, fr_t shift = fr_t{1} ,bool ext_pow = false)
     {
         assert(lg_domain_size + lg_blowup <= MAX_LG_DOMAIN_SIZE);
         size_t domain_size = (size_t)1 << lg_domain_size;
@@ -256,7 +256,7 @@ public:
                         {dim3(num_blocks), dim3(block_size),
                          sizeof(fr_t) * block_size},
                         ext_domain_data, domain_data, gen_powers,
-                        lg_domain_size, lg_blowup, perform_shift, ext_pow);
+                        lg_domain_size, lg_blowup, perform_shift, shift, ext_pow);
     }
 
 public:
