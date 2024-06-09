@@ -1,6 +1,7 @@
-mod operation;
-mod symbolic_folder_expr;
-mod symbolic_folder_var;
+pub mod operation;
+pub mod optimizer;
+pub mod symbolic_folder_expr;
+pub mod symbolic_folder_var;
 
 use std::{marker::PhantomData, sync::Mutex};
 
@@ -49,7 +50,7 @@ pub type P3EvalFolder<'a> = GenericVerifierConstraintFolder<
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
 ///
 /// WARNING: This function is not thread safe.
-pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> Vec<Operation>
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Operation>, usize)
 where
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<F>,
 {
@@ -84,6 +85,7 @@ where
         .map(SymbolicFolderVar::permutation_challenge)
         .collect::<Vec<_>>();
 
+    let accumulator = SymbolicFolderExpr::alloc();
     let mut folder = P3EvalFolder {
         preprocessed: preprocessed.view(),
         main: main.view(),
@@ -95,7 +97,7 @@ where
         is_last_row: SymbolicFolderVar::is_last_row(),
         is_transition: SymbolicFolderVar::is_transition(),
         alpha: SymbolicFolderVar::alpha(),
-        accumulator: SymbolicFolderVar::accumulator().into(),
+        accumulator,
         _marker: PhantomData,
     };
     chip.eval(&mut folder);
@@ -105,7 +107,9 @@ where
     CUDA_P3_EVAL_CODE_RESET();
     CUDA_P3_EVAL_EXPR_CTR_RESET();
 
-    code
+    let (code, ctr) = optimizer::optimize(code);
+
+    (code, ctr)
 }
 
 /// Resets [CUDA_P3_EVAL_CODE] for the next compilation.
@@ -126,22 +130,20 @@ mod tests {
     use sp1_core::stark::RiscvAir;
     use sp1_core::utils::BabyBearPoseidon2;
 
-    use crate::codegen_cuda_eval;
+    use crate::{codegen_cuda_eval, optimizer};
 
     #[test]
     pub fn test_add() {
-        println!("test");
         let config = BabyBearPoseidon2::default();
-        println!("test2");
         let machine = RiscvAir::machine(config);
-        println!("test3");
         let chips = machine.chips();
         for chip in chips {
-            println!("chip: {:?}", chip.name());
-            if chip.name() == "AddSub" {
-                let code = codegen_cuda_eval(chip);
-                println!("{:#?}", code);
-                println!("{:?}", code.len());
+            if chip.name() == "Bls12381AddAssign" {
+                let (code, ctr) = codegen_cuda_eval(chip);
+                // println!("{:#?}", code);
+                // println!("{:?}", code.len());
+                let code = optimizer::optimize(code);
+                // println!("{:?}", ctr);
                 return;
             }
         }

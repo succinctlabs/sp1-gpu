@@ -113,11 +113,14 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.into_iter().enumerate() {
-            if chip.name() != "Bitwise" && chip.name() != "AddSub"
-            // && chip.name() != "DivRem"
-            // && chip.name() != "Mul"
-            // && chip.name() != "ShiftLeft"
-            // && chip.name() != "ShiftRight"
+            if chip.name() != "DivRem"
+                && chip.name() != "Bitwise"
+                && chip.name() != "Byte"
+                && chip.name() != "AddSub"
+                && chip.name() != "Mul"
+                && chip.name() != "ShiftLeft"
+                && chip.name() != "ShiftRight"
+                && chip.name() != "CPU"
             {
                 continue;
             }
@@ -196,11 +199,7 @@ mod tests {
                 alpha,
                 &public_values,
             );
-            println!(
-                "cpu time: {} {:?} ms",
-                chip.name(),
-                start.elapsed().as_millis()
-            );
+            println!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let selectors = trace_domain.selectors_on_coset(quotient_domain);
             let selectors_device = selectors.to_device();
 
@@ -233,11 +232,18 @@ mod tests {
 
             let mut quotient_output = DeviceBuffer::with_capacity(quotient_domain.size());
 
+            let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
+            println!("Eval Program Len: {}", operations.len());
+            println!("Eval Program Register Count: {}", expr_ctr);
+            let operations_device = operations.to_device();
+
             let start = std::time::Instant::now();
             unsafe {
                 quotient_output.set_len(quotient_domain.size());
                 ffi::quotient_values(
                     i,
+                    operations_device.as_ptr(),
+                    operations.len(),
                     cumulative_sum,
                     trace_domain_device,
                     quotient_domain_device,
@@ -252,11 +258,7 @@ mod tests {
                 );
             }
             let data = quotient_output.to_host();
-            println!(
-                "gpu time: {} {:?} ms",
-                chip.name(),
-                start.elapsed().as_millis()
-            );
+            println!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
             for i in 0..result.len() {
                 assert_eq!(data[i], result[i], "failed at index {}", i);

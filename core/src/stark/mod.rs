@@ -9,6 +9,7 @@ pub(super) mod ffi {
         DeviceInteractionsView,
     };
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
+    use air::operation::Operation;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
@@ -27,6 +28,8 @@ pub(super) mod ffi {
 
         pub fn quotient_values(
             chip_id: usize,
+            eval_program: *const Operation,
+            eval_program_len: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,

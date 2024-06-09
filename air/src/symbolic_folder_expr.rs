@@ -10,7 +10,7 @@ use crate::{
     CUDA_P3_EVAL_EXPR_CTR, EF, F,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Eq, PartialEq, Hash)]
 #[repr(C)]
 pub struct SymbolicFolderExpr(pub usize);
 
@@ -216,6 +216,17 @@ impl Product for SymbolicFolderExpr {
         for item in iter {
             output *= item;
         }
+        output
+    }
+}
+
+impl Clone for SymbolicFolderExpr {
+    #[allow(clippy::non_canonical_clone_impl)]
+    fn clone(&self) -> Self {
+        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+        let output = SymbolicFolderExpr::alloc();
+        code.push(Operation::assign_e(output, *self));
+        drop(code);
         output
     }
 }

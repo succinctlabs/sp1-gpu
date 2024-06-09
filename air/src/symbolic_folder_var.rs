@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
 use p3_field::AbstractField;
@@ -26,7 +27,7 @@ pub enum SymbolicFolderVarType {
     Empty = 16,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct SymbolicFolderVar {
     pub variant: SymbolicFolderVarType,
@@ -305,5 +306,37 @@ impl Mul<SymbolicFolderExpr> for SymbolicFolderVar {
         code.push(Operation::mul_ve(output, self, rhs));
         drop(code);
         output
+    }
+}
+
+impl Debug for SymbolicFolderVar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.variant {
+            SymbolicFolderVarType::Base => write!(f, "Base({:?})", self.idx),
+            SymbolicFolderVarType::Extension => write!(f, "Extension({:?})", self.idx),
+            SymbolicFolderVarType::PreprocessedLocal => {
+                write!(f, "PreprocessedLocal({:?})", self.idx)
+            }
+            SymbolicFolderVarType::PreprocessedNext => {
+                write!(f, "PreprocessedNext({:?})", self.idx)
+            }
+            SymbolicFolderVarType::MainLocal => write!(f, "MainLocal({:?})", self.idx),
+            SymbolicFolderVarType::MainNext => write!(f, "MainNext({:?})", self.idx),
+            SymbolicFolderVarType::PermutationLocal => {
+                write!(f, "PermutationLocal({:?})", self.idx)
+            }
+            SymbolicFolderVarType::PermutationNext => write!(f, "PermutationNext({:?})", self.idx),
+            SymbolicFolderVarType::PermutationChallenge => {
+                write!(f, "PermutationChallenge({:?})", self.idx)
+            }
+            SymbolicFolderVarType::CumulativeSum => write!(f, "CumulativeSum({:?})", self.idx),
+            SymbolicFolderVarType::PublicValue => write!(f, "PublicValue({:?})", self.idx),
+            SymbolicFolderVarType::IsFirstRow => write!(f, "IsFirstRow({:?})", self.idx),
+            SymbolicFolderVarType::IsLastRow => write!(f, "IsLastRow({:?})", self.idx),
+            SymbolicFolderVarType::IsTransition => write!(f, "IsTransition({:?})", self.idx),
+            SymbolicFolderVarType::Alpha => write!(f, "Alpha({:?})", self.idx),
+            SymbolicFolderVarType::Accumulator => write!(f, "Accumulator({:?})", self.idx),
+            SymbolicFolderVarType::Empty => write!(f, "Empty"),
+        }
     }
 }

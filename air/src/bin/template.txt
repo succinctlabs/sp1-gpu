@@ -9,7 +9,5 @@ class TemplateAir {
     static constexpr size_t PREP_WIDTH = PREP_WIDTH_VALUE;
     static constexpr size_t MAIN_WIDTH = MAIN_WIDTH_VALUE;
     static constexpr size_t PERM_WIDTH = PERM_WIDTH_VALUE;
-    __device__ void eval(ConstraintFolder<bb31_t, bb31_extension_t, 2> *builder) {
-       CODEGEN
-    }
+    static constexpr size_t EXPRESSION_COUNT = EXPRESSION_COUNT_VALUE;
 };

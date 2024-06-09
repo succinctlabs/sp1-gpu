@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use p3_field::AbstractField;
 
 use crate::{
@@ -10,37 +12,38 @@ pub enum OperationType {
     AssignF = 0,
     AssignEF = 1,
     AssignV = 2,
+    AssignE = 3,
 
-    AddVF = 3,
-    AddVV = 4,
-    AddVE = 5,
-    AddEF = 6,
-    AddEV = 7,
-    AddEE = 8,
-    AddAssignE = 9,
+    AddVF = 4,
+    AddVV = 5,
+    AddVE = 6,
+    AddEF = 7,
+    AddEV = 8,
+    AddEE = 9,
+    AddAssignE = 10,
 
-    SubVF = 10,
-    SubVV = 11,
-    SubVE = 12,
-    SubEF = 13,
-    SubEV = 14,
-    SubEE = 15,
-    SubAssignE = 16,
+    SubVF = 11,
+    SubVV = 12,
+    SubVE = 13,
+    SubEF = 14,
+    SubEV = 15,
+    SubEE = 16,
+    SubAssignE = 17,
 
-    MulVF = 17,
-    MulVV = 18,
-    MulVE = 19,
-    MulEF = 20,
-    MulEV = 21,
-    MulEE = 22,
-    MulAssignE = 23,
-    MulAssignEF = 24,
+    MulVF = 18,
+    MulVV = 19,
+    MulVE = 20,
+    MulEF = 21,
+    MulEV = 22,
+    MulEE = 23,
+    MulAssignE = 24,
+    MulAssignEF = 25,
 
-    NegE = 25,
-    Empty = 26,
+    NegE = 26,
+    Empty = 27,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Operation {
     pub variant: OperationType,
@@ -84,6 +87,14 @@ impl Operation {
         op.variant = OperationType::AssignEF;
         op.a = a;
         op.b_ef = ef;
+        op
+    }
+
+    pub fn assign_e(a: SymbolicFolderExpr, e: SymbolicFolderExpr) -> Self {
+        let mut op = Operation::empty();
+        op.variant = OperationType::AssignE;
+        op.a = a;
+        op.b_expr = e;
         op
     }
 
@@ -294,5 +305,100 @@ impl Operation {
         op.variant = OperationType::NegE;
         op.a = a;
         op
+    }
+}
+
+impl Debug for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.variant {
+            OperationType::AssignF => write!(f, "AssignF({:?}, {:?})", self.a, self.b_f),
+            OperationType::AssignEF => write!(f, "AssignEF({:?}, {:?})", self.a, self.b_ef),
+            OperationType::AssignV => write!(f, "AssignV({:?}, {:?})", self.a, self.b_var),
+            OperationType::AssignE => write!(f, "AssignE({:?}, {:?})", self.a, self.b_expr),
+
+            OperationType::AddVF => {
+                write!(f, "AddVF({:?}, {:?}, {:?})", self.a, self.b_var, self.c_f)
+            }
+            OperationType::AddVV => {
+                write!(f, "AddVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
+            }
+            OperationType::AddVE => write!(
+                f,
+                "AddVE({:?}, {:?}, {:?})",
+                self.a, self.b_var, self.c_expr
+            ),
+            OperationType::AddEF => {
+                write!(f, "AddEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
+            }
+            OperationType::AddEV => write!(
+                f,
+                "AddEV({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_var
+            ),
+            OperationType::AddEE => write!(
+                f,
+                "AddEE({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_expr
+            ),
+            OperationType::AddAssignE => write!(f, "AddAssignE({:?}, {:?})", self.a, self.b_expr),
+
+            OperationType::SubVF => {
+                write!(f, "SubVF({:?}, {:?}, {:?})", self.a, self.b_var, self.c_f)
+            }
+            OperationType::SubVV => {
+                write!(f, "SubVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
+            }
+            OperationType::SubVE => write!(
+                f,
+                "SubVE({:?}, {:?}, {:?})",
+                self.a, self.b_var, self.c_expr
+            ),
+            OperationType::SubEF => {
+                write!(f, "SubEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
+            }
+            OperationType::SubEV => write!(
+                f,
+                "SubEV({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_var
+            ),
+            OperationType::SubEE => write!(
+                f,
+                "SubEE({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_expr
+            ),
+            OperationType::SubAssignE => write!(f, "SubAssignE({:?}, {:?})", self.a, self.b_expr),
+
+            OperationType::MulVF => {
+                write!(f, "MulVF({:?}, {:?}, {:?})", self.a, self.b_var, self.c_f)
+            }
+            OperationType::MulVV => {
+                write!(f, "MulVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
+            }
+            OperationType::MulVE => write!(
+                f,
+                "MulVE({:?}, {:?}, {:?})",
+                self.a, self.b_var, self.c_expr
+            ),
+            OperationType::MulEF => {
+                write!(f, "MulEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
+            }
+            OperationType::MulEV => write!(
+                f,
+                "MulEV({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_var
+            ),
+            OperationType::MulEE => write!(
+                f,
+                "MulEE({:?}, {:?}, {:?})",
+                self.a, self.b_expr, self.c_expr
+            ),
+            OperationType::MulAssignE => write!(f, "MulAssignE({:?}, {:?})", self.a, self.b_expr),
+            OperationType::MulAssignEF => {
+                write!(f, "MulAssignEF({:?}, {:?})", self.a, self.b_ef)
+            }
+
+            OperationType::NegE => write!(f, "NegE({:?})", self.a),
+            OperationType::Empty => write!(f, "Empty"),
+        }
     }
 }
