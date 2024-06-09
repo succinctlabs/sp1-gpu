@@ -2628,7 +2628,7 @@ class ShaCompressAir {
        bb31_t{0} += builder->mainLocal[131];
        bb31_t{0} += builder->mainLocal[71];
        bb31_t{0} += builder->mainLocal[29];
-       bb31_t{0} = bb31_t{0} - builder->mainLocal[135];
+       bb31_t{0} = bb31_extension_t::zero();
        bb31_extension_t tmp1559 = builder->mainLocal[159] * bb31_t{256};
        bb31_extension_t tmp1560 = tmp1559 - bb31_t{0};
        bb31_extension_t tmp1561 = builder->mainLocal[260] * tmp1560;
@@ -2639,7 +2639,7 @@ class ShaCompressAir {
        bb31_t{0} += builder->mainLocal[132];
        bb31_t{0} += builder->mainLocal[72];
        bb31_t{0} += builder->mainLocal[30];
-       bb31_t{0} = bb31_t{0} - builder->mainLocal[136];
+       bb31_t{0} = bb31_extension_t::zero();
        bb31_t{0} += builder->mainLocal[159];
        bb31_extension_t tmp1562 = builder->mainLocal[160] * bb31_t{256};
        bb31_extension_t tmp1563 = tmp1562 - bb31_t{0};
@@ -2651,7 +2651,7 @@ class ShaCompressAir {
        bb31_t{0} += builder->mainLocal[133];
        bb31_t{0} += builder->mainLocal[73];
        bb31_t{0} += builder->mainLocal[31];
-       bb31_t{0} = bb31_t{0} - builder->mainLocal[137];
+       bb31_t{0} = bb31_extension_t::zero();
        bb31_t{0} += builder->mainLocal[160];
        bb31_extension_t tmp1565 = builder->mainLocal[161] * bb31_t{256};
        bb31_extension_t tmp1566 = tmp1565 - bb31_t{0};
@@ -2663,7 +2663,7 @@ class ShaCompressAir {
        bb31_t{0} += builder->mainLocal[134];
        bb31_t{0} += builder->mainLocal[74];
        bb31_t{0} += builder->mainLocal[32];
-       bb31_t{0} = bb31_t{0} - builder->mainLocal[138];
+       bb31_t{0} = bb31_extension_t::zero();
        bb31_t{0} += builder->mainLocal[161];
        bb31_extension_t tmp1568 = builder->mainLocal[162] * bb31_t{256};
        bb31_extension_t tmp1569 = tmp1568 - bb31_t{0};
