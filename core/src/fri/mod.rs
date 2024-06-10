@@ -1,5 +1,5 @@
 mod commit;
-mod opening;
+mod open;
 
 pub use commit::*;
-pub use opening::*;
+pub use open::*;

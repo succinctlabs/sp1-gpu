@@ -77,14 +77,11 @@ where
                 RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()])
             });
 
-        let main_on_quotient_domain = self.get_evaluations_on_domain(
-            config,
-            (main_data.0, &main_data.1.data),
-            quotient_domain,
-        );
+        let main_on_quotient_domain =
+            self.get_evaluations_on_domain(config, (main_data.0, main_data.1), quotient_domain);
         let perm_on_quotient_domain = self.get_evaluations_on_domain(
             config,
-            (permutation_data.0, &permutation_data.1.data),
+            (permutation_data.0, permutation_data.1),
             quotient_domain,
         );
 

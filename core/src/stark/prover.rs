@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -24,7 +24,6 @@ use sp1_core::{
         Com, Dom, MachineRecord, PcsProverData, ProverConstraintFolder, StarkGenericConfig,
         StarkMachine, StarkProvingKey, Val,
     },
-    utils::BabyBearPoseidon2,
 };
 
 use crate::{
@@ -64,9 +63,9 @@ pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
 pub type GpuMainTraceData<SC> = MainTraceData<SC, GpuMatrix<Val<SC>>>;
 
 pub type GpuProverData<SC> =
-    ProverData<SC, FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>>;
+    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
 
-pub type CpuProverData<SC> = ProverData<SC, PcsProverData<SC>>;
+pub type CpuProverData<SC> = PcsProverData<SC>;
 
 pub type CpuMatrix<F> = RowMajorMatrix<F>;
 
@@ -90,7 +89,8 @@ pub struct MainTraceData<SC: StarkGenericConfig, M> {
 
 pub struct MainData<SC: StarkGenericConfig, M, Data> {
     pub trace_data: MainTraceData<SC, M>,
-    pub prover_data: ProverData<SC, Data>,
+    pub commit: Com<SC>,
+    pub prover_data: Data,
 }
 
 pub struct ProverData<SC: StarkGenericConfig, Data> {
@@ -152,15 +152,10 @@ where
             .collect::<Result<Vec<_>, CudaError>>()
     }
 
-    pub fn commit<M>(&self, evaluations: &[(Dom<SC>, M)]) -> GpuProverData<SC>
-    where
-        M: Send + Sync + Borrow<GpuMatrix<SC::Val>>,
-    {
-        let (commit, data) = self.committer.commit(evaluations);
-        GpuProverData { commit, data }
-    }
-
-    pub fn commit_main_traces(&self, trace_data: &GpuMainTraceData<SC>) -> GpuProverData<SC> {
+    pub fn commit_main_traces(
+        &self,
+        trace_data: &GpuMainTraceData<SC>,
+    ) -> (Com<SC>, GpuProverData<SC>) {
         let domains_and_traces = trace_data
             .domains
             .iter()
@@ -168,7 +163,7 @@ where
             .zip(trace_data.traces.iter())
             .collect::<Vec<_>>();
 
-        self.commit(&domains_and_traces)
+        self.committer.commit(&domains_and_traces)
     }
 
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
@@ -185,13 +180,14 @@ where
             time.elapsed().unwrap()
         );
         let time = CudaInstant::now().unwrap();
-        let prover_data = self.commit_main_traces(&trace_data);
+        let (commit, prover_data) = self.commit_main_traces(&trace_data);
         println!(
             "Device: time to commit traces: {:?}",
             time.elapsed().unwrap()
         );
         GpuMainData {
             trace_data,
+            commit,
             prover_data,
         }
     }
@@ -207,6 +203,7 @@ where
     {
         let GpuMainData {
             trace_data: main_trace_data,
+            commit: main_commit,
             prover_data: main_prover_data,
         } = shard_data;
 
@@ -238,12 +235,13 @@ where
             .copied()
             .zip(permutation_traces)
             .collect::<Vec<_>>();
-        let perm_prover_data = self.commit(&perm_domains_and_traces);
+        let (permutation_commit, perm_prover_data) =
+            self.committer.commit(&perm_domains_and_traces);
         let elapsed = time.elapsed()?;
         println!("Device: time to commit permutation traces: {:?}", elapsed);
 
         // Observe the permutation commitment.
-        challenger.observe(perm_prover_data.commit);
+        challenger.observe(permutation_commit);
 
         // Get the cumulative sums from device.
         let cumulative_sums = perm_domains_and_traces
@@ -327,7 +325,8 @@ where
                     .map(|(domain, result)| result.map(|c| (domain, c)))
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
-        let quotient_prover_data = self.commit(&quotient_domains_and_chunks);
+        let (quotient_commit, quotient_prover_data) =
+            self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
         println!(
             "Device: time to commit quotient values: {:?}",
@@ -344,7 +343,7 @@ where
         drop(quotient_domains_and_chunks);
 
         // Observe the quotient commitment.
-        challenger.observe(host_quotient_prover_data.commit);
+        challenger.observe(quotient_commit);
 
         // Generate the opening proof and assemble the shard proof.
 
@@ -376,9 +375,9 @@ where
             self.machine.config().pcs(),
             vec![
                 (&pk.data, preprocessed_opening_points),
-                (&host_main_prover_data.data, trace_opening_points.clone()),
-                (&host_perm_prover_data.data, trace_opening_points),
-                (&host_quotient_prover_data.data, quotient_opening_points),
+                (&host_main_prover_data, trace_opening_points.clone()),
+                (&host_perm_prover_data, trace_opening_points),
+                (&host_quotient_prover_data, quotient_opening_points),
             ],
             challenger,
         );
@@ -450,9 +449,9 @@ where
 
         Ok(ShardProof::<SC> {
             commitment: ShardCommitment {
-                main_commit: host_main_prover_data.commit,
-                permutation_commit: host_perm_prover_data.commit,
-                quotient_commit: host_quotient_prover_data.commit,
+                main_commit,
+                permutation_commit,
+                quotient_commit,
             },
             opened_values: ShardOpenedValues {
                 chips: opened_values,
@@ -520,15 +519,17 @@ where
     pub fn commit(
         &self,
         evaluations: Vec<(Dom<SC>, RowMajorMatrix<SC::Val>)>,
-    ) -> CpuProverData<SC> {
-        let (commit, data) = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::commit(
+    ) -> (Com<SC>, CpuProverData<SC>) {
+        <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::commit(
             self.machine.config().pcs(),
             evaluations,
-        );
-        ProverData { commit, data }
+        )
     }
 
-    pub fn commit_main_traces(&self, trace_data: &CpuMainTraceData<SC>) -> CpuProverData<SC> {
+    pub fn commit_main_traces(
+        &self,
+        trace_data: &CpuMainTraceData<SC>,
+    ) -> (Com<SC>, CpuProverData<SC>) {
         let domains_and_traces = trace_data
             .domains
             .iter()
@@ -544,10 +545,11 @@ where
         let trace_data = self.generate_main_traces(shard, index);
         println!("Host: time to generate traces: {:?}", time.elapsed());
         let time = std::time::Instant::now();
-        let prover_data = self.commit_main_traces(&trace_data);
+        let (commit, prover_data) = self.commit_main_traces(&trace_data);
         println!("Host: time to commit traces: {:?}", time.elapsed());
         CpuMainData {
             trace_data,
+            commit,
             prover_data,
         }
     }
@@ -564,6 +566,7 @@ where
     {
         let CpuMainData {
             trace_data: main_trace_data,
+            commit: main_commit,
             prover_data: main_prover_data,
         } = shard_data;
 
@@ -597,10 +600,10 @@ where
             })
             .collect::<Vec<_>>();
 
-        let perm_prover_data = self.commit(perm_domains_and_traces);
+        let (permutation_commit, perm_prover_data) = self.commit(perm_domains_and_traces);
 
         // Observe the permutation commitment.
-        challenger.observe(perm_prover_data.commit);
+        challenger.observe(permutation_commit);
 
         // Get a challenge for folding the constraints.
         //
@@ -653,13 +656,13 @@ where
             })
             .collect::<Vec<_>>();
         let num_quotient_chunks = quotient_domains_and_chunks.len();
-        let quotient_prover_data = self.commit(quotient_domains_and_chunks);
+        let (quotient_commit, quotient_prover_data) = self.commit(quotient_domains_and_chunks);
 
         // Transfer the quotient data to the host.
         let host_quotient_prover_data = quotient_prover_data;
 
         // Observe the quotient commitment.
-        challenger.observe(host_quotient_prover_data.commit);
+        challenger.observe(quotient_commit);
 
         // Generate the opening proof and assemble the shard proof.
 
@@ -691,9 +694,9 @@ where
             self.machine.config().pcs(),
             vec![
                 (&pk.data, preprocessed_opening_points),
-                (&host_main_prover_data.data, trace_opening_points.clone()),
-                (&host_perm_prover_data.data, trace_opening_points),
-                (&host_quotient_prover_data.data, quotient_opening_points),
+                (&host_main_prover_data, trace_opening_points.clone()),
+                (&host_perm_prover_data, trace_opening_points),
+                (&host_quotient_prover_data, quotient_opening_points),
             ],
             challenger,
         );
@@ -765,9 +768,9 @@ where
 
         ShardProof::<SC> {
             commitment: ShardCommitment {
-                main_commit: host_main_prover_data.commit,
-                permutation_commit: host_perm_prover_data.commit,
-                quotient_commit: host_quotient_prover_data.commit,
+                main_commit,
+                permutation_commit,
+                quotient_commit,
             },
             opened_values: ShardOpenedValues {
                 chips: opened_values,
@@ -779,33 +782,9 @@ where
     }
 }
 
-impl<SC> ToHost for GpuProverData<SC>
-where
-    SC: StarkGenericConfig<
-        Val = BabyBear,
-        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
-        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
-        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
-    >,
-{
-    type HostType = CpuProverData<SC>;
-
-    fn to_host(&self) -> Self::HostType {
-        CpuProverData {
-            commit: self.commit,
-            data: self.data.to_host(),
-        }
-    }
-}
-
 impl<SC> ToDevice for CpuMainTraceData<SC>
 where
-    SC: StarkGenericConfig<
-        Val = BabyBear,
-        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
-        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
-        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
-    >,
+    SC: BabyBearPoseidon2Config,
 {
     type DeviceType = GpuMainTraceData<SC>;
 
@@ -830,7 +809,7 @@ mod tests {
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
         stark::{Challenge, RiscvAir, Verifier},
-        utils::{tests::FIBONACCI_ELF, SP1CoreOpts},
+        utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
     };
 
     use super::*;
@@ -873,10 +852,7 @@ mod tests {
             let cpu_main_data = cpu_prover.commit_main(&shard, 1);
             println!("Host commit time: {:?}", time.elapsed());
 
-            assert_eq!(
-                gpu_main_data.prover_data.commit,
-                cpu_main_data.prover_data.commit
-            );
+            assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
         }
     }
 
@@ -909,10 +885,7 @@ mod tests {
             let cpu_main_data = cpu_prover.commit_main(&shard, 1);
             println!("Host commit time: {:?}", time.elapsed());
 
-            assert_eq!(
-                gpu_main_data.prover_data.commit,
-                cpu_main_data.prover_data.commit
-            );
+            assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
 
             let random_elements: [EF; 2] = rng.gen();
 
@@ -929,7 +902,7 @@ mod tests {
                 .copied()
                 .zip(gpu_permutation_traces.iter())
                 .collect::<Vec<_>>();
-            let gpu_data = gpu_prover.commit(&domains_and_traces);
+            let (gpu_perm_commit, _) = gpu_prover.committer.commit(&domains_and_traces);
             let elapsed = time.elapsed();
             println!(
                 "Device permutation generation and commit time: {:?}",
@@ -953,11 +926,11 @@ mod tests {
                 .copied()
                 .zip(cpu_permutation_traces)
                 .collect::<Vec<_>>();
-            let cpu_data = cpu_prover.commit(domains_and_traces);
+            let (cpu_perm_commit, _) = cpu_prover.commit(domains_and_traces);
             let elapsed = time.elapsed();
             println!("Host permutation generation and commit time: {:?}", elapsed);
 
-            assert_eq!(gpu_data.commit, cpu_data.commit);
+            assert_eq!(gpu_perm_commit, cpu_perm_commit);
         }
     }
 
@@ -985,7 +958,7 @@ mod tests {
         for shard in shards {
             let cpu_main_data = cpu_prover.commit_main(&shard, 1);
 
-            let main_commit = cpu_main_data.prover_data.commit;
+            let main_commit = cpu_main_data.commit;
 
             let mut challenger = cpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
@@ -1009,7 +982,7 @@ mod tests {
 
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
             // Observe the main commit.
-            let main_commit = gpu_main_data.prover_data.commit;
+            let main_commit = gpu_main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
             let time = std::time::Instant::now();
@@ -1051,7 +1024,7 @@ mod tests {
         shards.into_iter().enumerate().for_each(|(i, shard)| {
             let main_data = gpu_prover.commit_main(&shard, i + 1);
             // Observe the main commit.
-            let main_commit = main_data.prover_data.commit;
+            let main_commit = main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
             let time = std::time::Instant::now();
