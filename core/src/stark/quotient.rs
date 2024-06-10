@@ -112,21 +112,18 @@ mod tests {
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
 
-        for (i, chip) in chips.into_iter().enumerate() {
-            if chip.name() != "DivRem"
-                && chip.name() != "Bitwise"
-                && chip.name() != "Byte"
-                && chip.name() != "AddSub"
-                && chip.name() != "Mul"
-                && chip.name() != "ShiftLeft"
-                && chip.name() != "ShiftRight"
-                && chip.name() != "CPU"
+        for (i, chip) in chips.iter().enumerate() {
+            if chip.name() == "Program"
+                || chip.name() == "Bn254AddAssign"
+                || chip.name() == "MemoryProgram"
+                || chip.name() == "Byte"
             {
                 continue;
             }
-            println!("name={}, id={}", chip.name().to_lowercase(), i);
+            println!("Chip: {}", chip.name());
+            println!("Id: {}", i);
             let program = Program::from(FIBONACCI_ELF);
-            let num_rows = 1 << 22;
+            let num_rows = 1 << 14;
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
@@ -233,9 +230,9 @@ mod tests {
             let mut quotient_output = DeviceBuffer::with_capacity(quotient_domain.size());
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
-            println!("Eval Program Len: {}", operations.len());
-            println!("Eval Program Register Count: {}", expr_ctr);
             let operations_device = operations.to_device();
+            println!("> Eval Program Len: {}", operations.len());
+            println!("> Eval Program Register Count: {}", expr_ctr);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -255,6 +252,8 @@ mod tests {
                     public_values_device.as_ptr(),
                     selectors_device.to_view(),
                     quotient_output.as_mut_ptr(),
+                    num_rows / 512 * 2,
+                    512,
                 );
             }
             let data = quotient_output.to_host();

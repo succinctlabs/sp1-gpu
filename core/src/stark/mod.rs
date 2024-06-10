@@ -26,6 +26,7 @@ pub(super) mod ffi {
             num_threads_per_block: usize,
         );
 
+        #[allow(unused)]
         pub fn quotient_values(
             chip_id: usize,
             eval_program: *const Operation,
@@ -41,6 +42,8 @@ pub(super) mod ffi {
             public_values: *const BabyBear,
             selectors: LagrangeSelectorsView<BabyBear>,
             quotient_values: *mut BinomialExtensionField<BabyBear, 4>,
+            num_blocks: usize,
+            num_threads_per_block: usize,
         );
     }
 }

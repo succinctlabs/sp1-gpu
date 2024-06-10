@@ -138,12 +138,10 @@ mod tests {
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
         for chip in chips {
-            if chip.name() == "Bls12381AddAssign" {
-                let (code, ctr) = codegen_cuda_eval(chip);
-                // println!("{:#?}", code);
-                // println!("{:?}", code.len());
+            if chip.name() == "AddSub" {
+                let (code, _) = codegen_cuda_eval(chip);
                 let code = optimizer::optimize(code);
-                // println!("{:?}", ctr);
+                println!("{:?}", code);
                 return;
             }
         }

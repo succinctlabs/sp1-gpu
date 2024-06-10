@@ -1,31 +1,33 @@
-#include "./operation.cuh"
 #include "./utils.cuh"
 
-#include "../air/codegen/addsub.cuh"
-#include "../air/codegen/bitwise.cuh"
-#include "../air/codegen/byte.cuh"
-#include "../air/codegen/divrem.cuh"
-#include "../air/codegen/mul.cuh"
-#include "../air/codegen/shiftleft.cuh"
-#include "../air/codegen/cpu.cuh"
-#include "../air/codegen/shiftright.cuh"
+#include "../air/codegen/codegen.cuh"
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
 #include "../utils/matrix.cuh"
 
-namespace quotient {
+#define QUOTIENT(CHIP_TYPE)                                                  \
+    {                                                                        \
+        CHIP_TYPE chipInstance;                                              \
+        quotient_kernels::computeValues<<<numBlocks, numThreadsPerBlock>>>(  \
+            chipInstance, evalProgram, evalProgramLen, cumulativeSum,        \
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  \
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     \
+            permChallenges, alpha, publicValues, selectors, quotientValues); \
+    }
+
+namespace quotient_kernels {
 template <typename Air, typename Val, typename Challenge>
-__global__ void quotientValues(Air air, Operation *evalProgram,
-                               size_t evalProgramLen, Challenge cumulativeSum,
-                               TwoAdicMultiplicativeCoset<Val> traceDomain,
-                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
-                               Matrix<Val> preprocessedTraceOnQuotientDomain,
-                               Matrix<Val> mainTraceOnQuotientDomain,
-                               Matrix<Val> permutationTraceOnQuotientDomain,
-                               Challenge *permChallenges, Challenge alpha,
-                               Val *publicValues,
-                               LagrangeSelectors<Val> selectors,
-                               Challenge *quotientValues) {
+__global__ void computeValues(Air air, Operation *evalProgram,
+                              size_t evalProgramLen, Challenge cumulativeSum,
+                              TwoAdicMultiplicativeCoset<Val> traceDomain,
+                              TwoAdicMultiplicativeCoset<Val> quotientDomain,
+                              Matrix<Val> preprocessedTraceOnQuotientDomain,
+                              Matrix<Val> mainTraceOnQuotientDomain,
+                              Matrix<Val> permutationTraceOnQuotientDomain,
+                              Challenge *permChallenges, Challenge alpha,
+                              Val *publicValues,
+                              LagrangeSelectors<Val> selectors,
+                              Challenge *quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
     size_t mainWidth = mainTraceOnQuotientDomain.width;
@@ -194,7 +196,7 @@ __global__ void quotientValues(Air air, Operation *evalProgram,
 
             case OperationType::NegE:
                 expr[op.a.value] =
-                    bb31_extension_t::zero() - expr[op.b_expr.value];
+                    (bb31_extension_t::zero() - bb31_extension_t::one()) * expr[op.b_expr.value];
                 break;
         }
 
@@ -202,7 +204,7 @@ __global__ void quotientValues(Air air, Operation *evalProgram,
         quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
     }
 }
-}  // namespace quotient
+}  // namespace quotient_kernels
 
 extern "C" void quotient_values(
     size_t chipId, Operation *evalProgram, size_t evalProgramLen,
@@ -214,71 +216,89 @@ extern "C" void quotient_values(
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
     bb31_extension_t *permChallenges, bb31_extension_t alpha,
     bb31_t *publicValues, LagrangeSelectors<bb31_t> selectors,
-    bb31_extension_t *quotientValues) {
+    bb31_extension_t *quotientValues, size_t numBlocks,
+    size_t numThreadsPerBlock) {
     switch (chipId) {
         case 0:
-            CPUAir cpuAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                cpuAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(CPUAir);
+            break;
+        case 1:
+            QUOTIENT(ProgramAir);
+            break;
+        case 2:
+            QUOTIENT(ShaExtendAir);
+            break;
+        case 3:
+            QUOTIENT(ShaCompressAir);
+            break;
+        case 4:
+            QUOTIENT(EdAddAssignAir);
+            break;
+        case 5:
+            QUOTIENT(EdDecompressAir);
+            break;
+        case 6:
+            QUOTIENT(Secp256k1DecompressAir);
+            break;
+        case 7:
+            QUOTIENT(Secp256k1AddAssignAir);
+            break;
+        case 8:
+            QUOTIENT(Secp256k1DoubleAssignAir);
+            break;
+        case 9:
+            QUOTIENT(KeccakPermuteAir);
+            break;
+        case 10:
+            QUOTIENT(Bn254AddAssignAir);
+            break;
+        case 11:
+            QUOTIENT(Bn254DoubleAssignAir);
+            break;
+        case 12:
+            QUOTIENT(Bls12381AddAssignAir);
+            break;
+        case 13:
+            QUOTIENT(Bls12381DoubleAssignAir);
+            break;
+        case 14:
+            QUOTIENT(Uint256MulModAir);
+            break;
+        case 15:
+            QUOTIENT(Bls12381DecompressAir);
             break;
         case 16:
-            DivRemAir divRemAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                divRemAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(DivRemAir);
             break;
         case 17:
-            AddSubAir addSubAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                addSubAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(AddSubAir);
             break;
         case 18:
-            BitwiseAir bitwiseAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                bitwiseAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(BitwiseAir);
             break;
         case 19:
-            MulAir mulAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                mulAir, evalProgram, evalProgramLen, cumulativeSum, traceDomain,
-                quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(MulAir);
             break;
         case 20:
-            ShiftRightAir shiftRightAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                shiftRightAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(ShiftRightAir);
             break;
         case 21:
-            ShiftLeftAir shiftLeftAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                shiftLeftAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(ShiftLeftAir);
+            break;
+        case 22:
+            QUOTIENT(LtAir);
+            break;
+        case 23:
+            QUOTIENT(MemoryInitAir);
+            break;
+        case 24:
+            QUOTIENT(MemoryFinalizeAir);
+            break;
+        case 25:
+            QUOTIENT(MemoryProgramAir);
             break;
         case 26:
-            ByteAir byteAir;
-            quotient::quotientValues<<<16384, 512>>>(
-                byteAir, evalProgram, evalProgramLen, cumulativeSum,
-                traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,
-                mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,
-                permChallenges, alpha, publicValues, selectors, quotientValues);
+            QUOTIENT(ByteAir);
             break;
     }
 

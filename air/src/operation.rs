@@ -300,10 +300,11 @@ impl Operation {
         op
     }
 
-    pub fn neg_e(a: SymbolicFolderExpr) -> Self {
+    pub fn neg_e(a: SymbolicFolderExpr, b: SymbolicFolderExpr) -> Self {
         let mut op = Operation::empty();
         op.variant = OperationType::NegE;
         op.a = a;
+        op.b_expr = b;
         op
     }
 }

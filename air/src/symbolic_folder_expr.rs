@@ -194,7 +194,7 @@ impl Neg for SymbolicFolderExpr {
     fn neg(self) -> Self::Output {
         let output = SymbolicFolderExpr::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Operation::neg_e(output));
+        code.push(Operation::neg_e(output, self));
         drop(code);
         output
     }
