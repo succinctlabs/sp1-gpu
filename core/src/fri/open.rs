@@ -10,7 +10,8 @@ pub struct FriCpuOpeningProver<SC>(PhantomData<SC>);
 
 impl<SC: BabyBearPoseidon2Config> FriCpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
-    fn open(
+    pub fn open(
+        &self,
         pcs: &SC::Pcs,
         rounds: Vec<(&PcsProverData<SC>, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,

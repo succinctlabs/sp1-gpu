@@ -26,6 +26,7 @@ use sp1_core::{
     },
 };
 
+use crate::fri::FriCpuOpeningProver;
 use crate::{
     device::{
         error::CudaError,
@@ -51,7 +52,7 @@ pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     trace_generator: CpuTraceGenerator<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
-    // opening_prover: OpeningProver<SC>,
+    opening_prover: FriCpuOpeningProver<SC>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
@@ -111,7 +112,12 @@ where
             committer: TwoAdicFriCommitter::new(log_blowup),
             trace_generator: CpuTraceGenerator::default(),
             permutation_trace_generator: PermutationTraceGenerator::default(),
+            opening_prover: FriCpuOpeningProver::default(),
         }
+    }
+
+    pub fn pcs(&self) -> &SC::Pcs {
+        self.machine.config().pcs()
     }
 
     pub fn shard(&self, record: A::Record) -> Vec<A::Record> {
@@ -371,8 +377,8 @@ where
             .collect::<Vec<_>>();
 
         let time = std::time::Instant::now();
-        let (openings, opening_proof) = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::open(
-            self.machine.config().pcs(),
+        let (openings, opening_proof) = self.opening_prover.open(
+            self.pcs(),
             vec![
                 (&pk.data, preprocessed_opening_points),
                 (&host_main_prover_data, trace_opening_points.clone()),
