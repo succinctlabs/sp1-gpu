@@ -33,7 +33,7 @@ use crate::{
         memory::{ToDevice, ToHost},
         CudaSync,
     },
-    fri::TwoAdicFriPcs,
+    fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
     poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
@@ -49,7 +49,10 @@ use super::CpuTraceGenerator;
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
-    gpu_pcs: TwoAdicFriPcs<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+    trace_generator: CpuTraceGenerator<SC, A>,
+    permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
+    committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+    // opening_prover: OpeningProver<SC>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
@@ -105,7 +108,9 @@ where
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         Self {
             machine,
-            gpu_pcs: TwoAdicFriPcs::new(log_blowup),
+            committer: TwoAdicFriCommitter::new(log_blowup),
+            trace_generator: CpuTraceGenerator::default(),
+            permutation_trace_generator: PermutationTraceGenerator::default(),
         }
     }
 
@@ -120,8 +125,6 @@ where
         trace_data: &GpuMainTraceData<SC>,
         random_elements: &[SC::Challenge],
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        let generator = PermutationTraceGenerator::<SC::Val, SC::Challenge, A>::default();
-
         let shard_chips = self
             .machine
             .shard_chips_ordered(&trace_data.chip_ordering)
@@ -136,12 +139,14 @@ where
                     .get(&chip.name())
                     .map(|&index| pk.traces[index].to_device().to_column_major());
 
-                let flatenned_trace = generator.generate_flattened_permutation_trace(
-                    chip,
-                    preprocessed_trace.as_ref(),
-                    main_trace,
-                    random_elements,
-                )?;
+                let flatenned_trace = self
+                    .permutation_trace_generator
+                    .generate_flattened_permutation_trace(
+                        chip,
+                        preprocessed_trace.as_ref(),
+                        main_trace,
+                        random_elements,
+                    )?;
                 CudaSync::new(flatenned_trace)
             })
             .collect::<Result<Vec<_>, CudaError>>()
@@ -151,7 +156,7 @@ where
     where
         M: Send + Sync + Borrow<GpuMatrix<SC::Val>>,
     {
-        let (commit, data) = self.gpu_pcs.commit(evaluations);
+        let (commit, data) = self.committer.commit(evaluations);
         GpuProverData { commit, data }
     }
 
@@ -167,9 +172,10 @@ where
     }
 
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
-        let trace_generator = CpuTraceGenerator::<SC, A>::default();
         let time = std::time::Instant::now();
-        let host_trace_data = trace_generator.generate_main_traces(&self.machine, shard, index);
+        let host_trace_data =
+            self.trace_generator
+                .generate_main_traces(&self.machine, shard, index);
         println!("Device: time to generate main traces: {:?}", time.elapsed());
         // Copy main traces to the device.
         let time = CudaInstant::now().unwrap();

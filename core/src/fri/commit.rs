@@ -17,13 +17,13 @@ use crate::device::memory::ToDevice;
 
 use rayon::prelude::*;
 
-pub struct TwoAdicFriPcs<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
+pub struct TwoAdicFriCommitter<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
     dft: DeviceDft<F>,
     log_blowup: usize,
     _marker: std::marker::PhantomData<(D, M)>,
 }
 
-impl TwoAdicFriPcs<BabyBear, [BabyBear; DIGEST_WIDTH]> {
+impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
     pub fn new(log_blowup: usize) -> Self {
         Self {
             dft: DeviceDft::new(),
@@ -162,7 +162,7 @@ mod tests {
 
         let evaluations_clone = domains_and_traces.clone();
 
-        let pcs = TwoAdicFriPcs::new(log_blowup);
+        let pcs = TwoAdicFriCommitter::new(log_blowup);
         let time = Instant::now();
         let (commit, _) = pcs.commit_from_host(domains_and_traces);
         println!("time: {:?}", time.elapsed());
@@ -212,7 +212,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let pcs = TwoAdicFriPcs::new(log_blowup);
+        let pcs = TwoAdicFriCommitter::new(log_blowup);
         let time = CudaInstant::now().unwrap();
         let (commit, _) = pcs.commit(&evaluations);
         println!("time: {:?}", time.elapsed().unwrap());
