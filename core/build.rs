@@ -34,6 +34,8 @@ fn main() {
         let mut nvcc = cc::Build::new();
         nvcc.cuda(true).flag("-default-stream=per-thread");
         nvcc.include(base_dir);
+        nvcc.flag("-Xcompiler").flag("-fopenmp");
+        nvcc.flag("--threads").flag("14");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
