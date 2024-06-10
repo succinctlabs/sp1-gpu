@@ -131,6 +131,29 @@ extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uin
   return CUDA_SUCCESS_MOON;
 }
 
+extern "C" rustCudaError_t reverse_bits_batch(fr_t* d_out, fr_t* d_in, uint32_t lg_domain_size, uint32_t poly_count) {
+  if (lg_domain_size == 0)
+    return CUDA_SUCCESS_MOON;
+
+  uint32_t domain_size = 1U << lg_domain_size;
+
+  const gpu_t& gpu = select_gpu();
+
+  try {
+    CUDA_UNWRAP(cudaDeviceSynchronize());
+
+    for (size_t c = 0; c < poly_count; c++) {
+      NTT::bit_rev(&d_out[c * domain_size], &d_in[c * domain_size], lg_domain_size, gpu);
+    }
+
+    gpu.sync();
+  } catch (const cudaError_t& e) {
+    gpu.sync();
+    CUDA_OK(e);
+  }
+  return CUDA_SUCCESS_MOON;
+}
+
 extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count) {
   if (lg_domain_size == 0)
     return CUDA_SUCCESS_MOON;

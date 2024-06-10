@@ -20,8 +20,10 @@ pub trait DeviceMatrix<T: Copy> {
     fn view_mut(&mut self) -> MatrixViewMutDevice<T>;
 }
 
-mod ffi {
+pub(super) mod ffi {
     use p3_baby_bear::BabyBear;
+
+    use crate::device::error::CudaRustError;
 
     use super::MatrixViewDevice;
 
@@ -33,5 +35,12 @@ mod ffi {
             input: MatrixViewDevice<BabyBear>,
             log_blowup: usize,
         );
+
+        pub fn reverse_bits_batch(
+            output: *mut BabyBear,
+            input: *const BabyBear,
+            lg_domain_size: u32,
+            poly_count: usize,
+        ) -> CudaRustError;
     }
 }

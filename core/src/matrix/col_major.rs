@@ -7,7 +7,7 @@ use crate::device::buffer::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 
-use super::ffi::transpose_naive;
+use super::ffi::{self, transpose_naive};
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 
 /// A matrix stored on the device in column major form.
@@ -111,6 +111,25 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     }
 }
 
+impl ColMajorMatrixDevice<BabyBear> {
+    pub fn bit_reverse_rows(&mut self) -> Result<(), CudaError> {
+        assert_eq!(
+            self.height,
+            1 << self.height.ilog2(),
+            "height must be a power of 2"
+        );
+        unsafe {
+            ffi::reverse_bits_batch(
+                self.values.as_mut_ptr(),
+                self.values.as_ptr(),
+                self.height.ilog2(),
+                self.width(),
+            )
+        }
+        .to_result()
+    }
+}
+
 impl ToHost for ColMajorMatrixDevice<BabyBear> {
     type HostType = RowMajorMatrix<BabyBear>;
 
@@ -146,9 +165,14 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
 #[cfg(test)]
 mod tests {
     use p3_baby_bear::BabyBear;
+    use p3_matrix::bitrev::BitReversableMatrix;
+    use p3_matrix::dense::RowMajorMatrix;
+    use p3_matrix::Matrix;
     use rand::thread_rng;
 
     use crate::{device::memory::ToHost, runtime::sync_device};
+
+    use crate::device::memory::ToDevice;
 
     use super::*;
 
@@ -176,6 +200,30 @@ mod tests {
         println!("time: {:?}", time.elapsed());
 
         for (val, exp) in matrix_host.values.into_iter().zip(matrix_host_naive.values) {
+            assert_eq!(val, exp);
+        }
+    }
+
+    #[test]
+    fn test_bit_reverse_rows() {
+        let height = 1 << 16;
+        let width = 100;
+
+        let mut rng = thread_rng();
+        let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
+
+        let mut device_matrix = host_matrix.to_device().to_column_major();
+        device_matrix.bit_reverse_rows().unwrap();
+
+        let host_matrix_reversed = host_matrix.bit_reverse_rows().to_row_major_matrix();
+
+        let device_matrix_back = device_matrix.to_host();
+
+        for (val, exp) in host_matrix_reversed
+            .values
+            .into_iter()
+            .zip(device_matrix_back.values)
+        {
             assert_eq!(val, exp);
         }
     }
