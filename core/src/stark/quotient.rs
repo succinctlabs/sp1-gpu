@@ -86,7 +86,7 @@ mod tests {
     };
 
     use crate::device::memory::ToHost;
-    use crate::stark::ffi;
+    use crate::stark::quotient_gpu;
     use crate::{
         device::{buffer::DeviceBuffer, memory::ToDevice},
         matrix::RowMajorMatrixDevice,
@@ -237,7 +237,7 @@ mod tests {
             let start = std::time::Instant::now();
             unsafe {
                 quotient_output.set_len(quotient_domain.size());
-                ffi::quotient_values(
+                quotient_gpu::compute_values(
                     i,
                     operations_device.as_ptr(),
                     operations.len(),

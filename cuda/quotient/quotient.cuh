@@ -196,7 +196,8 @@ __global__ void computeValues(Air air, Operation *evalProgram,
 
             case OperationType::NegE:
                 expr[op.a.value] =
-                    (bb31_extension_t::zero() - bb31_extension_t::one()) * expr[op.b_expr.value];
+                    (bb31_extension_t::zero() - bb31_extension_t::one()) *
+                    expr[op.b_expr.value];
                 break;
         }
 
@@ -206,7 +207,8 @@ __global__ void computeValues(Air air, Operation *evalProgram,
 }
 }  // namespace quotient_kernels
 
-extern "C" void quotient_values(
+namespace quotient_gpu {
+extern "C" void computeValues(
     size_t chipId, Operation *evalProgram, size_t evalProgramLen,
     bb31_extension_t cumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
@@ -304,3 +306,4 @@ extern "C" void quotient_values(
 
     cudaDeviceSynchronize();
 }
+}  // namespace quotient_gpu
