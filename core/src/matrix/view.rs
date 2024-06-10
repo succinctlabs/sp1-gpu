@@ -17,3 +17,14 @@ pub struct MatrixViewMutDevice<T> {
     pub height: usize,
     pub row_major: bool,
 }
+
+impl<T> MatrixViewDevice<T> {
+    pub fn null(row_major: bool) -> Self {
+        Self {
+            values: std::ptr::null(),
+            width: 0,
+            height: 0,
+            row_major,
+        }
+    }
+}

@@ -175,6 +175,7 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
                                   const fr_t (*gen_powers)[WINDOW_SIZE],
                                   uint32_t lg_domain_size, uint32_t lg_blowup,
                                   bool perform_shift = true,
+                                  fr_t shift = fr_t {1},
                                   bool ext_pow = false)
 {
     extern __shared__ fr_t exchange[]; // block size
@@ -213,7 +214,8 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
             index_t pow = bit_rev(idx, lg_domain_size +
                                   (ext_pow ? lg_blowup : 0));
 
-            r = r * get_intermediate_root(pow, gen_powers);
+            fr_t weight = get_intermediate_root(pow, gen_powers);
+            r = r * weight * (shift^pow);
         }
 
         __syncthreads();

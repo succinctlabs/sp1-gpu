@@ -1,4 +1,6 @@
 
+#include "../utils/matrix.cuh"
+
 const size_t SECTION_SIZE = 1024;
 
 template<typename T> __device__ __inline__ void BrentKungScan(T *d_out, T * d_in, T* aux, 

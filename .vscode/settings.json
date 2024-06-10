@@ -111,6 +111,7 @@
         "__tree": "cpp",
         "locale": "cpp",
         "stream_ref": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "stack": "cpp"
     },
 }

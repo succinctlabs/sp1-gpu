@@ -18,6 +18,10 @@ itertools = "0.13.0"
 sp1-core = { workspace = true }
 p3-air = { workspace = true }
 air = { path = "../air" }
+p3-challenger = { workspace = true }
+
+tracing = "0.1.40"
+rayon = "1.10.0"
 
 [build-dependencies]
 cc = "1.0"

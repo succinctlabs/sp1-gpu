@@ -32,7 +32,7 @@ fn main() {
         }
 
         let mut nvcc = cc::Build::new();
-        nvcc.cuda(true);
+        nvcc.cuda(true).flag("-default-stream=per-thread");
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
         nvcc.flag("--threads").flag("14");

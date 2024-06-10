@@ -698,6 +698,7 @@ dependencies = [
  "lazy_static",
  "p3-air",
  "p3-baby-bear",
+ "p3-challenger",
  "p3-commit",
  "p3-dft",
  "p3-field",
@@ -707,7 +708,9 @@ dependencies = [
  "p3-poseidon2",
  "p3-symmetric",
  "rand",
+ "rayon",
  "sp1-core",
+ "tracing",
  "which",
 ]
 

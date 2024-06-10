@@ -1,3 +1,5 @@
-mod two_adic_pcs;
+mod commit;
+mod open;
 
-pub use two_adic_pcs::*;
+pub use commit::*;
+pub use open::*;

@@ -12,6 +12,13 @@ pub trait ToHost {
     type HostType;
 
     fn to_host(&self) -> Self::HostType;
+
+    fn into_host(self) -> Self::HostType
+    where
+        Self: Sized,
+    {
+        self.to_host()
+    }
 }
 
 /// A Rust interface for cudaMalloc.

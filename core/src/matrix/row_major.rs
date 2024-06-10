@@ -97,7 +97,24 @@ impl RowMajorMatrixDevice<BabyBear> {
         unsafe { transpose_blowup_naive(ret_values.as_mut_ptr(), self.view(), log_blowup) };
         unsafe { ret_values.set_max_len() };
 
-        ColMajorMatrixDevice::new(ret_values, self.height())
+        ColMajorMatrixDevice::new(ret_values, self.height() << log_blowup)
+    }
+}
+
+impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
+    type HostType = RowMajorMatrix<T>;
+
+    fn to_host(&self) -> Self::HostType {
+        RowMajorMatrix::new(self.values.to_host(), self.width)
+    }
+}
+
+impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
+    type DeviceType = RowMajorMatrixDevice<T>;
+
+    fn to_device(&self) -> Self::DeviceType {
+        let values = self.values.to_device();
+        RowMajorMatrixDevice::new(values, self.width)
     }
 }
 
@@ -127,13 +144,6 @@ mod tests {
         for (val, exp) in mat_d_h.values.into_iter().zip(mat_h.values) {
             assert_eq!(val, exp);
         }
-
-        // let mat_d_values = mat_d_col.values.to_host();
-        // let mat_h_transposed = mat_h.transpose();
-
-        // for (val, exp) in mat_d_values.into_iter().zip(mat_h_transposed.values) {
-        //     assert_eq!(val, exp);
-        // }
     }
 
     #[test]
@@ -152,8 +162,20 @@ mod tests {
         let time = start.elapsed().unwrap();
         println!("time: {:?}", time);
 
+        assert_eq!(mad_d_col.height(), ext_height);
+        assert_eq!(mad_d_col.width(), width);
+
         // Check the transposed matrix.
         let mad_d_to_h = mad_d_col.values.to_host();
+
+        for i in 0..height {
+            for j in 0..width {
+                assert_eq!(
+                    mad_d_to_h[j * ext_height + ext_height - height + i],
+                    matrix_h.values[i * width + j]
+                );
+            }
+        }
 
         for (j, col) in mad_d_to_h.chunks(ext_height).enumerate() {
             for i in 0..height {

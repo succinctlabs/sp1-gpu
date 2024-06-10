@@ -3,14 +3,110 @@ use std::{marker::PhantomData, ops::Mul};
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
-use sp1_core::lookup::Interaction;
+use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
 use crate::{
     device::{buffer::DeviceBuffer, error::CudaError, memory::ToDevice, slice::DeviceSlice},
-    matrix::{MatrixViewDevice, MatrixViewMutDevice},
+    matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
 
 use super::ffi;
+
+#[derive(Clone, Copy, Debug)]
+pub struct PermutationTraceGenerator<F, EF, A>(PhantomData<(F, EF, A)>);
+
+impl<F, EF, A> Default for PermutationTraceGenerator<F, EF, A> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<A> PermutationTraceGenerator<BabyBear, BinomialExtensionField<BabyBear, 4>, A>
+where
+    A: MachineAir<BabyBear>,
+{
+    pub fn generate_permutation_trace(
+        &self,
+        chip: &Chip<BabyBear, A>,
+        preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
+        main_trace: &ColMajorMatrixDevice<BabyBear>,
+        random_elements: &[BinomialExtensionField<BabyBear, 4>],
+    ) -> Result<ColMajorMatrixDevice<BinomialExtensionField<BabyBear, 4>>, CudaError> {
+        type EF = BinomialExtensionField<BabyBear, 4>;
+        let device_interactions = HostInteractions::new(chip.sends(), chip.receives()).to_device();
+
+        let perm_width = chip.permutation_width();
+        let height = main_trace.height();
+        let mut perm_buffer = DeviceBuffer::<EF>::with_capacity(perm_width * main_trace.height);
+        unsafe {
+            perm_buffer.set_max_len();
+        }
+        let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
+
+        let alpha = random_elements[0];
+        let beta = random_elements[1];
+
+        let batch_size = chip.logup_batch_size();
+
+        let num_threads_per_block = 256;
+        let num_blocks = height.div_ceil(num_threads_per_block);
+        device_interactions.generate_permutation_trace(
+            permutation_trace.view_mut(),
+            preprocessed_trace
+                .map(|mat| mat.view())
+                .unwrap_or(MatrixViewDevice::null(false)),
+            main_trace.view(),
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        )?;
+
+        Ok(permutation_trace)
+    }
+
+    pub fn generate_flattened_permutation_trace(
+        &self,
+        chip: &Chip<BabyBear, A>,
+        preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
+        main_trace: &ColMajorMatrixDevice<BabyBear>,
+        random_elements: &[BinomialExtensionField<BabyBear, 4>],
+    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        const D: usize = 4;
+        let device_interactions = HostInteractions::new(chip.sends(), chip.receives()).to_device();
+
+        let perm_width = chip.permutation_width();
+        let height = main_trace.height;
+        let mut perm_buffer = DeviceBuffer::<BabyBear>::with_capacity(perm_width * height * D);
+        unsafe {
+            perm_buffer.set_max_len();
+        }
+        let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
+
+        let alpha = random_elements[0];
+        let beta = random_elements[1];
+
+        let batch_size = chip.logup_batch_size();
+
+        let num_threads_per_block = 256;
+        let num_blocks = height.div_ceil(num_threads_per_block);
+        device_interactions.generate_flattened_permutation_trace(
+            permutation_trace.view_mut(),
+            preprocessed_trace
+                .map(|mat| mat.view())
+                .unwrap_or(MatrixViewDevice::null(false)),
+            main_trace.view(),
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        )?;
+
+        Ok(permutation_trace)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -275,6 +371,29 @@ impl DeviceInteractions<BabyBear> {
         );
     }
 
+    pub fn populate_permutation_rows_flattened(
+        &self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        self.view().populate_permutation_rows_flattened(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+    }
+
     pub fn generate_permutation_trace(
         &self,
         permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
@@ -307,6 +426,45 @@ impl DeviceInteractions<BabyBear> {
             cumulative_column.scan_inplace()
         }
     }
+
+    pub fn generate_flattened_permutation_trace(
+        &self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) -> Result<(), CudaError> {
+        const D: usize = 4;
+        // Populate the permutation rows.
+        self.populate_permutation_rows_flattened(
+            permutation,
+            preprocessed,
+            main,
+            alpha,
+            beta,
+            batch_size,
+            num_blocks,
+            num_threads_per_block,
+        );
+
+        // Collect the cumulative sums using a scan in place.
+
+        // TODO: optimize with a single kernel call instead of scan for each column of the batch.
+        let col = permutation.width - D;
+        let height = permutation.height;
+        unsafe {
+            for j in 0..4 {
+                let last_col_ptr = permutation.values.add((col + j) * height);
+                let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
+                cumulative_column.scan_inplace()?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<'a> DeviceInteractionsView<'a, BabyBear> {
@@ -323,6 +481,32 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
     ) {
         unsafe {
             ffi::populate_permutation_rows(
+                self,
+                permutation,
+                preprocessed,
+                main,
+                alpha,
+                beta,
+                batch_size,
+                num_blocks,
+                num_threads_per_block,
+            );
+        }
+    }
+
+    pub fn populate_permutation_rows_flattened(
+        self,
+        permutation: MatrixViewMutDevice<BabyBear>,
+        preprocessed: MatrixViewDevice<BabyBear>,
+        main: MatrixViewDevice<BabyBear>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
+        batch_size: usize,
+        num_blocks: usize,
+        num_threads_per_block: usize,
+    ) {
+        unsafe {
+            ffi::populate_permutation_rows_flattened(
                 self,
                 permutation,
                 preprocessed,
@@ -368,7 +552,7 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::matrix::ColMajorMatrixDevice;
+    use crate::device::memory::ToHost;
     use crate::matrix::RowMajorMatrixDevice;
     use crate::time::CudaInstant;
 
@@ -381,7 +565,6 @@ mod tests {
     use rand::thread_rng;
     use rand::Rng;
 
-    use sp1_core::stark::generate_permutation_trace;
     use sp1_core::stark::permutation_trace_width;
     use sp1_core::utils::tests::FIBONACCI_ELF;
 
@@ -461,24 +644,8 @@ mod tests {
         // Generate a random trace.
         let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
         for val in main_trace.values.iter_mut() {
-            *val = F::one();
+            *val = rng.gen::<F>();
         }
-
-        // Get the host and devie interactions.
-        let host_interactions = HostInteractions::new(chip.sends(), chip.receives());
-        let device_interactions = host_interactions.to_device();
-
-        // For every row, compute the permutation row and compare the values.
-
-        let batch_size = 2;
-        let perm_width =
-            permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
-
-        let mut perm_buffer = DeviceBuffer::<EF>::with_capacity(perm_width * num_rows);
-        unsafe {
-            perm_buffer.set_max_len();
-        }
-        let mut perm_d = ColMajorMatrixDevice::new(perm_buffer, num_rows);
 
         // Transfer perm and main traces to the device.
         let prep_trace_d = preprocessed_trace.values.to_device();
@@ -490,39 +657,85 @@ mod tests {
         let main_d = main_d.to_column_major();
 
         // Get randomness.
-        let alpha = EF::one(); // rng.gen::<EF>();
-        let beta = EF::one(); //rng.gen::<EF>();
+        let alpha = rng.gen::<EF>();
+        let beta = rng.gen::<EF>();
 
+        let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
-        let num_threads_per_block = 256;
-        let num_blocks = num_rows.div_ceil(num_threads_per_block);
-        device_interactions
-            .generate_permutation_trace(
-                perm_d.view_mut(),
-                prep_d.view(),
-                main_d.view(),
-                alpha,
-                beta,
-                batch_size,
-                num_blocks,
-                num_threads_per_block,
-            )
+        let perm_d = perm_generator
+            .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .unwrap();
+        let elapsed = time.elapsed().unwrap();
+        println!("Device generate_permutation_trace: {:?}", elapsed);
+
+        let perm_h = perm_d.to_host_naive();
+
+        let time = std::time::Instant::now();
+        let expected_perm_trace =
+            chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
+        println!("Host generate_permutation_trace: {:?}", time.elapsed());
+
+        // Compare the values to the host values.
+        for (i, (exp, res)) in expected_perm_trace
+            .values
+            .iter()
+            .zip(perm_h.values.iter())
+            .enumerate()
+        {
+            assert_eq!(exp, res, "at index {}", i);
+        }
+    }
+
+    #[test]
+    fn test_generate_flatenned_permutation_trace_device() {
+        let mut rng = thread_rng();
+
+        let air = ByteChip::<F>::default();
+        let chip = Chip::new(air);
+
+        let program = Program::from(FIBONACCI_ELF);
+
+        let num_rows = 1 << 16;
+        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
+
+        // Generate a random trace.
+        let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+        for val in main_trace.values.iter_mut() {
+            *val = rng.gen::<F>();
+        }
+
+        // Transfer perm and main traces to the device.
+        let prep_trace_d = preprocessed_trace.values.to_device();
+        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
+        let prep_d = prep_d.to_column_major();
+
+        let main_trace_d = main_trace.values.to_device();
+        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
+        let main_d = main_d.to_column_major();
+
+        // Get randomness.
+        let alpha = rng.gen::<EF>();
+        let beta = rng.gen::<EF>();
+
+        let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
+        // Generate the permutation rows on device.
+        let time = CudaInstant::now().unwrap();
+        let perm_d = perm_generator
+            .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
             .unwrap();
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
 
         let perm_h = perm_d.to_host();
 
+        // print the dimensions
+        println!("permutation trace: {:?}", perm_h.dimensions());
+
         let time = std::time::Instant::now();
-        let expected_perm_trace = generate_permutation_trace(
-            chip.sends(),
-            chip.receives(),
-            Some(&preprocessed_trace),
-            &main_trace,
-            &[alpha, beta],
-            batch_size,
-        );
+        let expected_perm_trace = chip
+            .generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta])
+            .flatten_to_base::<F>();
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.

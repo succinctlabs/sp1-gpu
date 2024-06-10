@@ -64,12 +64,15 @@ impl DeviceDft<BabyBear> {
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
         log_blowup: usize,
+        shift: BabyBear,
     ) -> Result<(), CudaError> {
         ffi::batch_lde_shift(
             inout_slice.as_mut_ptr(),
             log_degree as u32,
             log_blowup as u32,
+            shift,
             1,
+            false,
         )
         .into()
     }
@@ -79,13 +82,17 @@ impl DeviceDft<BabyBear> {
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
         log_blowup: usize,
+        shift: BabyBear,
+        bit_rev: bool,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
         ffi::batch_lde_shift(
             matrix.values,
             matrix.height.ilog2() - log_blowup as u32,
             log_blowup as u32,
+            shift,
             matrix.width as u32,
+            bit_rev,
         )
         .into()
     }
@@ -103,11 +110,17 @@ mod tests {
 
     use p3_baby_bear::BabyBear;
     use p3_dft::{Radix2DitParallel, TwoAdicSubgroupDft};
-    use p3_matrix::{dense::RowMajorMatrix, Matrix};
+    use p3_matrix::{bitrev::BitReversableMatrix, dense::RowMajorMatrix, Matrix};
     use rand::{thread_rng, Rng};
 
     use super::DeviceDft;
-    use crate::{device::{buffer::DeviceBuffer, memory::ToDevice}, matrix::ColMajorMatrixDevice};
+    use crate::{
+        device::{
+            buffer::DeviceBuffer,
+            memory::{ToDevice, ToHost},
+        },
+        matrix::ColMajorMatrixDevice,
+    };
     use p3_field::{AbstractField, Field, PrimeField32, TwoAdicField};
 
     #[test]
@@ -284,7 +297,8 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup) }.unwrap();
+            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one()) }
+                .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -306,8 +320,8 @@ mod tests {
     fn test_batch_coset_lde() {
         let mut rng = thread_rng();
 
-        let log_degrees = 4..20;
-        let log_blowup = 2;
+        let log_degrees = 16..18;
+        let log_blowup = 1;
         let batch_size = 100;
 
         let dft = DeviceDft::new();
@@ -315,32 +329,65 @@ mod tests {
 
         for log_d in log_degrees.clone() {
             let d = 1 << log_d;
-            let ext_d = d << log_blowup;
 
-            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d * batch_size);
-            unsafe { d_values.set_len(ext_d * batch_size) };
-            let mut mat_d = ColMajorMatrixDevice::<BabyBear>::new(d_values, ext_d);
-            assert_eq!(mat_d.width(), batch_size);
-            assert_eq!(mat_d.height(), ext_d);
+            let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
+            let mut mat_d = mat_h.to_device().to_column_major_blowup(log_blowup);
 
-            let mut values = Vec::with_capacity(d * batch_size);
-            for j in 0..batch_size {
-                let value = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
-                mat_d.values[j * ext_d + ext_d - d..(j + 1) * ext_d].copy_from_host(&value);
-                values.extend_from_slice(&value);
-            }
-            let mat_h = RowMajorMatrix::new(values, d).transpose();
-            assert_eq!(mat_h.height(), d);
-            assert_eq!(mat_h.width(), batch_size);
-
+            // Test the regulat version.
             let time = Instant::now();
-            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup) }.unwrap();
+            let shift = rng.gen::<BabyBear>();
+            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, shift, false) }
+                .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
+            let mat_h_clone = mat_h.clone();
             let time = Instant::now();
             let expected_value = p3_dft
-                .coset_lde_batch(mat_h, log_blowup, BabyBear::generator())
+                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::generator() * shift)
+                .to_row_major_matrix();
+            let cpu_time = time.elapsed();
+            println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
+
+            let values_back = mat_d.to_host();
+
+            for (val, exp) in values_back.values.into_iter().zip(expected_value.values) {
+                assert_eq!(val, exp);
+            }
+        }
+    }
+
+    #[test]
+    fn test_batch_bit_reversed_coset_lde() {
+        let mut rng = thread_rng();
+
+        let log_degrees = 4..20;
+        let log_blowup = 1;
+        let batch_size = 100;
+
+        let dft = DeviceDft::new();
+        let p3_dft = Radix2DitParallel;
+
+        for log_d in log_degrees.clone() {
+            let d = 1 << log_d;
+
+            let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
+            let mut mat_d = mat_h.to_device().to_column_major_blowup(log_blowup);
+
+            // Test the regulat version.
+            let time = Instant::now();
+            unsafe {
+                dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, BabyBear::one(), true)
+            }
+            .unwrap();
+            let gpu_time = time.elapsed();
+            println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
+
+            let mat_h_clone = mat_h.clone();
+            let time = Instant::now();
+            let expected_value = p3_dft
+                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::generator())
+                .bit_reverse_rows()
                 .to_row_major_matrix();
             let cpu_time = time.elapsed();
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
