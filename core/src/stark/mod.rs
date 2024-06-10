@@ -1,14 +1,14 @@
 pub(super) mod ffi;
 mod permutation;
 mod prover;
-mod quotient;
+mod quotient_host;
 mod trace;
 mod utils;
 
 use p3_baby_bear::BabyBear;
 pub use permutation::*;
 pub use prover::*;
-pub use quotient::*;
+pub use quotient_host::*;
 use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
 pub use trace::*;
 pub use utils::*;

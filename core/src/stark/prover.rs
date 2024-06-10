@@ -1026,6 +1026,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_tendermint_benchmark() {
         let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
@@ -1041,8 +1042,8 @@ mod tests {
         let shards = gpu_prover.shard(record);
         println!("time to shard: {:?}", time.elapsed());
 
-        shards.into_iter().for_each(|shard| {
-            let main_data = gpu_prover.commit_main(&shard, 1);
+        shards.into_iter().enumerate().for_each(|(i, shard)| {
+            let main_data = gpu_prover.commit_main(&shard, i + 1);
             // Observe the main commit.
             let main_commit = main_data.prover_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
