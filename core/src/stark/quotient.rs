@@ -27,6 +27,12 @@ pub struct QuotientValues<SC: StarkGenericConfig> {
     pub quotient_chunk_domains: Vec<Dom<SC>>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct DeviceQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
+
+#[derive(Clone, Copy, Debug)]
+pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
@@ -88,9 +94,6 @@ pub struct LagrangeSelectorsView<'a, T: Field> {
     inv_zeroifier: *const T,
     _phantom: std::marker::PhantomData<&'a T>,
 }
-
-#[derive(Clone, Copy, Debug)]
-pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
 
 impl<SC, A> CpuQuotientValuesGenerator<SC, A>
 where
