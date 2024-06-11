@@ -32,7 +32,7 @@ extern "C" {
 }
 
 pub(super) mod quotient_gpu {
-    use crate::matrix::MatrixViewDevice;
+    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
     use crate::stark::quotient::{LagrangeSelectorsView, TwoAdicMultiplicativeCosetDevice};
     use air::operation::Operation;
     use p3_baby_bear::BabyBear;
@@ -57,7 +57,7 @@ pub(super) mod quotient_gpu {
             alpha: BinomialExtensionField<BabyBear, 4>,
             public_values: *const BabyBear,
             selectors: LagrangeSelectorsView<BabyBear>,
-            quotient_values: *mut BinomialExtensionField<BabyBear, 4>,
+            quotient_values: MatrixViewMutDevice<BabyBear>,
             num_blocks: usize,
             num_threads_per_block: usize,
         );

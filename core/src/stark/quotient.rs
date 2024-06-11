@@ -274,11 +274,9 @@ mod tests {
     };
 
     use crate::device::memory::ToHost;
+    use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
-    use crate::{
-        device::{buffer::DeviceBuffer, memory::ToDevice},
-        matrix::RowMajorMatrixDevice,
-    };
+    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
     const D: usize = 4;
@@ -384,6 +382,7 @@ mod tests {
                 alpha,
                 &public_values,
             );
+            let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
             println!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let selectors = trace_domain.selectors_on_coset(quotient_domain);
             let selectors_device = selectors.to_device();
@@ -415,7 +414,8 @@ mod tests {
             let permutation_challenges_device = permutation_challenges.to_device();
             let public_values_device = public_values.to_device();
 
-            let mut quotient_output = DeviceBuffer::with_capacity(quotient_domain.size());
+            let mut quotient_output =
+                ColMajorMatrixDevice::with_capacity(D, quotient_domain.size());
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device();
@@ -424,7 +424,7 @@ mod tests {
 
             let start = std::time::Instant::now();
             unsafe {
-                quotient_output.set_len(quotient_domain.size());
+                quotient_output.set_max_width();
                 quotient_gpu::compute_values(
                     i,
                     operations_device.as_ptr(),
@@ -439,7 +439,7 @@ mod tests {
                     alpha,
                     public_values_device.as_ptr(),
                     selectors_device.to_view(),
-                    quotient_output.as_mut_ptr(),
+                    quotient_output.view_mut(),
                     num_rows / 512 * 2,
                     512,
                 );
@@ -447,9 +447,13 @@ mod tests {
             let data = quotient_output.to_host();
             println!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-            for i in 0..result.len() {
-                assert_eq!(data[i], result[i], "failed at index {}", i);
+            for (exp, res) in result_flat.values.into_iter().zip(data.values) {
+                assert_eq!(exp, res, "failed at index {}", i);
             }
+
+            // for i in 0..result.len() {
+            //     assert_eq!(data[i], result[i], "failed at index {}", i);
+            // }
         }
     }
 }

@@ -27,7 +27,7 @@ __global__ void computeValues(Air air, Operation *evalProgram,
                               Challenge *permChallenges, Challenge alpha,
                               Val *publicValues,
                               LagrangeSelectors<Val> selectors,
-                              Challenge *quotientValues) {
+                              Matrix<Val> quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
     size_t mainWidth = mainTraceOnQuotientDomain.width;
@@ -202,7 +202,14 @@ __global__ void computeValues(Air air, Operation *evalProgram,
         }
 
         folder.accumulator = expr[0];
-        quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
+        bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
+
+        #pragma unroll
+            for (size_t k = 0; k < bb31_extension_t::D; k++) {
+                quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+            }
+
+        // quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
     }
 }
 }  // namespace quotient_kernels
@@ -218,7 +225,7 @@ extern "C" void computeValues(
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
     bb31_extension_t *permChallenges, bb31_extension_t alpha,
     bb31_t *publicValues, LagrangeSelectors<bb31_t> selectors,
-    bb31_extension_t *quotientValues, size_t numBlocks,
+    Matrix<bb31_t> quotientValues, size_t numBlocks,
     size_t numThreadsPerBlock) {
     switch (chipId) {
         case 0:
