@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
-use rayon::prelude::*;
 
 use itertools::Itertools;
 
@@ -137,8 +136,8 @@ where
             .collect::<Vec<_>>();
 
         shard_chips
-            .par_iter()
-            .zip(trace_data.traces.par_iter())
+            .iter()
+            .zip(trace_data.traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering
@@ -501,8 +500,8 @@ where
             .collect::<Vec<_>>();
 
         shard_chips
-            .par_iter()
-            .zip(trace_data.traces.par_iter())
+            .iter()
+            .zip(trace_data.traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering
