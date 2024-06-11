@@ -12,7 +12,7 @@ cd Plonky3
 git checkout sp1-v2-pub
 ```
 
-### Sp1 Dependency
+### SP1 Dependency
 In the parent directory:
 ```bash
 git clone https://github.com/succinctlabs/sp1.git
