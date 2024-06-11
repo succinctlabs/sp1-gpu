@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::thread;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
@@ -10,8 +11,6 @@ use crate::dft::DeviceDft;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
-
-use rayon::prelude::*;
 
 pub struct TwoAdicFriCommitter<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
     dft: DeviceDft<F>,
@@ -31,8 +30,8 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
     pub fn encode(
         &self,
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
-        matrix: &impl Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
-    ) -> CudaSync<ColMajorMatrixDevice<BabyBear>> {
+        matrix: &ColMajorMatrixDevice<BabyBear>,
+    ) -> ColMajorMatrixDevice<BabyBear> {
         let matrix = matrix.borrow();
         assert_eq!(domain.size(), matrix.height());
 
@@ -43,7 +42,7 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, shift, true)
                 .unwrap();
 
-            CudaSync::new(lde_mat).unwrap()
+            lde_mat
         }
     }
 
@@ -62,14 +61,22 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
     where
         Matrix: Send + Sync + Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
     {
-        let lde_evaluations = evaluations
-            .par_iter()
-            .map(
-                |(domain, matrix)| -> CudaSync<ColMajorMatrixDevice<BabyBear>> {
-                    self.encode(*domain, matrix)
-                },
-            )
-            .collect::<Vec<_>>();
+        let lde_evaluations = thread::scope(|s| {
+            let lde_evaluations = evaluations
+                .iter()
+                .map(|(domain, matrix)| {
+                    s.spawn(|| {
+                        let matrix = matrix.borrow();
+                        CudaSync::new(self.encode(*domain, matrix)).unwrap()
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            lde_evaluations
+                .into_iter()
+                .map(|lde| lde.join().unwrap())
+                .collect::<Vec<_>>()
+        });
 
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
         let root_device = tree_device.root().into();
