@@ -1,15 +1,22 @@
 # moongate
 
-# Setup Plonky3 Dependency
+# Setup
 
-```
-git clone git@github.com:succinctlabs/plonky3-private.git Plonky3
+## Setup Plonky3 Dependency
+
+In the parent directory, 
+
+```bash
+git clone https://github.com/Plonky3/Plonky3.git
+cd Plonky3
+git checkout sp1-v2-pub
 ```
 
-# Setup Sp1 Dependency
+## Setup Sp1 Dependency
 
 Clone `sp1` repository:
+```bash
+git clone https://github.com/succinctlabs/sp1.git
+git checkout dev
 ```
-https://github.com/succinctlabs/sp1.git
-```
-then move the plonky3 depencies to local development.
+then move the plonky3 depencies to the ones for local development.

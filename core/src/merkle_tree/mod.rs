@@ -12,8 +12,6 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
 use std::cmp::Reverse;
 
-use rayon::prelude::*;
-
 use crate::matrix::DeviceMatrix;
 
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
@@ -127,30 +125,11 @@ where
     type HostType = FieldMerkleTree<F, F, RowMajorMatrix<F>, DIGEST_WIDTH>;
 
     fn to_host(&self) -> Self::HostType {
-        let leaves = self
-            .leaves
-            .par_iter()
-            .map(|l| l.to_host())
-            .collect::<Vec<_>>();
+        let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
         let digest_layers = self
             .digest_layers
             .iter()
             .map(|l| l.to_host())
-            .collect::<Vec<_>>();
-
-        FieldMerkleTree::from_parts(leaves, digest_layers)
-    }
-
-    fn into_host(self) -> Self::HostType {
-        let leaves = self
-            .leaves
-            .into_par_iter()
-            .map(|l| l.into_host())
-            .collect::<Vec<_>>();
-        let digest_layers = self
-            .digest_layers
-            .into_iter()
-            .map(|l| l.into_host())
             .collect::<Vec<_>>();
 
         FieldMerkleTree::from_parts(leaves, digest_layers)

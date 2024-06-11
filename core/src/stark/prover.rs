@@ -1022,12 +1022,15 @@ mod tests {
         let (pk, vk) = gpu_prover.machine.setup(&program);
         // Execute the program.
         let record = execute_core(program);
+        let stats = record.stats();
+        let cycles = stats.get("cpu_events").unwrap();
 
         let time = std::time::Instant::now();
         let shards = gpu_prover.shard(record);
         println!("time to shard: {:?}", time.elapsed());
 
-        shards.into_iter().enumerate().for_each(|(i, shard)| {
+        let e2e_time = std::time::Instant::now();
+        for (i, shard) in shards.into_iter().enumerate() {
             let main_data = gpu_prover.commit_main(&shard, i + 1);
             // Observe the main commit.
             let main_commit = main_data.commit;
@@ -1055,6 +1058,13 @@ mod tests {
                 &proof,
             )
             .unwrap();
-        });
+        }
+        let e2e = e2e_time.elapsed();
+        println!(
+            "Summary: cycles={}, e2e={:?}, khz={:.2}",
+            cycles,
+            e2e,
+            (*cycles as f64 / (e2e.as_millis_f64())),
+        )
     }
 }
