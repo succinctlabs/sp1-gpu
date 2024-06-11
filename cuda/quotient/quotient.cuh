@@ -303,7 +303,5 @@ extern "C" void computeValues(
             QUOTIENT(ByteAir);
             break;
     } 
-    // TODO: check if needed
-    // cudaDeviceSynchronize();
 }
 }  // namespace quotient_gpu

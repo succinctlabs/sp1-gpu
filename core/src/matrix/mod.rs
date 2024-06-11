@@ -25,8 +25,10 @@ pub(super) mod ffi {
 
     use crate::device::error::CudaRustError;
 
-    use super::MatrixViewDevice;
+    use super::{MatrixViewDevice, MatrixViewMutDevice};
 
+    #[link_name = "matrix_transpose"]
+    #[allow(unused_attributes)]
     extern "C" {
         pub fn transpose_naive(output: *mut BabyBear, input: MatrixViewDevice<BabyBear>);
 
@@ -35,7 +37,27 @@ pub(super) mod ffi {
             input: MatrixViewDevice<BabyBear>,
             log_blowup: usize,
         );
+    }
 
+    #[link_name = "matrix_strided"]
+    #[allow(unused_attributes)]
+    extern "C" {
+        pub fn strided_matrix(
+            output: MatrixViewMutDevice<BabyBear>,
+            input: MatrixViewDevice<BabyBear>,
+            stride: usize,
+            offset: usize,
+        );
+
+        #[allow(dead_code)]
+        pub fn split_rows(
+            outputs: *mut MatrixViewMutDevice<BabyBear>,
+            input: MatrixViewDevice<BabyBear>,
+            stride: usize,
+        );
+    }
+
+    extern "C" {
         pub fn reverse_bits_batch(
             output: *mut BabyBear,
             input: *const BabyBear,
