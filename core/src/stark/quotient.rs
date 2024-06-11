@@ -1,5 +1,9 @@
 use crate::device::buffer::DeviceBuffer;
+use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
+use crate::device::CudaSync;
+use crate::matrix::ColMajorMatrixDevice;
+use air::P3EvalFolder;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::{Field, TwoAdicField};
@@ -19,11 +23,16 @@ use sp1_core::{
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
 
-use super::{BabyBearPoseidon2Config, CpuProverData};
+use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
     pub quotient_chunks: Vec<RowMajorMatrix<SC::Val>>,
+    pub quotient_chunk_domains: Vec<Dom<SC>>,
+}
+
+pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
+    pub quotient_chunks: Vec<GpuMatrix<SC::Val>>,
     pub quotient_chunk_domains: Vec<Dom<SC>>,
 }
 
@@ -38,6 +47,57 @@ pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
 pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
     log_n: usize,
     shift: F,
+}
+
+impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
+where
+    SC: BabyBearPoseidon2Config,
+    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
+{
+    pub fn get_evaluations_on_subdomain(
+        &self,
+        mut lde: ColMajorMatrixDevice<SC::Val>,
+        domain: Dom<SC>,
+    ) -> Result<CudaSync<ColMajorMatrixDevice<SC::Val>>, CudaError> {
+        assert_eq!(domain.shift, SC::Val::generator());
+        assert_eq!(
+            lde.height(),
+            domain.size(),
+            "Currently, only supports the full domain"
+        );
+        lde.bit_reverse_rows()?;
+
+        CudaSync::new(lde)
+    }
+
+    pub fn generate_quotient_values(
+        &self,
+        chip: &Chip<SC::Val, A>,
+        trace_domain: Dom<SC>,
+        preprocessed_lde: ColMajorMatrixDevice<SC::Val>,
+        main_lde: ColMajorMatrixDevice<SC::Val>,
+        permutation_lde: ColMajorMatrixDevice<SC::Val>,
+        permutation_challenges: &[SC::Challenge],
+        folding_challenge: SC::Val,
+        public_values: &[SC::Val],
+        cumulative_sum: SC::Val,
+    ) -> Result<DeviceQuotientValues<SC>, CudaError> {
+        let log_quotient_degree = chip.log_quotient_degree();
+
+        let quotient_domain =
+            trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+
+        let prep_on_quotient_domain =
+            self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain)?;
+
+        let main_on_quotient_domain =
+            self.get_evaluations_on_subdomain(main_lde, quotient_domain)?;
+
+        let perm_on_quotient_domain =
+            self.get_evaluations_on_subdomain(permutation_lde, quotient_domain)?;
+
+        todo!()
+    }
 }
 
 impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
