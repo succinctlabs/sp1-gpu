@@ -1,6 +1,9 @@
 #pragma once
 
-#include "../utils/matrix.cuh"
+#include "type.cuh"
+#include "../fields/bb31_t.cuh"
+#include <cassert>
+
 
 const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;

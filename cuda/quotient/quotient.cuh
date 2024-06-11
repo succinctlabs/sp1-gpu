@@ -3,7 +3,7 @@
 #include "../air/codegen/codegen.cuh"
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 #define QUOTIENT(CHIP_TYPE)                                                  \
     {                                                                        \
@@ -302,8 +302,8 @@ extern "C" void computeValues(
         case 26:
             QUOTIENT(ByteAir);
             break;
-    }
-
-    cudaDeviceSynchronize();
+    } 
+    // TODO: check if needed
+    // cudaDeviceSynchronize();
 }
 }  // namespace quotient_gpu

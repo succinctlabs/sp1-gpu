@@ -1,6 +1,5 @@
 #pragma once
 
-
 template<typename T>struct Matrix {
     T *values;
     size_t width;

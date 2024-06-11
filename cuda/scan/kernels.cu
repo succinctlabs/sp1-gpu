@@ -1,5 +1,5 @@
 
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 const size_t SECTION_SIZE = 1024;
 

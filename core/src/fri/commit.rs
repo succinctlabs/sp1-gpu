@@ -32,7 +32,6 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
         matrix: &ColMajorMatrixDevice<BabyBear>,
     ) -> ColMajorMatrixDevice<BabyBear> {
-        let matrix = matrix.borrow();
         assert_eq!(domain.size(), matrix.height());
 
         let shift = domain.shift.inverse();
