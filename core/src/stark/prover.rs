@@ -1064,7 +1064,7 @@ mod tests {
             "Summary: cycles={}, e2e={:?}, khz={:.2}",
             cycles,
             e2e,
-            (*cycles as f64 / (e2e.as_millis_f64())),
+            (*cycles as f64 / (e2e.as_millis() as f64)),
         )
     }
 }
