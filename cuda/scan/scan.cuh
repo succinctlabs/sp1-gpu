@@ -7,8 +7,8 @@
 #include "../fields/bb31_extension_t.cuh"
 
 template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n) {
-    if((2 * n) <= SECTION_SIZE)
-        SingleBlockScan<<<1, n>>>(d_out, d_in, n);
+    if((2 * n) <= scan_kernels::SECTION_SIZE)
+        scan_kernels::SingleBlockScan<<<1, n>>>(d_out, d_in, n);
     else {
        size_t block_dim = 512;
        size_t num_blocks = ceil(n / (float)block_dim);
@@ -23,7 +23,7 @@ template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n) {
        CUDA_OK(cudaMalloc(&flags, flag_size));
        CUDA_OK(cudaMemset(flags, 0, flag_size));
        CUDA_OK(cudaMemset(flags, 1, sizeof(unsigned int)));
-       Scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scan_values, BlockCounter, flags);
+       scan_kernels::Scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scan_values, BlockCounter, flags);
        CUDA_OK(cudaFree(BlockCounter));
        CUDA_OK(cudaFree(flags));
     }
