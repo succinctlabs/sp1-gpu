@@ -27,6 +27,7 @@ use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::stark::ffi::quotient_gpu;
+use crate::time::CudaInstant;
 
 use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
@@ -60,9 +61,7 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
     SC: BabyBearPoseidon2Config,
-    A: for<'a> Air<P3EvalFolder<'a>>
-        + for<'a> Air<ProverConstraintFolder<'a, SC>>
-        + MachineAir<SC::Val>,
+    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut chip_ids = HashMap::new();
@@ -83,6 +82,7 @@ where
         &self,
         mut lde: ColMajorMatrixDevice<SC::Val>,
         domain: Dom<SC>,
+        is_bit_reversed: bool,
     ) -> Result<CudaSync<ColMajorMatrixDevice<SC::Val>>, CudaError> {
         assert_eq!(domain.shift, SC::Val::generator());
         assert_eq!(
@@ -90,7 +90,9 @@ where
             domain.size(),
             "Currently, only supports the full domain"
         );
-        lde.bit_reverse_rows()?;
+        if is_bit_reversed {
+            lde.bit_reverse_rows()?;
+        }
 
         CudaSync::new(lde)
     }
@@ -117,6 +119,7 @@ where
         public_values: &[SC::Val],
         cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
+        let time = CudaInstant::now()?;
         let log_quotient_degree = chip.log_quotient_degree();
 
         let quotient_domain =
@@ -126,35 +129,80 @@ where
             let mat = RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()]);
             mat.to_device().to_column_major()
         });
+        let elapsed = time.elapsed()?;
+        println!("Time to get preprocessed: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let prep_on_quotient_domain =
-            self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain)?;
+            self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain, true)?;
+        let elapsed = time.elapsed()?;
+        println!("Time to get evaluations on preprocessed: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let main_on_quotient_domain =
-            self.get_evaluations_on_subdomain(main_lde, quotient_domain)?;
+            self.get_evaluations_on_subdomain(main_lde, quotient_domain, false)?;
+        let elapsed = time.elapsed()?;
+        println!("Time to get evaluations on main: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let perm_on_quotient_domain =
-            self.get_evaluations_on_subdomain(permutation_lde, quotient_domain)?;
+            self.get_evaluations_on_subdomain(permutation_lde, quotient_domain, false)?;
+        let elapsed = time.elapsed()?;
+        println!("Time to get evaluations on permutation: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         // Compute the quotient values.
         let (operations, _) = air::codegen_cuda_eval(chip);
-        let operations_device = operations.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to generate operations: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
+        let operations_device = operations.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy operations: {:?}", elapsed);
+
+        let time = CudaInstant::now()?;
         let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
             <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
             quotient_domain.size(),
         );
+        let elapsed = time.elapsed()?;
+        println!("Time to allocate quotient values: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let permutation_challenges_device = permutation_challenges.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy permutation challenges: {:?}", elapsed);
+
+        let time = CudaInstant::now()?;
         let public_values_device = public_values.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy public values: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let trace_domain_device = trace_domain.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy trace domain: {:?}", elapsed);
+
+        let time = CudaInstant::now()?;
         let quotient_domain_device = quotient_domain.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy quotient domain: {:?}", elapsed);
+        let time = std::time::Instant::now();
         let chip_id = self.chip_id(chip);
+        let elapsed = time.elapsed();
+        println!("Time to get chip id: {:?}", elapsed);
 
+        let time = std::time::Instant::now();
         let selectors = trace_domain.selectors_on_coset(quotient_domain);
+        let elapsed = time.elapsed();
+        println!("Time to get selectors: {:?}", elapsed);
+        let time = CudaInstant::now()?;
         let selectors_device = selectors.to_device();
+        let elapsed = time.elapsed()?;
+        println!("Time to copy selectors: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         unsafe {
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
@@ -176,44 +224,15 @@ where
                 512,
             );
         }
+        let elapsed = time.elapsed()?;
+        println!("Time to compute quotient values: {:?}", elapsed);
 
+        let time = CudaInstant::now()?;
         let quotient_degree = 1 << log_quotient_degree;
         let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat).unwrap();
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
-
-        // let packed_perm_challenges = permutation_challenges
-        //     .iter()
-        //     .map(|c| PackedChallenge::<SC>::from_f(*c))
-        //     .collect::<Vec<_>>();
-        // // Calculate the quotient values.
-        // let quotient_values_host = quotient_values(
-        //     chip,
-        //     cumulative_sum,
-        //     trace_domain,
-        //     quotient_domain,
-        //     prep_on_quotient_domain.to_host(),
-        //     main_on_quotient_domain.to_host(),
-        //     perm_on_quotient_domain.to_host(),
-        //     &packed_perm_challenges,
-        //     folding_challenge,
-        //     public_values,
-        // );
-
-        // // Flatten and split to create the traces.
-        // let quotient_flat_host = RowMajorMatrix::new_col(quotient_values_host).flatten_to_base();
-        // let quotient_degree = 1 << log_quotient_degree;
-        // let quotient_chunks_host = quotient_domain.split_evals(quotient_degree, quotient_flat_host);
-
-        // // Compare that the chunks are the same.
-        // for (dev_chunk, host_chunk) in quotient_chunks.iter().zip(quotient_chunks_host.iter()) {
-        //     let dev_chunk = dev_chunk.to_host();
-        //     for (dev_val, host_val) in dev_chunk.values.iter().zip(host_chunk.values.iter()) {
-        //         if dev_val != host_val {
-        //             println!("Mismatch in quotient: {:?} != {:?}", dev_val, host_val);
-        //             break;
-        //         }
-        //     }
-        // }
+        let elapsed = time.elapsed()?;
+        println!("Time to split quotient values: {:?}", elapsed);
 
         Ok(DeviceQuotientValues {
             quotient_chunks,

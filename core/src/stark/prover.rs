@@ -28,7 +28,6 @@ use sp1_core::{
 use air::P3EvalFolder;
 
 use crate::fri::FriCpuOpeningProver;
-use crate::runtime::sync_device;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::{
@@ -272,8 +271,6 @@ where
                 })
             })
             .collect::<Vec<_>>();
-        // drop the permutation traces.
-        // drop(perm_domains_and_traces);
 
         // Get a challenge for folding the constraints.
         //
@@ -313,9 +310,12 @@ where
             .enumerate()
             .map(|(i, ((chip, trace), (perm_domain, perm_trace)))| {
                 let trace_domain = perm_domain;
-                let main_lde = self.committer.encode(trace_domain, &trace).unwrap();
+                let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
                 drop(trace);
-                let permutation_lde = self.committer.encode(perm_domain, &perm_trace).unwrap();
+                let permutation_lde = self
+                    .committer
+                    .encode(perm_domain, &perm_trace, false)
+                    .unwrap();
                 drop(perm_trace);
 
                 let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();

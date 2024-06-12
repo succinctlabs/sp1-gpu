@@ -32,14 +32,19 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         &self,
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
         matrix: &ColMajorMatrixDevice<BabyBear>,
+        bit_reversed: bool,
     ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
         assert_eq!(domain.size(), matrix.height());
 
         let shift = domain.shift.inverse();
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(self.log_blowup)?;
-            self.dft
-                .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, shift, true)?;
+            self.dft.coset_lde_batch_device(
+                lde_mat.view_mut(),
+                self.log_blowup,
+                shift,
+                bit_reversed,
+            )?;
 
             Ok(lde_mat)
         }
@@ -66,7 +71,7 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 .map(|(domain, matrix)| {
                     s.spawn(|| {
                         let matrix = matrix.borrow();
-                        CudaSync::new(self.encode(*domain, matrix).unwrap()).unwrap()
+                        CudaSync::new(self.encode(*domain, matrix, true).unwrap()).unwrap()
                     })
                 })
                 .collect::<Vec<_>>();
