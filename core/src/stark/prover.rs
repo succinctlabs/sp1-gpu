@@ -28,6 +28,7 @@ use sp1_core::{
 use air::P3EvalFolder;
 
 use crate::fri::FriCpuOpeningProver;
+use crate::runtime::sync_device;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::{
@@ -106,7 +107,9 @@ pub struct ProverData<SC: StarkGenericConfig, Data> {
 impl<SC, A> FriGpuProver<SC, A>
 where
     SC: BabyBearPoseidon2Config,
-    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<BabyBear>,
+    A: for<'a> Air<P3EvalFolder<'a>>
+        + for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + MachineAir<BabyBear>,
     A::Record: Sync,
 {
     pub fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -289,11 +292,11 @@ where
         // Compute quotient values.
 
         let MainTraceData {
-            index,
             traces,
             domains,
             chip_ordering,
             public_values,
+            ..
         } = main_trace_data;
 
         let shard_chips = self
@@ -303,26 +306,16 @@ where
 
         // Compute values
         let time = std::time::Instant::now();
-        println!("Number of chips: {:?}", shard_chips.len());
         let quotient_values = shard_chips
             .iter()
             .zip(traces)
             .zip(perm_domains_and_traces)
             .enumerate()
             .map(|(i, ((chip, trace), (perm_domain, perm_trace)))| {
-                // let perm_trace = self
-                //     .permutation_trace_generator
-                //     .generate_flattened_permutation_trace(
-                //         chip,
-                //         perm_trace.as_ref(),
-                //         &trace,
-                //         &permutation_challenges,
-                //     ).unwrap();
-
                 let trace_domain = perm_domain;
-                let main_lde = self.committer.encode(trace_domain, &trace);
+                let main_lde = self.committer.encode(trace_domain, &trace).unwrap();
                 drop(trace);
-                let permutation_lde = self.committer.encode(perm_domain, &perm_trace);
+                let permutation_lde = self.committer.encode(perm_domain, &perm_trace).unwrap();
                 drop(perm_trace);
 
                 let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
@@ -330,7 +323,6 @@ where
                     preprocessed_index.map(|idx| pk.data.leaves[idx].to_device().to_column_major());
 
                 let cumulative_sum = cumulative_sums[i];
-                println!("index: {:?}, chip: {:?}", i, chip.name());
 
                 self.quotient_generator
                     .generate_quotient_values(
@@ -494,8 +486,8 @@ where
                 chips: opened_values,
             },
             opening_proof,
-            chip_ordering: chip_ordering,
-            public_values: public_values,
+            chip_ordering,
+            public_values,
         })
     }
 }

@@ -200,17 +200,17 @@ __global__ void computeValues(Air air, Operation *evalProgram,
                     expr[op.b_expr.value];
                 break;
         }
-
-        folder.accumulator = expr[0];
-        bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
-
-        #pragma unroll
-            for (size_t k = 0; k < bb31_extension_t::D; k++) {
-                quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
-            }
-
-        // quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
     }
+
+    folder.accumulator = expr[0];
+    bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
+
+    #pragma unroll
+        for (size_t k = 0; k < bb31_extension_t::D; k++) {
+            quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+        }
+
+    // quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
 }
 }  // namespace quotient_kernels
 

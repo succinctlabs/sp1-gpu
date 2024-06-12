@@ -9,5 +9,5 @@ class ByteAir {
     static constexpr size_t PREP_WIDTH = 11;
     static constexpr size_t MAIN_WIDTH = 145;
     static constexpr size_t PERM_WIDTH = 73;
-    static constexpr size_t EXPRESSION_COUNT = 1318;
+    static constexpr size_t EXPRESSION_COUNT = 8;
 };

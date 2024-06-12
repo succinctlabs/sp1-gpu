@@ -60,7 +60,9 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
     SC: BabyBearPoseidon2Config,
-    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
+    A: for<'a> Air<P3EvalFolder<'a>>
+        + for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut chip_ids = HashMap::new();
@@ -97,9 +99,9 @@ where
         &self,
         num_chunks: usize,
         evals: &ColMajorMatrixDevice<SC::Val>,
-    ) -> Vec<GpuMatrix<SC::Val>> {
+    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
         (0..num_chunks)
-            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i).unwrap()).unwrap())
+            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i)?))
             .collect()
     }
 
@@ -143,8 +145,8 @@ where
             quotient_domain.size(),
         );
 
-        let permutation_challenges = permutation_challenges.to_device();
-        let public_values = public_values.to_device();
+        let permutation_challenges_device = permutation_challenges.to_device();
+        let public_values_device = public_values.to_device();
 
         let trace_domain_device = trace_domain.to_device();
         let quotient_domain_device = quotient_domain.to_device();
@@ -165,19 +167,53 @@ where
                 prep_on_quotient_domain.view(),
                 main_on_quotient_domain.view(),
                 perm_on_quotient_domain.view(),
-                permutation_challenges.as_ptr(),
+                permutation_challenges_device.as_ptr(),
                 folding_challenge,
-                public_values.as_ptr(),
+                public_values_device.as_ptr(),
                 selectors_device.to_view(),
                 quotient_flat.view_mut(),
-                quotient_domain.size() / 512,
+                quotient_domain.size().div_ceil(512),
                 512,
             );
         }
 
         let quotient_degree = 1 << log_quotient_degree;
-        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat);
+        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat).unwrap();
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+
+        // let packed_perm_challenges = permutation_challenges
+        //     .iter()
+        //     .map(|c| PackedChallenge::<SC>::from_f(*c))
+        //     .collect::<Vec<_>>();
+        // // Calculate the quotient values.
+        // let quotient_values_host = quotient_values(
+        //     chip,
+        //     cumulative_sum,
+        //     trace_domain,
+        //     quotient_domain,
+        //     prep_on_quotient_domain.to_host(),
+        //     main_on_quotient_domain.to_host(),
+        //     perm_on_quotient_domain.to_host(),
+        //     &packed_perm_challenges,
+        //     folding_challenge,
+        //     public_values,
+        // );
+
+        // // Flatten and split to create the traces.
+        // let quotient_flat_host = RowMajorMatrix::new_col(quotient_values_host).flatten_to_base();
+        // let quotient_degree = 1 << log_quotient_degree;
+        // let quotient_chunks_host = quotient_domain.split_evals(quotient_degree, quotient_flat_host);
+
+        // // Compare that the chunks are the same.
+        // for (dev_chunk, host_chunk) in quotient_chunks.iter().zip(quotient_chunks_host.iter()) {
+        //     let dev_chunk = dev_chunk.to_host();
+        //     for (dev_val, host_val) in dev_chunk.values.iter().zip(host_chunk.values.iter()) {
+        //         if dev_val != host_val {
+        //             println!("Mismatch in quotient: {:?} != {:?}", dev_val, host_val);
+        //             break;
+        //         }
+        //     }
+        // }
 
         Ok(DeviceQuotientValues {
             quotient_chunks,

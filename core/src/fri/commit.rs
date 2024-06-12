@@ -6,6 +6,7 @@ use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use p3_symmetric::Hash;
 
+use crate::device::error::CudaError;
 use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::ColMajorMatrixDevice;
@@ -31,17 +32,16 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         &self,
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
         matrix: &ColMajorMatrixDevice<BabyBear>,
-    ) -> ColMajorMatrixDevice<BabyBear> {
+    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
         assert_eq!(domain.size(), matrix.height());
 
         let shift = domain.shift.inverse();
         unsafe {
-            let mut lde_mat = matrix.embed_as_blowup(self.log_blowup).unwrap();
+            let mut lde_mat = matrix.embed_as_blowup(self.log_blowup)?;
             self.dft
-                .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, shift, true)
-                .unwrap();
+                .coset_lde_batch_device(lde_mat.view_mut(), self.log_blowup, shift, true)?;
 
-            lde_mat
+            Ok(lde_mat)
         }
     }
 
@@ -66,7 +66,7 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 .map(|(domain, matrix)| {
                     s.spawn(|| {
                         let matrix = matrix.borrow();
-                        CudaSync::new(self.encode(*domain, matrix)).unwrap()
+                        CudaSync::new(self.encode(*domain, matrix).unwrap()).unwrap()
                     })
                 })
                 .collect::<Vec<_>>();

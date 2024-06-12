@@ -9,5 +9,5 @@ class EdAddAssignAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 1863;
     static constexpr size_t PERM_WIDTH = 442;
-    static constexpr size_t EXPRESSION_COUNT = 53667;
+    static constexpr size_t EXPRESSION_COUNT = 318;
 };

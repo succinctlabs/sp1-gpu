@@ -9,5 +9,5 @@ class CPUAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 151;
     static constexpr size_t PERM_WIDTH = 18;
-    static constexpr size_t EXPRESSION_COUNT = 3286;
+    static constexpr size_t EXPRESSION_COUNT = 60;
 };
