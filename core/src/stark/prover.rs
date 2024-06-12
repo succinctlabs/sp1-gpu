@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use rayon::prelude::*;
+
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
 
@@ -304,7 +306,7 @@ where
         // Compute values
         let time = std::time::Instant::now();
         let quotient_values = shard_chips
-            .iter()
+            .par_iter()
             .zip(traces)
             .zip(perm_domains_and_traces)
             .enumerate()

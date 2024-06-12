@@ -1,3 +1,4 @@
+use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::AbstractExtensionField;
@@ -44,7 +45,7 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceQuotientValuesGenerator<SC, A> {
-    chip_ids: HashMap<String, usize>,
+    chip_data: HashMap<String, (usize, Vec<Operation>)>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -64,18 +65,19 @@ where
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
-        let mut chip_ids = HashMap::new();
+        let mut chip_data = HashMap::new();
         for (i, chip) in machine.chips().iter().enumerate() {
-            chip_ids.insert(chip.name().to_owned(), i);
+            let (operations, _) = air::codegen_cuda_eval(chip);
+            chip_data.insert(chip.name().to_owned(), (i, operations));
         }
         Self {
-            chip_ids,
+            chip_data,
             _marker: PhantomData,
         }
     }
 
-    pub fn chip_id(&self, chip: &Chip<SC::Val, A>) -> usize {
-        self.chip_ids[&chip.name()]
+    pub fn chip_data(&self, chip: &Chip<SC::Val, A>) -> &(usize, Vec<Operation>) {
+        self.chip_data.get(&chip.name()).unwrap()
     }
 
     pub fn get_evaluations_on_subdomain(
@@ -150,16 +152,16 @@ where
         let elapsed = time.elapsed()?;
         println!("Time to get evaluations on permutation: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
-        // Compute the quotient values.
-        let (operations, _) = air::codegen_cuda_eval(chip);
-        let elapsed = time.elapsed()?;
-        println!("Time to generate operations: {:?}", elapsed);
+        // let time = CudaInstant::now()?;
+        // // Compute the quotient values.
+        // let (operations, _) = air::codegen_cuda_eval(chip);
+        // let elapsed = time.elapsed()?;
+        // println!("Time to generate operations: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
-        let operations_device = operations.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy operations: {:?}", elapsed);
+        // let time = CudaInstant::now()?;
+        // let operations_device = operations.to_device();
+        // let elapsed = time.elapsed()?;
+        // println!("Time to copy operations: {:?}", elapsed);
 
         let time = CudaInstant::now()?;
         let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
@@ -189,9 +191,10 @@ where
         let elapsed = time.elapsed()?;
         println!("Time to copy quotient domain: {:?}", elapsed);
         let time = std::time::Instant::now();
-        let chip_id = self.chip_id(chip);
+        let (chip_id, operations) = self.chip_data(chip);
+        let operations_device = operations.to_device();
         let elapsed = time.elapsed();
-        println!("Time to get chip id: {:?}", elapsed);
+        println!("Time to get operations and id: {:?}", elapsed);
 
         let time = std::time::Instant::now();
         let selectors = trace_domain.selectors_on_coset(quotient_domain);
@@ -206,7 +209,7 @@ where
         unsafe {
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
-                chip_id,
+                *chip_id,
                 operations_device.as_ptr(),
                 operations.len(),
                 cumulative_sum,
