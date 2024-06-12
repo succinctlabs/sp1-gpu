@@ -1,14 +1,7 @@
-use crate::device::buffer::DeviceBuffer;
-use crate::device::error::CudaError;
-use crate::device::memory::ToDevice;
-use crate::device::CudaSync;
-use crate::matrix::ColMajorMatrixDevice;
-use air::P3EvalFolder;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
+use p3_field::AbstractExtensionField;
 use p3_field::{Field, TwoAdicField};
-
-use std::marker::PhantomData;
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
@@ -17,11 +10,23 @@ use p3_field::AbstractField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 
-use sp1_core::stark::{quotient_values, PcsProverData};
+use air::P3EvalFolder;
+
+use std::collections::HashMap;
+use std::marker::PhantomData;
+
+use sp1_core::stark::{quotient_values, PcsProverData, StarkMachine};
 use sp1_core::{
     air::MachineAir,
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
+
+use crate::device::buffer::DeviceBuffer;
+use crate::device::error::CudaError;
+use crate::device::memory::ToDevice;
+use crate::device::CudaSync;
+use crate::matrix::ColMajorMatrixDevice;
+use crate::stark::ffi::quotient_gpu;
 
 use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
@@ -36,8 +41,11 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
     pub quotient_chunk_domains: Vec<Dom<SC>>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct DeviceQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
+#[derive(Clone, Debug)]
+pub struct DeviceQuotientValuesGenerator<SC, A> {
+    chip_ids: HashMap<String, usize>,
+    _marker: PhantomData<(SC, A)>,
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
@@ -54,6 +62,21 @@ where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
+    pub fn new(machine: &StarkMachine<SC, A>) -> Self {
+        let mut chip_ids = HashMap::new();
+        for (i, chip) in machine.chips().iter().enumerate() {
+            chip_ids.insert(chip.name().to_owned(), i);
+        }
+        Self {
+            chip_ids,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn chip_id(&self, chip: &Chip<SC::Val, A>) -> usize {
+        self.chip_ids[&chip.name()]
+    }
+
     pub fn get_evaluations_on_subdomain(
         &self,
         mut lde: ColMajorMatrixDevice<SC::Val>,
@@ -70,22 +93,37 @@ where
         CudaSync::new(lde)
     }
 
+    pub fn split_evals(
+        &self,
+        num_chunks: usize,
+        evals: &ColMajorMatrixDevice<SC::Val>,
+    ) -> Vec<GpuMatrix<SC::Val>> {
+        (0..num_chunks)
+            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i).unwrap()).unwrap())
+            .collect()
+    }
+
     pub fn generate_quotient_values(
         &self,
         chip: &Chip<SC::Val, A>,
         trace_domain: Dom<SC>,
-        preprocessed_lde: ColMajorMatrixDevice<SC::Val>,
+        preprocessed_lde: Option<ColMajorMatrixDevice<SC::Val>>,
         main_lde: ColMajorMatrixDevice<SC::Val>,
         permutation_lde: ColMajorMatrixDevice<SC::Val>,
         permutation_challenges: &[SC::Challenge],
-        folding_challenge: SC::Val,
+        folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sum: SC::Val,
+        cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         let log_quotient_degree = chip.log_quotient_degree();
 
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+
+        let preprocessed_lde = preprocessed_lde.unwrap_or_else(|| {
+            let mat = RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()]);
+            mat.to_device().to_column_major()
+        });
 
         let prep_on_quotient_domain =
             self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain)?;
@@ -96,7 +134,55 @@ where
         let perm_on_quotient_domain =
             self.get_evaluations_on_subdomain(permutation_lde, quotient_domain)?;
 
-        todo!()
+        // Compute the quotient values.
+        let (operations, _) = air::codegen_cuda_eval(chip);
+        let operations_device = operations.to_device();
+
+        let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+            <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+            quotient_domain.size(),
+        );
+
+        let permutation_challenges = permutation_challenges.to_device();
+        let public_values = public_values.to_device();
+
+        let trace_domain_device = trace_domain.to_device();
+        let quotient_domain_device = quotient_domain.to_device();
+        let chip_id = self.chip_id(chip);
+
+        let selectors = trace_domain.selectors_on_coset(quotient_domain);
+        let selectors_device = selectors.to_device();
+
+        unsafe {
+            quotient_flat.set_max_width();
+            quotient_gpu::compute_values(
+                chip_id,
+                operations_device.as_ptr(),
+                operations.len(),
+                cumulative_sum,
+                trace_domain_device,
+                quotient_domain_device,
+                prep_on_quotient_domain.view(),
+                main_on_quotient_domain.view(),
+                perm_on_quotient_domain.view(),
+                permutation_challenges.as_ptr(),
+                folding_challenge,
+                public_values.as_ptr(),
+                selectors_device.to_view(),
+                quotient_flat.view_mut(),
+                quotient_domain.size() / 512,
+                512,
+            );
+        }
+
+        let quotient_degree = 1 << log_quotient_degree;
+        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat);
+        let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+
+        Ok(DeviceQuotientValues {
+            quotient_chunks,
+            quotient_chunk_domains,
+        })
     }
 }
 
@@ -256,6 +342,7 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
@@ -447,7 +534,7 @@ mod tests {
             let data = quotient_output.to_host();
             println!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-            for (exp, res) in result_flat.values.into_iter().zip(data.values) {
+            for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
                 assert_eq!(exp, res, "failed at index {}", i);
             }
 

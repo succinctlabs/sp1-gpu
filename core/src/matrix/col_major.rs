@@ -129,7 +129,7 @@ impl ColMajorMatrixDevice<BabyBear> {
         .to_result()
     }
 
-    pub fn strided(
+    pub fn vertically_strided(
         &self,
         stride: usize,
         offset: usize,
@@ -259,7 +259,7 @@ mod tests {
         let device_matrix = host_matrix.to_device().to_column_major();
 
         for offset in 0..stride {
-            let strided_d = device_matrix.strided(stride, offset).unwrap();
+            let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();
             let mat_h = host_matrix.clone();
             let host_matrix_strided = mat_h
                 .vertically_strided(stride, offset)
