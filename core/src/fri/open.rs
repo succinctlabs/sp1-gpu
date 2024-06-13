@@ -61,7 +61,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     pub fn open(
         &self,
         pcs: &TwoAdicFriPcs<InnerVal, InnerDft, InnerValMmcs, InnerChallengeMmcs>,
-        // TODO: replace this with FMTGPU
         rounds: Vec<(
             &FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>,
             Vec<Vec<SC::Challenge>>,
@@ -79,14 +78,12 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .flat_map(|(mats, _)| mats)
             .collect_vec();
 
-        let global_max_width = mats.iter().map(|m| m.width()).max().unwrap();
-        let global_max_height = mats.iter().map(|m| m.height()).max().unwrap();
+        let global_max_width = mats.iter().map(|m| m.width).max().unwrap();
+        let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
         let alpha_reducer = PowersReducer::<InnerVal, InnerChallenge>::new(alpha, global_max_width);
 
-        // TODO: KERNELIZE
-        //
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let inv_denoms = compute_inverse_denominators(&mats_and_points, BabyBear::generator());
@@ -104,8 +101,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height);
 
                 let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
+
+                // TODO: KERNELIZE
                 for &point in points_for_mat {
-                    // // Use Barycentric interpolation to evaluate the matrix at the given point.
+                    // Use Barycentric interpolation to evaluate the matrix at the given point.
                     // let ys = {
                     //     let (low_coset, _) = mat.split_rows(mat.height >> pcs.fri.log_blowup);
                     //     interpolate_coset(
@@ -118,6 +117,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 // let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
                 // let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
 
+                // TODO: KERNELIZE
                 //     reduced_opening_for_log_height
                 //         .par_iter_mut()
                 //         .zip_eq(mat.par_row_slices())
