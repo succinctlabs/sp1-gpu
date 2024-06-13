@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::matrix::ColMajorMatrixDevice;
+use crate::matrix::MatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use itertools::{izip, Itertools};
 use p3_baby_bear::BabyBear;
@@ -90,50 +91,50 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let inv_denoms = compute_inverse_denominators(&mats_and_points, BabyBear::generator());
 
-        // let mut all_opened_values: OpenedValues<InnerChallenge> = vec![];
-        // let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
-        // let mut num_reduced = [0; 32];
+        let mut all_opened_values: OpenedValues<InnerChallenge> = vec![];
+        let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
+        let mut num_reduced = [0; 32];
 
-        // for (mats, points) in mats_and_points {
-        //     let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
-        //     for (mat, points_for_mat) in izip!(mats, points) {
-        //         let log_height = log2_strict_usize(mat.height());
-        //         let reduced_opening_for_log_height = reduced_openings[log_height]
-        //             .get_or_insert_with(|| vec![InnerChallenge::zero(); mat.height()]);
-        //         debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height());
+        for (mats, points) in mats_and_points {
+            let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
+            for (mat, points_for_mat) in izip!(mats, points) {
+                let log_height = log2_strict_usize(mat.height);
+                let reduced_opening_for_log_height = reduced_openings[log_height]
+                    .get_or_insert_with(|| vec![InnerChallenge::zero(); mat.height]);
+                debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height);
 
-        //         let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
-        //         for &point in points_for_mat {
-        //             // Use Barycentric interpolation to evaluate the matrix at the given point.
-        //             let ys = {
-        //                 let (low_coset, _) = mat.split_rows(mat.height() >> pcs.fri.log_blowup);
-        //                 interpolate_coset(
-        //                     &BitReversalPerm::new_view(low_coset),
-        //                     InnerVal::generator(),
-        //                     point,
-        //                 )
-        //             };
+                let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
+                for &point in points_for_mat {
+                    // // Use Barycentric interpolation to evaluate the matrix at the given point.
+                    // let ys = {
+                    //     let (low_coset, _) = mat.split_rows(mat.height >> pcs.fri.log_blowup);
+                    //     interpolate_coset(
+                    //         &BitReversalPerm::new_view(low_coset),
+                    //         InnerVal::generator(),
+                    //         point,
+                    //     )
+                }
 
-        //             let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
-        //             let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                // let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
+                // let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
 
-        //             reduced_opening_for_log_height
-        //                 .par_iter_mut()
-        //                 .zip_eq(mat.par_row_slices())
-        //                 // This might be longer, but zip will truncate to smaller subgroup
-        //                 // (which is ok because it's bitrev)
-        //                 .zip(inv_denoms.get(&point).unwrap())
-        //                 .for_each(|((reduced_opening, row), &inv_denom)| {
-        //                     let row_sum = alpha_reducer.reduce_base(row);
-        //                     *reduced_opening +=
-        //                         inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
-        //                 });
+                //     reduced_opening_for_log_height
+                //         .par_iter_mut()
+                //         .zip_eq(mat.par_row_slices())
+                //         // This might be longer, but zip will truncate to smaller subgroup
+                //         // (which is ok because it's bitrev)
+                //         .zip(inv_denoms.get(&point).unwrap())
+                //         .for_each(|((reduced_opening, row), &inv_denom)| {
+                //             let row_sum = alpha_reducer.reduce_base(row);
+                //             *reduced_opening +=
+                //                 inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
+                //         });
 
-        //             num_reduced[log_height] += mat.width();
-        //             opened_values_for_mat.push(ys);
-        //         }
-        //     }
-        // }
+                //     num_reduced[log_height] += mat.width();
+                //     opened_values_for_mat.push(ys);
+                // }
+            }
+        }
 
         // let (fri_proof, query_indices) =
         //     p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
@@ -165,20 +166,19 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         //         query_openings,
         //     },
         // )
+
+        todo!()
     }
 }
 
 pub fn compute_inverse_denominators(
-    mats_and_points: &[(
-        Vec<ColMajorMatrixDevice<BabyBear>>,
-        &Vec<Vec<InnerChallenge>>,
-    )],
+    mats_and_points: &[(Vec<MatrixViewDevice<BabyBear>>, &Vec<Vec<InnerChallenge>>)],
     coset_shift: BabyBear,
 ) -> LinearMap<InnerChallenge, Vec<InnerChallenge>> {
     let mut max_log_height_for_point: LinearMap<InnerChallenge, usize> = LinearMap::new();
     for (mats, points) in mats_and_points {
         for (mat, points_for_mat) in izip!(mats, *points) {
-            let log_height = log2_strict_usize(mat.height());
+            let log_height = log2_strict_usize(mat.height);
             for &z in points_for_mat {
                 if let Some(lh) = max_log_height_for_point.get_mut(&z) {
                     *lh = core::cmp::max(*lh, log_height);
