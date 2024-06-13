@@ -21,6 +21,7 @@ air = { path = "../air" }
 p3-challenger = { workspace = true }
 
 tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["std", "env-filter"] }
 rayon = "1.10.0"
 
 [build-dependencies]
