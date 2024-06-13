@@ -302,7 +302,7 @@ where
             .collect::<Vec<_>>();
 
         // Compute values
-        let time = std::time::Instant::now();
+        let time = CudaInstant::now()?;
         let quotient_values = std::thread::scope(|s| {
             let mut quotient_value_handles = Vec::with_capacity(shard_chips.len());
 
@@ -353,8 +353,7 @@ where
                 .map(|handle| handle.join().unwrap())
                 .collect::<Vec<_>>()
         });
-
-        let elapsed = time.elapsed();
+        let elapsed = time.elapsed()?;
         println!("Device: time to compute quotient values: {:?}", elapsed);
 
         // Commit to the quotient values
