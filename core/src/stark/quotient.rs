@@ -28,6 +28,7 @@ use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::stark::ffi::quotient_gpu;
+use crate::time::CudaInstant;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
@@ -122,17 +123,20 @@ where
         public_values: &[SC::Val],
         cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
+        let time = CudaInstant::now()?;
         let log_quotient_degree = chip.log_quotient_degree();
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
-        let preprocessed_lde = preprocessed_lde.unwrap_or_else(|| {
-            let mat = RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()]);
-            mat.to_device().to_column_major()
-        });
-
-        let prep_on_quotient_domain =
-            self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain, true)?;
+        let prep_on_quotient_domain = preprocessed_lde
+            .map(|lde| self.get_evaluations_on_subdomain(lde, quotient_domain, true))
+            .unwrap_or_else(|| {
+                let mut mat = ColMajorMatrixDevice::with_capacity(1, quotient_domain.size());
+                unsafe {
+                    mat.set_max_width();
+                }
+                CudaSync::new(mat)
+            })?;
 
         let main_on_quotient_domain =
             self.get_evaluations_on_subdomain(main_lde, quotient_domain, false)?;
@@ -160,6 +164,16 @@ where
             .take(NUM_THREADS_PER_BLOCK)
             .collect::<Vec<_>>()
             .to_device();
+
+        let name = chip.name();
+
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to get evaluations on subdomain: {:?}",
+            &name, elapsed
+        );
+
+        let time = CudaInstant::now()?;
         unsafe {
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
@@ -182,9 +196,21 @@ where
                 NUM_THREADS_PER_BLOCK,
             );
         }
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to compute quotient values: {:?}",
+            &name, elapsed
+        );
+
+        let time = CudaInstant::now()?;
         let quotient_degree = 1 << log_quotient_degree;
         let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to split quotient values: {:?}",
+            &name, elapsed
+        );
 
         Ok(DeviceQuotientValues {
             quotient_chunks,

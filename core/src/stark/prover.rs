@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use rayon::prelude::*;
-
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
 
@@ -340,9 +338,9 @@ where
                             preprocessed_lde,
                             main_lde,
                             permutation_lde,
-                            &permutation_challenges,
+                            permutation_challenges,
                             folding_challenge,
-                            &public_values,
+                            public_values,
                             cumulative_sum,
                         )
                         .unwrap()
@@ -355,42 +353,7 @@ where
                 .map(|handle| handle.join().unwrap())
                 .collect::<Vec<_>>()
         });
-        // let quotient_values = shard_chips
-        //     .par_iter()
-        //     .zip(traces)
-        //     .zip(perm_domains_and_traces)
-        //     .enumerate()
-        //     .map(|(i, ((chip, trace), (perm_domain, perm_trace)))| {
-        //         let trace_domain = perm_domain;
-        //         let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
-        //         drop(trace);
-        //         let permutation_lde = self
-        //             .committer
-        //             .encode(perm_domain, &perm_trace, false)
-        //             .unwrap();
-        //         drop(perm_trace);
 
-        //         let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
-        //         let preprocessed_lde =
-        //             preprocessed_index.map(|idx| pk.data.leaves[idx].to_device().to_column_major());
-
-        //         let cumulative_sum = cumulative_sums[i];
-
-        //         self.quotient_generator
-        //             .generate_quotient_values(
-        //                 chip,
-        //                 trace_domain,
-        //                 preprocessed_lde,
-        //                 main_lde,
-        //                 permutation_lde,
-        //                 &permutation_challenges,
-        //                 folding_challenge,
-        //                 &public_values,
-        //                 cumulative_sum,
-        //             )
-        //             .unwrap()
-        //     })
-        //     .collect::<Vec<_>>();
         let elapsed = time.elapsed();
         println!("Device: time to compute quotient values: {:?}", elapsed);
 
