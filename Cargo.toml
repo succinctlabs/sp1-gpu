@@ -28,5 +28,7 @@ p3-merkle-tree = { path = "../Plonky3/merkle-tree" }
 p3-commit = { path = "../Plonky3/commit" }
 p3-fri = { path = "../Plonky3/fri" }
 p3-challenger = { path = "../Plonky3/challenger" }
+p3-util = { path = "../Plonky3/util" }
+p3-interpolation = { path = "../Plonky3/interpolation" }
 
 sp1-core = { path = "../sp1/core" }
