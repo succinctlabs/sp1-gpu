@@ -1,7 +1,10 @@
 use std::sync::Once;
 
+use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
+
+use crate::time::TimeLayer;
 
 static INIT: Once = Once::new();
 
@@ -32,6 +35,7 @@ pub fn init_tracer() {
                     .with_thread_names(false)
                     .with_env_filter(env_filter)
                     .finish()
+                    .with(TimeLayer)
                     .init();
             }
             _ => {

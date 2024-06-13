@@ -1,11 +1,17 @@
 use std::time::Duration;
 
+mod layer;
+pub use layer::*;
+
 use crate::{
     device::error::CudaError,
     runtime::{event::CudaEvent, ffi, stream::UnsafeCudaStream},
 };
 
 pub struct CudaInstant(pub(crate) CudaEvent);
+
+unsafe impl Send for CudaInstant {}
+unsafe impl Sync for CudaInstant {}
 
 impl CudaInstant {
     pub fn now() -> Result<Self, CudaError> {
