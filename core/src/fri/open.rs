@@ -5,7 +5,9 @@ use p3_challenger::CanSample;
 use p3_commit::Mmcs;
 use p3_commit::{OpenedValues, Pcs};
 use p3_field::AbstractField;
-use p3_fri::{compute_inverse_denominators, BatchOpening, PowersReducer, TwoAdicFriPcs, TwoAdicFriPcsProof};
+use p3_fri::{
+    compute_inverse_denominators, BatchOpening, PowersReducer, TwoAdicFriPcs, TwoAdicFriPcsProof,
+};
 use p3_interpolation::interpolate_coset;
 use p3_matrix::bitrev::BitReversalPerm;
 use p3_matrix::Matrix;
@@ -50,6 +52,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     pub fn open(
         &self,
         pcs: &TwoAdicFriPcs<InnerVal, InnerDft, InnerValMmcs, InnerChallengeMmcs>,
+        // TODO: replace this with FMTGPU
         rounds: Vec<(&PcsProverData<SC>, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
     ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>) {
