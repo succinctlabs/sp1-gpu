@@ -1,5 +1,4 @@
 
-#include "../matrix/matrix.cuh"
 
 namespace scan_kernels {
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "./utils.cuh"
 
 #include "../air/codegen/codegen.cuh"

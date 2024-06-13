@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "kernels.cu"
 #include "../utils/exception.cuh"
 
