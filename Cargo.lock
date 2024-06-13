@@ -711,6 +711,7 @@ dependencies = [
  "rayon",
  "sp1-core",
  "tracing",
+ "tracing-subscriber",
  "which",
 ]
 

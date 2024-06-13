@@ -1,3 +1,5 @@
+use tracing::debug;
+
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
@@ -111,6 +113,7 @@ where
             .collect()
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn generate_quotient_values(
         &self,
         chip: &Chip<SC::Val, A>,
@@ -168,8 +171,8 @@ where
         let name = chip.name();
 
         let elapsed = time.elapsed()?;
-        println!(
-            "Device: Chip {} time to get evaluations on subdomain: {:?}",
+        debug!(
+            "Chip {} time to get evaluations on subdomain: {:?}",
             &name, elapsed
         );
 
@@ -197,8 +200,8 @@ where
             );
         }
         let elapsed = time.elapsed()?;
-        println!(
-            "Device: Chip {} time to compute quotient values: {:?}",
+        debug!(
+            "Chip {} time to compute quotient values: {:?}",
             &name, elapsed
         );
 
@@ -207,8 +210,8 @@ where
         let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
         let elapsed = time.elapsed()?;
-        println!(
-            "Device: Chip {} time to split quotient values: {:?}",
+        debug!(
+            "Chip {} time to split quotient values: {:?}",
             &name, elapsed
         );
 
@@ -392,6 +395,7 @@ mod tests {
         runtime::Program,
         utils::{log2_strict_usize, tests::FIBONACCI_ELF},
     };
+    use tracing::debug;
 
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
@@ -426,8 +430,8 @@ mod tests {
             {
                 continue;
             }
-            println!("Chip: {}", chip.name());
-            println!("Id: {}", i);
+            debug!("Chip: {}", chip.name());
+            debug!("Id: {}", i);
             let program = Program::from(FIBONACCI_ELF);
             let num_rows = 1 << 14;
             let config = BabyBearPoseidon2::default();
@@ -503,7 +507,7 @@ mod tests {
                 &public_values,
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
-            println!("> CPU Time: {:?} ms", start.elapsed().as_millis());
+            debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
             let generator_powers = quotient_domain_generator
@@ -544,8 +548,8 @@ mod tests {
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device();
-            println!("> Eval Program Len: {}", operations.len());
-            println!("> Eval Program Register Count: {}", expr_ctr);
+            debug!("> Eval Program Len: {}", operations.len());
+            debug!("> Eval Program Register Count: {}", expr_ctr);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -571,15 +575,11 @@ mod tests {
                 );
             }
             let data = quotient_output.to_host();
-            println!("> GPU Time: {:?} ms", start.elapsed().as_millis());
+            debug!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
             for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
                 assert_eq!(exp, res, "failed at index {}", i);
             }
-
-            // for i in 0..result.len() {
-            //     assert_eq!(data[i], result[i], "failed at index {}", i);
-            // }
         }
     }
 }

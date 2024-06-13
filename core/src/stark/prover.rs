@@ -5,6 +5,8 @@ use p3_challenger::{CanObserve, FieldChallenger};
 
 use itertools::Itertools;
 
+use tracing::debug;
+
 use p3_baby_bear::BabyBear;
 use p3_commit::Pcs;
 use p3_commit::PolynomialSpace;
@@ -133,6 +135,7 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -166,6 +169,7 @@ where
             .collect::<Result<Vec<_>, CudaError>>()
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn commit_main_traces(
         &self,
         trace_data: &GpuMainTraceData<SC>,
@@ -180,25 +184,23 @@ where
         self.committer.commit(&domains_and_traces)
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
         let time = std::time::Instant::now();
         let host_trace_data =
             self.trace_generator
                 .generate_main_traces(&self.machine, shard, index);
-        println!("Device: time to generate main traces: {:?}", time.elapsed());
+        debug!("Time to generate main traces: {:?}", time.elapsed());
         // Copy main traces to the device.
         let time = CudaInstant::now().unwrap();
         let trace_data = host_trace_data.to_device();
-        println!(
-            "Device: time to copy traces to device: {:?}",
+        debug!(
+            "Time to copy traces to device: {:?}",
             time.elapsed().unwrap()
         );
         let time = CudaInstant::now().unwrap();
         let (commit, prover_data) = self.commit_main_traces(&trace_data);
-        println!(
-            "Device: time to commit traces: {:?}",
-            time.elapsed().unwrap()
-        );
+        debug!("Time to commit traces: {:?}", time.elapsed().unwrap());
         GpuMainData {
             trace_data,
             commit,
@@ -206,6 +208,7 @@ where
         }
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -225,8 +228,8 @@ where
         // Copy the main trace prover data to the host and drop the device data.
         let host_main_prover_data = main_prover_data.into_host();
         let elapsed = time.elapsed()?;
-        println!(
-            "Device: time to transfer main prover data from device: {:?}",
+        debug!(
+            "Time to transfer main prover data from device: {:?}",
             elapsed
         );
 
@@ -239,7 +242,7 @@ where
         let permutation_traces =
             self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges)?;
         let elapsed = time.elapsed()?;
-        println!("Device: time to generate permutation traces: {:?}", elapsed);
+        debug!("Time to generate permutation traces: {:?}", elapsed);
 
         // Commit to the permutation traces.
         let time = CudaInstant::now()?;
@@ -252,7 +255,7 @@ where
         let (permutation_commit, perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         let elapsed = time.elapsed()?;
-        println!("Device: time to commit permutation traces: {:?}", elapsed);
+        debug!("Time to commit permutation traces: {:?}", elapsed);
 
         // Observe the permutation commitment.
         challenger.observe(permutation_commit);
@@ -281,8 +284,8 @@ where
         let time = CudaInstant::now()?;
         let host_perm_prover_data = perm_prover_data.into_host();
         let elapsed = time.elapsed()?;
-        println!(
-            "Device: time to transfer permutation prover data from device: {:?}",
+        debug!(
+            "Time to transfer permutation prover data from device: {:?}",
             elapsed
         );
 
@@ -354,7 +357,7 @@ where
                 .collect::<Vec<_>>()
         });
         let elapsed = time.elapsed()?;
-        println!("Device: time to compute quotient values: {:?}", elapsed);
+        debug!("Time to compute quotient values: {:?}", elapsed);
 
         // Commit to the quotient values
         let time = CudaInstant::now()?;
@@ -372,15 +375,12 @@ where
         let (quotient_commit, quotient_prover_data) =
             self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
-        println!(
-            "Device: time to commit quotient values: {:?}",
-            time.elapsed()?
-        );
+        debug!("Time to commit quotient values: {:?}", time.elapsed()?);
         // Transfer the quotient data to the host.
         let time = CudaInstant::now()?;
         let host_quotient_prover_data = quotient_prover_data.into_host();
-        println!(
-            "Device: time to transfer quotient prover data from device: {:?}",
+        debug!(
+            "Time to transfer quotient prover data from device: {:?}",
             time.elapsed()?
         );
 
@@ -424,7 +424,7 @@ where
             ],
             challenger,
         );
-        println!("Device: Time to open: {:?}", time.elapsed());
+        debug!("Time to compute opening proof: {:?}", time.elapsed());
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
@@ -597,7 +597,6 @@ where
         }
     }
 
-    #[allow(clippy::result_unit_err)]
     pub fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -855,6 +854,8 @@ mod tests {
         utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
     };
 
+    use crate::utils::init_tracer;
+
     use super::*;
 
     type SC = BabyBearPoseidon2;
@@ -996,6 +997,8 @@ mod tests {
         // Execute the program.
         let record = execute_core(program);
 
+        init_tracer();
+
         let shards = gpu_prover.shard(record);
 
         for shard in shards {
@@ -1059,6 +1062,9 @@ mod tests {
         let (pk, vk) = gpu_prover.machine.setup(&program);
         // Execute the program.
         let record = execute_core(program);
+
+        init_tracer();
+
         let stats = record.stats();
         let cycles = stats.get("cpu_events").unwrap();
 
