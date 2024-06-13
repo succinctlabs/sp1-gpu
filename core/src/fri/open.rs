@@ -103,32 +103,32 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
 
                 // TODO: KERNELIZE
-                for &point in points_for_mat {
-                    // Use Barycentric interpolation to evaluate the matrix at the given point.
-                    // let ys = {
-                    //     let (low_coset, _) = mat.split_rows(mat.height >> pcs.fri.log_blowup);
-                    //     interpolate_coset(
-                    //         &BitReversalPerm::new_view(low_coset),
-                    //         InnerVal::generator(),
-                    //         point,
-                    //     )
-                }
+                // for &point in points_for_mat {
+                //     // Use Barycentric interpolation to evaluate the matrix at the given point.
+                //     let ys =
+                //         let (low_coset, _) = mat.split_rows(mat.height >> pcs.fri.log_blowup);
+                //         interpolate_coset(
+                //             &BitReversalPerm::new_view(low_coset),
+                //             InnerVal::generator(),
+                //             point,
+                //         )
+                // }
 
                 // let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
                 // let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
 
                 // TODO: KERNELIZE
-                //     reduced_opening_for_log_height
-                //         .par_iter_mut()
-                //         .zip_eq(mat.par_row_slices())
-                //         // This might be longer, but zip will truncate to smaller subgroup
-                //         // (which is ok because it's bitrev)
-                //         .zip(inv_denoms.get(&point).unwrap())
-                //         .for_each(|((reduced_opening, row), &inv_denom)| {
-                //             let row_sum = alpha_reducer.reduce_base(row);
-                //             *reduced_opening +=
-                //                 inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
-                //         });
+                // reduced_opening_for_log_height
+                //     .par_iter_mut()
+                //     .zip_eq(mat.par_row_slices())
+                //     // This might be longer, but zip will truncate to smaller subgroup
+                //     // (which is ok because it's bitrev)
+                //     .zip(inv_denoms.get(&point).unwrap())
+                //     .for_each(|((reduced_opening, row), &inv_denom)| {
+                //         let row_sum = alpha_reducer.reduce_base(row);
+                //         *reduced_opening +=
+                //             inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
+                //     });
 
                 //     num_reduced[log_height] += mat.width();
                 //     opened_values_for_mat.push(ys);
@@ -213,4 +213,32 @@ pub fn compute_inverse_denominators(
             )
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use p3_baby_bear::BabyBear;
+    use p3_field::{extension::BinomialExtensionField, AbstractField};
+    use p3_interpolation::interpolate_coset;
+    use p3_matrix::{bitrev::BitReversalPerm, dense::RowMajorMatrix, Matrix};
+
+    #[test]
+    pub fn test_interpolate_coset_gpu() {
+        let mut rng = rand::thread_rng();
+        let rows = 1 << 8;
+        let log_blowup = 1;
+        let cols = 128;
+        let matrix: RowMajorMatrix<BabyBear> =
+            RowMajorMatrix::rand(&mut rng, rows << log_blowup, cols);
+
+        let point = BinomialExtensionField::<BabyBear, 4>::two();
+        let (low_coset, _) = matrix.split_rows(matrix.height() >> log_blowup);
+        let gt = interpolate_coset(
+            &BitReversalPerm::new_view(low_coset),
+            BabyBear::generator(),
+            point,
+        );
+
+        println!("{:?}", gt);
+    }
 }
