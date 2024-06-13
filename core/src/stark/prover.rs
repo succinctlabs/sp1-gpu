@@ -32,6 +32,7 @@ use air::P3EvalFolder;
 use crate::fri::FriCpuOpeningProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
+use crate::timed_debug;
 use crate::{
     device::{
         error::CudaError,
@@ -198,9 +199,12 @@ where
             "Time to copy traces to device: {:?}",
             time.elapsed().unwrap()
         );
-        let time = CudaInstant::now().unwrap();
-        let (commit, prover_data) = self.commit_main_traces(&trace_data);
-        debug!("Time to commit traces: {:?}", time.elapsed().unwrap());
+        // let time = CudaInstant::now().unwrap();
+        let (commit, prover_data) = timed_debug!(
+            "Committing main traces",
+            self.commit_main_traces(&trace_data)
+        );
+        // debug!("Time to commit traces: {:?}", time.elapsed().unwrap());
         GpuMainData {
             trace_data,
             commit,
@@ -1080,9 +1084,12 @@ mod tests {
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
             let time = std::time::Instant::now();
-            let proof = gpu_prover
-                .prove_shard(&pk, main_data, &mut challenger)
-                .unwrap();
+            let proof = timed_debug!(
+                "Prove shard",
+                gpu_prover
+                    .prove_shard(&pk, main_data, &mut challenger)
+                    .unwrap()
+            );
             let prove_shard_time = time.elapsed();
             println!("Device prove_shard time: {:?}", prove_shard_time);
 
