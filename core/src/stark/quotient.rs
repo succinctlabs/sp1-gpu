@@ -28,7 +28,8 @@ use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::stark::ffi::quotient_gpu;
-use crate::time::CudaInstant;
+
+const NUM_THREADS_PER_BLOCK: usize = 512;
 
 use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
@@ -121,9 +122,7 @@ where
         public_values: &[SC::Val],
         cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
-        let time = CudaInstant::now()?;
         let log_quotient_degree = chip.log_quotient_degree();
-
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
@@ -131,81 +130,36 @@ where
             let mat = RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()]);
             mat.to_device().to_column_major()
         });
-        let elapsed = time.elapsed()?;
-        println!("Time to get preprocessed: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
         let prep_on_quotient_domain =
             self.get_evaluations_on_subdomain(preprocessed_lde, quotient_domain, true)?;
-        let elapsed = time.elapsed()?;
-        println!("Time to get evaluations on preprocessed: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
         let main_on_quotient_domain =
             self.get_evaluations_on_subdomain(main_lde, quotient_domain, false)?;
-        let elapsed = time.elapsed()?;
-        println!("Time to get evaluations on main: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
         let perm_on_quotient_domain =
             self.get_evaluations_on_subdomain(permutation_lde, quotient_domain, false)?;
-        let elapsed = time.elapsed()?;
-        println!("Time to get evaluations on permutation: {:?}", elapsed);
 
-        // let time = CudaInstant::now()?;
-        // // Compute the quotient values.
-        // let (operations, _) = air::codegen_cuda_eval(chip);
-        // let elapsed = time.elapsed()?;
-        // println!("Time to generate operations: {:?}", elapsed);
-
-        // let time = CudaInstant::now()?;
-        // let operations_device = operations.to_device();
-        // let elapsed = time.elapsed()?;
-        // println!("Time to copy operations: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
         let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
             <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
             quotient_domain.size(),
         );
-        let elapsed = time.elapsed()?;
-        println!("Time to allocate quotient values: {:?}", elapsed);
 
-        let time = CudaInstant::now()?;
         let permutation_challenges_device = permutation_challenges.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy permutation challenges: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
         let public_values_device = public_values.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy public values: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
         let trace_domain_device = trace_domain.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy trace domain: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
         let quotient_domain_device = quotient_domain.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy quotient domain: {:?}", elapsed);
-        let time = std::time::Instant::now();
         let (chip_id, operations) = self.chip_data(chip);
         let operations_device = operations.to_device();
-        let elapsed = time.elapsed();
-        println!("Time to get operations and id: {:?}", elapsed);
-
-        let time = std::time::Instant::now();
-        let selectors = trace_domain.selectors_on_coset(quotient_domain);
-        let elapsed = time.elapsed();
-        println!("Time to get selectors: {:?}", elapsed);
-        let time = CudaInstant::now()?;
-        let selectors_device = selectors.to_device();
-        let elapsed = time.elapsed()?;
-        println!("Time to copy selectors: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
+        let trace_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
+        let quotient_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
+        let generator_powers = quotient_domain_generator
+            .powers()
+            .take(NUM_THREADS_PER_BLOCK)
+            .collect::<Vec<_>>()
+            .to_device();
         unsafe {
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
@@ -221,21 +175,16 @@ where
                 permutation_challenges_device.as_ptr(),
                 folding_challenge,
                 public_values_device.as_ptr(),
-                selectors_device.to_view(),
+                trace_domain_generator,
+                generator_powers.as_ptr(),
                 quotient_flat.view_mut(),
-                quotient_domain.size().div_ceil(512),
-                512,
+                quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
+                NUM_THREADS_PER_BLOCK,
             );
         }
-        let elapsed = time.elapsed()?;
-        println!("Time to compute quotient values: {:?}", elapsed);
-
-        let time = CudaInstant::now()?;
         let quotient_degree = 1 << log_quotient_degree;
-        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat).unwrap();
+        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
-        let elapsed = time.elapsed()?;
-        println!("Time to split quotient values: {:?}", elapsed);
 
         Ok(DeviceQuotientValues {
             quotient_chunks,
@@ -405,7 +354,7 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
     use p3_field::extension::BinomialExtensionField;
-    use p3_field::{AbstractExtensionField, AbstractField};
+    use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use sp1_core::air::SP1_PROOF_NUM_PV_ELTS;
     use sp1_core::utils::BabyBearPoseidon2;
@@ -529,8 +478,13 @@ mod tests {
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
             println!("> CPU Time: {:?} ms", start.elapsed().as_millis());
-            let selectors = trace_domain.selectors_on_coset(quotient_domain);
-            let selectors_device = selectors.to_device();
+            let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
+            let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
+            let generator_powers = quotient_domain_generator
+                .powers()
+                .take(512)
+                .collect::<Vec<_>>()
+                .to_device();
 
             let trace_domain_device = trace_domain.to_device();
             let quotient_domain_device = quotient_domain.to_device();
@@ -583,7 +537,8 @@ mod tests {
                     permutation_challenges_device.as_ptr(),
                     alpha,
                     public_values_device.as_ptr(),
-                    selectors_device.to_view(),
+                    trace_domain_generator,
+                    generator_powers.as_ptr(),
                     quotient_output.view_mut(),
                     num_rows / 512 * 2,
                     512,
