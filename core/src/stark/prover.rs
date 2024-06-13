@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
-use rayon::prelude::*;
 
 use itertools::Itertools;
 
@@ -26,7 +25,11 @@ use sp1_core::{
     },
 };
 
+use air::P3EvalFolder;
+
 use crate::fri::FriCpuOpeningProver;
+use crate::stark::DeviceQuotientValues;
+use crate::stark::DeviceQuotientValuesGenerator;
 use crate::{
     device::{
         error::CudaError,
@@ -51,6 +54,7 @@ pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     machine: StarkMachine<SC, A>,
     trace_generator: CpuTraceGenerator<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
+    quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
     opening_prover: FriCpuOpeningProver<SC>,
 }
@@ -102,17 +106,21 @@ pub struct ProverData<SC: StarkGenericConfig, Data> {
 impl<SC, A> FriGpuProver<SC, A>
 where
     SC: BabyBearPoseidon2Config,
-    A: MachineAir<BabyBear>,
+    A: for<'a> Air<P3EvalFolder<'a>>
+        + for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + MachineAir<BabyBear>,
     A::Record: Sync,
 {
     pub fn new(machine: StarkMachine<SC, A>) -> Self {
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
+        let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
             trace_generator: CpuTraceGenerator::default(),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriCpuOpeningProver::default(),
+            quotient_generator,
         }
     }
 
@@ -137,8 +145,8 @@ where
             .collect::<Vec<_>>();
 
         shard_chips
-            .par_iter()
-            .zip(trace_data.traces.par_iter())
+            .iter()
+            .zip(trace_data.traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering
@@ -263,8 +271,6 @@ where
                 })
             })
             .collect::<Vec<_>>();
-        // drop the permutation traces.
-        drop(perm_domains_and_traces);
 
         // Get a challenge for folding the constraints.
         //
@@ -281,34 +287,73 @@ where
         );
 
         // Compute quotient values.
+
+        let MainTraceData {
+            traces,
+            domains,
+            chip_ordering,
+            public_values,
+            ..
+        } = main_trace_data;
+
         let shard_chips = self
             .machine
-            .shard_chips_ordered(&main_trace_data.chip_ordering)
+            .shard_chips_ordered(&chip_ordering)
             .collect::<Vec<_>>();
 
         // Compute values
-        let time = std::time::Instant::now();
-        let quotient_generator = CpuQuotientValuesGenerator::<SC, A>::default();
-        let quotient_values = shard_chips
-            .iter()
-            .enumerate()
-            .map(|(i, chip)| {
-                let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
-                quotient_generator.generate_quotient_values(
-                    self.machine.config(),
-                    chip,
-                    main_trace_data.domains[i],
-                    (preprocessed_index, &pk.data),
-                    (i, &host_main_prover_data),
-                    (i, &host_perm_prover_data),
-                    &permutation_challenges,
-                    folding_challenge,
-                    &main_trace_data.public_values,
-                    cumulative_sums[i],
-                )
-            })
-            .collect::<Vec<_>>();
-        let elapsed = time.elapsed();
+        let time = CudaInstant::now()?;
+        let quotient_values = std::thread::scope(|s| {
+            let mut quotient_value_handles = Vec::with_capacity(shard_chips.len());
+
+            for (i, ((chip, trace), (perm_domain, perm_trace))) in shard_chips
+                .iter()
+                .zip(traces)
+                .zip(perm_domains_and_traces)
+                .enumerate()
+            {
+                let cumulative_sums = cumulative_sums.as_slice();
+                let public_values = public_values.as_slice();
+                let permutation_challenges = permutation_challenges.as_slice();
+                let handle = s.spawn(move || {
+                    let trace_domain = perm_domain;
+                    let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
+                    drop(trace);
+                    let permutation_lde = self
+                        .committer
+                        .encode(perm_domain, &perm_trace, false)
+                        .unwrap();
+                    drop(perm_trace);
+
+                    let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
+                    let preprocessed_lde = preprocessed_index
+                        .map(|idx| pk.data.leaves[idx].to_device().to_column_major());
+
+                    let cumulative_sum = cumulative_sums[i];
+
+                    self.quotient_generator
+                        .generate_quotient_values(
+                            chip,
+                            trace_domain,
+                            preprocessed_lde,
+                            main_lde,
+                            permutation_lde,
+                            permutation_challenges,
+                            folding_challenge,
+                            public_values,
+                            cumulative_sum,
+                        )
+                        .unwrap()
+                });
+                quotient_value_handles.push(handle);
+            }
+
+            quotient_value_handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let elapsed = time.elapsed()?;
         println!("Device: time to compute quotient values: {:?}", elapsed);
 
         // Commit to the quotient values
@@ -316,21 +361,14 @@ where
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
             .flat_map(|values| {
-                let QuotientValues {
+                let DeviceQuotientValues {
                     quotient_chunks,
                     quotient_chunk_domains,
                 } = values;
 
-                let quotient_chunks_device = quotient_chunks
-                    .into_iter()
-                    .map(|chunk| CudaSync::new(chunk.to_device().to_column_major()));
-
-                quotient_chunk_domains
-                    .into_iter()
-                    .zip(quotient_chunks_device)
-                    .map(|(domain, result)| result.map(|c| (domain, c)))
+                quotient_chunk_domains.into_iter().zip(quotient_chunks)
             })
-            .collect::<Result<Vec<_>, CudaError>>()?;
+            .collect::<Vec<_>>();
         let (quotient_commit, quotient_prover_data) =
             self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
@@ -365,8 +403,7 @@ where
             })
             .collect::<Vec<_>>();
 
-        let trace_opening_points = main_trace_data
-            .domains
+        let trace_opening_points = domains
             .iter()
             .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
             .collect::<Vec<_>>();
@@ -440,7 +477,7 @@ where
                             local: vec![],
                             next: vec![],
                         });
-                    let log_degree = main_trace_data.domains[i].size().ilog2() as usize;
+                    let log_degree = domains[i].size().ilog2() as usize;
                     ChipOpenedValues {
                         preprocessed,
                         main,
@@ -463,8 +500,8 @@ where
                 chips: opened_values,
             },
             opening_proof,
-            chip_ordering: main_trace_data.chip_ordering,
-            public_values: main_trace_data.public_values,
+            chip_ordering,
+            public_values,
         })
     }
 }
@@ -501,8 +538,8 @@ where
             .collect::<Vec<_>>();
 
         shard_chips
-            .par_iter()
-            .zip(trace_data.traces.par_iter())
+            .iter()
+            .zip(trace_data.traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering

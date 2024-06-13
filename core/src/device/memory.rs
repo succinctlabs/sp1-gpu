@@ -2,6 +2,8 @@ use std::{ffi::c_void, mem, ptr};
 
 use crate::{device::error::CudaError, device::ffi};
 
+use super::buffer::DeviceBuffer;
+
 pub trait ToDevice {
     type DeviceType;
 
@@ -18,6 +20,16 @@ pub trait ToHost {
         Self: Sized,
     {
         self.to_host()
+    }
+}
+
+impl<T: Copy> ToDevice for [T] {
+    type DeviceType = DeviceBuffer<T>;
+
+    fn to_device(&self) -> Self::DeviceType {
+        let mut buffer = DeviceBuffer::with_capacity(self.len());
+        buffer.extend_from_host_slice(self);
+        buffer
     }
 }
 

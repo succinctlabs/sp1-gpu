@@ -1,10 +1,8 @@
-use crate::device::buffer::DeviceBuffer;
-use crate::device::memory::ToDevice;
+use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
+use p3_field::AbstractExtensionField;
 use p3_field::{Field, TwoAdicField};
-
-use std::marker::PhantomData;
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
@@ -13,13 +11,28 @@ use p3_field::AbstractField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 
-use sp1_core::stark::{quotient_values, PcsProverData};
+use air::P3EvalFolder;
+
+use std::collections::HashMap;
+use std::marker::PhantomData;
+
+use sp1_core::stark::{quotient_values, PcsProverData, StarkMachine};
 use sp1_core::{
     air::MachineAir,
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
 
-use super::{BabyBearPoseidon2Config, CpuProverData};
+use crate::device::buffer::DeviceBuffer;
+use crate::device::error::CudaError;
+use crate::device::memory::ToDevice;
+use crate::device::CudaSync;
+use crate::matrix::ColMajorMatrixDevice;
+use crate::stark::ffi::quotient_gpu;
+use crate::time::CudaInstant;
+
+const NUM_THREADS_PER_BLOCK: usize = 512;
+
+use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -27,11 +40,183 @@ pub struct QuotientValues<SC: StarkGenericConfig> {
     pub quotient_chunk_domains: Vec<Dom<SC>>,
 }
 
+pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
+    pub quotient_chunks: Vec<GpuMatrix<SC::Val>>,
+    pub quotient_chunk_domains: Vec<Dom<SC>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviceQuotientValuesGenerator<SC, A> {
+    chip_data: HashMap<String, (usize, Vec<Operation>)>,
+    _marker: PhantomData<(SC, A)>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
     log_n: usize,
     shift: F,
+}
+
+impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
+where
+    SC: BabyBearPoseidon2Config,
+    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
+{
+    pub fn new(machine: &StarkMachine<SC, A>) -> Self {
+        let mut chip_data = HashMap::new();
+        for (i, chip) in machine.chips().iter().enumerate() {
+            let (operations, _) = air::codegen_cuda_eval(chip);
+            chip_data.insert(chip.name().to_owned(), (i, operations));
+        }
+        Self {
+            chip_data,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn chip_data(&self, chip: &Chip<SC::Val, A>) -> &(usize, Vec<Operation>) {
+        self.chip_data.get(&chip.name()).unwrap()
+    }
+
+    pub fn get_evaluations_on_subdomain(
+        &self,
+        mut lde: ColMajorMatrixDevice<SC::Val>,
+        domain: Dom<SC>,
+        is_bit_reversed: bool,
+    ) -> Result<CudaSync<ColMajorMatrixDevice<SC::Val>>, CudaError> {
+        assert_eq!(domain.shift, SC::Val::generator());
+        assert_eq!(
+            lde.height(),
+            domain.size(),
+            "Currently, only supports the full domain"
+        );
+        if is_bit_reversed {
+            lde.bit_reverse_rows()?;
+        }
+
+        CudaSync::new(lde)
+    }
+
+    pub fn split_evals(
+        &self,
+        num_chunks: usize,
+        evals: &ColMajorMatrixDevice<SC::Val>,
+    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
+        (0..num_chunks)
+            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i)?))
+            .collect()
+    }
+
+    pub fn generate_quotient_values(
+        &self,
+        chip: &Chip<SC::Val, A>,
+        trace_domain: Dom<SC>,
+        preprocessed_lde: Option<ColMajorMatrixDevice<SC::Val>>,
+        main_lde: ColMajorMatrixDevice<SC::Val>,
+        permutation_lde: ColMajorMatrixDevice<SC::Val>,
+        permutation_challenges: &[SC::Challenge],
+        folding_challenge: SC::Challenge,
+        public_values: &[SC::Val],
+        cumulative_sum: SC::Challenge,
+    ) -> Result<DeviceQuotientValues<SC>, CudaError> {
+        let time = CudaInstant::now()?;
+        let log_quotient_degree = chip.log_quotient_degree();
+        let quotient_domain =
+            trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+
+        let prep_on_quotient_domain = preprocessed_lde
+            .map(|lde| self.get_evaluations_on_subdomain(lde, quotient_domain, true))
+            .unwrap_or_else(|| {
+                let mut mat = ColMajorMatrixDevice::with_capacity(1, quotient_domain.size());
+                unsafe {
+                    mat.set_max_width();
+                }
+                CudaSync::new(mat)
+            })?;
+
+        let main_on_quotient_domain =
+            self.get_evaluations_on_subdomain(main_lde, quotient_domain, false)?;
+
+        let perm_on_quotient_domain =
+            self.get_evaluations_on_subdomain(permutation_lde, quotient_domain, false)?;
+
+        let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+            <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+            quotient_domain.size(),
+        );
+
+        let permutation_challenges_device = permutation_challenges.to_device();
+        let public_values_device = public_values.to_device();
+        let trace_domain_device = trace_domain.to_device();
+        let quotient_domain_device = quotient_domain.to_device();
+        let (chip_id, operations) = self.chip_data(chip);
+        let operations_device = operations.to_device();
+        let trace_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
+        let quotient_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
+        let generator_powers = quotient_domain_generator
+            .powers()
+            .take(NUM_THREADS_PER_BLOCK)
+            .collect::<Vec<_>>()
+            .to_device();
+
+        let name = chip.name();
+
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to get evaluations on subdomain: {:?}",
+            &name, elapsed
+        );
+
+        let time = CudaInstant::now()?;
+        unsafe {
+            quotient_flat.set_max_width();
+            quotient_gpu::compute_values(
+                *chip_id,
+                operations_device.as_ptr(),
+                operations.len(),
+                cumulative_sum,
+                trace_domain_device,
+                quotient_domain_device,
+                prep_on_quotient_domain.view(),
+                main_on_quotient_domain.view(),
+                perm_on_quotient_domain.view(),
+                permutation_challenges_device.as_ptr(),
+                folding_challenge,
+                public_values_device.as_ptr(),
+                trace_domain_generator,
+                generator_powers.as_ptr(),
+                quotient_flat.view_mut(),
+                quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
+                NUM_THREADS_PER_BLOCK,
+            );
+        }
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to compute quotient values: {:?}",
+            &name, elapsed
+        );
+
+        let time = CudaInstant::now()?;
+        let quotient_degree = 1 << log_quotient_degree;
+        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
+        let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+        let elapsed = time.elapsed()?;
+        println!(
+            "Device: Chip {} time to split quotient values: {:?}",
+            &name, elapsed
+        );
+
+        Ok(DeviceQuotientValues {
+            quotient_chunks,
+            quotient_chunk_domains,
+        })
+    }
 }
 
 impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
@@ -88,9 +273,6 @@ pub struct LagrangeSelectorsView<'a, T: Field> {
     inv_zeroifier: *const T,
     _phantom: std::marker::PhantomData<&'a T>,
 }
-
-#[derive(Clone, Copy, Debug)]
-pub struct CpuQuotientValuesGenerator<SC, A>(PhantomData<(SC, A)>);
 
 impl<SC, A> CpuQuotientValuesGenerator<SC, A>
 where
@@ -193,11 +375,12 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
     use p3_field::extension::BinomialExtensionField;
-    use p3_field::{AbstractExtensionField, AbstractField};
+    use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use sp1_core::air::SP1_PROOF_NUM_PV_ELTS;
     use sp1_core::utils::BabyBearPoseidon2;
@@ -211,11 +394,9 @@ mod tests {
     };
 
     use crate::device::memory::ToHost;
+    use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
-    use crate::{
-        device::{buffer::DeviceBuffer, memory::ToDevice},
-        matrix::RowMajorMatrixDevice,
-    };
+    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
     const D: usize = 4;
@@ -321,9 +502,15 @@ mod tests {
                 alpha,
                 &public_values,
             );
+            let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
             println!("> CPU Time: {:?} ms", start.elapsed().as_millis());
-            let selectors = trace_domain.selectors_on_coset(quotient_domain);
-            let selectors_device = selectors.to_device();
+            let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
+            let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
+            let generator_powers = quotient_domain_generator
+                .powers()
+                .take(512)
+                .collect::<Vec<_>>()
+                .to_device();
 
             let trace_domain_device = trace_domain.to_device();
             let quotient_domain_device = quotient_domain.to_device();
@@ -352,7 +539,8 @@ mod tests {
             let permutation_challenges_device = permutation_challenges.to_device();
             let public_values_device = public_values.to_device();
 
-            let mut quotient_output = DeviceBuffer::with_capacity(quotient_domain.size());
+            let mut quotient_output =
+                ColMajorMatrixDevice::with_capacity(D, quotient_domain.size());
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device();
@@ -361,7 +549,7 @@ mod tests {
 
             let start = std::time::Instant::now();
             unsafe {
-                quotient_output.set_len(quotient_domain.size());
+                quotient_output.set_max_width();
                 quotient_gpu::compute_values(
                     i,
                     operations_device.as_ptr(),
@@ -375,8 +563,9 @@ mod tests {
                     permutation_challenges_device.as_ptr(),
                     alpha,
                     public_values_device.as_ptr(),
-                    selectors_device.to_view(),
-                    quotient_output.as_mut_ptr(),
+                    trace_domain_generator,
+                    generator_powers.as_ptr(),
+                    quotient_output.view_mut(),
                     num_rows / 512 * 2,
                     512,
                 );
@@ -384,9 +573,13 @@ mod tests {
             let data = quotient_output.to_host();
             println!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-            for i in 0..result.len() {
-                assert_eq!(data[i], result[i], "failed at index {}", i);
+            for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
+                assert_eq!(exp, res, "failed at index {}", i);
             }
+
+            // for i in 0..result.len() {
+            //     assert_eq!(data[i], result[i], "failed at index {}", i);
+            // }
         }
     }
 }

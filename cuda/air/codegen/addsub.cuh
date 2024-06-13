@@ -9,5 +9,5 @@ class AddSubAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 20;
     static constexpr size_t PERM_WIDTH = 5;
-    static constexpr size_t EXPRESSION_COUNT = 208;
+    static constexpr size_t EXPRESSION_COUNT = 11;
 };

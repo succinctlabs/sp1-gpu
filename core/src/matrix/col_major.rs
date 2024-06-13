@@ -128,6 +128,25 @@ impl ColMajorMatrixDevice<BabyBear> {
         }
         .to_result()
     }
+
+    pub fn vertically_strided(
+        &self,
+        stride: usize,
+        offset: usize,
+    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        assert_eq!(
+            self.height % stride,
+            0,
+            "height must be a multiple of stride"
+        );
+        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride);
+        unsafe { strided_values.set_max_len() };
+
+        let mut output = ColMajorMatrixDevice::new(strided_values, self.height / stride);
+        unsafe { ffi::strided_matrix(output.view_mut(), self.view(), stride, offset) };
+
+        Ok(output)
+    }
 }
 
 impl ToHost for ColMajorMatrixDevice<BabyBear> {
@@ -225,6 +244,36 @@ mod tests {
             .zip(device_matrix_back.values)
         {
             assert_eq!(val, exp);
+        }
+    }
+
+    #[test]
+    fn test_strided() {
+        let height = 1 << 16;
+        let width = 100;
+        let stride = 1 << 4;
+
+        let mut rng = thread_rng();
+        let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
+
+        let device_matrix = host_matrix.to_device().to_column_major();
+
+        for offset in 0..stride {
+            let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();
+            let mat_h = host_matrix.clone();
+            let host_matrix_strided = mat_h
+                .vertically_strided(stride, offset)
+                .to_row_major_matrix();
+
+            let device_matrix_back = strided_d.to_host();
+
+            for (val, exp) in host_matrix_strided
+                .values
+                .into_iter()
+                .zip(device_matrix_back.values)
+            {
+                assert_eq!(val, exp);
+            }
         }
     }
 }

@@ -9,5 +9,5 @@ class Bn254AddAssignAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 2051;
     static constexpr size_t PERM_WIDTH = 489;
-    static constexpr size_t EXPRESSION_COUNT = 42443;
+    static constexpr size_t EXPRESSION_COUNT = 318;
 };
