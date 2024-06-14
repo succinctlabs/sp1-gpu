@@ -38,12 +38,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for TimeLayer {
                     duration
                 ),
                 tracing::Level::INFO => {
-                    event!(tracing::Level::INFO, "Closed,  time: {:?}", duration)
+                    event!(parent: id, tracing::Level::INFO, "Closed,  time: {:?}", duration)
                 }
                 tracing::Level::ERROR => {
-                    event!(tracing::Level::ERROR, "Closed,  time: {:?}", duration)
+                    event!(parent: id, tracing::Level::ERROR, "Closed,  time: {:?}", duration)
                 }
-                _ => event!(tracing::Level::WARN, "Closed,  time: {:?}", duration),
+                _ => event!(parent: id, tracing::Level::WARN, "Closed,  time: {:?}", duration),
             }
         }
     }
