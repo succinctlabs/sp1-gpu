@@ -7,3 +7,4 @@
 #include "../../cuda/stark/stark.cuh"
 #include "../../cuda/scan/scan.cuh"
 #include "../../cuda/quotient/quotient.cuh"
+#include "../../cuda/opening/opening.cuh"

@@ -1,41 +1,53 @@
 #include "../fields/bb31_extension_t.cuh"
+#include "../utils/exception.cuh"
 #include "../utils/matrix.cuh"
 
+#include <cuda_runtime.h>
 #include <ntt/ntt.cuh>
 
 namespace opening_kernels {
+
 __global__ void interpolateCosetStage1(Matrix<bb31_t> cosetEvals,
                                        size_t cosetHeight,
                                        size_t cosetLogHeight, bb31_t shift,
                                        bb31_extension_t point, bb31_t *gPowers,
                                        bb31_extension_t *output) {
-    extern __shared__ bb31_extension_t sdata[];
+    printf("hello?\n");
+    // Initialize some shared memory for the partial sums computed in a block.
+    // extern __shared__ bb31_extension_t sdata[];
 
+    // Compute the partial sum using strided memory accesses.
     size_t col = blockIdx.x * blockDim.x + threadIdx.x;
     size_t row = blockIdx.y * blockDim.y + threadIdx.y;
     size_t rowStride = blockDim.y * gridDim.y;
-
     bb31_extension_t sum = bb31_extension_t::zero();
-    for (size_t i = row; i < cosetHeight; i += rowStride) {
-        size_t rev = bit_rev(i, cosetLogHeight);
-        bb31_extension_t diff = point - shift * gPowers[rev];
-        bb31_extension_t scale = gPowers[rev] * diff.reciprocal();
-        sum += cosetEvals.values[col * cosetEvals.height + rev] * scale;
-    }
+    printf("row: %d\n", row);
+    printf("cosetHeight: %d\n", cosetHeight);
+    printf("rowStride: %d\n", rowStride);
+    // for (size_t i = row; i < cosetHeight; i += rowStride) {
+    //     size_t rev = bit_rev(i, cosetLogHeight);
+    //     bb31_extension_t diff = point - shift * gPowers[rev];
+    //     bb31_extension_t scale = gPowers[rev] * diff.reciprocal();
+    //     printf("scale: %d\n", scale);
+    //     sum += cosetEvals.values[col * cosetEvals.height + rev] * scale;
+    // }
 
-    sdata[threadIdx.x] = sum;
-    __syncthreads();
+    // // Store the partial sum in shared memory.
+    // sdata[threadIdx.x] = sum;
+    // __syncthreads();
 
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (threadIdx.x < s) {
-            sdata[threadIdx.x] += sdata[threadIdx.x + s];
-        }
-        __syncthreads();
-    }
+    // // Accumulate the partial sums in shared memory.
+    // for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+    //     if (threadIdx.x < s) {
+    //         sdata[threadIdx.x] += sdata[threadIdx.x + s];
+    //     }
+    //     __syncthreads();
+    // }
 
-    if (threadIdx.x == 0) {
-        output[col * gridDim.x + blockIdx.x] = sdata[0];
-    }
+    // // Store the final sum across the entire block in global memory.
+    // if (threadIdx.x == 0) {
+    //     output[col * gridDim.x + blockIdx.x] = sdata[0];
+    // }
 }
 
 __global__ void interpolateCosetStage2(bb31_extension_t *partialSums,
@@ -51,23 +63,31 @@ __global__ void interpolateCosetStage2(bb31_extension_t *partialSums,
 }  // namespace opening_kernels
 
 namespace opening_gpu {
-extern "C" void interpolateCoset(Matrix<bb31_t> cosetEvals, size_t cosetHeight,
-                                 size_t cosetLogHeight, bb31_t shift,
-                                 bb31_extension_t point, bb31_t *gPowers,
-                                 bb31_extension_t *output, size_t numBlocksX,
-                                 size_t numBlocksY, size_t numThreadsPerBlockX,
-                                 size_t numThreadsPerBlockY) {
-    dim3 dimBlock(numThreadsPerBlockX, numThreadsPerBlockY);
-    dim3 dimGrid(numBlocksX, numBlocksY);
+extern "C" rustCudaError_t interpolateCoset(Matrix<bb31_t> cosetEvals,
+                                            size_t cosetHeight,
+                                            size_t cosetLogHeight, bb31_t shift,
+                                            bb31_extension_t point,
+                                            bb31_t *gPowers,
+                                            bb31_extension_t *output) {
+    printf("cosetEvals.width: %d\n", cosetEvals.width);
+    dim3 dimGrid(cosetEvals.width, 4096);
+    dim3 dimBlock(64, 64);
+
+    bb31_extension_t *stage1Output;
+    cudaMalloc((void **)&stage1Output,
+               sizeof(bb31_extension_t) * dimGrid.x * dimGrid.y);
+
+    printf("interpolateCosetStage1\n");
     opening_kernels::interpolateCosetStage1<<<dimGrid, dimBlock>>>(
         cosetEvals, cosetHeight, cosetLogHeight, shift, point, gPowers, output);
-
     cudaDeviceSynchronize();
 
-    // opening_kernels::interpolateCosetStage2<<<dimGrid, dimBlock>>>(
-    //     output, output, numBlocksX * numBlocksY);
+    printf("interpolateCosetStage2\n");
+    opening_kernels::interpolateCosetStage2<<<dimGrid.x, 1>>>(
+        stage1Output, output, dimGrid.y);
+    cudaDeviceSynchronize();
 
-    // cudaDeviceSynchronize();
+    cudaFree(stage1Output);
 }
 }  // namespace opening_gpu
 

@@ -35,6 +35,7 @@ fn main() {
         nvcc.cuda(true).flag("-default-stream=per-thread");
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
+        nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
         nvcc.flag("--threads").flag("14");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");

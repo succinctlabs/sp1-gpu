@@ -215,12 +215,42 @@ pub fn compute_inverse_denominators(
         .collect()
 }
 
+pub mod opening_gpu {
+    use p3_baby_bear::BabyBear;
+    use sp1_core::utils::InnerChallenge;
+
+    use crate::matrix::MatrixViewDevice;
+
+    #[link_name = "opening_gpu"]
+    #[allow(unused_attributes)]
+    extern "C" {
+        #[link_name = "interpolateCoset"]
+        pub fn interpolate_coset(
+            coset_evals: MatrixViewDevice<BabyBear>,
+            coset_height: usize,
+            coset_log_height: usize,
+            shift: BabyBear,
+            point: InnerChallenge,
+            g_powers: *const BabyBear,
+            output: *mut InnerChallenge,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use p3_baby_bear::BabyBear;
-    use p3_field::{extension::BinomialExtensionField, AbstractField};
+    use p3_field::{extension::BinomialExtensionField, AbstractField, TwoAdicField};
     use p3_interpolation::interpolate_coset;
     use p3_matrix::{bitrev::BitReversalPerm, dense::RowMajorMatrix, Matrix};
+    use p3_util::log2_strict_usize;
+    use sp1_core::utils::InnerChallenge;
+
+    use crate::device::memory::ToHost;
+    use crate::{
+        device::{buffer::DeviceBuffer, memory::ToDevice},
+        fri::opening_gpu,
+    };
 
     #[test]
     pub fn test_interpolate_coset_gpu() {
@@ -231,14 +261,36 @@ mod tests {
         let matrix: RowMajorMatrix<BabyBear> =
             RowMajorMatrix::rand(&mut rng, rows << log_blowup, cols);
 
-        let point = BinomialExtensionField::<BabyBear, 4>::two();
         let (low_coset, _) = matrix.split_rows(matrix.height() >> log_blowup);
-        let gt = interpolate_coset(
-            &BitReversalPerm::new_view(low_coset),
-            BabyBear::generator(),
-            point,
-        );
+        let shift = BabyBear::one();
+        let point = BinomialExtensionField::<BabyBear, 4>::two();
+        let gt = interpolate_coset(&BitReversalPerm::new_view(low_coset), shift, point);
 
-        println!("{:?}", gt);
+        let matrix_device = matrix.transpose().to_device();
+        let coset_height = rows << log_blowup;
+        let coset_log_height = log2_strict_usize(coset_height);
+        let g = BabyBear::two_adic_generator(coset_log_height);
+        let g_powers = g
+            .powers()
+            .take(coset_height)
+            .collect::<Vec<_>>()
+            .to_device();
+        let mut output_device: DeviceBuffer<InnerChallenge> =
+            DeviceBuffer::with_capacity(matrix_device.width());
+        unsafe {
+            output_device.set_len(matrix_device.width());
+            opening_gpu::interpolate_coset(
+                matrix_device.view(),
+                rows << log_blowup,
+                coset_log_height,
+                shift,
+                point,
+                g_powers.as_ptr(),
+                output_device.as_mut_ptr(),
+            );
+        };
+        let output = output_device.to_host();
+        println!("{:?}", &output[0..3]);
+        println!("{:?}", &gt[0..3]);
     }
 }
