@@ -133,9 +133,9 @@ class bb31_extension_t {
     }
 
     __device__ __forceinline__ bb31_extension_t reciprocal() const {
-        bool isZero = true;
+        bool isZero = false;
         for (size_t i = 0; i < D; i++) {
-            if (value[i] != 0) {
+            if (value[i].val != 0) {
                 isZero = false;
                 break;
             }

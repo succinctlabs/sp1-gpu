@@ -231,6 +231,7 @@ pub mod opening_gpu {
             coset_log_height: usize,
             shift: BabyBear,
             point: InnerChallenge,
+            barycentricScalar: InnerChallenge,
             g_powers: *const BabyBear,
             output: *mut InnerChallenge,
         );
@@ -244,6 +245,7 @@ mod tests {
     use p3_interpolation::interpolate_coset;
     use p3_matrix::{bitrev::BitReversalPerm, dense::RowMajorMatrix, Matrix};
     use p3_util::log2_strict_usize;
+    use rand::Rng;
     use sp1_core::utils::InnerChallenge;
 
     use crate::device::memory::ToHost;
@@ -251,46 +253,58 @@ mod tests {
         device::{buffer::DeviceBuffer, memory::ToDevice},
         fri::opening_gpu,
     };
+    use p3_field::two_adic_coset_zerofier;
+    use p3_field::AbstractExtensionField;
+    use p3_field::Field;
+
+    type F = BabyBear;
+    type EF = BinomialExtensionField<BabyBear, 4>;
 
     #[test]
     pub fn test_interpolate_coset_gpu() {
         let mut rng = rand::thread_rng();
-        let rows = 1 << 8;
+        let rows = 256;
         let log_blowup = 1;
-        let cols = 128;
+        let cols = 100;
         let matrix: RowMajorMatrix<BabyBear> =
             RowMajorMatrix::rand(&mut rng, rows << log_blowup, cols);
 
         let (low_coset, _) = matrix.split_rows(matrix.height() >> log_blowup);
-        let shift = BabyBear::one();
-        let point = BinomialExtensionField::<BabyBear, 4>::two();
+        let shift: BabyBear = rng.gen();
+        let point: BinomialExtensionField<BabyBear, 4> = rng.gen();
         let gt = interpolate_coset(&BitReversalPerm::new_view(low_coset), shift, point);
 
         let matrix_device = matrix.transpose().to_device();
-        let coset_height = rows << log_blowup;
+        let coset_height = rows;
         let coset_log_height = log2_strict_usize(coset_height);
         let g = BabyBear::two_adic_generator(coset_log_height);
-        let g_powers = g
-            .powers()
-            .take(coset_height)
-            .collect::<Vec<_>>()
-            .to_device();
-        let mut output_device: DeviceBuffer<InnerChallenge> =
-            DeviceBuffer::with_capacity(matrix_device.width());
+        let g_powers = g.powers().take(coset_height).collect::<Vec<_>>();
+        let g_powers_device = g_powers.to_device();
+
+        let zerofier = two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), point);
+        let denominator =
+            F::from_canonical_usize(coset_height) * shift.exp_u64(coset_height as u64 - 1);
+        let barycentricScalar = zerofier * denominator.inverse();
+
+        let mut output_device: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(cols);
         unsafe {
-            output_device.set_len(matrix_device.width());
+            output_device.set_len(cols);
             opening_gpu::interpolate_coset(
                 matrix_device.view(),
-                rows << log_blowup,
+                coset_height,
                 coset_log_height,
                 shift,
                 point,
-                g_powers.as_ptr(),
+                barycentricScalar,
+                g_powers_device.as_ptr(),
                 output_device.as_mut_ptr(),
             );
         };
+
         let output = output_device.to_host();
-        println!("{:?}", &output[0..3]);
-        println!("{:?}", &gt[0..3]);
+        for i in 0..output.len() {
+            assert_eq!(output[i], gt[i]);
+        }
+        println!("matched across {:?} elements", output.len());
     }
 }
