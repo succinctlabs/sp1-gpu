@@ -6,6 +6,7 @@ use p3_challenger::{CanObserve, FieldChallenger};
 use itertools::Itertools;
 
 use tracing::debug;
+use tracing::debug_span;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::Pcs;
@@ -242,14 +243,12 @@ where
             .map(|_| challenger.sample_ext_element())
             .collect::<Vec<_>>();
         // Generate permutation traces.
-        let time = CudaInstant::now()?;
-        let permutation_traces =
-            self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges)?;
-        let elapsed = time.elapsed()?;
-        debug!("Time to generate permutation traces: {:?}", elapsed);
+        let permutation_traces = debug_span!("Generate permutation traces").in_scope(|| {
+            self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges)
+        })?;
 
         // Commit to the permutation traces.
-        let time = CudaInstant::now()?;
+        let span = debug_span!("Commit to permutation traces").entered();
         let perm_domains_and_traces = main_trace_data
             .domains
             .iter()
@@ -258,8 +257,7 @@ where
             .collect::<Vec<_>>();
         let (permutation_commit, perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
-        let elapsed = time.elapsed()?;
-        debug!("Time to commit permutation traces: {:?}", elapsed);
+        span.exit();
 
         // Observe the permutation commitment.
         challenger.observe(permutation_commit);
@@ -309,7 +307,8 @@ where
             .collect::<Vec<_>>();
 
         // Compute values
-        let time = CudaInstant::now()?;
+        let quotient_values_span = debug_span!("Compute shard quotient values");
+        let guard = quotient_values_span.enter();
         let quotient_values = std::thread::scope(|s| {
             let mut quotient_value_handles = Vec::with_capacity(shard_chips.len());
 
@@ -322,7 +321,11 @@ where
                 let cumulative_sums = cumulative_sums.as_slice();
                 let public_values = public_values.as_slice();
                 let permutation_challenges = permutation_challenges.as_slice();
+                let parent = &quotient_values_span;
                 let handle = s.spawn(move || {
+                    let chip_span =
+                        debug_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
+                            .entered();
                     let trace_domain = perm_domain;
                     let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
                     drop(trace);
@@ -338,7 +341,8 @@ where
 
                     let cumulative_sum = cumulative_sums[i];
 
-                    self.quotient_generator
+                    let values = self
+                        .quotient_generator
                         .generate_quotient_values(
                             chip,
                             trace_domain,
@@ -350,7 +354,9 @@ where
                             public_values,
                             cumulative_sum,
                         )
-                        .unwrap()
+                        .unwrap();
+                    chip_span.exit();
+                    values
                 });
                 quotient_value_handles.push(handle);
             }
@@ -360,11 +366,11 @@ where
                 .map(|handle| handle.join().unwrap())
                 .collect::<Vec<_>>()
         });
-        let elapsed = time.elapsed()?;
-        debug!("Time to compute quotient values: {:?}", elapsed);
+        drop(guard);
+        drop(quotient_values_span);
 
         // Commit to the quotient values
-        let time = CudaInstant::now()?;
+        let time_to_commit_quotient_values = debug_span!("Commit quotient values").entered();
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
             .flat_map(|values| {
@@ -379,15 +385,11 @@ where
         let (quotient_commit, quotient_prover_data) =
             self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
-        debug!("Time to commit quotient values: {:?}", time.elapsed()?);
-        // Transfer the quotient data to the host.
-        let time = CudaInstant::now()?;
-        let host_quotient_prover_data = quotient_prover_data.into_host();
-        debug!(
-            "Time to transfer quotient prover data from device: {:?}",
-            time.elapsed()?
-        );
+        time_to_commit_quotient_values.exit();
 
+        // Transfer the quotient data to the host.
+        let host_quotient_prover_data = debug_span!("Transfer quotient prover data from device")
+            .in_scope(|| quotient_prover_data.into_host());
         drop(quotient_domains_and_chunks);
 
         // Observe the quotient commitment.
@@ -417,18 +419,18 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
-        let time = std::time::Instant::now();
-        let (openings, opening_proof) = self.opening_prover.open(
-            self.pcs(),
-            vec![
-                (&pk.data, preprocessed_opening_points),
-                (&host_main_prover_data, trace_opening_points.clone()),
-                (&host_perm_prover_data, trace_opening_points),
-                (&host_quotient_prover_data, quotient_opening_points),
-            ],
-            challenger,
-        );
-        debug!("Time to compute opening proof: {:?}", time.elapsed());
+        let (openings, opening_proof) = debug_span!("Compute opening proof").in_scope(|| {
+            self.opening_prover.open(
+                self.pcs(),
+                vec![
+                    (&pk.data, preprocessed_opening_points),
+                    (&host_main_prover_data, trace_opening_points.clone()),
+                    (&host_perm_prover_data, trace_opening_points),
+                    (&host_quotient_prover_data, quotient_opening_points),
+                ],
+                challenger,
+            )
+        });
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
@@ -857,6 +859,7 @@ mod tests {
         stark::{Challenge, RiscvAir, Verifier},
         utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
     };
+    use tracing::info;
 
     use crate::utils::init_tracer;
 
@@ -1074,7 +1077,7 @@ mod tests {
 
         let time = std::time::Instant::now();
         let shards = gpu_prover.shard(record);
-        println!("time to shard: {:?}", time.elapsed());
+        debug!("time to shard: {:?}", time.elapsed());
 
         let e2e_time = std::time::Instant::now();
         for (i, shard) in shards.into_iter().enumerate() {
@@ -1083,15 +1086,9 @@ mod tests {
             let main_commit = main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
-            let time = std::time::Instant::now();
-            let proof = timed_debug!(
-                "Prove shard",
-                gpu_prover
-                    .prove_shard(&pk, main_data, &mut challenger)
-                    .unwrap()
-            );
-            let prove_shard_time = time.elapsed();
-            println!("Device prove_shard time: {:?}", prove_shard_time);
+            let proof = gpu_prover
+                .prove_shard(&pk, main_data, &mut challenger)
+                .unwrap();
 
             // Verify the proof.
             let mut challenger = gpu_prover.machine.config().challenger();
@@ -1110,7 +1107,7 @@ mod tests {
             .unwrap();
         }
         let e2e = e2e_time.elapsed();
-        println!(
+        info!(
             "Summary: cycles={}, e2e={:?}, khz={:.2}",
             cycles,
             e2e,

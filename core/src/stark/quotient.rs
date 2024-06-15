@@ -1,4 +1,4 @@
-use tracing::debug;
+use tracing::debug_span;
 
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
@@ -30,7 +30,6 @@ use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::stark::ffi::quotient_gpu;
-use crate::time::CudaInstant;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
@@ -113,7 +112,6 @@ where
             .collect()
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn generate_quotient_values(
         &self,
         chip: &Chip<SC::Val, A>,
@@ -126,7 +124,8 @@ where
         public_values: &[SC::Val],
         cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
-        let time = CudaInstant::now()?;
+        // Get the evaluations on the quotient domain.
+        let evaluations_span = debug_span!("Get evaluations on quotient domain").entered();
         let log_quotient_degree = chip.log_quotient_degree();
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
@@ -146,12 +145,15 @@ where
 
         let perm_on_quotient_domain =
             self.get_evaluations_on_subdomain(permutation_lde, quotient_domain, false)?;
+        evaluations_span.exit();
 
         let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
             <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
             quotient_domain.size(),
         );
 
+        // Move data to device and get generator powers.
+        let generator_powers_span = debug_span!("Get generator powers").entered();
         let permutation_challenges_device = permutation_challenges.to_device();
         let public_values_device = public_values.to_device();
         let trace_domain_device = trace_domain.to_device();
@@ -167,17 +169,11 @@ where
             .take(NUM_THREADS_PER_BLOCK)
             .collect::<Vec<_>>()
             .to_device();
+        generator_powers_span.exit();
 
-        let name = chip.name();
+        // Compute quotient values.
 
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Chip {} time to get evaluations on subdomain: {:?}",
-            &name, elapsed
-        );
-
-        let time = CudaInstant::now()?;
-        unsafe {
+        debug_span!("Compute quotient values").in_scope(|| unsafe {
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
                 *chip_id,
@@ -198,22 +194,13 @@ where
                 quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
                 NUM_THREADS_PER_BLOCK,
             );
-        }
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Chip {} time to compute quotient values: {:?}",
-            &name, elapsed
-        );
+        });
 
-        let time = CudaInstant::now()?;
+        let split_values_span = debug_span!("Split quotient values").entered();
         let quotient_degree = 1 << log_quotient_degree;
         let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Chip {} time to split quotient values: {:?}",
-            &name, elapsed
-        );
+        split_values_span.exit();
 
         Ok(DeviceQuotientValues {
             quotient_chunks,

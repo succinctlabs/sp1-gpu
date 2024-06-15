@@ -27,6 +27,7 @@ rayon = "1.10.0"
 [build-dependencies]
 cc = "1.0"
 which = "6.0"
+air = { path = "../air" }
 
 [dev-dependencies]
 rand = "0.8.5"
