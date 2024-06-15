@@ -20,7 +20,8 @@ pub fn init_tracer() {
             .add_directive("p3_keccak_air=off".parse().unwrap())
             .add_directive("p3_fri=off".parse().unwrap())
             .add_directive("p3_dft=off".parse().unwrap())
-            .add_directive("p3_challenger=off".parse().unwrap());
+            .add_directive("p3_challenger=off".parse().unwrap())
+            .add_directive("p3_merkle_tree=off".parse().unwrap());
 
         // if the TRACER_TYPE environment variable is set, use it to determine which logger to configure
         // (tracing_forest or tracing_subscriber)
