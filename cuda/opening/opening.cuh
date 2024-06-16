@@ -80,6 +80,16 @@ __global__ void computeReducedOpeningsForLogHeight(
     reducedOpeningsForLogHeight[idx] +=
         invDenoms[idx] * alphaPowOffset * (rowSum - sumAlphaPowTimesY);
 }
+
+__global__ void fetchRow(
+    Matrix<bb31_t> matrix,
+    size_t index,
+    bb31_t *output
+) {
+    for (size_t i = 0; i < matrix.height; i++) {
+        output[i] = matrix.values[i * matrix.width + index];
+    }
+}
 }  // namespace opening_kernels
 
 namespace opening_gpu {
@@ -156,5 +166,15 @@ extern "C" rustCudaError_t computeReducedOpeningForLogHeight(
         sumAlphaPowTimesY,
         reducedOpeningsForLogHeight
     );
+}
+
+extern "C" rustCudaError_t fetchRow(
+    Matrix<bb31_t> matrix,
+    size_t index,
+    bb31_t* output
+) {
+    dim3 gridDim(1);
+    dim3 blockDim(1);
+    opening_kernels::fetchRow<<<gridDim, blockDim>>>(matrix, index, output);
 }
 }  // namespace opening_gpu

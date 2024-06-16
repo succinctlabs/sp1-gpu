@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::device::memory::ToDevice;
+use crate::device::memory::ToHost;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
@@ -10,6 +12,7 @@ use p3_commit::Mmcs;
 use p3_commit::{OpenedValues, Pcs};
 use p3_field::batch_multiplicative_inverse;
 use p3_field::cyclic_subgroup_coset_known_order;
+use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
@@ -18,6 +21,7 @@ use p3_interpolation::interpolate_coset;
 use p3_matrix::bitrev::BitReversalPerm;
 use p3_matrix::Matrix;
 use p3_util::linear_map::LinearMap;
+use p3_util::log2_ceil_usize;
 use p3_util::reverse_slice_index_bits;
 use p3_util::VecExt;
 use rayon::iter::IndexedParallelIterator;
@@ -28,6 +32,9 @@ use sp1_core::stark::{OpeningProof, PcsProverData};
 use sp1_core::utils::log2_strict_usize;
 use sp1_core::utils::InnerChallenge;
 use sp1_core::utils::{InnerChallengeMmcs, InnerDft, InnerVal, InnerValMmcs};
+
+type F = BabyBear;
+type EF = BinomialExtensionField<BabyBear, 4>;
 
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::stark::BabyBearPoseidon2Config;
@@ -102,73 +109,116 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
                 let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
 
-                // TODO: KERNELIZE
-                // for &point in points_for_mat {
-                //     // Use Barycentric interpolation to evaluate the matrix at the given point.
-                //     let ys =
-                //         let (low_coset, _) = mat.split_rows(mat.height >> pcs.fri.log_blowup);
-                //         interpolate_coset(
-                //             &BitReversalPerm::new_view(low_coset),
-                //             InnerVal::generator(),
-                //             point,
-                //         )
-                // }
+                for &point in points_for_mat {
+                    // Use Barycentric interpolation to evaluate the matrix at the given point.
+                    let coset_height = mat.height >> pcs.fri.log_blowup;
+                    let ys = opening_gpu::interpolate_coset(
+                        mat,
+                        coset_height,
+                        InnerVal::generator(),
+                        point,
+                    );
 
-                // let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
-                // let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                    let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
+                    let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
 
-                // TODO: KERNELIZE
-                // reduced_opening_for_log_height
-                //     .par_iter_mut()
-                //     .zip_eq(mat.par_row_slices())
-                //     // This might be longer, but zip will truncate to smaller subgroup
-                //     // (which is ok because it's bitrev)
-                //     .zip(inv_denoms.get(&point).unwrap())
-                //     .for_each(|((reduced_opening, row), &inv_denom)| {
-                //         let row_sum = alpha_reducer.reduce_base(row);
-                //         *reduced_opening +=
-                //             inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
-                //     });
+                    let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
+                    let alpha_powers = alpha_reducer.powers.to_device();
 
-                //     num_reduced[log_height] += mat.width();
-                //     opened_values_for_mat.push(ys);
-                // }
+                    let mut reduced_opening_for_log_height_device =
+                        reduced_opening_for_log_height.to_device();
+                    unsafe {
+                        opening_gpu::compute_reduced_openings_for_log_height(
+                            mat,
+                            inv_denoms_at_point.as_ptr(),
+                            alpha_powers.as_ptr(),
+                            alpha_pow_offset,
+                            sum_alpha_pows_times_y,
+                            reduced_opening_for_log_height.as_mut_ptr(),
+                        );
+                    }
+                    let reduced_opening_for_log_height_host =
+                        reduced_opening_for_log_height_device.to_host();
+
+                    for i in 0..reduced_opening_for_log_height_host.len() {
+                        reduced_opening_for_log_height[i] += reduced_opening_for_log_height_host[i];
+                    }
+
+                    num_reduced[log_height] += mat.width;
+                    opened_values_for_mat.push(ys);
+                }
             }
         }
 
-        // let (fri_proof, query_indices) =
-        //     p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
+        let (fri_proof, query_indices) =
+            p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
 
-        // let query_openings = query_indices
-        //     .into_iter()
-        //     .map(|index| {
-        //         rounds
-        //             .iter()
-        //             .map(|(data, _)| {
-        //                 let log_max_height = log2_strict_usize(pcs.mmcs.get_max_height(data));
-        //                 let bits_reduced = log_global_max_height - log_max_height;
-        //                 let reduced_index = index >> bits_reduced;
-        //                 let (opened_values, opening_proof) =
-        //                     pcs.mmcs.open_batch(reduced_index, data);
-        //                 BatchOpening::<InnerVal, InnerValMmcs> {
-        //                     opened_values,
-        //                     opening_proof,
-        //                 }
-        //             })
-        //             .collect::<Vec<_>>()
-        //     })
-        //     .collect::<Vec<_>>();
+        let query_openings = query_indices
+            .into_iter()
+            .map(|index| {
+                rounds
+                    .iter()
+                    .map(|(data, _)| {
+                        let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
+                        let log_max_height = log2_ceil_usize(max_height);
+                        let bits_reduced = log_global_max_height - log_max_height;
+                        let reduced_index = index >> bits_reduced;
+                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
+                        BatchOpening::<InnerVal, InnerValMmcs> {
+                            opened_values,
+                            opening_proof,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
 
-        // (
-        //     all_opened_values,
-        //     TwoAdicFriPcsProof {
-        //         fri_proof,
-        //         query_openings,
-        //     },
-        // )
-
-        todo!()
+        (
+            all_opened_values,
+            TwoAdicFriPcsProof {
+                fri_proof,
+                query_openings,
+            },
+        )
     }
+}
+
+fn open_batch(
+    index: usize,
+    prover_data: &FieldMerkleTreeGpu<
+        BabyBear,
+        [BabyBear; DIGEST_WIDTH],
+        ColMajorMatrixDevice<BabyBear>,
+    >,
+) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
+    let max_height = prover_data.leaves.iter().map(|m| m.width()).max().unwrap();
+    let log_max_height = log2_ceil_usize(max_height);
+
+    let openings = prover_data
+        .leaves
+        .iter()
+        .map(|matrix| {
+            let log2_height = log2_ceil_usize(matrix.height());
+            let bits_reduced = log_max_height - log2_height;
+            let reduced_index = index >> bits_reduced;
+            let mut output_device = vec![F::zero(); matrix.height()].to_device();
+            unsafe {
+                output_device.set_len(matrix.height());
+                opening_gpu::fetch_row(matrix.view(), reduced_index, output_device.as_mut_ptr());
+            }
+            output_device.to_host()
+        })
+        .collect_vec();
+
+    let proof = (0..log_max_height)
+        .map(|i| {
+            let start = (index >> i) ^ 1;
+            let end = start + 1;
+            prover_data.digest_layers[i][start..end].to_host()[0]
+        })
+        .collect();
+
+    (openings, proof)
 }
 
 pub fn compute_inverse_denominators(
@@ -259,6 +309,9 @@ pub mod opening_gpu {
             sum_alpha_pow_times_y: EF,
             reduced_openings_for_log_height: *mut EF,
         );
+
+        #[link_name = "fetchRow"]
+        pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
     }
 
     pub fn interpolate_coset(
