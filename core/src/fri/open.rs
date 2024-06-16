@@ -216,46 +216,104 @@ pub fn compute_inverse_denominators(
 }
 
 pub mod opening_gpu {
+    use crate::device::memory::ToHost;
     use p3_baby_bear::BabyBear;
+    use p3_field::extension::BinomialExtensionField;
+    use p3_field::two_adic_coset_zerofier;
+    use p3_field::AbstractExtensionField;
+    use p3_field::AbstractField;
+    use p3_field::Field;
+    use p3_field::TwoAdicField;
+    use p3_util::log2_strict_usize;
+    use rayon::iter::IndexedParallelIterator;
     use sp1_core::utils::InnerChallenge;
 
+    use crate::device::buffer::DeviceBuffer;
+    use crate::device::memory::ToDevice;
     use crate::matrix::MatrixViewDevice;
+
+    type F = BabyBear;
+    type EF = BinomialExtensionField<BabyBear, 4>;
 
     #[link_name = "opening_gpu"]
     #[allow(unused_attributes)]
     extern "C" {
         #[link_name = "interpolateCoset"]
-        pub fn interpolate_coset(
+        pub fn interpolate_coset_raw(
             coset_evals: MatrixViewDevice<BabyBear>,
             coset_height: usize,
             coset_log_height: usize,
-            shift: BabyBear,
-            point: InnerChallenge,
-            barycentricScalar: InnerChallenge,
-            g_powers: *const BabyBear,
-            output: *mut InnerChallenge,
+            shift: F,
+            point: EF,
+            barycentric_scalar: EF,
+            g_powers: *const F,
+            output: *mut EF,
         );
+
+        #[link_name = "computeReducedOpeningForLogHeight"]
+        pub fn compute_reduced_openings_for_log_height(
+            matrix: MatrixViewDevice<F>,
+            inv_denoms: *const EF,
+            alpha_powers: *const EF,
+            alpha_pow_offset: EF,
+            sum_alpha_pow_times_y: EF,
+            reduced_openings_for_log_height: *mut EF,
+        );
+    }
+
+    pub fn interpolate_coset(
+        coset_evals: MatrixViewDevice<BabyBear>,
+        coset_height: usize,
+        shift: BabyBear,
+        point: InnerChallenge,
+    ) -> Vec<InnerChallenge> {
+        let cols = coset_evals.height;
+        let coset_log_height = log2_strict_usize(coset_height);
+        let g = BabyBear::two_adic_generator(coset_log_height);
+        let g_powers = g.powers().take(coset_height).collect::<Vec<_>>();
+        let g_powers_device = g_powers.to_device();
+
+        let zerofier = two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), point);
+        let denominator =
+            F::from_canonical_usize(coset_height) * shift.exp_u64(coset_height as u64 - 1);
+        let barycentric_scalar = zerofier * denominator.inverse();
+
+        let mut output_device: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(cols);
+        unsafe {
+            output_device.set_len(cols);
+            interpolate_coset_raw(
+                coset_evals,
+                coset_height,
+                coset_log_height,
+                shift,
+                point,
+                barycentric_scalar,
+                g_powers_device.as_ptr(),
+                output_device.as_mut_ptr(),
+            );
+        };
+
+        output_device.to_host()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::device::memory::ToHost;
     use p3_baby_bear::BabyBear;
-    use p3_field::{extension::BinomialExtensionField, AbstractField, TwoAdicField};
+    use p3_field::extension::BinomialExtensionField;
+    use p3_field::AbstractField;
+    use p3_fri::PowersReducer;
     use p3_interpolation::interpolate_coset;
     use p3_matrix::{bitrev::BitReversalPerm, dense::RowMajorMatrix, Matrix};
     use p3_util::log2_strict_usize;
     use rand::Rng;
-    use sp1_core::utils::InnerChallenge;
+    use rayon::iter::IntoParallelRefMutIterator;
+    use rayon::iter::ParallelIterator;
+    use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator};
 
-    use crate::device::memory::ToHost;
-    use crate::{
-        device::{buffer::DeviceBuffer, memory::ToDevice},
-        fri::opening_gpu,
-    };
-    use p3_field::two_adic_coset_zerofier;
-    use p3_field::AbstractExtensionField;
-    use p3_field::Field;
+    use crate::device::buffer::DeviceBuffer;
+    use crate::{device::memory::ToDevice, fri::opening_gpu};
 
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
@@ -274,37 +332,72 @@ mod tests {
         let point: BinomialExtensionField<BabyBear, 4> = rng.gen();
         let gt = interpolate_coset(&BitReversalPerm::new_view(low_coset), shift, point);
 
-        let matrix_device = matrix.transpose().to_device();
+        let coset_evals = matrix.transpose().to_device();
         let coset_height = rows;
-        let coset_log_height = log2_strict_usize(coset_height);
-        let g = BabyBear::two_adic_generator(coset_log_height);
-        let g_powers = g.powers().take(coset_height).collect::<Vec<_>>();
-        let g_powers_device = g_powers.to_device();
+        let output = opening_gpu::interpolate_coset(coset_evals.view(), coset_height, shift, point);
 
-        let zerofier = two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), point);
-        let denominator =
-            F::from_canonical_usize(coset_height) * shift.exp_u64(coset_height as u64 - 1);
-        let barycentricScalar = zerofier * denominator.inverse();
-
-        let mut output_device: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(cols);
-        unsafe {
-            output_device.set_len(cols);
-            opening_gpu::interpolate_coset(
-                matrix_device.view(),
-                coset_height,
-                coset_log_height,
-                shift,
-                point,
-                barycentricScalar,
-                g_powers_device.as_ptr(),
-                output_device.as_mut_ptr(),
-            );
-        };
-
-        let output = output_device.to_host();
         for i in 0..output.len() {
             assert_eq!(output[i], gt[i]);
         }
         println!("matched across {:?} elements", output.len());
+    }
+
+    #[test]
+    pub fn test_compute_reduced_openings_gpu() {
+        let mut rng = rand::thread_rng();
+        let rows = 4;
+        let log_blowup = 1;
+        let cols = 4;
+        let matrix: RowMajorMatrix<BabyBear> =
+            RowMajorMatrix::rand(&mut rng, rows << log_blowup, cols);
+        let height = matrix.height();
+
+        let alpha: EF = rng.gen();
+        let alpha_reducer = PowersReducer::<F, EF>::new(alpha, matrix.width());
+        let mut reduced_opening_for_log_height = vec![EF::zero(); matrix.height()];
+        let inv_denoms: Vec<EF> = vec![rng.gen(); matrix.height()];
+
+        let pow: u64 = rng.gen();
+        let alpha_pow_offset = alpha.exp_u64(pow);
+        let ys: Vec<EF> = vec![rng.gen(); matrix.width()];
+        let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+        reduced_opening_for_log_height
+            .par_iter_mut()
+            .zip_eq(matrix.par_row_slices())
+            .zip(inv_denoms.par_iter())
+            .for_each(|((reduced_opening, row), &inv_denom)| {
+                let row_sum = alpha_reducer.reduce_base(row);
+                *reduced_opening +=
+                    inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
+            });
+
+        let matrix_device = matrix.transpose().to_device();
+        let inv_denoms_device = inv_denoms.to_device();
+        let alpha_powers = alpha_reducer.powers.to_device();
+        let mut reduced_openings_for_log_height_device: DeviceBuffer<EF> =
+            DeviceBuffer::with_capacity(height);
+
+        unsafe {
+            reduced_openings_for_log_height_device.set_len(height);
+            opening_gpu::compute_reduced_openings_for_log_height(
+                matrix_device.view(),
+                inv_denoms_device.as_ptr(),
+                alpha_powers.as_ptr(),
+                alpha_pow_offset,
+                sum_alpha_pows_times_y,
+                reduced_openings_for_log_height_device.as_mut_ptr(),
+            );
+        }
+
+        let output = reduced_openings_for_log_height_device.to_host();
+
+        for i in 0..height {
+            assert_eq!(
+                output[i], reduced_opening_for_log_height[i],
+                "failed at index {}",
+                i
+            );
+        }
+        println!("matched across {:?} elements", height);
     }
 }

@@ -7,7 +7,6 @@
 #include "../utils/matrix.cuh"
 
 namespace opening_kernels {
-
 __global__ void interpolateCosetStage1(
     Matrix<bb31_t> cosetEvals,
     size_t cosetHeight,
@@ -29,7 +28,7 @@ __global__ void interpolateCosetStage1(
         bb31_extension_t diff = point - shift * gPowers[i];
         bb31_extension_t scale = gPowers[i] * diff.reciprocal();
         sum += scale * cosetEvals.values[col * cosetEvals.width + rev];
-    } 
+    }
 
     size_t tid = threadIdx.x * blockDim.y + threadIdx.y;
     sdata[tid] = sum;
@@ -56,6 +55,30 @@ __global__ void interpolateCosetStage2(
         output[blockIdx.x] += partialSums[blockIdx.x * numBlocks + i];
     }
     output[blockIdx.x] *= barycentricScalar;
+}
+
+__global__ void initializeReducedOpeningsForLogHeight(
+    bb31_extension_t* reducedOpeningsForLogHeight
+) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
+}
+
+__global__ void computeReducedOpeningsForLogHeight(
+    Matrix<bb31_t> matrix,
+    bb31_extension_t* invDenoms,
+    bb31_extension_t* alphaPowers,
+    bb31_extension_t alphaPowOffset,
+    bb31_extension_t sumAlphaPowTimesY,
+    bb31_extension_t* reducedOpeningsForLogHeight
+) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    bb31_extension_t rowSum = bb31_extension_t::zero();
+    for (size_t i = 0; i < matrix.height; i++) {
+        rowSum += matrix.values[i * matrix.width + idx] * alphaPowers[i];
+    }
+    reducedOpeningsForLogHeight[idx] +=
+        invDenoms[idx] * alphaPowOffset * (rowSum - sumAlphaPowTimesY);
 }
 }  // namespace opening_kernels
 
@@ -110,5 +133,28 @@ extern "C" rustCudaError_t interpolateCoset(
     // Synchronize the device to make sure all the previous kernels have finished.
     CUDA_UNWRAP(cudaDeviceSynchronize());
 }
-}  // namespace opening_gpu
 
+extern "C" rustCudaError_t computeReducedOpeningForLogHeight(
+    Matrix<bb31_t> matrix,
+    bb31_extension_t* invDenoms,
+    bb31_extension_t* alphaPowers,
+    bb31_extension_t alphaPowOffset,
+    bb31_extension_t sumAlphaPowTimesY,
+    bb31_extension_t* reducedOpeningsForLogHeight
+) {
+    // Initialize the reduced openings for the log height.
+    opening_kernels::initializeReducedOpeningsForLogHeight<<<matrix.width, 1>>>(
+        reducedOpeningsForLogHeight
+    );
+
+    // Compute the reduced openings for the log height.
+    opening_kernels::computeReducedOpeningsForLogHeight<<<matrix.width, 1>>>(
+        matrix,
+        invDenoms,
+        alphaPowers,
+        alphaPowOffset,
+        sumAlphaPowTimesY,
+        reducedOpeningsForLogHeight
+    );
+}
+}  // namespace opening_gpu
