@@ -9,7 +9,10 @@ use crate::matrix::MatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use itertools::{izip, Itertools};
 use p3_baby_bear::BabyBear;
+use p3_challenger::CanObserve;
 use p3_challenger::CanSample;
+use p3_challenger::CanSampleBits;
+use p3_challenger::GrindingChallenger;
 use p3_commit::Mmcs;
 use p3_commit::{OpenedValues, Pcs};
 use p3_field::batch_multiplicative_inverse;
@@ -18,10 +21,17 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
+use p3_fri::fold_even_odd;
+use p3_fri::CommitPhaseProofStep;
+use p3_fri::FriConfig;
+use p3_fri::FriProof;
+use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, PowersReducer, TwoAdicFriPcs, TwoAdicFriPcsProof};
 use p3_interpolation::interpolate_coset;
 use p3_matrix::bitrev::BitReversalPerm;
+use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
+use p3_symmetric::Hash;
 use p3_util::linear_map::LinearMap;
 use p3_util::log2_ceil_usize;
 use p3_util::reverse_slice_index_bits;
@@ -30,13 +40,19 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::iter::IntoParallelRefMutIterator;
 use rayon::iter::ParallelIterator;
 use sp1_core::stark::Challenge;
+use sp1_core::stark::Challenger;
 use sp1_core::stark::{OpeningProof, PcsProverData};
+use sp1_core::utils::baby_bear_poseidon2::ChallengeMmcs;
+use sp1_core::utils::baby_bear_poseidon2::ValMmcs;
 use sp1_core::utils::log2_strict_usize;
+use sp1_core::utils::BabyBearPoseidon2;
 use sp1_core::utils::InnerChallenge;
 use sp1_core::utils::{InnerChallengeMmcs, InnerDft, InnerVal, InnerValMmcs};
+use std::time::Instant;
 
 type F = BabyBear;
 type EF = BinomialExtensionField<BabyBear, 4>;
+type SC = BabyBearPoseidon2;
 
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::stark::BabyBearPoseidon2Config;
@@ -122,7 +138,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri.log_blowup;
 
-                    let start = std::time::Instant::now();
                     let ys = opening_gpu::interpolate_coset(
                         col_major_mat,
                         coset_height,
@@ -136,7 +151,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
                     let alpha_powers = alpha_reducer.powers.to_device();
 
-                    let start = std::time::Instant::now();
                     let mut reduced_opening_for_log_height_device: DeviceBuffer<InnerChallenge> =
                         DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
                     unsafe {
@@ -169,8 +183,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         );
 
         let start = std::time::Instant::now();
-        let (fri_proof, query_indices) =
-            p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
+        let (fri_proof, query_indices) = prove(&pcs.fri, &reduced_openings, challenger);
         println!("device: time to fri proof: {:?}", start.elapsed());
 
         let start = std::time::Instant::now();
@@ -180,7 +193,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 rounds
                     .iter()
                     .map(|(data, _)| {
-                        let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
+                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
                         let log_max_height = log2_ceil_usize(max_height);
                         let bits_reduced = log_global_max_height - log_max_height;
                         let reduced_index = index >> bits_reduced;
@@ -216,7 +229,7 @@ fn open_batch(
         CudaSync<ColMajorMatrixDevice<BabyBear>>,
     >,
 ) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
-    let max_height = prover_data.leaves.iter().map(|m| m.width()).max().unwrap();
+    let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
     let log_max_height = log2_ceil_usize(max_height);
 
     let openings = prover_data
@@ -288,6 +301,128 @@ pub fn compute_inverse_denominators(
             )
         })
         .collect()
+}
+
+pub fn prove(
+    config: &FriConfig<ChallengeMmcs>,
+    input: &[Option<Vec<EF>>; 32],
+    challenger: &mut Challenger<SC>,
+) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
+    let log_max_height = input.iter().rposition(Option::is_some).unwrap();
+
+    let start = Instant::now();
+    let commit_phase_result = commit_phase(config, input, log_max_height, challenger);
+
+    let start = Instant::now();
+    let pow_witness = challenger.grind(config.proof_of_work_bits);
+
+    let query_indices: Vec<usize> = (0..config.num_queries)
+        .map(|_| challenger.sample_bits(log_max_height))
+        .collect();
+
+    let start = Instant::now();
+    let query_proofs = query_indices
+        .iter()
+        .map(|&index| answer_query(config, &commit_phase_result.data, index))
+        .collect::<Vec<_>>();
+
+    (
+        FriProof {
+            commit_phase_commits: commit_phase_result.commits,
+            query_proofs,
+            final_poly: commit_phase_result.final_poly,
+            pow_witness,
+        },
+        query_indices,
+    )
+}
+
+pub fn commit_phase(
+    config: &FriConfig<ChallengeMmcs>,
+    input: &[Option<Vec<EF>>; 32],
+    log_max_height: usize,
+    challenger: &mut Challenger<SC>,
+) -> CommitPhaseResult {
+    let mut current = input[log_max_height].as_ref().unwrap().clone();
+
+    let mut commits = vec![];
+    let mut data = vec![];
+
+    for log_folded_height in (config.log_blowup..log_max_height).rev() {
+        let leaves = RowMajorMatrix::new(current.clone(), 2);
+        let leaves_flattened = leaves.flatten_to_base();
+        let tree = FieldMerkleTreeGpu::new(vec![
+            CudaSync::new(leaves_flattened.to_device().to_column_major()).unwrap(),
+        ]);
+        let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
+        challenger.observe(commit);
+        commits.push(commit);
+        data.push(tree);
+
+        let beta: EF = challenger.sample();
+        current = fold_even_odd(current, beta);
+
+        if let Some(v) = &input[log_folded_height] {
+            current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
+        }
+    }
+
+    // We should be left with `blowup` evaluations of a constant polynomial.
+    assert_eq!(current.len(), config.blowup());
+    let final_poly = current[0];
+    for x in current {
+        assert_eq!(x, final_poly);
+    }
+
+    CommitPhaseResult {
+        commits,
+        data,
+        final_poly,
+    }
+}
+
+pub struct CommitPhaseResult {
+    commits: Vec<Hash<F, F, DIGEST_WIDTH>>,
+    data: Vec<FieldMerkleTreeGpu<F, [F; DIGEST_WIDTH], CudaSync<ColMajorMatrixDevice<BabyBear>>>>,
+    final_poly: EF,
+}
+
+pub fn answer_query(
+    config: &FriConfig<ChallengeMmcs>,
+    commit_phase_commits: &[FieldMerkleTreeGpu<
+        F,
+        [F; DIGEST_WIDTH],
+        CudaSync<ColMajorMatrixDevice<BabyBear>>,
+    >],
+    index: usize,
+) -> QueryProof<EF, ChallengeMmcs> {
+    let commit_phase_openings = commit_phase_commits
+        .iter()
+        .enumerate()
+        .map(|(i, commit)| {
+            let index_i = index >> i;
+            let index_i_sibling = index_i ^ 1;
+            let index_pair = index_i >> 1;
+
+            let (mut opened_rows, opening_proof) = open_batch(index_pair, commit);
+            assert_eq!(opened_rows.len(), 1);
+            let opened_row = opened_rows.pop().unwrap();
+            let opened_row_ext = (0..opened_row.len() / 4)
+                .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
+                .collect::<Vec<_>>();
+            assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
+            let sibling_value = opened_row_ext[index_i_sibling % 2];
+
+            CommitPhaseProofStep {
+                sibling_value,
+                opening_proof,
+            }
+        })
+        .collect();
+
+    QueryProof {
+        commit_phase_openings,
+    }
 }
 
 pub mod opening_gpu {
