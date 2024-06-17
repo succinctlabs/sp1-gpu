@@ -110,11 +110,18 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
+        let start = Instant::now();
         let alpha_reducer = PowersReducer::<InnerVal, InnerChallenge>::new(alpha, global_max_width);
+        println!("device: time to reduce powers: {:?}", start.elapsed());
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
+        let start = Instant::now();
         let inv_denoms = compute_inverse_denominators(&mats_and_points, BabyBear::generator());
+        println!(
+            "device: time to compute inverse denominators: {:?}",
+            start.elapsed()
+        );
 
         let mut all_opened_values: OpenedValues<InnerChallenge> = vec![];
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
@@ -138,19 +145,24 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri.log_blowup;
 
+                    let start = Instant::now();
                     let ys = opening_gpu::interpolate_coset(
                         col_major_mat,
                         coset_height,
                         InnerVal::generator(),
                         point,
                     );
+                    println!("device: time to interpolate coset: {:?}", start.elapsed());
 
+                    let start = Instant::now();
                     let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
                     let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                    println!("device: time to reduce powers: {:?}", start.elapsed());
 
                     let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
                     let alpha_powers = alpha_reducer.powers.to_device();
 
+                    let start = Instant::now();
                     let mut reduced_opening_for_log_height_device: DeviceBuffer<InnerChallenge> =
                         DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
                     unsafe {
@@ -167,10 +179,19 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     }
                     let reduced_opening_for_log_height_host =
                         reduced_opening_for_log_height_device.to_host();
+                    println!(
+                        "device: time to compute reduced openings: {:?}",
+                        start.elapsed()
+                    );
 
+                    let start = Instant::now();
                     for i in 0..reduced_opening_for_log_height_host.len() {
                         reduced_opening_for_log_height[i] += reduced_opening_for_log_height_host[i];
                     }
+                    println!(
+                        "device: time to add reduced openings: {:?}",
+                        start.elapsed()
+                    );
 
                     num_reduced[log_height] += mat.width;
                     opened_values_for_mat.push(ys);
@@ -290,15 +311,21 @@ pub fn compute_inverse_denominators(
     max_log_height_for_point
         .into_iter()
         .map(|(z, log_height)| {
-            (
-                z,
-                batch_multiplicative_inverse(
-                    &subgroup[..(1 << log_height)]
-                        .iter()
-                        .map(|&x| InnerChallenge::from_base(x) - z)
-                        .collect_vec(),
-                ),
-            )
+            let input = &subgroup[..(1 << log_height)]
+                .iter()
+                .map(|&x| InnerChallenge::from_base(x) - z)
+                .collect_vec()
+                .to_device();
+            let mut output: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(input.len());
+            unsafe {
+                output.set_len(input.len());
+                opening_gpu::batch_multiplicative_inverse(
+                    input.as_ptr(),
+                    output.as_mut_ptr(),
+                    input.len(),
+                );
+            }
+            (z, output.to_host())
         })
         .collect()
 }
@@ -472,6 +499,9 @@ pub mod opening_gpu {
 
         #[link_name = "fetchRow"]
         pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
+
+        #[link_name = "batchMultiplicativeInverse"]
+        pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
     }
 
     pub fn interpolate_coset(

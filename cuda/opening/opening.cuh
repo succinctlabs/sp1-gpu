@@ -85,14 +85,22 @@ __global__ void computeReducedOpeningsForLogHeight(
         invDenoms[idx] * alphaPowOffset * (rowSum - sumAlphaPowTimesY);
 }
 
-__global__ void fetchRow(
-    Matrix<bb31_t> matrix,
-    size_t index,
-    bb31_t *output
-) {
+__global__ void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
     for (size_t i = 0; i < matrix.width; i++) {
         output[i] = matrix.values[i * matrix.height + index];
     }
+}
+
+__global__ void batchMultiplicativeInverse(
+    bb31_extension_t* input,
+    bb31_extension_t* output,
+    size_t numElements
+) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= numElements) {
+        return;
+    }
+    output[idx] = input[idx].reciprocal();
 }
 }  // namespace opening_kernels
 
@@ -140,9 +148,9 @@ extern "C" void interpolateCoset(
         output,
         stage1Grid.y
     );
- 
+
     // Free the output from the first stage.
-    CUDA_UNWRAP(cudaFree(stage1Output)); 
+    CUDA_UNWRAP(cudaFree(stage1Output));
 }
 
 extern "C" void computeReducedOpeningForLogHeight(
@@ -153,14 +161,15 @@ extern "C" void computeReducedOpeningForLogHeight(
     bb31_extension_t sumAlphaPowTimesY,
     bb31_extension_t* reducedOpeningsForLogHeight
 ) {
-    size_t numThreads = 32;
+    size_t numThreads = 1024;
     size_t numBlocks = matrix.width / numThreads + 1;
 
     // Initialize the reduced openings for the log height.
-    opening_kernels::initializeReducedOpeningsForLogHeight<<<numBlocks, numThreads>>>(
-        reducedOpeningsForLogHeight,
-        matrix.width
-    );
+    opening_kernels::
+        initializeReducedOpeningsForLogHeight<<<numBlocks, numThreads>>>(
+            reducedOpeningsForLogHeight,
+            matrix.width
+        );
 
     // Compute the reduced openings for the log height.
     opening_kernels::computeReducedOpeningsForLogHeight<<<matrix.width, 1>>>(
@@ -173,13 +182,23 @@ extern "C" void computeReducedOpeningForLogHeight(
     );
 }
 
-extern "C" void fetchRow(
-    Matrix<bb31_t> matrix,
-    size_t index,
-    bb31_t* output
-) {
+extern "C" void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
     dim3 gridDim(1);
     dim3 blockDim(1);
     opening_kernels::fetchRow<<<gridDim, blockDim>>>(matrix, index, output);
+}
+
+extern "C" void batchMultiplicativeInverse(
+    bb31_extension_t* input,
+    bb31_extension_t* output,
+    size_t numElements
+) {
+    size_t numThreads = 1024;
+    size_t numBlocks = numElements / numThreads + 1;
+    opening_kernels::batchMultiplicativeInverse<<<numBlocks, numThreads>>>(
+        input,
+        output,
+        numElements
+    );
 }
 }  // namespace opening_gpu
