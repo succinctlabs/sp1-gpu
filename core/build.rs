@@ -5,9 +5,11 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=../cuda/");
+    println!("cargo:rerun-if-changed=../sppark/");
     println!("cargo:rerun-if-env-changed=CXXFLAGS");
 
     println!("Debug: Watching ../cuda/");
+    println!("Debug: Watching ../sppark/");
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let base_dir = manifest_dir.join("core");
