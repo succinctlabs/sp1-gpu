@@ -160,40 +160,36 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             }
         }
 
-        println!("stage 1 completed");
-
         let (fri_proof, query_indices) =
             p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
 
-        todo!()
+        let query_openings = query_indices
+            .into_iter()
+            .map(|index| {
+                rounds
+                    .iter()
+                    .map(|(data, _)| {
+                        let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
+                        let log_max_height = log2_ceil_usize(max_height);
+                        let bits_reduced = log_global_max_height - log_max_height;
+                        let reduced_index = index >> bits_reduced;
+                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
+                        BatchOpening::<InnerVal, InnerValMmcs> {
+                            opened_values,
+                            opening_proof,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
 
-        // let query_openings = query_indices
-        //     .into_iter()
-        //     .map(|index| {
-        //         rounds
-        //             .iter()
-        //             .map(|(data, _)| {
-        //                 let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
-        //                 let log_max_height = log2_ceil_usize(max_height);
-        //                 let bits_reduced = log_global_max_height - log_max_height;
-        //                 let reduced_index = index >> bits_reduced;
-        //                 let (opened_values, opening_proof) = open_batch(reduced_index, data);
-        //                 BatchOpening::<InnerVal, InnerValMmcs> {
-        //                     opened_values,
-        //                     opening_proof,
-        //                 }
-        //             })
-        //             .collect::<Vec<_>>()
-        //     })
-        //     .collect::<Vec<_>>();
-
-        // (
-        //     all_opened_values,
-        //     TwoAdicFriPcsProof {
-        //         fri_proof,
-        //         query_openings,
-        //     },
-        // )
+        (
+            all_opened_values,
+            TwoAdicFriPcsProof {
+                fri_proof,
+                query_openings,
+            },
+        )
     }
 }
 

@@ -61,11 +61,11 @@ __global__ void initializeReducedOpeningsForLogHeight(
     bb31_extension_t* reducedOpeningsForLogHeight,
     size_t numRows
 ) {
-    // size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    // if (idx >= numRows) {
-    //     return;
-    // }
-    // reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= numRows) {
+        return;
+    }
+    reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
 }
 
 __global__ void computeReducedOpeningsForLogHeight(
