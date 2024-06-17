@@ -104,6 +104,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
+        let start = std::time::Instant::now();
         for (mats, points) in mats_and_points {
             let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
             for (mat, points_for_mat) in izip!(mats, points) {
@@ -120,6 +121,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     col_major_mat.height = mat.width;
                     col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri.log_blowup;
+
+                    let start = std::time::Instant::now();
                     let ys = opening_gpu::interpolate_coset(
                         col_major_mat,
                         coset_height,
@@ -133,6 +136,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
                     let alpha_powers = alpha_reducer.powers.to_device();
 
+                    let start = std::time::Instant::now();
                     let mut reduced_opening_for_log_height_device: DeviceBuffer<InnerChallenge> =
                         DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
                     unsafe {
@@ -159,10 +163,17 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 }
             }
         }
+        println!(
+            "device: time to compute reduced openings: {:?}",
+            start.elapsed()
+        );
 
+        let start = std::time::Instant::now();
         let (fri_proof, query_indices) =
             p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
+        println!("device: time to fri proof: {:?}", start.elapsed());
 
+        let start = std::time::Instant::now();
         let query_openings = query_indices
             .into_iter()
             .map(|index| {
@@ -182,6 +193,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        println!(
+            "device: time to compute query openings: {:?}",
+            start.elapsed()
+        );
 
         (
             all_opened_values,
@@ -364,6 +379,7 @@ pub mod opening_gpu {
 mod tests {
     use crate::device::memory::ToHost;
     use crate::fri::open::Pcs;
+    use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
     use crate::stark::CpuMainData;
     use crate::stark::CpuQuotientValuesGenerator;
     use crate::stark::FriGpuProver;
@@ -496,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_opening_gpu() {
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
@@ -516,27 +532,27 @@ mod tests {
         let shards = gpu_prover.shard(record);
 
         for shard in shards {
-            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
-            let main_commit = cpu_main_data.commit;
+            // let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+            // let main_commit = cpu_main_data.commit;
 
-            let mut challenger = cpu_prover.machine.config().challenger();
-            let zeta: Challenge<SC> = challenger.sample_ext_element();
-            let trace_opening_points = cpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
-                .collect::<Vec<_>>();
+            // let mut challenger = cpu_prover.machine.config().challenger();
+            // let zeta: Challenge<SC> = challenger.sample_ext_element();
+            // let trace_opening_points = cpu_main_data
+            //     .trace_data
+            //     .domains
+            //     .iter()
+            //     .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+            //     .collect::<Vec<_>>();
 
-            let start = std::time::Instant::now();
-            let (openings, opening_proof) = <<sp1_core::utils::BabyBearPoseidon2 as sp1_core::stark::StarkGenericConfig>::Pcs as Pcs<Challenge<SC>, Challenger<SC>>>::open(
-                cpu_prover.machine.config().pcs(),
-                vec![
-                    (&cpu_main_data.prover_data, trace_opening_points.clone()),
-                ],
-                &mut challenger,
-            );
-            println!("host: time to open: {:?}", start.elapsed().as_secs_f64());
+            // let start = std::time::Instant::now();
+            // let (openings, opening_proof) = <<sp1_core::utils::BabyBearPoseidon2 as sp1_core::stark::StarkGenericConfig>::Pcs as Pcs<Challenge<SC>, Challenger<SC>>>::open(
+            //     cpu_prover.machine.config().pcs(),
+            //     vec![
+            //         (&cpu_main_data.prover_data, trace_opening_points.clone()),
+            //     ],
+            //     &mut challenger,
+            // );
+            // println!("host: time to open: {:?}", start.elapsed().as_secs_f64());
 
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
             let main_commit = gpu_main_data.commit;
