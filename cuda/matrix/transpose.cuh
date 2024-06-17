@@ -1,11 +1,14 @@
 #pragma once
 
-#include "../utils/matrix.cuh"
+#include "type.cuh"
+#include "../fields/bb31_t.cuh"
+#include <cassert>
 
+
+namespace matrix_transpose {
 const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;
 
-namespace matrix_kernels {
 __global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
     size_t id_x = (blockIdx.x * TILE_DIM) + threadIdx.x;
     size_t id_y = (blockIdx.y * TILE_DIM) + threadIdx.y;
@@ -53,17 +56,14 @@ __global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
     }
  }
 
-}  // namespace matrix_kernels
-
-
 extern "C" void transpose_naive(bb31_t *output, Matrix<bb31_t> input) {
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     if (input.row_major) {
-        matrix_kernels::TransposeNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input);
+        TransposeNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input);
     }
     else {
-       matrix_kernels::TransposeNaiveColToRow<<<dimGrid, dimBlock>>>(output, input);
+       TransposeNaiveColToRow<<<dimGrid, dimBlock>>>(output, input);
     }
 }
 
@@ -71,5 +71,10 @@ extern "C" void transpose_blowup_naive(bb31_t *output, Matrix<bb31_t> input, siz
     assert(input.row_major);
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
-    matrix_kernels::TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input, log_blowup);
+    TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input, log_blowup);
 }
+
+}  // namespace matrix_kernels
+
+
+

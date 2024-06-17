@@ -46,6 +46,14 @@ public:
     inline void store(uint32_t *p) const    { *p = mul_by_1();   }
     inline bb31_t& operator=(uint32_t b)    { val = b; to(); return *this; }
 
+    inline bb31_t exp_power_of_two(size_t log_power) {
+        bb31_t ret = *this;
+        for (size_t i = 0; i < log_power; i++) {
+            ret *= ret;
+        }
+        return ret;
+    }
+
     inline bb31_t& operator+=(const bb31_t b)
     {
         val += b.val;

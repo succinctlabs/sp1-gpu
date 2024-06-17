@@ -1,5 +1,6 @@
 
-#include "../utils/matrix.cuh"
+
+namespace scan_kernels {
 
 const size_t SECTION_SIZE = 1024;
 
@@ -82,3 +83,4 @@ template<typename T> __global__ void Scan(T *d_out, T * d_in, size_t n,
     if (i + blockDim.x < n) 
         d_out[i + blockDim.x] += previous_sum;
 }
+}  // namespace scan_kernels

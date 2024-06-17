@@ -4,7 +4,7 @@
 
 #include "../fields/bb31_extension_t.cuh"
 #include "../utils/exception.cuh"
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 namespace opening_kernels {
 __global__ void interpolateCosetStage1(

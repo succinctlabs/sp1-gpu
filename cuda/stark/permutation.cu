@@ -1,5 +1,5 @@
 #include "interaction.cuh"
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 
 template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue(

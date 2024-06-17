@@ -9,5 +9,5 @@ class Bls12381AddAssignAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 3091;
     static constexpr size_t PERM_WIDTH = 737;
-    static constexpr size_t EXPRESSION_COUNT = 82203;
+    static constexpr size_t EXPRESSION_COUNT = 478;
 };

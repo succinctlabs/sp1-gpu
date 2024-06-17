@@ -9,5 +9,5 @@ class Bls12381DecompressAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 1790;
     static constexpr size_t PERM_WIDTH = 418;
-    static constexpr size_t EXPRESSION_COUNT = 53660;
+    static constexpr size_t EXPRESSION_COUNT = 478;
 };

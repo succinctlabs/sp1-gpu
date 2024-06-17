@@ -9,5 +9,5 @@ class Secp256k1DecompressAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 1190;
     static constexpr size_t PERM_WIDTH = 278;
-    static constexpr size_t EXPRESSION_COUNT = 27572;
+    static constexpr size_t EXPRESSION_COUNT = 318;
 };

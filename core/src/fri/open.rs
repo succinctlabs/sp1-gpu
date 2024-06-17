@@ -13,9 +13,7 @@ use p3_challenger::CanObserve;
 use p3_challenger::CanSample;
 use p3_challenger::CanSampleBits;
 use p3_challenger::GrindingChallenger;
-use p3_commit::Mmcs;
 use p3_commit::{OpenedValues, Pcs};
-use p3_field::batch_multiplicative_inverse;
 use p3_field::cyclic_subgroup_coset_known_order;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
@@ -143,7 +141,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let mut col_major_mat = mat;
                     col_major_mat.height = mat.width;
                     col_major_mat.width = mat.height;
-                    let coset_height = mat.height >> pcs.fri.log_blowup;
+                    let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
                     let start = Instant::now();
                     let ys = opening_gpu::interpolate_coset(
@@ -204,7 +202,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         );
 
         let start = std::time::Instant::now();
-        let (fri_proof, query_indices) = prove(&pcs.fri, &reduced_openings, challenger);
+        let (fri_proof, query_indices) = prove(&pcs.fri_config(), &reduced_openings, challenger);
         println!("device: time to fri proof: {:?}", start.elapsed());
 
         let start = std::time::Instant::now();
@@ -378,9 +376,10 @@ pub fn commit_phase(
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
         let leaves = RowMajorMatrix::new(current.clone(), 2);
         let leaves_flattened = leaves.flatten_to_base();
-        let tree = FieldMerkleTreeGpu::new(vec![
-            CudaSync::new(leaves_flattened.to_device().to_column_major()).unwrap(),
-        ]);
+        let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(
+            leaves_flattened.to_device().to_column_major(),
+        )
+        .unwrap()]);
         let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
         commits.push(commit);

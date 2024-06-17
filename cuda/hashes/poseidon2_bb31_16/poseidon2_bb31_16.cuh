@@ -3,7 +3,7 @@
 #include "constants.cuh"
 
 #include "../../fields/bb31_t.cuh"
-#include "../../utils/matrix.cuh"
+#include "../../matrix/matrix.cuh"
 #include "../../utils/vector.cuh"
 
 #include <stdio.h>

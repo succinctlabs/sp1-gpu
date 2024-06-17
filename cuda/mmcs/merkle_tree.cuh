@@ -2,7 +2,7 @@
 
 #include "../fields/bb31_t.cuh"
 #include "../hashes/poseidon2_bb31_16/kernels.cuh"
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 #include <stdio.h>
 

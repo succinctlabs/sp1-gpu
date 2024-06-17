@@ -7,7 +7,7 @@
 class MemoryProgramAir {
    public:
     static constexpr size_t PREP_WIDTH = 6;
-    static constexpr size_t MAIN_WIDTH = 1;
+    static constexpr size_t MAIN_WIDTH = 3;
     static constexpr size_t PERM_WIDTH = 2;
-    static constexpr size_t EXPRESSION_COUNT = 88;
+    static constexpr size_t EXPRESSION_COUNT = 46;
 };

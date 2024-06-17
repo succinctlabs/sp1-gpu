@@ -1,9 +1,11 @@
+#pragma once
+
 #include "./utils.cuh"
 
 #include "../air/codegen/codegen.cuh"
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
-#include "../utils/matrix.cuh"
+#include "../matrix/matrix.cuh"
 
 #define QUOTIENT(CHIP_TYPE)                                                  \
     {                                                                        \
@@ -12,7 +14,7 @@
             chipInstance, evalProgram, evalProgramLen, cumulativeSum,        \
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  \
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     \
-            permChallenges, alpha, publicValues, selectors, quotientValues); \
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); \
     }
 
 namespace quotient_kernels {
@@ -26,8 +28,10 @@ __global__ void computeValues(Air air, Operation *evalProgram,
                               Matrix<Val> permutationTraceOnQuotientDomain,
                               Challenge *permChallenges, Challenge alpha,
                               Val *publicValues,
-                              LagrangeSelectors<Val> selectors,
-                              Challenge *quotientValues) {
+                              Val traceDomainGenerator,
+                              Val* generatorPowers,
+                            //   LagrangeSelectors<Val> selectors,
+                              Matrix<Val> quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
     size_t mainWidth = mainTraceOnQuotientDomain.width;
@@ -39,6 +43,13 @@ __global__ void computeValues(Air air, Operation *evalProgram,
     if (quotientIdx >= quotientSize) {
         return;
     }
+
+    Val generator = generatorPowers[1];
+    Val blockGenerator = generator^(blockIdx.x * blockDim.x);
+
+    Val point = blockGenerator * generatorPowers[threadIdx.x] * quotientDomain.shift; 
+
+    LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
 
     Val prepLocal[Air::PREP_WIDTH + 1];
     Val prepNext[Air::PREP_WIDTH + 1];
@@ -200,10 +211,17 @@ __global__ void computeValues(Air air, Operation *evalProgram,
                     expr[op.b_expr.value];
                 break;
         }
-
-        folder.accumulator = expr[0];
-        quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
     }
+
+    folder.accumulator = expr[0];
+    bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
+
+    #pragma unroll
+        for (size_t k = 0; k < bb31_extension_t::D; k++) {
+            quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+        }
+
+    // quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
 }
 }  // namespace quotient_kernels
 
@@ -217,8 +235,8 @@ extern "C" void computeValues(
     Matrix<bb31_t> mainTraceOnQuotientDomain,
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
     bb31_extension_t *permChallenges, bb31_extension_t alpha,
-    bb31_t *publicValues, LagrangeSelectors<bb31_t> selectors,
-    bb31_extension_t *quotientValues, size_t numBlocks,
+    bb31_t *publicValues, bb31_t traceDomainGenerator, bb31_t* generatorPowers,
+    Matrix<bb31_t> quotientValues, size_t numBlocks,
     size_t numThreadsPerBlock) {
     switch (chipId) {
         case 0:
@@ -302,8 +320,6 @@ extern "C" void computeValues(
         case 26:
             QUOTIENT(ByteAir);
             break;
-    }
-
-    cudaDeviceSynchronize();
+    } 
 }
 }  // namespace quotient_gpu

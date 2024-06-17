@@ -9,5 +9,5 @@ class BitwiseAir {
     static constexpr size_t PREP_WIDTH = 0;
     static constexpr size_t MAIN_WIDTH = 18;
     static constexpr size_t PERM_WIDTH = 4;
-    static constexpr size_t EXPRESSION_COUNT = 113;
+    static constexpr size_t EXPRESSION_COUNT = 8;
 };
