@@ -147,11 +147,6 @@ where
             self.get_evaluations_on_subdomain(permutation_lde, quotient_domain, false)?;
         evaluations_span.exit();
 
-        let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
-            <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
-            quotient_domain.size(),
-        );
-
         // Move data to device and get generator powers.
         let generator_powers_span = debug_span!("Get generator powers").entered();
         let permutation_challenges_device = permutation_challenges.to_device();
@@ -172,8 +167,11 @@ where
         generator_powers_span.exit();
 
         // Compute quotient values.
-
-        debug_span!("Compute quotient values").in_scope(|| unsafe {
+        let quotient_flat = debug_span!("Compute quotient values").in_scope(|| unsafe {
+            let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+                <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                quotient_domain.size(),
+            );
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
                 *chip_id,
@@ -194,6 +192,7 @@ where
                 quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
                 NUM_THREADS_PER_BLOCK,
             );
+            quotient_flat
         });
 
         let split_values_span = debug_span!("Split quotient values").entered();
