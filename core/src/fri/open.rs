@@ -211,9 +211,9 @@ fn open_batch(
             let log2_height = log2_ceil_usize(matrix.height());
             let bits_reduced = log_max_height - log2_height;
             let reduced_index = index >> bits_reduced;
-            let mut output_device = vec![F::zero(); matrix.height()].to_device();
+            let mut output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(matrix.width());
             unsafe {
-                output_device.set_len(matrix.height());
+                output_device.set_len(matrix.width());
                 opening_gpu::fetch_row(matrix.view(), reduced_index, output_device.as_mut_ptr());
             }
             output_device.to_host()
@@ -527,6 +527,8 @@ mod tests {
                 .iter()
                 .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
                 .collect::<Vec<_>>();
+
+            let start = std::time::Instant::now();
             let (openings, opening_proof) = <<sp1_core::utils::BabyBearPoseidon2 as sp1_core::stark::StarkGenericConfig>::Pcs as Pcs<Challenge<SC>, Challenger<SC>>>::open(
                 cpu_prover.machine.config().pcs(),
                 vec![
@@ -534,7 +536,7 @@ mod tests {
                 ],
                 &mut challenger,
             );
-            println!("done");
+            println!("host: time to open: {:?}", start.elapsed().as_secs_f64());
 
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
             let main_commit = gpu_main_data.commit;
@@ -547,13 +549,15 @@ mod tests {
                 .iter()
                 .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
                 .collect::<Vec<_>>();
+
+            let start = std::time::Instant::now();
             let (openings_gpu, opening_proof) = FriGpuOpeningProver::<SC>::open(
                 gpu_prover.machine.config().pcs(),
                 vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
                 &mut challenger,
             );
 
-            println!("done");
+            println!("device: time to open: {:?}", start.elapsed().as_secs_f64());
         }
     }
 }

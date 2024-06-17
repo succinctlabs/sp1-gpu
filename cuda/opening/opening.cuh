@@ -90,8 +90,8 @@ __global__ void fetchRow(
     size_t index,
     bb31_t *output
 ) {
-    for (size_t i = 0; i < matrix.height; i++) {
-        output[i] = matrix.values[i * matrix.width + index];
+    for (size_t i = 0; i < matrix.width; i++) {
+        output[i] = matrix.values[i * matrix.height + index];
     }
 }
 }  // namespace opening_kernels
@@ -173,7 +173,7 @@ extern "C" void computeReducedOpeningForLogHeight(
     );
 }
 
-extern "C" rustCudaError_t fetchRow(
+extern "C" void fetchRow(
     Matrix<bb31_t> matrix,
     size_t index,
     bb31_t* output
