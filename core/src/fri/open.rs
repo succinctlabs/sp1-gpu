@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
+use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
+use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
@@ -66,10 +68,13 @@ pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
 impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
     pub fn open(
-        &self,
         pcs: &TwoAdicFriPcs<InnerVal, InnerDft, InnerValMmcs, InnerChallengeMmcs>,
         rounds: Vec<(
-            &FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>,
+            &FieldMerkleTreeGpu<
+                BabyBear,
+                [BabyBear; DIGEST_WIDTH],
+                CudaSync<ColMajorMatrixDevice<BabyBear>>,
+            >,
             Vec<Vec<SC::Challenge>>,
         )>,
         challenger: &mut SC::Challenger,
@@ -111,9 +116,12 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
                 for &point in points_for_mat {
                     // Use Barycentric interpolation to evaluate the matrix at the given point.
+                    let mut col_major_mat = mat;
+                    col_major_mat.height = mat.width;
+                    col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri.log_blowup;
                     let ys = opening_gpu::interpolate_coset(
-                        mat,
+                        col_major_mat,
                         coset_height,
                         InnerVal::generator(),
                         point,
@@ -125,16 +133,18 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
                     let alpha_powers = alpha_reducer.powers.to_device();
 
-                    let mut reduced_opening_for_log_height_device =
-                        reduced_opening_for_log_height.to_device();
+                    let mut reduced_opening_for_log_height_device: DeviceBuffer<InnerChallenge> =
+                        DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
                     unsafe {
+                        reduced_opening_for_log_height_device
+                            .set_len(reduced_opening_for_log_height.len());
                         opening_gpu::compute_reduced_openings_for_log_height(
-                            mat,
+                            col_major_mat,
                             inv_denoms_at_point.as_ptr(),
                             alpha_powers.as_ptr(),
                             alpha_pow_offset,
                             sum_alpha_pows_times_y,
-                            reduced_opening_for_log_height.as_mut_ptr(),
+                            reduced_opening_for_log_height_device.as_mut_ptr(),
                         );
                     }
                     let reduced_opening_for_log_height_host =
@@ -150,36 +160,40 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             }
         }
 
+        println!("stage 1 completed");
+
         let (fri_proof, query_indices) =
             p3_fri::prover::prove(&pcs.fri, &reduced_openings, challenger);
 
-        let query_openings = query_indices
-            .into_iter()
-            .map(|index| {
-                rounds
-                    .iter()
-                    .map(|(data, _)| {
-                        let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
-                        let log_max_height = log2_ceil_usize(max_height);
-                        let bits_reduced = log_global_max_height - log_max_height;
-                        let reduced_index = index >> bits_reduced;
-                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        BatchOpening::<InnerVal, InnerValMmcs> {
-                            opened_values,
-                            opening_proof,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        todo!()
 
-        (
-            all_opened_values,
-            TwoAdicFriPcsProof {
-                fri_proof,
-                query_openings,
-            },
-        )
+        // let query_openings = query_indices
+        //     .into_iter()
+        //     .map(|index| {
+        //         rounds
+        //             .iter()
+        //             .map(|(data, _)| {
+        //                 let max_height = data.leaves.iter().map(|m| m.width()).max().unwrap();
+        //                 let log_max_height = log2_ceil_usize(max_height);
+        //                 let bits_reduced = log_global_max_height - log_max_height;
+        //                 let reduced_index = index >> bits_reduced;
+        //                 let (opened_values, opening_proof) = open_batch(reduced_index, data);
+        //                 BatchOpening::<InnerVal, InnerValMmcs> {
+        //                     opened_values,
+        //                     opening_proof,
+        //                 }
+        //             })
+        //             .collect::<Vec<_>>()
+        //     })
+        //     .collect::<Vec<_>>();
+
+        // (
+        //     all_opened_values,
+        //     TwoAdicFriPcsProof {
+        //         fri_proof,
+        //         query_openings,
+        //     },
+        // )
     }
 }
 
@@ -188,7 +202,7 @@ fn open_batch(
     prover_data: &FieldMerkleTreeGpu<
         BabyBear,
         [BabyBear; DIGEST_WIDTH],
-        ColMajorMatrixDevice<BabyBear>,
+        CudaSync<ColMajorMatrixDevice<BabyBear>>,
     >,
 ) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
     let max_height = prover_data.leaves.iter().map(|m| m.width()).max().unwrap();
@@ -353,8 +367,15 @@ pub mod opening_gpu {
 #[cfg(test)]
 mod tests {
     use crate::device::memory::ToHost;
+    use crate::fri::open::Pcs;
+    use crate::stark::CpuMainData;
+    use crate::stark::CpuQuotientValuesGenerator;
+    use crate::stark::FriGpuProver;
+    use crate::stark::QuotientValues;
     use p3_baby_bear::BabyBear;
+    use p3_challenger::FieldChallenger;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::AbstractExtensionField;
     use p3_field::AbstractField;
     use p3_fri::PowersReducer;
     use p3_interpolation::interpolate_coset;
@@ -364,9 +385,28 @@ mod tests {
     use rayon::iter::IntoParallelRefMutIterator;
     use rayon::iter::ParallelIterator;
     use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator};
+    use sp1_core::air::MachineAir;
+    use sp1_core::stark::Verifier;
 
+    use crate::fri::FriCpuOpeningProver;
+    use crate::stark::FriCpuProver;
+    use p3_challenger::CanObserve;
+    use rand::thread_rng;
+    use sp1_core::stark::StarkGenericConfig;
+    use sp1_core::{
+        runtime::{ExecutionRecord, Program, Runtime},
+        stark::{Challenge, RiscvAir},
+        utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
+    };
+
+    use crate::stark::tests::execute_core;
+    type SC = BabyBearPoseidon2;
     use crate::device::buffer::DeviceBuffer;
     use crate::{device::memory::ToDevice, fri::opening_gpu};
+    use p3_commit::PolynomialSpace;
+    use sp1_core::stark::Challenger;
+
+    use super::FriGpuOpeningProver;
 
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
@@ -393,6 +433,10 @@ mod tests {
             assert_eq!(output[i], gt[i]);
         }
         println!("matched across {:?} elements", output.len());
+
+        let coset_evals_host = coset_evals.to_host();
+        println!("height: {:?}", coset_evals_host.height());
+        println!("width: {:?}", coset_evals_host.width());
     }
 
     #[test]
@@ -452,5 +496,68 @@ mod tests {
             );
         }
         println!("matched across {:?} elements", height);
+    }
+
+    #[test]
+    fn test_opening_gpu() {
+        let program = Program::from(FIBONACCI_ELF);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let gpu_prover = FriGpuProver::new(machine);
+
+        let config = SC::default();
+        let machine = RiscvAir::machine(config);
+        let cpu_prover = FriCpuProver::new(machine);
+
+        let config = SC::default();
+
+        let (pk, vk) = gpu_prover.machine.setup(&program);
+
+        // Execute the program.
+        let record = execute_core(program);
+
+        let shards = gpu_prover.shard(record);
+
+        for shard in shards {
+            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
+            let main_commit = cpu_main_data.commit;
+
+            let mut challenger = cpu_prover.machine.config().challenger();
+            let zeta: Challenge<SC> = challenger.sample_ext_element();
+            let trace_opening_points = cpu_main_data
+                .trace_data
+                .domains
+                .iter()
+                .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+                .collect::<Vec<_>>();
+            let (openings, opening_proof) = <<sp1_core::utils::BabyBearPoseidon2 as sp1_core::stark::StarkGenericConfig>::Pcs as Pcs<Challenge<SC>, Challenger<SC>>>::open(
+                cpu_prover.machine.config().pcs(),
+                vec![
+                    (&cpu_main_data.prover_data, trace_opening_points.clone()),
+                ],
+                &mut challenger,
+            );
+            println!("done");
+
+            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
+            let main_commit = gpu_main_data.commit;
+
+            let mut challenger = gpu_prover.machine.config().challenger();
+            let zeta: Challenge<SC> = challenger.sample_ext_element();
+            let trace_opening_points = gpu_main_data
+                .trace_data
+                .domains
+                .iter()
+                .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+                .collect::<Vec<_>>();
+            let (openings_gpu, opening_proof) = FriGpuOpeningProver::<SC>::open(
+                gpu_prover.machine.config().pcs(),
+                vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
+                &mut challenger,
+            );
+
+            println!("done");
+        }
     }
 }

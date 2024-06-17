@@ -14,6 +14,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
+use crate::fri::FriCpuOpeningProver;
 use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
@@ -26,7 +27,6 @@ use sp1_core::{
     },
 };
 
-use crate::fri::FriCpuOpeningProver;
 use crate::{
     device::{
         error::CudaError,
@@ -48,15 +48,15 @@ use super::natural_domain_for_degree;
 use super::CpuTraceGenerator;
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
-    machine: StarkMachine<SC, A>,
-    trace_generator: CpuTraceGenerator<SC, A>,
-    permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
-    committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
-    opening_prover: FriCpuOpeningProver<SC>,
+    pub machine: StarkMachine<SC, A>,
+    pub trace_generator: CpuTraceGenerator<SC, A>,
+    pub permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
+    pub committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+    pub opening_prover: FriCpuOpeningProver<SC>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
-    machine: StarkMachine<SC, A>,
+    pub machine: StarkMachine<SC, A>,
 }
 
 pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
@@ -818,7 +818,7 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use rand::{thread_rng, Rng};
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
@@ -834,7 +834,7 @@ mod tests {
     pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
 
-    fn execute_core(program: Program) -> ExecutionRecord {
+    pub fn execute_core(program: Program) -> ExecutionRecord {
         let mut runtime = Runtime::new(program, SP1CoreOpts::default());
         runtime.run().unwrap();
         runtime.record

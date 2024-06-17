@@ -58,10 +58,14 @@ __global__ void interpolateCosetStage2(
 }
 
 __global__ void initializeReducedOpeningsForLogHeight(
-    bb31_extension_t* reducedOpeningsForLogHeight
+    bb31_extension_t* reducedOpeningsForLogHeight,
+    size_t numRows
 ) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
+    // size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    // if (idx >= numRows) {
+    //     return;
+    // }
+    // reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
 }
 
 __global__ void computeReducedOpeningsForLogHeight(
@@ -93,7 +97,7 @@ __global__ void fetchRow(
 }  // namespace opening_kernels
 
 namespace opening_gpu {
-extern "C" rustCudaError_t interpolateCoset(
+extern "C" void interpolateCoset(
     Matrix<bb31_t> cosetEvals,
     size_t cosetHeight,
     size_t cosetLogHeight,
@@ -105,7 +109,7 @@ extern "C" rustCudaError_t interpolateCoset(
 ) {
     dim3 stage1Grid(cosetEvals.height, 32);
     dim3 stage1Block(1, 32);
-    dim3 stage2Grid(cosetEvals.height, 1);
+    dim3 stage2Grid(cosetEvals.height);
     dim3 stage2Block(1);
 
     // Allocate the intermeddiate output for the first stage.
@@ -136,15 +140,12 @@ extern "C" rustCudaError_t interpolateCoset(
         output,
         stage1Grid.y
     );
-
+ 
     // Free the output from the first stage.
-    CUDA_UNWRAP(cudaFree(stage1Output));
-
-    // Synchronize the device to make sure all the previous kernels have finished.
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    CUDA_UNWRAP(cudaFree(stage1Output)); 
 }
 
-extern "C" rustCudaError_t computeReducedOpeningForLogHeight(
+extern "C" void computeReducedOpeningForLogHeight(
     Matrix<bb31_t> matrix,
     bb31_extension_t* invDenoms,
     bb31_extension_t* alphaPowers,
@@ -152,9 +153,13 @@ extern "C" rustCudaError_t computeReducedOpeningForLogHeight(
     bb31_extension_t sumAlphaPowTimesY,
     bb31_extension_t* reducedOpeningsForLogHeight
 ) {
+    size_t numThreads = 32;
+    size_t numBlocks = matrix.width / numThreads + 1;
+
     // Initialize the reduced openings for the log height.
-    opening_kernels::initializeReducedOpeningsForLogHeight<<<matrix.width, 1>>>(
-        reducedOpeningsForLogHeight
+    opening_kernels::initializeReducedOpeningsForLogHeight<<<numBlocks, numThreads>>>(
+        reducedOpeningsForLogHeight,
+        matrix.width
     );
 
     // Compute the reduced openings for the log height.
