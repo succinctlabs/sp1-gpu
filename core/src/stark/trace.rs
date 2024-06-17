@@ -32,13 +32,23 @@ where
 
         // For each chip, generate the trace, copy to the device, and transpose.
 
-        let mut named_traces = shard_chips
-            .par_iter()
-            .map(|chip| {
-                let trace = chip.generate_trace(shard, &mut A::Record::default());
-                (chip.name(), trace)
-            })
-            .collect::<Vec<_>>();
+        let parent_span = tracing::debug_span!("generate traces for shard");
+        let mut named_traces = parent_span.in_scope(|| {
+            shard_chips
+                .par_iter()
+                .map(|chip| {
+                    let chip_name = chip.name();
+
+                    // We need to create an outer span here because, for some reason,
+                    // the #[instrument] macro on the chip impl isn't attaching its span to `parent_span`
+                    // to avoid the unnecessary span, remove the #[instrument] macro.
+                    let trace =
+                        tracing::debug_span!(parent: &parent_span, "generate trace for chip", %chip_name)
+                            .in_scope(|| chip.generate_trace(shard, &mut A::Record::default()));
+                    (chip_name, trace)
+                })
+                .collect::<Vec<_>>()
+        });
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
