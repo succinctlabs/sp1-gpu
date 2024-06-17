@@ -171,7 +171,6 @@ where
             .collect::<Result<Vec<_>, CudaError>>()
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn commit_main_traces(
         &self,
         trace_data: &GpuMainTraceData<SC>,
@@ -186,7 +185,6 @@ where
         self.committer.commit(&domains_and_traces)
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
         let time = std::time::Instant::now();
         let host_trace_data =
@@ -213,7 +211,6 @@ where
         }
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -1038,12 +1035,9 @@ pub mod tests {
             let main_commit = gpu_main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
-            let time = std::time::Instant::now();
             let proof = gpu_prover
                 .prove_shard(&pk, gpu_main_data, &mut challenger)
                 .unwrap();
-            let prove_shard_time = time.elapsed();
-            println!("Device prove_shard time: {:?}", prove_shard_time);
 
             // Verify the proof.
             let mut challenger = config.challenger();
@@ -1075,11 +1069,8 @@ pub mod tests {
         let stats = record.stats();
         let cycles = stats.get("cpu_events").unwrap();
 
-        let time = std::time::Instant::now();
-        let shards = gpu_prover.shard(record);
-        debug!("time to shard: {:?}", time.elapsed());
-
         let e2e_time = std::time::Instant::now();
+        let shards = debug_span!("Shard execution trace").in_scope(|| gpu_prover.shard(record));
         for (i, shard) in shards.into_iter().enumerate() {
             let main_data = gpu_prover.commit_main(&shard, i + 1);
             // Observe the main commit.
