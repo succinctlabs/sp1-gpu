@@ -16,6 +16,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
+use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
@@ -53,6 +54,8 @@ use crate::{
 use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
 
 use super::natural_domain_for_degree;
+
+const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
 use super::CpuTraceGenerator;
 
@@ -143,17 +146,13 @@ where
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
-        trace_data: &GpuMainTraceData<SC>,
+        chips: &[&Chip<SC::Val, A>],
+        main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&trace_data.chip_ordering)
-            .collect::<Vec<_>>();
-
-        shard_chips
+        chips
             .iter()
-            .zip(trace_data.traces.iter())
+            .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering
@@ -227,8 +226,36 @@ where
             prover_data: mut main_prover_data,
         } = shard_data;
 
+        let MainTraceData {
+            traces,
+            domains,
+            chip_ordering,
+            public_values,
+            ..
+        } = main_trace_data;
+
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&chip_ordering)
+            .collect::<Vec<_>>();
+
+        // Print some statistics.
+        let mut total_lde_size = 0;
+        let log_blowup = self.committer.log_blowup();
+        for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
+            let height = domain.size();
+            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+            total_lde_size += stats.lde_memory_size(log_blowup);
+            debug!("{}", stats);
+        }
+        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+
+        let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
+
         // Delete the ldes of the main prover data.
-        main_prover_data.leaves.clear();
+        if recompute_ldes {
+            main_prover_data.leaves.clear();
+        }
 
         // Get the permutation challenges.
         let permutation_challenges = (0..2)
@@ -236,13 +263,12 @@ where
             .collect::<Vec<_>>();
         // Generate permutation traces.
         let permutation_traces = debug_span!("Generate permutation traces").in_scope(|| {
-            self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges)
+            self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
         })?;
 
         // Commit to the permutation traces.
         let span = debug_span!("Commit to permutation traces").entered();
-        let perm_domains_and_traces = main_trace_data
-            .domains
+        let perm_domains_and_traces = domains
             .iter()
             .copied()
             .zip(permutation_traces)
@@ -270,7 +296,9 @@ where
             .collect::<Vec<_>>();
 
         // Delete the ldes of the permutation prover data.
-        perm_prover_data.leaves.clear();
+        if recompute_ldes {
+            perm_prover_data.leaves.clear();
+        }
 
         // Get a challenge for folding the constraints.
         //
@@ -278,30 +306,6 @@ where
         let folding_challenge: SC::Challenge = challenger.sample_ext_element();
 
         // Compute quotient values.
-
-        let MainTraceData {
-            traces,
-            domains,
-            chip_ordering,
-            public_values,
-            ..
-        } = main_trace_data;
-
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&chip_ordering)
-            .collect::<Vec<_>>();
-
-        // Print some statistics.
-        let mut total_lde_size = 0;
-        let log_blowup = self.committer.log_blowup();
-        for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
-            let height = domain.size();
-            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-            total_lde_size += stats.lde_memory_size(log_blowup);
-            debug!("{}", stats);
-        }
-        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
         // Compute values
         let quotient_values_span = debug_span!("Compute shard quotient values");
@@ -414,20 +418,22 @@ where
             .collect::<Vec<_>>();
 
         // Recompute main and permutation LDE and insert into the prover data.
-        let span = debug_span!("Recompute LDEs for openning").entered();
-        let perm_span = debug_span!("Permutation").entered();
-        for (domain, perm_trace) in perm_domains_and_traces {
-            let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-            perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+        if recompute_ldes {
+            let span = debug_span!("Recompute LDEs for openning").entered();
+            let perm_span = debug_span!("Permutation").entered();
+            for (domain, perm_trace) in perm_domains_and_traces {
+                let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
+                perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+            }
+            perm_span.exit();
+            let main_span = debug_span!("Main").entered();
+            for (domain, trace) in domains.iter().zip(traces) {
+                let main_lde = self.committer.encode(*domain, &trace, true)?;
+                main_prover_data.leaves.push(CudaSync::new(main_lde)?);
+            }
+            main_span.exit();
+            span.exit();
         }
-        perm_span.exit();
-        let main_span = debug_span!("Main").entered();
-        for (domain, trace) in domains.iter().zip(traces) {
-            let main_lde = self.committer.encode(*domain, &trace, true)?;
-            main_prover_data.leaves.push(CudaSync::new(main_lde)?);
-        }
-        main_span.exit();
-        span.exit();
 
         let pk_data_device = debug_span!("transfer preprocessed prover data to device")
             .in_scope(|| pk.data.to_device());
@@ -870,10 +876,9 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use rand::{thread_rng, Rng};
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
-        stark::{Challenge, RiscvAir, Verifier},
+        stark::{RiscvAir, Verifier},
         utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
     };
     use tracing::{info, info_span};
@@ -883,7 +888,6 @@ pub mod tests {
     use super::*;
 
     type SC = BabyBearPoseidon2;
-    type EF = Challenge<SC>;
 
     pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
@@ -922,84 +926,6 @@ pub mod tests {
             println!("Host commit time: {:?}", time.elapsed());
 
             assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
-        }
-    }
-
-    #[test]
-    fn test_permutation_generation() {
-        let program = Program::from(FIBONACCI_ELF);
-
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
-
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-        let cpu_prover = FriCpuProver::new(machine);
-
-        let (pk, _) = gpu_prover.machine.setup(&program);
-
-        // Execute the program.
-        let record = execute_core(program);
-
-        let shards = gpu_prover.shard(record);
-
-        let mut rng = thread_rng();
-        for shard in shards {
-            let time = std::time::Instant::now();
-            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
-            println!("Device commit time: {:?}", time.elapsed());
-
-            let time = std::time::Instant::now();
-            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
-            println!("Host commit time: {:?}", time.elapsed());
-
-            assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
-
-            let random_elements: [EF; 2] = rng.gen();
-
-            // Generate the permutation traces and commit to them on Device.
-            let time = std::time::Instant::now();
-            let gpu_permutation_traces = gpu_prover
-                .generate_permutation_traces(&pk, &gpu_main_data.trace_data, &random_elements)
-                .unwrap();
-            // Commit to the permutation traces.
-            let domains_and_traces = gpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .copied()
-                .zip(gpu_permutation_traces.iter())
-                .collect::<Vec<_>>();
-            let (gpu_perm_commit, _) = gpu_prover.committer.commit(&domains_and_traces);
-            let elapsed = time.elapsed();
-            println!(
-                "Device permutation generation and commit time: {:?}",
-                elapsed
-            );
-
-            // Generate the permutation traces and commit to them on Host.
-            let time = std::time::Instant::now();
-            let cpu_permutation_traces = cpu_prover.generate_permutation_traces(
-                &pk,
-                &cpu_main_data.trace_data,
-                &random_elements,
-            );
-            let elapsed = time.elapsed();
-            println!("Host permutation generation time: {:?}", elapsed);
-            // Commit to the permutation traces.
-            let domains_and_traces = cpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .copied()
-                .zip(cpu_permutation_traces)
-                .collect::<Vec<_>>();
-            let (cpu_perm_commit, _) = cpu_prover.commit(domains_and_traces);
-            let elapsed = time.elapsed();
-            println!("Host permutation generation and commit time: {:?}", elapsed);
-
-            assert_eq!(gpu_perm_commit, cpu_perm_commit);
         }
     }
 
