@@ -110,7 +110,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             compute_inverse_denominators(&heights_and_points, BabyBear::generator())
         });
 
-        let mut all_opened_values: OpenedValues<SC::Challenge> = vec![];
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
@@ -121,7 +120,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .map(|(mats, points)| {
                 let mut opened_values_for_round = vec![];
                 for (mat, points_for_mat) in izip!(mats, points) {
-                    let mat = CudaSync::new(mat).unwrap();
                     let log_height = log2_strict_usize(mat.height);
                     let reduced_opening_for_log_height = reduced_openings[log_height]
                         .get_or_insert_with(|| vec![SC::Challenge::zero(); mat.height]);
@@ -130,6 +128,9 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let opened_values_for_mat = points_for_mat
                         .iter()
                         .map(|&point| {
+                            let num_reduced_at_height = num_reduced[log_height];
+                            num_reduced[log_height] += mat.width();
+
                             // Use Barycentric interpolation to evaluate the matrix at the given point.
                             let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
@@ -143,7 +144,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                             span.exit();
 
                             let span = trace_span!("Reduce powers").entered();
-                            let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
+                            let alpha_pow_offset = alpha.exp_u64(num_reduced_at_height as u64);
                             let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
                             span.exit();
 
@@ -176,8 +177,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     reduced_opening_for_log_height_host[i];
                             }
                             span.exit();
-
-                            num_reduced[log_height] += mat.width();
 
                             ys
                         })
