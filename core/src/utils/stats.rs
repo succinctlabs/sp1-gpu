@@ -5,20 +5,18 @@ use p3_field::{ExtensionField, Field};
 use sp1_core::{air::MachineAir, stark::Chip};
 
 #[derive(Debug, Clone)]
-pub struct ChipStatistics {
+pub struct ChipStatistics<F> {
     name: String,
     height: usize,
     preprocessed_cols: usize,
     main_cols: usize,
     permutation_cols: usize,
     quotient_cols: usize,
+    _marker: std::marker::PhantomData<F>,
 }
 
-impl ChipStatistics {
-    pub fn new<F: Field, EF: ExtensionField<F>, A: MachineAir<F>>(
-        chip: &Chip<F, A>,
-        height: usize,
-    ) -> Self {
+impl<F: Field> ChipStatistics<F> {
+    pub fn new<EF: ExtensionField<F>, A: MachineAir<F>>(chip: &Chip<F, A>, height: usize) -> Self {
         let name = chip.name().to_owned();
         let preprocessed_cols = chip.preprocessed_width();
         let main_cols = chip.width();
@@ -31,14 +29,24 @@ impl ChipStatistics {
             main_cols,
             permutation_cols,
             quotient_cols,
+            _marker: std::marker::PhantomData,
         }
+    }
+
+    pub const fn total_width(&self) -> usize {
+        self.preprocessed_cols + self.main_cols + self.permutation_cols + self.quotient_cols
+    }
+
+    /// Returns the size of all LDEs in bytes.
+    pub fn lde_memory_size(&self, log_blowup: usize) -> usize {
+        let blowup = 1 << log_blowup;
+
+        self.total_width() * self.height * blowup * std::mem::size_of::<F>()
     }
 }
 
-impl Display for ChipStatistics {
+impl<F: Field> Display for ChipStatistics<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let total_width =
-            self.preprocessed_cols + self.main_cols + self.permutation_cols + self.quotient_cols;
         write!(
             f,
             "{:<15} | Prep Cols = {:<5} | Main Cols = {:<5} | Perm Cols = {:<5} | Quot Cols = {:<5} | Rows = {:<5} | Cells = {:<10}",
@@ -48,7 +56,7 @@ impl Display for ChipStatistics {
             self.permutation_cols,
             self.quotient_cols,
             self.height,
-            total_width * self.height
+            self.total_width() * self.height
         )
     }
 }

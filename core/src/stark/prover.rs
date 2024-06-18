@@ -293,11 +293,15 @@ where
             .collect::<Vec<_>>();
 
         // Print some statistics.
+        let mut total_lde_size = 0;
+        let log_blowup = self.committer.log_blowup();
         for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
             let height = domain.size();
-            let stats = ChipStatistics::new::<SC::Val, SC::Challenge, A>(chip, height);
+            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+            total_lde_size += stats.lde_memory_size(log_blowup);
             debug!("{}", stats);
         }
+        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
         // Compute values
         let quotient_values_span = debug_span!("Compute shard quotient values");

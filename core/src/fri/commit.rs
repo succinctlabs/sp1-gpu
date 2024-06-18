@@ -28,6 +28,10 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         }
     }
 
+    pub const fn log_blowup(&self) -> usize {
+        self.log_blowup
+    }
+
     pub fn encode(
         &self,
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
