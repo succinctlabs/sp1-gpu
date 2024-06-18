@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::sync::mpsc;
 
 use tracing::trace_span;
 
@@ -114,68 +115,78 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut num_reduced = [0; 32];
 
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
-        for (mats, points) in mats_and_points {
-            let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
-            for (mat, points_for_mat) in izip!(mats, points) {
-                let mat = CudaSync::new(mat).unwrap();
-                let log_height = log2_strict_usize(mat.height);
-                let reduced_opening_for_log_height = reduced_openings[log_height]
-                    .get_or_insert_with(|| vec![SC::Challenge::zero(); mat.height]);
-                debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height);
+        // let (tx, rx) = mpsc::channel();
+        let all_opened_values = mats_and_points
+            .into_iter()
+            .map(|(mats, points)| {
+                let mut opened_values_for_round = vec![];
+                for (mat, points_for_mat) in izip!(mats, points) {
+                    let mat = CudaSync::new(mat).unwrap();
+                    let log_height = log2_strict_usize(mat.height);
+                    let reduced_opening_for_log_height = reduced_openings[log_height]
+                        .get_or_insert_with(|| vec![SC::Challenge::zero(); mat.height]);
+                    debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height);
 
-                let opened_values_for_mat = opened_values_for_round.pushed_mut(vec![]);
+                    let opened_values_for_mat = points_for_mat
+                        .iter()
+                        .map(|&point| {
+                            // Use Barycentric interpolation to evaluate the matrix at the given point.
+                            let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
-                for &point in points_for_mat {
-                    // Use Barycentric interpolation to evaluate the matrix at the given point.
-                    let coset_height = mat.height >> pcs.fri_config().log_blowup;
+                            let span = trace_span!("Interpolate coset").entered();
+                            let ys = opening_gpu::interpolate_coset(
+                                mat.view(),
+                                coset_height,
+                                InnerVal::generator(),
+                                point,
+                            );
+                            span.exit();
 
-                    let span = trace_span!("Interpolate coset").entered();
-                    let ys = opening_gpu::interpolate_coset(
-                        mat.view(),
-                        coset_height,
-                        InnerVal::generator(),
-                        point,
-                    );
-                    span.exit();
+                            let span = trace_span!("Reduce powers").entered();
+                            let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
+                            let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                            span.exit();
 
-                    let span = trace_span!("Reduce powers").entered();
-                    let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
-                    let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
-                    span.exit();
+                            let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
+                            let alpha_powers = alpha_reducer.powers.to_device();
 
-                    let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
-                    let alpha_powers = alpha_reducer.powers.to_device();
+                            let span = trace_span!("Compute reduced openings").entered();
+                            let mut reduced_opening_for_log_height_device: DeviceBuffer<
+                                SC::Challenge,
+                            > = DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
+                            unsafe {
+                                reduced_opening_for_log_height_device
+                                    .set_len(reduced_opening_for_log_height.len());
+                                opening_gpu::compute_reduced_openings_for_log_height(
+                                    mat.view(),
+                                    inv_denoms_at_point.as_ptr(),
+                                    alpha_powers.as_ptr(),
+                                    alpha_pow_offset,
+                                    sum_alpha_pows_times_y,
+                                    reduced_opening_for_log_height_device.as_mut_ptr(),
+                                );
+                            }
+                            let reduced_opening_for_log_height_host =
+                                reduced_opening_for_log_height_device.to_host();
+                            span.exit();
 
-                    let span = trace_span!("Compute reduced openings").entered();
-                    let mut reduced_opening_for_log_height_device: DeviceBuffer<SC::Challenge> =
-                        DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
-                    unsafe {
-                        reduced_opening_for_log_height_device
-                            .set_len(reduced_opening_for_log_height.len());
-                        opening_gpu::compute_reduced_openings_for_log_height(
-                            mat.view(),
-                            inv_denoms_at_point.as_ptr(),
-                            alpha_powers.as_ptr(),
-                            alpha_pow_offset,
-                            sum_alpha_pows_times_y,
-                            reduced_opening_for_log_height_device.as_mut_ptr(),
-                        );
-                    }
-                    let reduced_opening_for_log_height_host =
-                        reduced_opening_for_log_height_device.to_host();
-                    span.exit();
+                            let span = trace_span!("Add reduced openings").entered();
+                            for i in 0..reduced_opening_for_log_height_host.len() {
+                                reduced_opening_for_log_height[i] +=
+                                    reduced_opening_for_log_height_host[i];
+                            }
+                            span.exit();
 
-                    let span = trace_span!("Add reduced openings").entered();
-                    for i in 0..reduced_opening_for_log_height_host.len() {
-                        reduced_opening_for_log_height[i] += reduced_opening_for_log_height_host[i];
-                    }
-                    span.exit();
+                            num_reduced[log_height] += mat.width();
 
-                    num_reduced[log_height] += mat.width();
-                    opened_values_for_mat.push(ys);
+                            ys
+                        })
+                        .collect::<Vec<_>>();
+                    opened_values_for_round.push(opened_values_for_mat);
                 }
-            }
-        }
+                opened_values_for_round
+            })
+            .collect::<Vec<_>>();
         compute_reduce_openings_span.exit();
 
         let (fri_proof, query_indices) = trace_span!("Fri Proof")
