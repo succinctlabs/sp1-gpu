@@ -1066,9 +1066,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_tendermint_benchmark() {
-        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
+        let elf = include_bytes!("../../../fibonacci-v2");
+        let program = Program::from(elf);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
