@@ -1,4 +1,26 @@
+#pragma once
+
+#include "poseidon2.cuh"
+
 #include "../../fields/bb31_t.cuh"
+#include "../../matrix/matrix.cuh"
+#include "../../utils/vector.cuh"
+
+#include <stdio.h>
+
+namespace poseidon2_bb31_16 {
+
+const int WIDTH = 16;
+const int D = 7;
+const int ROUNDS_F = 8;
+const int ROUNDS_P = 13;
+
+__constant__ bb31_t INTERNAL_ROUND_CONSTANTS[13] = {
+    bb31_t(1196780786), bb31_t(36046858),   bb31_t(1492041470),
+    bb31_t(1864954859), bb31_t(883677154),  bb31_t(1765843422),
+    bb31_t(1418914503), bb31_t(1404382774), bb31_t(859661334),
+    bb31_t(1548195514), bb31_t(104929687),  bb31_t(178643863),
+    bb31_t(1619872446)};
 
 __constant__ bb31_t EXTERNAL_ROUND_CONSTANTS[8][16] = {
     {bb31_t(96748292), bb31_t(1951698684), bb31_t(177396853), bb31_t(719730562),
@@ -42,9 +64,21 @@ __constant__ bb31_t EXTERNAL_ROUND_CONSTANTS[8][16] = {
      bb31_t(502840102), bb31_t(199116516), bb31_t(510217063), bb31_t(166444818),
      bb31_t(1430745893), bb31_t(1376516190), bb31_t(1775891321)}};
 
-__constant__ bb31_t INTERNAL_ROUND_CONSTANTS[13] = {
-    bb31_t(1196780786), bb31_t(36046858),   bb31_t(1492041470),
-    bb31_t(1864954859), bb31_t(883677154),  bb31_t(1765843422),
-    bb31_t(1418914503), bb31_t(1404382774), bb31_t(859661334),
-    bb31_t(1548195514), bb31_t(104929687),  bb31_t(178643863),
-    bb31_t(1619872446)};
+__constant__ bb31_t MAT_INTERNAL_DIAG_M1[16] = {
+    bb31_t(2013265919), bb31_t(1),    bb31_t(2),    bb31_t(4),
+    bb31_t(8),          bb31_t(16),   bb31_t(32),   bb31_t(64),
+    bb31_t(128),        bb31_t(256),  bb31_t(512),  bb31_t(1024),
+    bb31_t(2048),       bb31_t(4096), bb31_t(8192), bb31_t(32768),
+};
+
+const bb31_t MONTY_INVERSE = bb31_t(943718400);
+
+using Hasher = poseidon2::Hasher<bb31_t, WIDTH, D, ROUNDS_F, ROUNDS_P>;
+
+using HasherState = poseidon2::HasherState<bb31_t, WIDTH>;
+
+Hasher newBabyBear16() {
+    return Hasher(INTERNAL_ROUND_CONSTANTS, EXTERNAL_ROUND_CONSTANTS,
+                  MAT_INTERNAL_DIAG_M1, MONTY_INVERSE);
+}
+}  // namespace poseidon2_bb31_16
