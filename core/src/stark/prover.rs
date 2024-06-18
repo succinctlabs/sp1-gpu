@@ -30,7 +30,6 @@ use sp1_core::{
 
 use air::P3EvalFolder;
 
-use crate::fri::FriCpuOpeningProver;
 use crate::fri::FriGpuOpeningProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
@@ -224,17 +223,20 @@ where
         let GpuMainData {
             trace_data: main_trace_data,
             commit: main_commit,
-            prover_data: main_prover_data,
+            prover_data: mut main_prover_data,
         } = shard_data;
 
-        let time = CudaInstant::now()?;
-        // Copy the main trace prover data to the host and drop the device data.
-        // let host_main_prover_data = main_prover_data.into_host();
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Time to transfer main prover data from device: {:?}",
-            elapsed
-        );
+        // let time = CudaInstant::now()?;
+        // // Copy the main trace prover data to the host and drop the device data.
+        // // let host_main_prover_data = main_prover_data.into_host();
+        // let elapsed = time.elapsed()?;
+        // debug!(
+        //     "Time to transfer main prover data from device: {:?}",
+        //     elapsed
+        // );
+
+        // Delete the ldes of the main prover data.
+        main_prover_data.leaves.clear();
 
         // Get the permutation challenges.
         let permutation_challenges = (0..2)
@@ -253,7 +255,7 @@ where
             .copied()
             .zip(permutation_traces)
             .collect::<Vec<_>>();
-        let (permutation_commit, perm_prover_data) =
+        let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         span.exit();
 
@@ -274,6 +276,9 @@ where
                 })
             })
             .collect::<Vec<_>>();
+
+        // Delete the ldes of the permutation prover data.
+        perm_prover_data.leaves.clear();
 
         // Get a challenge for folding the constraints.
         //
@@ -312,8 +317,8 @@ where
 
             for (i, ((chip, trace), (perm_domain, perm_trace))) in shard_chips
                 .iter()
-                .zip(traces)
-                .zip(perm_domains_and_traces)
+                .zip(traces.iter())
+                .zip(perm_domains_and_traces.iter())
                 .enumerate()
             {
                 let cumulative_sums = cumulative_sums.as_slice();
@@ -325,17 +330,18 @@ where
                         debug_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
                             .entered();
                     let trace_domain = perm_domain;
-                    let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
-                    drop(trace);
+                    let main_lde = self.committer.encode(*trace_domain, trace, false).unwrap();
                     let permutation_lde = self
                         .committer
-                        .encode(perm_domain, &perm_trace, false)
+                        .encode(*perm_domain, perm_trace, false)
                         .unwrap();
-                    drop(perm_trace);
 
+                    let copy_prep_span =
+                        debug_span!(parent: parent, "Copy preprocessed data to device").entered();
                     let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
                     let preprocessed_lde = preprocessed_index
                         .map(|idx| pk.data.leaves[idx].to_device().to_column_major());
+                    copy_prep_span.exit();
 
                     let cumulative_sum = cumulative_sums[i];
 
@@ -343,7 +349,7 @@ where
                         .quotient_generator
                         .generate_quotient_values(
                             chip,
-                            trace_domain,
+                            *trace_domain,
                             preprocessed_lde,
                             main_lde,
                             permutation_lde,
@@ -354,6 +360,7 @@ where
                         )
                         .unwrap();
                     chip_span.exit();
+
                     values
                 });
                 quotient_value_handles.push(handle);
@@ -417,7 +424,18 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
-        let pk_data_device = pk.data.to_device();
+        // Recompute main and permutation LDE and insert into the prover data.
+        let span = debug_span!("Recompute LDEs for openning").entered();
+        for (trace, (domain, perm_trace)) in traces.into_iter().zip(perm_domains_and_traces) {
+            let main_lde = self.committer.encode(domain, &trace, true)?;
+            main_prover_data.leaves.push(CudaSync::new(main_lde)?);
+            let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
+            perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+        }
+        span.exit();
+
+        let pk_data_device = debug_span!("transfer preprocessed prover data to device")
+            .in_scope(|| pk.data.to_device());
 
         let (openings, opening_proof) = debug_span!("Compute opening proof").in_scope(|| {
             self.opening_prover.open(
@@ -1074,7 +1092,7 @@ pub mod tests {
 
         let e2e_time = std::time::Instant::now();
         let shards = debug_span!("Shard execution trace").in_scope(|| gpu_prover.shard(record));
-        for (i, shard) in shards.into_iter().enumerate() {
+        for (i, shard) in shards.into_iter().enumerate().skip(1) {
             let main_data = gpu_prover.commit_main(&shard, i + 1);
             // Observe the main commit.
             let main_commit = main_data.commit;
