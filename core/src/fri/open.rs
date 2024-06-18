@@ -642,13 +642,6 @@ mod tests {
         let machine = RiscvAir::machine(config);
         let gpu_prover = FriGpuProver::new(machine);
 
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-
-        let config = SC::default();
-
-        let (pk, vk) = gpu_prover.machine.setup(&program);
-
         // Execute the program.
         let record = execute_core(program);
 
@@ -658,7 +651,6 @@ mod tests {
 
         for shard in shards {
             let gpu_main_data = gpu_prover.commit_main(&shard, 1);
-            let main_commit = gpu_main_data.commit;
 
             let mut challenger = gpu_prover.machine.config().challenger();
             let zeta: Challenge<SC> = challenger.sample_ext_element();
