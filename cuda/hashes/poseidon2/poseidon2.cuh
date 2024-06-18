@@ -96,23 +96,26 @@ template <typename F, int WIDTH, int D, int ROUNDS_F, int ROUNDS_P>
 class Hasher {
    private:
     F internalRoundConstants[ROUNDS_P];
-    F externalRoundConstants[ROUNDS_F / 2][WIDTH];
+    F externalRoundConstants[ROUNDS_F][WIDTH];
     F matInternalDiagM1[WIDTH];
     F montyInverse;
 
    public:
-    Hasher(F internalRoundConstants[ROUNDS_P],
-           F externalRoundConstants[ROUNDS_F / 2][WIDTH],
-           F matInternalDiagM1[WIDTH], F montyInverse) {
-        std::copy(internalRoundConstants, internalRoundConstants + ROUNDS_P,
-                  this->internalRoundConstants);
-        for (int i = 0; i < ROUNDS_F / 2; i++) {
-            std::copy(externalRoundConstants[i],
-                      externalRoundConstants[i] + WIDTH,
-                      this->externalRoundConstants[i]);
+    __device__ Hasher(F internalRoundConstants[ROUNDS_P],
+                      F externalRoundConstants[ROUNDS_F][WIDTH],
+                      F matInternalDiagM1[WIDTH], F montyInverse) {
+        for (int i = 0; i < ROUNDS_P; i++) {
+            this->internalRoundConstants[i] = internalRoundConstants[i];
         }
-        std::copy(matInternalDiagM1, matInternalDiagM1 + WIDTH,
-                  this->matInternalDiagM1);
+        for (int i = 0; i < ROUNDS_F / 2; i++) {
+            for (int j = 0; j < WIDTH; j++) {
+                this->externalRoundConstants[i][j] =
+                    externalRoundConstants[i][j];
+            }
+        }
+        for (int i = 0; i < WIDTH; i++) {
+            this->matInternalDiagM1[i] = matInternalDiagM1[i];
+        }
         this->montyInverse = montyInverse;
     }
     __device__ void permute(F in[WIDTH], F out[WIDTH]) {

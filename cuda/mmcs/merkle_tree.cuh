@@ -11,12 +11,13 @@ using namespace poseidon2_bb31_16;
 
 __global__ void firstDigestLayer(Matrix<bb31_t> *tallestMatrices,
                                  size_t nTallestMatrices,
-                                 bb31_t (*digests)[poseidon2::DIGEST_WIDTH],
-                                 Hasher hasher) {
+                                 bb31_t (*digests)[poseidon2::DIGEST_WIDTH]) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (rowIdx >= tallestMatrices[0].height) {
         return;
     }
+
+    Hasher hasher = newBabyBear16();
 
     HasherState state = HasherState();
     for (int i = 0; i < nTallestMatrices; i++) {
@@ -28,11 +29,13 @@ __global__ void firstDigestLayer(Matrix<bb31_t> *tallestMatrices,
 __global__ void compressAndInject(
     bb31_t (*prevLayer)[poseidon2::DIGEST_WIDTH], size_t nPrevLayer,
     Matrix<bb31_t> *matricesToInject, size_t nMatricesToInject,
-    bb31_t (*nextDigests)[poseidon2::DIGEST_WIDTH], Hasher hasher) {
+    bb31_t (*nextDigests)[poseidon2::DIGEST_WIDTH]) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (rowIdx >= nPrevLayer / 2) {
         return;
     }
+
+    Hasher hasher = newBabyBear16();
 
     if (nMatricesToInject == 0) {
         hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1],
@@ -73,9 +76,8 @@ extern "C" namespace merkle_tree_gpu {
         Matrix<bb31_t> * tallestMatrices, size_t nTallestMatrices,
         bb31_t(*digests)[poseidon2::DIGEST_WIDTH], size_t nBlocks,
         size_t nThreadsPerBlock) {
-        Hasher hasher = newBabyBear16();
         merkle_tree_kernels::firstDigestLayer<<<nBlocks, nThreadsPerBlock>>>(
-            tallestMatrices, nTallestMatrices, digests, hasher);
+            tallestMatrices, nTallestMatrices, digests);
     }
 
     extern "C" void compress_and_inject(
@@ -83,9 +85,8 @@ extern "C" namespace merkle_tree_gpu {
         Matrix<bb31_t> * matricesToInject, size_t nMatricesToInject,
         bb31_t(*nextDigests)[poseidon2::DIGEST_WIDTH], size_t nBlocks,
         size_t nThreadsPerBlock) {
-        Hasher hasher = newBabyBear16();
         merkle_tree_kernels::compressAndInject<<<nBlocks, nThreadsPerBlock>>>(
             prevLayer, nPrevLayer, matricesToInject, nMatricesToInject,
-            nextDigests, hasher);
+            nextDigests);
     }
 }
