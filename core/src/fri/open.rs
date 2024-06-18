@@ -77,6 +77,7 @@ pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
 impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
     pub fn open(
+        &self,
         pcs: &SC::Pcs,
         rounds: Vec<(&GpuProverData<SC>, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
@@ -423,6 +424,12 @@ pub fn answer_query(
     }
 }
 
+impl<SC> Default for FriGpuOpeningProver<SC> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
 pub mod opening_gpu {
     use crate::device::memory::ToHost;
     use p3_baby_bear::BabyBear;
@@ -645,6 +652,8 @@ mod tests {
         // Execute the program.
         let record = execute_core(program);
 
+        let open_prover = FriGpuOpeningProver::<SC>::default();
+
         init_tracer();
 
         let shards = gpu_prover.shard(record);
@@ -663,7 +672,7 @@ mod tests {
 
             let pcs = gpu_prover.machine.config().pcs();
             let start = std::time::Instant::now();
-            let (mut openings_gpu, opening_proof) = FriGpuOpeningProver::<SC>::open(
+            let (mut openings_gpu, opening_proof) = open_prover.open(
                 pcs,
                 vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
                 &mut challenger,

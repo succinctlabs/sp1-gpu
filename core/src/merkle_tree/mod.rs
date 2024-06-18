@@ -1,6 +1,8 @@
 use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
+use crate::device::CudaSync;
+use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
@@ -11,6 +13,7 @@ use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
 use std::cmp::Reverse;
+use std::marker::PhantomData;
 
 use crate::matrix::DeviceMatrix;
 
@@ -133,6 +136,34 @@ where
             .collect::<Vec<_>>();
 
         FieldMerkleTree::from_parts(leaves, digest_layers)
+    }
+}
+
+impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, DIGEST_WIDTH> {
+    type DeviceType = FieldMerkleTreeGpu<
+        BabyBear,
+        [BabyBear; DIGEST_WIDTH],
+        CudaSync<ColMajorMatrixDevice<BabyBear>>,
+    >;
+
+    fn to_device(&self) -> Self::DeviceType {
+        let leaves_device = self
+            .leaves
+            .iter()
+            .map(|l| CudaSync::new(l.to_device().to_column_major()).unwrap())
+            .collect::<Vec<_>>();
+
+        let digest_layers_device = self
+            .digest_layers
+            .iter()
+            .map(|l| l.to_device())
+            .collect::<Vec<_>>();
+
+        FieldMerkleTreeGpu {
+            leaves: leaves_device,
+            digest_layers: digest_layers_device,
+            _marker: PhantomData,
+        }
     }
 }
 

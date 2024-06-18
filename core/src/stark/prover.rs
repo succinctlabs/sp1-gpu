@@ -31,6 +31,7 @@ use sp1_core::{
 use air::P3EvalFolder;
 
 use crate::fri::FriCpuOpeningProver;
+use crate::fri::FriGpuOpeningProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::timed_debug;
@@ -60,7 +61,7 @@ pub struct FriGpuProver<SC: StarkGenericConfig, A> {
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
-    opening_prover: FriCpuOpeningProver<SC>,
+    opening_prover: FriGpuOpeningProver<SC>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
@@ -123,7 +124,7 @@ where
             committer: TwoAdicFriCommitter::new(log_blowup),
             trace_generator: CpuTraceGenerator::default(),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriCpuOpeningProver::default(),
+            opening_prover: FriGpuOpeningProver::default(),
             quotient_generator,
         }
     }
@@ -228,7 +229,7 @@ where
 
         let time = CudaInstant::now()?;
         // Copy the main trace prover data to the host and drop the device data.
-        let host_main_prover_data = main_prover_data.into_host();
+        // let host_main_prover_data = main_prover_data.into_host();
         let elapsed = time.elapsed()?;
         debug!(
             "Time to transfer main prover data from device: {:?}",
@@ -281,7 +282,7 @@ where
 
         // Get the permutation prover data from device.
         let time = CudaInstant::now()?;
-        let host_perm_prover_data = perm_prover_data.into_host();
+        // let host_perm_prover_data = perm_prover_data.into_host();
         let elapsed = time.elapsed()?;
         debug!(
             "Time to transfer permutation prover data from device: {:?}",
@@ -385,8 +386,8 @@ where
         time_to_commit_quotient_values.exit();
 
         // Transfer the quotient data to the host.
-        let host_quotient_prover_data = debug_span!("Transfer quotient prover data from device")
-            .in_scope(|| quotient_prover_data.into_host());
+        // let host_quotient_prover_data = debug_span!("Transfer quotient prover data from device")
+        //     .in_scope(|| quotient_prover_data.into_host());
         drop(quotient_domains_and_chunks);
 
         // Observe the quotient commitment.
@@ -416,14 +417,16 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
+        let pk_data_device = pk.data.to_device();
+
         let (openings, opening_proof) = debug_span!("Compute opening proof").in_scope(|| {
             self.opening_prover.open(
                 self.pcs(),
                 vec![
-                    (&pk.data, preprocessed_opening_points),
-                    (&host_main_prover_data, trace_opening_points.clone()),
-                    (&host_perm_prover_data, trace_opening_points),
-                    (&host_quotient_prover_data, quotient_opening_points),
+                    (&pk_data_device, preprocessed_opening_points),
+                    (&main_prover_data, trace_opening_points.clone()),
+                    (&perm_prover_data, trace_opening_points),
+                    (&quotient_prover_data, quotient_opening_points),
                 ],
                 challenger,
             )
