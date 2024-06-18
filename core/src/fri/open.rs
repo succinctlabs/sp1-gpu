@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use tracing::debug_span;
+use tracing::trace_span;
 
 use itertools::{izip, Itertools};
 use p3_baby_bear::BabyBear;
@@ -97,19 +97,19 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
-        let alpha_reducer = debug_span!("Reduce powers")
+        let alpha_reducer = trace_span!("Reduce powers")
             .in_scope(|| PowersReducer::<InnerVal, InnerChallenge>::new(alpha, global_max_width));
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
-        let inv_denoms = debug_span!("Compute inverse denominators")
+        let inv_denoms = trace_span!("Compute inverse denominators")
             .in_scope(|| compute_inverse_denominators(&mats_and_points, BabyBear::generator()));
 
         let mut all_opened_values: OpenedValues<InnerChallenge> = vec![];
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
-        let compute_reduce_openings_span = debug_span!("Compute reduced openings").entered();
+        let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
         for (mats, points) in mats_and_points {
             let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
             for (mat, points_for_mat) in izip!(mats, points) {
@@ -127,7 +127,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
-                    let span = debug_span!("Interpolate coset").entered();
+                    let span = trace_span!("Interpolate coset").entered();
                     let ys = opening_gpu::interpolate_coset(
                         col_major_mat,
                         coset_height,
@@ -136,7 +136,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     );
                     span.exit();
 
-                    let span = debug_span!("Reduce powers").entered();
+                    let span = trace_span!("Reduce powers").entered();
                     let alpha_pow_offset = alpha.exp_u64(num_reduced[log_height] as u64);
                     let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
                     span.exit();
@@ -144,7 +144,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
                     let alpha_powers = alpha_reducer.powers.to_device();
 
-                    let span = debug_span!("Compute reduced openings").entered();
+                    let span = trace_span!("Compute reduced openings").entered();
                     let mut reduced_opening_for_log_height_device: DeviceBuffer<SC::Challenge> =
                         DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
                     unsafe {
@@ -163,7 +163,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         reduced_opening_for_log_height_device.to_host();
                     span.exit();
 
-                    let span = debug_span!("Add reduced openings").entered();
+                    let span = trace_span!("Add reduced openings").entered();
                     for i in 0..reduced_opening_for_log_height_host.len() {
                         reduced_opening_for_log_height[i] += reduced_opening_for_log_height_host[i];
                     }
@@ -176,10 +176,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         }
         compute_reduce_openings_span.exit();
 
-        let (fri_proof, query_indices) = debug_span!("Fri Proof")
+        let (fri_proof, query_indices) = trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), &reduced_openings, challenger));
 
-        let query_openings_span = debug_span!("Compute query openings").entered();
+        let query_openings_span = trace_span!("Compute query openings").entered();
         let query_openings = query_indices
             .into_iter()
             .map(|index| {
@@ -307,17 +307,17 @@ pub fn prove(
 ) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
     let log_max_height = input.iter().rposition(Option::is_some).unwrap();
 
-    let commit_phase_result = debug_span!("Commit phase")
+    let commit_phase_result = trace_span!("Commit phase")
         .in_scope(|| commit_phase(config, input, log_max_height, challenger));
 
     let pow_witness =
-        debug_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
+        trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
 
     let query_indices: Vec<usize> = (0..config.num_queries)
         .map(|_| challenger.sample_bits(log_max_height))
         .collect();
 
-    let query_proofs_span = debug_span!("Compute query proofs").entered();
+    let query_proofs_span = trace_span!("Compute query proofs").entered();
     let query_proofs = query_indices
         .iter()
         .map(|&index| answer_query(&commit_phase_result.data, index))
