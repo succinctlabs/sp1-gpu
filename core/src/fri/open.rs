@@ -40,7 +40,6 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -86,14 +85,14 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         let mats_and_points = rounds
             .iter()
-            .map(|(data, points)| (data.leaves.iter().map(|l| l.view()).collect_vec(), points))
+            .map(|(data, points)| (data.leaves.iter().collect_vec(), points))
             .collect_vec();
         let mats = mats_and_points
             .iter()
             .flat_map(|(mats, _)| mats)
             .collect_vec();
 
-        let global_max_width = mats.iter().map(|m| m.width).max().unwrap();
+        let global_max_width = mats.iter().map(|m| m.width()).max().unwrap();
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
@@ -102,8 +101,13 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
-        let inv_denoms = trace_span!("Compute inverse denominators")
-            .in_scope(|| compute_inverse_denominators(&mats_and_points, BabyBear::generator()));
+        let inv_denoms = trace_span!("Compute inverse denominators").in_scope(|| {
+            let heights_and_points = mats_and_points
+                .iter()
+                .map(|(mats, points)| (mats.iter().map(|m| m.height).collect_vec(), *points))
+                .collect_vec();
+            compute_inverse_denominators(&heights_and_points, BabyBear::generator())
+        });
 
         let mut all_opened_values: OpenedValues<SC::Challenge> = vec![];
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
@@ -113,6 +117,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         for (mats, points) in mats_and_points {
             let opened_values_for_round = all_opened_values.pushed_mut(vec![]);
             for (mat, points_for_mat) in izip!(mats, points) {
+                let mat = CudaSync::new(mat).unwrap();
                 let log_height = log2_strict_usize(mat.height);
                 let reduced_opening_for_log_height = reduced_openings[log_height]
                     .get_or_insert_with(|| vec![SC::Challenge::zero(); mat.height]);
@@ -126,7 +131,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
                     let span = trace_span!("Interpolate coset").entered();
                     let ys = opening_gpu::interpolate_coset(
-                        mat,
+                        mat.view(),
                         coset_height,
                         InnerVal::generator(),
                         point,
@@ -148,7 +153,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         reduced_opening_for_log_height_device
                             .set_len(reduced_opening_for_log_height.len());
                         opening_gpu::compute_reduced_openings_for_log_height(
-                            mat,
+                            mat.view(),
                             inv_denoms_at_point.as_ptr(),
                             alpha_powers.as_ptr(),
                             alpha_pow_offset,
@@ -166,7 +171,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     }
                     span.exit();
 
-                    num_reduced[log_height] += mat.width;
+                    num_reduced[log_height] += mat.width();
                     opened_values_for_mat.push(ys);
                 }
             }
@@ -248,13 +253,13 @@ fn open_batch(
 
 #[allow(clippy::type_complexity)]
 pub fn compute_inverse_denominators(
-    mats_and_points: &[(Vec<MatrixViewDevice<BabyBear>>, &Vec<Vec<InnerChallenge>>)],
+    heights_and_points: &[(Vec<usize>, &Vec<Vec<InnerChallenge>>)],
     coset_shift: BabyBear,
 ) -> LinearMap<InnerChallenge, Vec<InnerChallenge>> {
     let mut max_log_height_for_point: LinearMap<InnerChallenge, usize> = LinearMap::new();
-    for (mats, points) in mats_and_points {
-        for (mat, points_for_mat) in izip!(mats, *points) {
-            let log_height = log2_strict_usize(mat.height);
+    for (heights, points) in heights_and_points {
+        for (height, points_for_mat) in izip!(heights, *points) {
+            let log_height = log2_strict_usize(*height);
             for &z in points_for_mat {
                 if let Some(lh) = max_log_height_for_point.get_mut(&z) {
                     *lh = core::cmp::max(*lh, log_height);
