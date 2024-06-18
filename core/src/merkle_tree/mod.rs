@@ -1,4 +1,5 @@
 use crate::device::buffer::DeviceBuffer;
+use crate::device::buffer::SyncBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
@@ -19,7 +20,7 @@ use crate::matrix::DeviceMatrix;
 
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
     pub leaves: Vec<M>,
-    pub digest_layers: Vec<DeviceBuffer<D>>,
+    pub digest_layers: Vec<SyncBuffer<D>>,
     _marker: std::marker::PhantomData<F>,
 }
 
@@ -49,6 +50,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
             );
         }
 
+        let first_digest_layer = CudaSync::new(first_digest_layer).unwrap();
         let mut digest_layers = vec![first_digest_layer];
         loop {
             let prev_layer = digest_layers.last().unwrap();
@@ -76,7 +78,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
                     32,
                 );
             }
-            digest_layers.push(next_digests);
+            digest_layers.push(CudaSync::new(next_digests).unwrap());
         }
 
         Self {
@@ -156,7 +158,7 @@ impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, 
         let digest_layers_device = self
             .digest_layers
             .iter()
-            .map(|l| l.to_device())
+            .map(|l| l.to_device_sync().unwrap())
             .collect::<Vec<_>>();
 
         FieldMerkleTreeGpu {

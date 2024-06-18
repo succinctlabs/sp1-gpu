@@ -10,6 +10,9 @@ use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free,
 use crate::device::slice::DeviceSlice;
 
 use super::memory::{ToDevice, ToHost};
+use super::CudaSync;
+
+pub type SyncBuffer<T> = CudaSync<DeviceBuffer<T>>;
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]

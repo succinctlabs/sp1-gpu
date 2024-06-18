@@ -98,14 +98,14 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let log_global_max_height = log2_strict_usize(global_max_height);
 
         let alpha_reducer = trace_span!("Reduce powers")
-            .in_scope(|| PowersReducer::<InnerVal, InnerChallenge>::new(alpha, global_max_width));
+            .in_scope(|| PowersReducer::<SC::Val, SC::Challenge>::new(alpha, global_max_width));
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let inv_denoms = trace_span!("Compute inverse denominators")
             .in_scope(|| compute_inverse_denominators(&mats_and_points, BabyBear::generator()));
 
-        let mut all_opened_values: OpenedValues<InnerChallenge> = vec![];
+        let mut all_opened_values: OpenedValues<SC::Challenge> = vec![];
         let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
@@ -122,14 +122,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
                 for &point in points_for_mat {
                     // Use Barycentric interpolation to evaluate the matrix at the given point.
-                    let mut col_major_mat = mat;
-                    col_major_mat.height = mat.width;
-                    col_major_mat.width = mat.height;
                     let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
                     let span = trace_span!("Interpolate coset").entered();
                     let ys = opening_gpu::interpolate_coset(
-                        col_major_mat,
+                        mat,
                         coset_height,
                         InnerVal::generator(),
                         point,
@@ -151,7 +148,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         reduced_opening_for_log_height_device
                             .set_len(reduced_opening_for_log_height.len());
                         opening_gpu::compute_reduced_openings_for_log_height(
-                            col_major_mat,
+                            mat,
                             inv_denoms_at_point.as_ptr(),
                             alpha_powers.as_ptr(),
                             alpha_pow_offset,
@@ -191,7 +188,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         let bits_reduced = log_global_max_height - log_max_height;
                         let reduced_index = index >> bits_reduced;
                         let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        BatchOpening::<InnerVal, InnerValMmcs> {
+                        BatchOpening::<SC::Val, InnerValMmcs> {
                             opened_values,
                             opening_proof,
                         }
@@ -487,7 +484,7 @@ pub mod opening_gpu {
         shift: BabyBear,
         point: InnerChallenge,
     ) -> Vec<InnerChallenge> {
-        let cols = coset_evals.height;
+        let cols = coset_evals.width;
         let coset_log_height = log2_strict_usize(coset_height);
         let g = BabyBear::two_adic_generator(coset_log_height);
         let g_powers = g.powers().take(coset_height).collect::<Vec<_>>();

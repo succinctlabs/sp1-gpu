@@ -27,7 +27,7 @@ __global__ void interpolateCosetStage1(
         size_t rev = bit_rev(i, cosetLogHeight);
         bb31_extension_t diff = point - shift * gPowers[i];
         bb31_extension_t scale = gPowers[i] * diff.reciprocal();
-        sum += scale * cosetEvals.values[col * cosetEvals.width + rev];
+        sum += scale * cosetEvals.values[col * cosetEvals.height + rev];
     }
 
     size_t tid = threadIdx.x * blockDim.y + threadIdx.y;
@@ -78,8 +78,8 @@ __global__ void computeReducedOpeningsForLogHeight(
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     bb31_extension_t rowSum = bb31_extension_t::zero();
-    for (size_t i = 0; i < matrix.height; i++) {
-        rowSum += matrix.values[i * matrix.width + idx] * alphaPowers[i];
+    for (size_t i = 0; i < matrix.width; i++) {
+        rowSum += matrix.values[i * matrix.height + idx] * alphaPowers[i];
     }
     reducedOpeningsForLogHeight[idx] +=
         invDenoms[idx] * alphaPowOffset * (rowSum - sumAlphaPowTimesY);
@@ -115,9 +115,9 @@ extern "C" void interpolateCoset(
     bb31_t* gPowers,
     bb31_extension_t* output
 ) {
-    dim3 stage1Grid(cosetEvals.height, 32);
+    dim3 stage1Grid(cosetEvals.width, 32);
     dim3 stage1Block(1, 32);
-    dim3 stage2Grid(cosetEvals.height);
+    dim3 stage2Grid(cosetEvals.width);
     dim3 stage2Block(1);
 
     // Allocate the intermeddiate output for the first stage.
@@ -162,17 +162,19 @@ extern "C" void computeReducedOpeningForLogHeight(
     bb31_extension_t* reducedOpeningsForLogHeight
 ) {
     size_t numThreads = 1024;
-    size_t numBlocks = matrix.width / numThreads + 1;
+    // TODO: ceil(matrix.height / numThreads)
+    // size_t numBlocks = ceil(matrix.height /(float) numThreads);
+    size_t numBlocks = matrix.height / numThreads + 1;
 
     // Initialize the reduced openings for the log height.
     opening_kernels::
         initializeReducedOpeningsForLogHeight<<<numBlocks, numThreads>>>(
             reducedOpeningsForLogHeight,
-            matrix.width
+            matrix.height
         );
 
     // Compute the reduced openings for the log height.
-    opening_kernels::computeReducedOpeningsForLogHeight<<<matrix.width, 1>>>(
+    opening_kernels::computeReducedOpeningsForLogHeight<<<matrix.height, 1>>>(
         matrix,
         invDenoms,
         alphaPowers,

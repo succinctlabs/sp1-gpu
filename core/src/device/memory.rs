@@ -2,12 +2,16 @@ use std::{ffi::c_void, mem, ptr};
 
 use crate::{device::error::CudaError, device::ffi};
 
-use super::buffer::DeviceBuffer;
+use super::{buffer::DeviceBuffer, CudaSync};
 
 pub trait ToDevice {
     type DeviceType;
 
     fn to_device(&self) -> Self::DeviceType;
+
+    fn to_device_sync(&self) -> Result<CudaSync<Self::DeviceType>, CudaError> {
+        CudaSync::new(self.to_device())
+    }
 }
 
 pub trait ToHost {
