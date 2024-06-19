@@ -2,7 +2,6 @@
 
 #include "./utils.cuh"
 
-#include "../air/codegen/codegen.cuh"
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
 #include "../matrix/matrix.cuh"
