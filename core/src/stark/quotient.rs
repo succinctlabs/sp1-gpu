@@ -48,7 +48,7 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceQuotientValuesGenerator<SC, A> {
-    chip_data: HashMap<String, (usize, Vec<Operation>)>,
+    eval_programs: HashMap<String, Vec<Operation>>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -68,19 +68,19 @@ where
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
-        let mut chip_data = HashMap::new();
-        for (i, chip) in machine.chips().iter().enumerate() {
+        let mut eval_programs = HashMap::new();
+        for chip in machine.chips() {
             let (operations, _) = air::codegen_cuda_eval(chip);
-            chip_data.insert(chip.name().to_owned(), (i, operations));
+            eval_programs.insert(chip.name().to_owned(), operations);
         }
         Self {
-            chip_data,
+            eval_programs,
             _marker: PhantomData,
         }
     }
 
-    pub fn chip_data(&self, chip: &Chip<SC::Val, A>) -> &(usize, Vec<Operation>) {
-        self.chip_data.get(&chip.name()).unwrap()
+    pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &[Operation] {
+        self.eval_programs.get(&chip.name()).unwrap()
     }
 
     pub fn get_evaluations_on_subdomain(
@@ -153,7 +153,7 @@ where
         let public_values_device = public_values.to_device();
         let trace_domain_device = trace_domain.to_device();
         let quotient_domain_device = quotient_domain.to_device();
-        let (chip_id, operations) = self.chip_data(chip);
+        let operations = self.get_eval_program(chip);
         let operations_device = operations.to_device();
         let trace_domain_generator =
             <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
@@ -174,7 +174,6 @@ where
             );
             quotient_flat.set_max_width();
             quotient_gpu::compute_values(
-                *chip_id,
                 operations_device.as_ptr(),
                 operations.len(),
                 cumulative_sum,
@@ -541,7 +540,6 @@ mod tests {
             unsafe {
                 quotient_output.set_max_width();
                 quotient_gpu::compute_values(
-                    i,
                     operations_device.as_ptr(),
                     operations.len(),
                     cumulative_sum,

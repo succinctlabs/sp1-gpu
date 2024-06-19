@@ -44,7 +44,6 @@ pub(super) mod quotient_gpu {
         #[link_name = "computeValues"]
         #[allow(unused)]
         pub fn compute_values(
-            chip_id: usize,
             eval_program: *const Operation,
             eval_program_len: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
