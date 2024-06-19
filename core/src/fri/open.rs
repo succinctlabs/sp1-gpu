@@ -558,7 +558,7 @@ pub mod opening_gpu {
 mod tests {
     use crate::device::memory::ToHost;
     use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
-    use crate::stark::FriGpuProver;
+    use crate::stark::StarkGpuProver;
     use p3_baby_bear::BabyBear;
     use p3_challenger::FieldChallenger;
     use p3_commit::Pcs;
@@ -685,7 +685,7 @@ mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
+        let gpu_prover = StarkGpuProver::new(machine);
 
         // Execute the program.
         let record = execute_core(program);

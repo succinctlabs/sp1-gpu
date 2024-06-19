@@ -1,5 +1,5 @@
 [workspace]
-members = ["air", "core"]
+members = ["air", "core", "prover"]
 
 exclude = ["sppark/poc/ntt-cuda", "sppark/rust"]
 
@@ -32,3 +32,8 @@ p3-util = { path = "../Plonky3/util" }
 p3-interpolation = { path = "../Plonky3/interpolation" }
 
 sp1-core = { path = "../sp1/core" }
+sp1-recursion-core = { path = "../sp1/recursion/core" }
+sp1-recursion-program = { path = "../sp1/recursion/program" }
+sp1-recursion-compiler = { path = "../sp1/recursion/compiler" }
+sp1-primitives = { path = "../sp1/primitives" }
+sp1-prover = { path = "../sp1/prover" }

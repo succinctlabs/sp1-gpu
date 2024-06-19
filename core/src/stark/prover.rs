@@ -21,6 +21,7 @@ use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
 use sp1_core::stark::ShardProof;
+use sp1_core::stark::StarkVerifyingKey;
 use sp1_core::{
     air::MachineAir,
     stark::{
@@ -59,7 +60,7 @@ const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
 use super::CpuTraceGenerator;
 
-pub struct FriGpuProver<SC: StarkGenericConfig, A> {
+pub struct StarkGpuProver<SC: StarkGenericConfig, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     trace_generator: CpuTraceGenerator<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
@@ -112,7 +113,7 @@ pub struct ProverData<SC: StarkGenericConfig, Data> {
     pub data: Data,
 }
 
-impl<SC, A> FriGpuProver<SC, A>
+impl<SC, A> StarkGpuProver<SC, A>
 where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>>
@@ -131,6 +132,18 @@ where
             opening_prover: FriGpuOpeningProver::default(),
             quotient_generator,
         }
+    }
+
+    pub fn machine(&self) -> &StarkMachine<SC, A> {
+        &self.machine
+    }
+
+    pub fn config(&self) -> &SC {
+        self.machine.config()
+    }
+
+    pub fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+        self.machine.setup(program)
     }
 
     pub fn pcs(&self) -> &SC::Pcs {
@@ -905,7 +918,7 @@ pub mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
+        let gpu_prover = StarkGpuProver::new(machine);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
@@ -935,7 +948,7 @@ pub mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
+        let gpu_prover = StarkGpuProver::new(machine);
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
@@ -1005,7 +1018,7 @@ pub mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
+        let gpu_prover = StarkGpuProver::new(machine);
 
         let (pk, vk) = gpu_prover.machine.setup(&program);
         // Execute the program.
