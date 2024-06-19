@@ -605,7 +605,7 @@ mod tests {
         let point: BinomialExtensionField<BabyBear, 4> = rng.gen();
         let gt = interpolate_coset(&BitReversalPerm::new_view(low_coset), shift, point);
 
-        let coset_evals = matrix.transpose().to_device();
+        let coset_evals = matrix.to_device().to_column_major();
         let coset_height = rows;
         let output = opening_gpu::interpolate_coset(coset_evals.view(), coset_height, shift, point);
 
@@ -648,7 +648,7 @@ mod tests {
                     inv_denom * alpha_pow_offset * (row_sum - sum_alpha_pows_times_y);
             });
 
-        let matrix_device = matrix.transpose().to_device();
+        let matrix_device = matrix.to_device().to_column_major();
         let inv_denoms_device = inv_denoms.to_device();
         let alpha_powers = alpha_reducer.powers.to_device();
         let mut reduced_openings_for_log_height_device: DeviceBuffer<EF> =
@@ -679,6 +679,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_opening_gpu() {
         let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 

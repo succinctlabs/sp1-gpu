@@ -1,5 +1,4 @@
 #![allow(clippy::uninit_vec)]
-#![feature(generic_const_exprs)]
 #![allow(clippy::too_many_arguments)]
 
 pub mod baby_bear;
