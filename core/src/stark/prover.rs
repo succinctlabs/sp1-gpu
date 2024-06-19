@@ -16,6 +16,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
+use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
@@ -29,11 +30,13 @@ use sp1_core::{
 };
 
 use air::P3EvalFolder;
+use tracing::trace_span;
 
-use crate::fri::FriCpuOpeningProver;
+use crate::fri::FriGpuOpeningProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::timed_debug;
+use crate::utils::ChipStatistics;
 use crate::{
     device::{
         error::CudaError,
@@ -52,19 +55,21 @@ use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
 
 use super::natural_domain_for_degree;
 
+const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
+
 use super::CpuTraceGenerator;
 
 pub struct FriGpuProver<SC: StarkGenericConfig, A> {
-    machine: StarkMachine<SC, A>,
+    pub(crate) machine: StarkMachine<SC, A>,
     trace_generator: CpuTraceGenerator<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
-    opening_prover: FriCpuOpeningProver<SC>,
+    opening_prover: FriGpuOpeningProver<SC>,
 }
 
 pub struct FriCpuProver<SC: StarkGenericConfig, A> {
-    machine: StarkMachine<SC, A>,
+    pub machine: StarkMachine<SC, A>,
 }
 
 pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
@@ -123,7 +128,7 @@ where
             committer: TwoAdicFriCommitter::new(log_blowup),
             trace_generator: CpuTraceGenerator::default(),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriCpuOpeningProver::default(),
+            opening_prover: FriGpuOpeningProver::default(),
             quotient_generator,
         }
     }
@@ -141,17 +146,13 @@ where
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
-        trace_data: &GpuMainTraceData<SC>,
+        chips: &[&Chip<SC::Val, A>],
+        main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&trace_data.chip_ordering)
-            .collect::<Vec<_>>();
-
-        shard_chips
+        chips
             .iter()
-            .zip(trace_data.traces.iter())
+            .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk
                     .chip_ordering
@@ -171,7 +172,6 @@ where
             .collect::<Result<Vec<_>, CudaError>>()
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn commit_main_traces(
         &self,
         trace_data: &GpuMainTraceData<SC>,
@@ -186,7 +186,6 @@ where
         self.committer.commit(&domains_and_traces)
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn commit_main(&self, shard: &A::Record, index: usize) -> GpuMainData<SC> {
         let time = std::time::Instant::now();
         let host_trace_data =
@@ -205,7 +204,6 @@ where
             "Committing main traces",
             self.commit_main_traces(&trace_data)
         );
-        // debug!("Time to commit traces: {:?}", time.elapsed().unwrap());
         GpuMainData {
             trace_data,
             commit,
@@ -213,7 +211,6 @@ where
         }
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -226,17 +223,39 @@ where
         let GpuMainData {
             trace_data: main_trace_data,
             commit: main_commit,
-            prover_data: main_prover_data,
+            prover_data: mut main_prover_data,
         } = shard_data;
 
-        let time = CudaInstant::now()?;
-        // Copy the main trace prover data to the host and drop the device data.
-        let host_main_prover_data = main_prover_data.into_host();
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Time to transfer main prover data from device: {:?}",
-            elapsed
-        );
+        let MainTraceData {
+            traces,
+            domains,
+            chip_ordering,
+            public_values,
+            ..
+        } = main_trace_data;
+
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&chip_ordering)
+            .collect::<Vec<_>>();
+
+        // Print some statistics.
+        let mut total_lde_size = 0;
+        let log_blowup = self.committer.log_blowup();
+        for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
+            let height = domain.size();
+            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+            total_lde_size += stats.lde_memory_size(log_blowup);
+            debug!("{}", stats);
+        }
+        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+
+        let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
+
+        // Delete the ldes of the main prover data.
+        if recompute_ldes {
+            main_prover_data.leaves.clear();
+        }
 
         // Get the permutation challenges.
         let permutation_challenges = (0..2)
@@ -244,18 +263,17 @@ where
             .collect::<Vec<_>>();
         // Generate permutation traces.
         let permutation_traces = debug_span!("Generate permutation traces").in_scope(|| {
-            self.generate_permutation_traces(pk, &main_trace_data, &permutation_challenges)
+            self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
         })?;
 
         // Commit to the permutation traces.
         let span = debug_span!("Commit to permutation traces").entered();
-        let perm_domains_and_traces = main_trace_data
-            .domains
+        let perm_domains_and_traces = domains
             .iter()
             .copied()
             .zip(permutation_traces)
             .collect::<Vec<_>>();
-        let (permutation_commit, perm_prover_data) =
+        let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         span.exit();
 
@@ -277,34 +295,17 @@ where
             })
             .collect::<Vec<_>>();
 
+        // Delete the ldes of the permutation prover data.
+        if recompute_ldes {
+            perm_prover_data.leaves.clear();
+        }
+
         // Get a challenge for folding the constraints.
         //
         // *Remark*: this is called `alpha` in [sp1_core].
         let folding_challenge: SC::Challenge = challenger.sample_ext_element();
 
-        // Get the permutation prover data from device.
-        let time = CudaInstant::now()?;
-        let host_perm_prover_data = perm_prover_data.into_host();
-        let elapsed = time.elapsed()?;
-        debug!(
-            "Time to transfer permutation prover data from device: {:?}",
-            elapsed
-        );
-
         // Compute quotient values.
-
-        let MainTraceData {
-            traces,
-            domains,
-            chip_ordering,
-            public_values,
-            ..
-        } = main_trace_data;
-
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&chip_ordering)
-            .collect::<Vec<_>>();
 
         // Compute values
         let quotient_values_span = debug_span!("Compute shard quotient values");
@@ -314,8 +315,8 @@ where
 
             for (i, ((chip, trace), (perm_domain, perm_trace))) in shard_chips
                 .iter()
-                .zip(traces)
-                .zip(perm_domains_and_traces)
+                .zip(traces.iter())
+                .zip(perm_domains_and_traces.iter())
                 .enumerate()
             {
                 let cumulative_sums = cumulative_sums.as_slice();
@@ -324,20 +325,21 @@ where
                 let parent = &quotient_values_span;
                 let handle = s.spawn(move || {
                     let chip_span =
-                        debug_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
+                        trace_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
                             .entered();
                     let trace_domain = perm_domain;
-                    let main_lde = self.committer.encode(trace_domain, &trace, false).unwrap();
-                    drop(trace);
+                    let main_lde = self.committer.encode(*trace_domain, trace, false).unwrap();
                     let permutation_lde = self
                         .committer
-                        .encode(perm_domain, &perm_trace, false)
+                        .encode(*perm_domain, perm_trace, false)
                         .unwrap();
-                    drop(perm_trace);
 
+                    let copy_prep_span =
+                        trace_span!(parent: parent, "Copy preprocessed data to device").entered();
                     let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
                     let preprocessed_lde = preprocessed_index
                         .map(|idx| pk.data.leaves[idx].to_device().to_column_major());
+                    copy_prep_span.exit();
 
                     let cumulative_sum = cumulative_sums[i];
 
@@ -345,7 +347,7 @@ where
                         .quotient_generator
                         .generate_quotient_values(
                             chip,
-                            trace_domain,
+                            *trace_domain,
                             preprocessed_lde,
                             main_lde,
                             permutation_lde,
@@ -356,6 +358,7 @@ where
                         )
                         .unwrap();
                     chip_span.exit();
+
                     values
                 });
                 quotient_value_handles.push(handle);
@@ -386,12 +389,7 @@ where
             self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
         time_to_commit_quotient_values.exit();
-
-        // Transfer the quotient data to the host.
-        let host_quotient_prover_data = debug_span!("Transfer quotient prover data from device")
-            .in_scope(|| quotient_prover_data.into_host());
         drop(quotient_domains_and_chunks);
-
         // Observe the quotient commitment.
         challenger.observe(quotient_commit);
 
@@ -419,18 +417,43 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
+        // Recompute main and permutation LDE and insert into the prover data.
+        if recompute_ldes {
+            let span = debug_span!("Recompute LDEs for openning").entered();
+            let perm_span = debug_span!("Permutation").entered();
+            for (domain, perm_trace) in perm_domains_and_traces {
+                let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
+                perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+            }
+            perm_span.exit();
+            let main_span = debug_span!("Main").entered();
+            for (domain, trace) in domains.iter().zip(traces) {
+                let main_lde = self.committer.encode(*domain, &trace, true)?;
+                main_prover_data.leaves.push(CudaSync::new(main_lde)?);
+            }
+            main_span.exit();
+            span.exit();
+        }
+
+        let pk_data_device = debug_span!("transfer preprocessed prover data to device")
+            .in_scope(|| pk.data.to_device());
+
         let (openings, opening_proof) = debug_span!("Compute opening proof").in_scope(|| {
             self.opening_prover.open(
                 self.pcs(),
                 vec![
-                    (&pk.data, preprocessed_opening_points),
-                    (&host_main_prover_data, trace_opening_points.clone()),
-                    (&host_perm_prover_data, trace_opening_points),
-                    (&host_quotient_prover_data, quotient_opening_points),
+                    (&pk_data_device, preprocessed_opening_points),
+                    (&main_prover_data, trace_opening_points.clone()),
+                    (&perm_prover_data, trace_opening_points),
+                    (&quotient_prover_data, quotient_opening_points),
                 ],
                 challenger,
             )
         });
+        drop(pk_data_device);
+        drop(main_prover_data);
+        drop(perm_prover_data);
+        drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
@@ -852,27 +875,26 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    use rand::{thread_rng, Rng};
+pub mod tests {
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
-        stark::{Challenge, RiscvAir, Verifier},
+        stark::{RiscvAir, Verifier},
         utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1CoreOpts},
     };
-    use tracing::info;
+    use tracing::{info, info_span};
 
     use crate::utils::init_tracer;
 
     use super::*;
 
     type SC = BabyBearPoseidon2;
-    type EF = Challenge<SC>;
 
     pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
 
-    fn execute_core(program: Program) -> ExecutionRecord {
-        let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+    pub fn execute_core(program: Program) -> ExecutionRecord {
+        let opts = SP1CoreOpts::default();
+        let mut runtime = Runtime::new(program, opts);
         runtime.run().unwrap();
         runtime.record
     }
@@ -904,84 +926,6 @@ mod tests {
             println!("Host commit time: {:?}", time.elapsed());
 
             assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
-        }
-    }
-
-    #[test]
-    fn test_permutation_generation() {
-        let program = Program::from(FIBONACCI_ELF);
-
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
-
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-        let cpu_prover = FriCpuProver::new(machine);
-
-        let (pk, _) = gpu_prover.machine.setup(&program);
-
-        // Execute the program.
-        let record = execute_core(program);
-
-        let shards = gpu_prover.shard(record);
-
-        let mut rng = thread_rng();
-        for shard in shards {
-            let time = std::time::Instant::now();
-            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
-            println!("Device commit time: {:?}", time.elapsed());
-
-            let time = std::time::Instant::now();
-            let cpu_main_data = cpu_prover.commit_main(&shard, 1);
-            println!("Host commit time: {:?}", time.elapsed());
-
-            assert_eq!(gpu_main_data.commit, cpu_main_data.commit);
-
-            let random_elements: [EF; 2] = rng.gen();
-
-            // Generate the permutation traces and commit to them on Device.
-            let time = std::time::Instant::now();
-            let gpu_permutation_traces = gpu_prover
-                .generate_permutation_traces(&pk, &gpu_main_data.trace_data, &random_elements)
-                .unwrap();
-            // Commit to the permutation traces.
-            let domains_and_traces = gpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .copied()
-                .zip(gpu_permutation_traces.iter())
-                .collect::<Vec<_>>();
-            let (gpu_perm_commit, _) = gpu_prover.committer.commit(&domains_and_traces);
-            let elapsed = time.elapsed();
-            println!(
-                "Device permutation generation and commit time: {:?}",
-                elapsed
-            );
-
-            // Generate the permutation traces and commit to them on Host.
-            let time = std::time::Instant::now();
-            let cpu_permutation_traces = cpu_prover.generate_permutation_traces(
-                &pk,
-                &cpu_main_data.trace_data,
-                &random_elements,
-            );
-            let elapsed = time.elapsed();
-            println!("Host permutation generation time: {:?}", elapsed);
-            // Commit to the permutation traces.
-            let domains_and_traces = cpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .copied()
-                .zip(cpu_permutation_traces)
-                .collect::<Vec<_>>();
-            let (cpu_perm_commit, _) = cpu_prover.commit(domains_and_traces);
-            let elapsed = time.elapsed();
-            println!("Host permutation generation and commit time: {:?}", elapsed);
-
-            assert_eq!(gpu_perm_commit, cpu_perm_commit);
         }
     }
 
@@ -1038,12 +982,9 @@ mod tests {
             let main_commit = gpu_main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
-            let time = std::time::Instant::now();
             let proof = gpu_prover
                 .prove_shard(&pk, gpu_main_data, &mut challenger)
                 .unwrap();
-            let prove_shard_time = time.elapsed();
-            println!("Device prove_shard time: {:?}", prove_shard_time);
 
             // Verify the proof.
             let mut challenger = config.challenger();
@@ -1075,20 +1016,22 @@ mod tests {
         let stats = record.stats();
         let cycles = stats.get("cpu_events").unwrap();
 
-        let time = std::time::Instant::now();
-        let shards = gpu_prover.shard(record);
-        debug!("time to shard: {:?}", time.elapsed());
-
         let e2e_time = std::time::Instant::now();
+        let shards = debug_span!("Shard execution trace").in_scope(|| gpu_prover.shard(record));
+
+        let e2e_time_no_shard = std::time::Instant::now();
         for (i, shard) in shards.into_iter().enumerate() {
-            let main_data = gpu_prover.commit_main(&shard, i + 1);
+            let main_data =
+                info_span!("Commit_main").in_scope(|| gpu_prover.commit_main(&shard, i + 1));
             // Observe the main commit.
             let main_commit = main_data.commit;
             let mut challenger = gpu_prover.machine.config().challenger();
             challenger.observe(main_commit);
-            let proof = gpu_prover
-                .prove_shard(&pk, main_data, &mut challenger)
-                .unwrap();
+            let proof = info_span!("prove shard").in_scope(|| {
+                gpu_prover
+                    .prove_shard(&pk, main_data, &mut challenger)
+                    .unwrap()
+            });
 
             // Verify the proof.
             let mut challenger = gpu_prover.machine.config().challenger();
@@ -1107,11 +1050,14 @@ mod tests {
             .unwrap();
         }
         let e2e = e2e_time.elapsed();
+        let e2e_no_shard = e2e_time_no_shard.elapsed();
         info!(
-            "Summary: cycles={}, e2e={:?}, khz={:.2}",
+            "Summary: cycles={}, e2e={:?}, khz={:.2}, e2e_no_shard={:?}, khz_no_shard={:.2}",
             cycles,
             e2e,
             (*cycles as f64 / (e2e.as_millis() as f64)),
+            e2e_no_shard,
+            (*cycles as f64 / (e2e_no_shard.as_millis() as f64)),
         )
     }
 }

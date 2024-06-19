@@ -1,4 +1,4 @@
-use tracing::debug_span;
+use tracing::trace_span;
 
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
@@ -125,7 +125,7 @@ where
         cumulative_sum: SC::Challenge,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         // Get the evaluations on the quotient domain.
-        let evaluations_span = debug_span!("Get evaluations on quotient domain").entered();
+        let evaluations_span = trace_span!("Get evaluations on quotient domain").entered();
         let log_quotient_degree = chip.log_quotient_degree();
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
@@ -148,7 +148,7 @@ where
         evaluations_span.exit();
 
         // Move data to device and get generator powers.
-        let generator_powers_span = debug_span!("Get generator powers").entered();
+        let generator_powers_span = trace_span!("Get generator powers").entered();
         let permutation_challenges_device = permutation_challenges.to_device();
         let public_values_device = public_values.to_device();
         let trace_domain_device = trace_domain.to_device();
@@ -167,7 +167,7 @@ where
         generator_powers_span.exit();
 
         // Compute quotient values.
-        let quotient_flat = debug_span!("Compute quotient values").in_scope(|| unsafe {
+        let quotient_flat = trace_span!("Compute quotient values").in_scope(|| unsafe {
             let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
                 <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                 quotient_domain.size(),
@@ -195,7 +195,7 @@ where
             quotient_flat
         });
 
-        let split_values_span = debug_span!("Split quotient values").entered();
+        let split_values_span = trace_span!("Split quotient values").entered();
         let quotient_degree = 1 << log_quotient_degree;
         let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);

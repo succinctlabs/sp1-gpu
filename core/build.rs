@@ -4,6 +4,13 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-changed=../cuda/");
+    println!("cargo:rerun-if-changed=../sppark/");
+    println!("cargo:rerun-if-env-changed=CXXFLAGS");
+
+    println!("Debug: Watching ../cuda/");
+    println!("Debug: Watching ../sppark/");
+
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let base_dir = manifest_dir.join("core");
     println!("basedir: {:?}", base_dir);
@@ -35,6 +42,7 @@ fn main() {
         nvcc.cuda(true).flag("-default-stream=per-thread");
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
+        nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
         nvcc.flag("--threads").flag("14");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
@@ -49,7 +57,4 @@ fn main() {
 
         nvcc.file("bindings/api.cu").compile("moongate_cuda");
     }
-
-    println!("cargo:rerun-if-changed=bruh");
-    println!("cargo:rerun-if-env-changed=CXXFLAGS");
 }
