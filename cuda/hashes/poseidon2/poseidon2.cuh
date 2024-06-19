@@ -66,9 +66,10 @@ __device__ void internalLinearLayer(F state[WIDTH], F matInternalDiagM1[WIDTH],
 }
 
 template <typename F, int WIDTH>
-__device__ void addRc(F state[WIDTH], F rc[WIDTH]) {
+__device__ void addRc(F state[WIDTH], const F *externalRoundConstants,
+                      int round) {
     for (int i = 0; i < WIDTH; i++) {
-        state[i] += rc[i];
+        state[i] += externalRoundConstants[round * WIDTH + i];
     }
 }
 
@@ -95,29 +96,38 @@ struct HasherState {
 template <typename F, int WIDTH, int D, int ROUNDS_F, int ROUNDS_P>
 class Hasher {
    private:
-    F internalRoundConstants[ROUNDS_P];
-    F externalRoundConstants[ROUNDS_F][WIDTH];
-    F matInternalDiagM1[WIDTH];
+    F *internalRoundConstants;
+    F *externalRoundConstants;
+    F *matInternalDiagM1;
     F montyInverse;
 
    public:
-    __device__ Hasher(F internalRoundConstants[ROUNDS_P],
-                      F externalRoundConstants[ROUNDS_F][WIDTH],
-                      F matInternalDiagM1[WIDTH], F montyInverse) {
-        for (int i = 0; i < ROUNDS_P; i++) {
-            this->internalRoundConstants[i] = internalRoundConstants[i];
-        }
-        for (int i = 0; i < ROUNDS_F / 2; i++) {
-            for (int j = 0; j < WIDTH; j++) {
-                this->externalRoundConstants[i][j] =
-                    externalRoundConstants[i][j];
-            }
-        }
-        for (int i = 0; i < WIDTH; i++) {
-            this->matInternalDiagM1[i] = matInternalDiagM1[i];
-        }
-        this->montyInverse = montyInverse;
+    // Constructor
+    Hasher() {
+        cudaMalloc(&internalRoundConstants, ROUNDS_P * sizeof(F));
+        cudaMalloc(&externalRoundConstants, ROUNDS_F * WIDTH * sizeof(F));
+        cudaMalloc(&matInternalDiagM1, WIDTH * sizeof(F));
     }
+
+    // Destructor
+    ~Hasher() {
+        cudaFree(internalRoundConstants);
+        cudaFree(externalRoundConstants);
+        cudaFree(matInternalDiagM1);
+    }
+
+    // Method to set constant arrays
+    void setConstants(const F *internalRC, const F *externalRC,
+                      const F *internalDiagM1, F inverse) {
+        cudaMemcpy(internalRoundConstants, internalRC, ROUNDS_P * sizeof(F),
+                   cudaMemcpyHostToDevice);
+        cudaMemcpy(externalRoundConstants, externalRC,
+                   ROUNDS_F * WIDTH * sizeof(F), cudaMemcpyHostToDevice);
+        cudaMemcpy(matInternalDiagM1, internalDiagM1, WIDTH * sizeof(F),
+                   cudaMemcpyHostToDevice);
+        montyInverse = inverse;
+    }
+
     __device__ void permute(F in[WIDTH], F out[WIDTH]) {
         F state[WIDTH];
         for (int i = 0; i < WIDTH; i++) {
@@ -128,7 +138,7 @@ class Hasher {
 
         int rounds_f_half = ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addRc<F, WIDTH>(state, externalRoundConstants[i]);
+            addRc<F, WIDTH>(state, externalRoundConstants, i);
             sbox<F, WIDTH>(state, D);
             externalLinearLayer<F, WIDTH>(state);
         }
@@ -141,7 +151,7 @@ class Hasher {
         }
 
         for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addRc<F, WIDTH>(state, externalRoundConstants[i]);
+            addRc<F, WIDTH>(state, externalRoundConstants, i);
             sbox<F, WIDTH>(state, D);
             externalLinearLayer<F, WIDTH>(state);
         }
