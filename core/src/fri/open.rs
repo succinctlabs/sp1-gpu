@@ -26,7 +26,6 @@ use p3_symmetric::Hash;
 use p3_util::linear_map::LinearMap;
 use p3_util::log2_ceil_usize;
 use p3_util::reverse_slice_index_bits;
-use p3_util::VecExt;
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
 use sp1_core::stark::{OpeningProof, PcsProverData};
@@ -110,82 +109,108 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             compute_inverse_denominators(&heights_and_points, BabyBear::generator())
         });
 
-        let mut reduced_openings: [_; 32] = core::array::from_fn(|_| None);
+        let mut reduced_openings: [Option<Vec<SC::Challenge>>; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
-        // let (tx, rx) = mpsc::channel();
-        let all_opened_values = mats_and_points
-            .into_iter()
-            .map(|(mats, points)| {
-                let mut opened_values_for_round = vec![];
-                for (mat, points_for_mat) in izip!(mats, points) {
-                    let log_height = log2_strict_usize(mat.height);
-                    let reduced_opening_for_log_height = reduced_openings[log_height]
-                        .get_or_insert_with(|| vec![SC::Challenge::zero(); mat.height]);
-                    debug_assert_eq!(reduced_opening_for_log_height.len(), mat.height);
+        let (tx, rx) = mpsc::channel();
 
-                    let opened_values_for_mat = points_for_mat
-                        .iter()
-                        .map(|&point| {
-                            let num_reduced_at_height = num_reduced[log_height];
-                            num_reduced[log_height] += mat.width();
+        let all_opened_values = std::thread::scope(|s| {
+            let all_opened_values = mats_and_points
+                .into_iter()
+                .map(|(mats, points)| {
+                    mats.into_iter()
+                        .zip(points)
+                        .map(|(mat, points_for_mat)| {
+                            let log_height = log2_strict_usize(mat.height);
 
-                            // Use Barycentric interpolation to evaluate the matrix at the given point.
-                            let coset_height = mat.height >> pcs.fri_config().log_blowup;
+                            let opened_values_for_mat = points_for_mat
+                                .iter()
+                                .map(|&point| {
+                                    let alpha_reducer = &alpha_reducer;
+                                    let inv_denoms = &inv_denoms;
+                                    let tx = tx.clone();
+                                    let num_reduced_at_height = num_reduced[log_height];
+                                    num_reduced[log_height] += mat.width();
 
-                            let span = trace_span!("Interpolate coset").entered();
-                            let ys = opening_gpu::interpolate_coset(
-                                mat.view(),
-                                coset_height,
-                                InnerVal::generator(),
-                                point,
-                            );
-                            span.exit();
+                                    s.spawn(move || {
+                                        // Use Barycentric interpolation to evaluate the matrix at the given point.
+                                        let coset_height =
+                                            mat.height >> pcs.fri_config().log_blowup;
 
-                            let span = trace_span!("Reduce powers").entered();
-                            let alpha_pow_offset = alpha.exp_u64(num_reduced_at_height as u64);
-                            let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
-                            span.exit();
+                                        let span = trace_span!("Interpolate coset").entered();
+                                        let ys = opening_gpu::interpolate_coset(
+                                            mat.view(),
+                                            coset_height,
+                                            InnerVal::generator(),
+                                            point,
+                                        );
+                                        span.exit();
 
-                            let inv_denoms_at_point = inv_denoms.get(&point).unwrap().to_device();
-                            let alpha_powers = alpha_reducer.powers.to_device();
+                                        let span = trace_span!("Reduce powers").entered();
+                                        let alpha_pow_offset =
+                                            alpha.exp_u64(num_reduced_at_height as u64);
+                                        let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                                        span.exit();
 
-                            let span = trace_span!("Compute reduced openings").entered();
-                            let mut reduced_opening_for_log_height_device: DeviceBuffer<
-                                SC::Challenge,
-                            > = DeviceBuffer::with_capacity(reduced_opening_for_log_height.len());
-                            unsafe {
-                                reduced_opening_for_log_height_device
-                                    .set_len(reduced_opening_for_log_height.len());
-                                opening_gpu::compute_reduced_openings_for_log_height(
-                                    mat.view(),
-                                    inv_denoms_at_point.as_ptr(),
-                                    alpha_powers.as_ptr(),
-                                    alpha_pow_offset,
-                                    sum_alpha_pows_times_y,
-                                    reduced_opening_for_log_height_device.as_mut_ptr(),
-                                );
-                            }
-                            let reduced_opening_for_log_height_host =
-                                reduced_opening_for_log_height_device.to_host();
-                            span.exit();
+                                        let inv_denoms_at_point =
+                                            inv_denoms.get(&point).unwrap().to_device();
+                                        let alpha_powers = alpha_reducer.powers.to_device();
 
-                            let span = trace_span!("Add reduced openings").entered();
-                            for i in 0..reduced_opening_for_log_height_host.len() {
-                                reduced_opening_for_log_height[i] +=
-                                    reduced_opening_for_log_height_host[i];
-                            }
-                            span.exit();
+                                        let span =
+                                            trace_span!("Compute reduced openings").entered();
+                                        let mut reduced_opening_for_log_height_device: DeviceBuffer<
+                                        SC::Challenge,
+                                    > = DeviceBuffer::with_capacity(mat.height);
+                                        unsafe {
+                                            reduced_opening_for_log_height_device.set_max_len();
+                                            opening_gpu::compute_reduced_openings_for_log_height(
+                                                mat.view(),
+                                                inv_denoms_at_point.as_ptr(),
+                                                alpha_powers.as_ptr(),
+                                                alpha_pow_offset,
+                                                sum_alpha_pows_times_y,
+                                                reduced_opening_for_log_height_device.as_mut_ptr(),
+                                            );
+                                        }
+                                        let reduced_opening_for_log_height_host =
+                                            reduced_opening_for_log_height_device.to_host();
+                                        span.exit();
 
-                            ys
+                                        tx.send((log_height, reduced_opening_for_log_height_host))
+                                            .unwrap();
+
+                                        ys
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            opened_values_for_mat
                         })
-                        .collect::<Vec<_>>();
-                    opened_values_for_round.push(opened_values_for_mat);
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            drop(tx);
+
+            for (log_height, reduced_opening) in rx.iter() {
+                let openings_at_height = reduced_openings[log_height]
+                    .get_or_insert_with(|| vec![SC::Challenge::zero(); 1 << log_height]);
+                for (i, x) in reduced_opening.into_iter().enumerate() {
+                    openings_at_height[i] += x;
                 }
-                opened_values_for_round
-            })
-            .collect::<Vec<_>>();
+            }
+
+            // Get all opened values by joining all the hadles and collecing the results.
+            all_opened_values
+                .into_iter()
+                .map(|x| {
+                    x.into_iter()
+                        .map(|y| y.into_iter().map(|z| z.join().unwrap()).collect::<Vec<_>>())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        });
+
         compute_reduce_openings_span.exit();
 
         let (fri_proof, query_indices) = trace_span!("Fri Proof")
