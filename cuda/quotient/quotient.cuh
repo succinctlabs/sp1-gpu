@@ -18,8 +18,8 @@
     }
 
 namespace quotient_kernels {
-template <typename Air, typename Val, typename Challenge>
-__global__ void computeValues(Air air, Operation *evalProgram,
+template <typename Val, typename Challenge>
+__global__ void computeValues(Operation *evalProgram,
                               size_t evalProgramLen, Challenge cumulativeSum,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
@@ -51,45 +51,6 @@ __global__ void computeValues(Air air, Operation *evalProgram,
 
     LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
 
-    Val prepLocal[Air::PREP_WIDTH + 1];
-    Val prepNext[Air::PREP_WIDTH + 1];
-    for (size_t i = 0; i < Air::PREP_WIDTH; i++) {
-        prepLocal[i] =
-            preprocessedTraceOnQuotientDomain
-                .values[i * preprocessedTraceOnQuotientDomain.height +
-                        (quotientIdx % quotientSize)];
-        prepNext[i] = preprocessedTraceOnQuotientDomain
-                          .values[i * preprocessedTraceOnQuotientDomain.height +
-                                  ((quotientIdx + nextStep) % quotientSize)];
-    }
-
-    Val mainLocal[Air::MAIN_WIDTH + 1];
-    Val mainNext[Air::MAIN_WIDTH + 1];
-    for (size_t i = 0; i < Air::MAIN_WIDTH; i++) {
-        mainLocal[i] = mainTraceOnQuotientDomain
-                           .values[i * mainTraceOnQuotientDomain.height +
-                                   (quotientIdx % quotientSize)];
-        mainNext[i] = mainTraceOnQuotientDomain
-                          .values[i * mainTraceOnQuotientDomain.height +
-                                  ((quotientIdx + nextStep) % quotientSize)];
-    }
-
-    Challenge permLocal[Air::PERM_WIDTH + 1];
-    Challenge permNext[Air::PERM_WIDTH + 1];
-    for (size_t i = 0; i < Air::PERM_WIDTH; i++) {
-        for (size_t j = 0; j < 4; j++) {
-            permLocal[i].value[j] =
-                permutationTraceOnQuotientDomain
-                    .values[(i * 4 + j) *
-                                permutationTraceOnQuotientDomain.height +
-                            (quotientIdx % quotientSize)];
-            permNext[i].value[j] =
-                permutationTraceOnQuotientDomain
-                    .values[(i * 4 + j) *
-                                permutationTraceOnQuotientDomain.height +
-                            ((quotientIdx + nextStep) % quotientSize)];
-        }
-    }
 
     Val isFirstRow = selectors.is_first_row[quotientIdx];
     Val isLastRow = selectors.is_last_row[quotientIdx];
@@ -98,13 +59,10 @@ __global__ void computeValues(Air air, Operation *evalProgram,
 
     ConstraintFolder<Val, Challenge, 2> folder =
         ConstraintFolder<Val, Challenge, 2>();
-    folder.prepLocal = prepLocal;
-    folder.prepNext = prepNext;
-    folder.mainLocal = mainLocal;
-    folder.mainNext = mainNext;
+    folder.prep = preprocessedTraceOnQuotientDomain;
+    folder.main = mainTraceOnQuotientDomain;
     folder.publicValues = publicValues;
-    folder.permLocal = permLocal;
-    folder.permNext = permNext;
+    folder.perm = permutationTraceOnQuotientDomain;
     folder.permChallenges = permChallenges;
     folder.cumulativeSum = cumulativeSum;
     folder.isFirstRow = isFirstRow;
@@ -112,6 +70,9 @@ __global__ void computeValues(Air air, Operation *evalProgram,
     folder.isTransition = isTransition;
     folder.alpha = alpha;
     folder.accumulator = Challenge::zero();
+    folder.quotientIdx = quotientIdx;
+    folder.quotientSize = quotientSize;
+    folder.nextStep = nextStep;
 
     Challenge expr[512];
     for (size_t i = 0; i < 512; i++) {
@@ -227,7 +188,7 @@ __global__ void computeValues(Air air, Operation *evalProgram,
 
 namespace quotient_gpu {
 extern "C" void computeValues(
-    size_t chipId, Operation *evalProgram, size_t evalProgramLen,
+    Operation *evalProgram, size_t evalProgramLen,
     bb31_extension_t cumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
@@ -238,88 +199,95 @@ extern "C" void computeValues(
     bb31_t *publicValues, bb31_t traceDomainGenerator, bb31_t* generatorPowers,
     Matrix<bb31_t> quotientValues, size_t numBlocks,
     size_t numThreadsPerBlock) {
-    switch (chipId) {
-        case 0:
-            QUOTIENT(CPUAir);
-            break;
-        case 1:
-            QUOTIENT(ProgramAir);
-            break;
-        case 2:
-            QUOTIENT(ShaExtendAir);
-            break;
-        case 3:
-            QUOTIENT(ShaCompressAir);
-            break;
-        case 4:
-            QUOTIENT(EdAddAssignAir);
-            break;
-        case 5:
-            QUOTIENT(EdDecompressAir);
-            break;
-        case 6:
-            QUOTIENT(Secp256k1DecompressAir);
-            break;
-        case 7:
-            QUOTIENT(Secp256k1AddAssignAir);
-            break;
-        case 8:
-            QUOTIENT(Secp256k1DoubleAssignAir);
-            break;
-        case 9:
-            QUOTIENT(KeccakPermuteAir);
-            break;
-        case 10:
-            QUOTIENT(Bn254AddAssignAir);
-            break;
-        case 11:
-            QUOTIENT(Bn254DoubleAssignAir);
-            break;
-        case 12:
-            QUOTIENT(Bls12381AddAssignAir);
-            break;
-        case 13:
-            QUOTIENT(Bls12381DoubleAssignAir);
-            break;
-        case 14:
-            QUOTIENT(Uint256MulModAir);
-            break;
-        case 15:
-            QUOTIENT(Bls12381DecompressAir);
-            break;
-        case 16:
-            QUOTIENT(DivRemAir);
-            break;
-        case 17:
-            QUOTIENT(AddSubAir);
-            break;
-        case 18:
-            QUOTIENT(BitwiseAir);
-            break;
-        case 19:
-            QUOTIENT(MulAir);
-            break;
-        case 20:
-            QUOTIENT(ShiftRightAir);
-            break;
-        case 21:
-            QUOTIENT(ShiftLeftAir);
-            break;
-        case 22:
-            QUOTIENT(LtAir);
-            break;
-        case 23:
-            QUOTIENT(MemoryInitAir);
-            break;
-        case 24:
-            QUOTIENT(MemoryFinalizeAir);
-            break;
-        case 25:
-            QUOTIENT(MemoryProgramAir);
-            break;
-        case 26:
-            QUOTIENT(ByteAir);
-            break;
-    } 
-}
+
+    quotient_kernels::computeValues<<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+
+    // switch (chipId) {
+    //     case 0:
+    //         QUOTIENT(CPUAir);
+    //         break;
+    //     case 1:
+    //         QUOTIENT(ProgramAir);
+    //         break;
+    //     case 2:
+    //         QUOTIENT(ShaExtendAir);
+    //         break;
+    //     case 3:
+    //         QUOTIENT(ShaCompressAir);
+    //         break;
+    //     case 4:
+    //         QUOTIENT(EdAddAssignAir);
+    //         break;
+    //     case 5:
+    //         QUOTIENT(EdDecompressAir);
+    //         break;
+    //     case 6:
+    //         QUOTIENT(Secp256k1DecompressAir);
+    //         break;
+    //     case 7:
+    //         QUOTIENT(Secp256k1AddAssignAir);
+    //         break;
+    //     case 8:
+    //         QUOTIENT(Secp256k1DoubleAssignAir);
+    //         break;
+    //     case 9:
+    //         QUOTIENT(KeccakPermuteAir);
+    //         break;
+    //     case 10:
+    //         QUOTIENT(Bn254AddAssignAir);
+    //         break;
+    //     case 11:
+    //         QUOTIENT(Bn254DoubleAssignAir);
+    //         break;
+    //     case 12:
+    //         QUOTIENT(Bls12381AddAssignAir);
+    //         break;
+    //     case 13:
+    //         QUOTIENT(Bls12381DoubleAssignAir);
+    //         break;
+    //     case 14:
+    //         QUOTIENT(Uint256MulModAir);
+    //         break;
+    //     case 15:
+    //         QUOTIENT(Bls12381DecompressAir);
+    //         break;
+    //     case 16:
+    //         QUOTIENT(DivRemAir);
+    //         break;
+    //     case 17:
+    //         QUOTIENT(AddSubAir);
+    //         break;
+    //     case 18:
+    //         QUOTIENT(BitwiseAir);
+    //         break;
+    //     case 19:
+    //         QUOTIENT(MulAir);
+    //         break;
+    //     case 20:
+    //         QUOTIENT(ShiftRightAir);
+    //         break;
+    //     case 21:
+    //         QUOTIENT(ShiftLeftAir);
+    //         break;
+    //     case 22:
+    //         QUOTIENT(LtAir);
+    //         break;
+    //     case 23:
+    //         QUOTIENT(MemoryInitAir);
+    //         break;
+    //     case 24:
+    //         QUOTIENT(MemoryFinalizeAir);
+    //         break;
+    //     case 25:
+    //         QUOTIENT(MemoryProgramAir);
+    //         break;
+    //     case 26:
+    //         QUOTIENT(ByteAir);
+    //         break;
+    // } 
+  }
 }  // namespace quotient_gpu
