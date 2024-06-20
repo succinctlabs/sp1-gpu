@@ -85,7 +85,7 @@ __device__ void internalLinearLayer(F state[WIDTH],
 template <typename Params>
 struct HasherState {
     using F = typename Params::F;
-    static const size_t WIDTH = Params::WIDTH;
+    static const int WIDTH = Params::WIDTH;
 
     F data[WIDTH];
     size_t index;

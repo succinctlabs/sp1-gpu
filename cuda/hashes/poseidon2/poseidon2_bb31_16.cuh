@@ -14,8 +14,7 @@ constexpr int RATE = 8;
 constexpr int WIDTH = 16;
 constexpr int ROUNDS_P = 13;
 constexpr int ROUNDS_F = 8;
-
-__constant__ bb31_t D = bb31_t(7);
+constexpr int D = 7;
 
 __constant__ bb31_t INTERNAL_ROUND_CONSTANTS[ROUNDS_P] = {
     bb31_t(1196780786), bb31_t(36046858),   bb31_t(1492041470),
@@ -85,7 +84,7 @@ class BabyBear16 {
     static constexpr int ROUNDS_F = constants::ROUNDS_F;
     static constexpr int ROUNDS_P = constants::ROUNDS_P;
 
-    __device__ static constexpr const F& getD() { return constants::D; }
+    __device__ static constexpr const int getD() { return constants::D; }
 
     // Method to return internal round constants
     __device__ static constexpr const F* getInternalRoundConstants() {
