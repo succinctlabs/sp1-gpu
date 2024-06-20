@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::mpsc;
 
+use p3_challenger::FieldChallenger;
 use tracing::trace_span;
 
 use itertools::{izip, Itertools};
@@ -409,6 +410,7 @@ pub fn commit_phase(
     for x in current {
         assert_eq!(x, final_poly);
     }
+    challenger.observe_ext_element(final_poly);
 
     CommitPhaseResult {
         commits,
