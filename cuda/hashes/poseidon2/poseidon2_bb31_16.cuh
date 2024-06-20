@@ -6,7 +6,6 @@
 
 namespace poseidon2_bb31_16 {
 
-// Define constants in __constant__ memory for CUDA
 namespace constants {
 
 constexpr int DIGEST_WIDTH = 8;
@@ -86,17 +85,14 @@ class BabyBear16 {
 
     __device__ static constexpr const int getD() { return constants::D; }
 
-    // Method to return internal round constants
     __device__ static constexpr const F* getInternalRoundConstants() {
         return constants::INTERNAL_ROUND_CONSTANTS;
     }
 
-    // Method to return external round constants
     __device__ static constexpr const F (*getExternalRoundConstants())[WIDTH] {
         return constants::EXTERNAL_ROUND_CONSTANTS;
     }
 
-    // Method to return MAT_INTERNAL_DIAG_M1
     __device__ static constexpr const F* getMatInternalDiagM1() {
         return constants::MAT_INTERNAL_DIAG_M1;
     }
