@@ -7,6 +7,20 @@
 
 namespace poseidon2 {
 
+template <typename F, int WIDTH>
+__device__ void addExtRc(F state[WIDTH], const F rc[WIDTH]) {
+    for (int i = 0; i < WIDTH; i++) {
+        state[i] += rc[i];
+    }
+}
+
+template <typename F, int WIDTH>
+__device__ void sbox(F state[WIDTH], const int D) {
+    for (int i = 0; i < WIDTH; i++) {
+        state[i] ^= D;
+    }
+}
+
 template <typename F>
 __device__ void mdsLightPermutation4x4(F state[4]) {
     F t01 = state[0] + state[1];
@@ -40,6 +54,11 @@ __device__ void externalLinearLayer(F state[WIDTH]) {
 }
 
 template <typename F, int WIDTH>
+__device__ void addIntRc(F state[WIDTH], const F rc[WIDTH], int round) {
+    state[0] += rc[round];
+}
+
+template <typename F, int WIDTH>
 __device__ void matmulInternal(F state[WIDTH],
                                const F matInternalDiagM1[WIDTH]) {
     F sum = F{0};
@@ -63,28 +82,9 @@ __device__ void internalLinearLayer(F state[WIDTH],
     }
 }
 
-template <typename F, int WIDTH>
-__device__ void addExtRc(F state[WIDTH], const F rc[WIDTH]) {
-    for (int i = 0; i < WIDTH; i++) {
-        state[i] += rc[i];
-    }
-}
-
-template <typename F, int WIDTH>
-__device__ void sbox(F state[WIDTH], const int D) {
-    for (int i = 0; i < WIDTH; i++) {
-        state[i] ^= D;
-    }
-}
-
-template <typename F, int WIDTH>
-__device__ void addIntRc(F state[WIDTH], const F rc[WIDTH], int round) {
-    state[0] += rc[round];
-}
-
 template <typename Params>
 struct HasherState {
-    using F = typename Params::F;  // Correctly reference the type
+    using F = typename Params::F;
     static const size_t WIDTH = Params::WIDTH;
 
     F data[WIDTH];
