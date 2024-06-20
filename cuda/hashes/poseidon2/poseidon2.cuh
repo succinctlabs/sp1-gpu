@@ -1,15 +1,11 @@
 #pragma once
 
-#include "../../fields/bb31_t.cuh"
 #include "../../matrix/matrix.cuh"
 #include "../../utils/vector.cuh"
 
 #include <stdio.h>
 
 namespace poseidon2 {
-
-constexpr int RATE = 8;
-constexpr int DIGEST_WIDTH = 8;
 
 template <typename F>
 __device__ void mdsLightPermutation4x4(F state[4]) {
@@ -44,7 +40,8 @@ __device__ void externalLinearLayer(F state[WIDTH]) {
 }
 
 template <typename F, int WIDTH>
-__device__ void matmulInternal(F state[WIDTH], F matInternalDiagM1[WIDTH]) {
+__device__ void matmulInternal(F state[WIDTH],
+                               const F matInternalDiagM1[WIDTH]) {
     F sum = F{0};
     for (int i = 0; i < WIDTH; i++) {
         sum += state[i];
@@ -57,8 +54,9 @@ __device__ void matmulInternal(F state[WIDTH], F matInternalDiagM1[WIDTH]) {
 }
 
 template <typename F, int WIDTH>
-__device__ void internalLinearLayer(F state[WIDTH], F matInternalDiagM1[WIDTH],
-                                    F montyInverse) {
+__device__ void internalLinearLayer(F state[WIDTH],
+                                    const F matInternalDiagM1[WIDTH],
+                                    const F montyInverse) {
     matmulInternal<F, WIDTH>(state, matInternalDiagM1);
     for (int i = 0; i < WIDTH; i++) {
         state[i] = state[i] * montyInverse;
@@ -66,68 +64,49 @@ __device__ void internalLinearLayer(F state[WIDTH], F matInternalDiagM1[WIDTH],
 }
 
 template <typename F, int WIDTH>
-__device__ void addRc(F state[WIDTH], const F *externalRoundConstants,
-                      int round) {
+__device__ void addExtRc(F state[WIDTH], const F rc[WIDTH]) {
     for (int i = 0; i < WIDTH; i++) {
-        state[i] += externalRoundConstants[round * WIDTH + i];
+        state[i] += rc[i];
     }
 }
 
 template <typename F, int WIDTH>
-__device__ void sbox(F state[WIDTH], int D) {
+__device__ void sbox(F state[WIDTH], const int D) {
     for (int i = 0; i < WIDTH; i++) {
         state[i] ^= D;
     }
 }
 
 template <typename F, int WIDTH>
+__device__ void addIntRc(F state[WIDTH], const F rc[WIDTH], int round) {
+    state[0] += rc[round];
+}
+
+template <typename Params>
 struct HasherState {
+    using F = typename Params::F;  // Correctly reference the type
+    static const size_t WIDTH = Params::WIDTH;
+
     F data[WIDTH];
     size_t index;
 
-    __device__ HasherState() {
+    __device__ HasherState() : index(0) {
         for (int i = 0; i < WIDTH; ++i) {
             data[i] = F(0);
         }
-        index = 0;
     }
 };
 
-template <typename F, int WIDTH, int D, int ROUNDS_F, int ROUNDS_P>
+template <typename Params>
 class Hasher {
-   private:
-    F *internalRoundConstants;
-    F *externalRoundConstants;
-    F *matInternalDiagM1;
-    F montyInverse;
+    using F = typename Params::F;
+    static const int DIGEST_WIDTH = Params::DIGEST_WIDTH;
+    static const int RATE = Params::RATE;
+    static const int WIDTH = Params::WIDTH;
+    static const int ROUNDS_F = Params::ROUNDS_F;
+    static const int ROUNDS_P = Params::ROUNDS_P;
 
    public:
-    // Constructor
-    Hasher() {
-        cudaMalloc(&internalRoundConstants, ROUNDS_P * sizeof(F));
-        cudaMalloc(&externalRoundConstants, ROUNDS_F * WIDTH * sizeof(F));
-        cudaMalloc(&matInternalDiagM1, WIDTH * sizeof(F));
-    }
-
-    // Destructor
-    ~Hasher() {
-        cudaFree(internalRoundConstants);
-        cudaFree(externalRoundConstants);
-        cudaFree(matInternalDiagM1);
-    }
-
-    // Method to set constant arrays
-    void setConstants(const F *internalRC, const F *externalRC,
-                      const F *internalDiagM1, F inverse) {
-        cudaMemcpy(internalRoundConstants, internalRC, ROUNDS_P * sizeof(F),
-                   cudaMemcpyHostToDevice);
-        cudaMemcpy(externalRoundConstants, externalRC,
-                   ROUNDS_F * WIDTH * sizeof(F), cudaMemcpyHostToDevice);
-        cudaMemcpy(matInternalDiagM1, internalDiagM1, WIDTH * sizeof(F),
-                   cudaMemcpyHostToDevice);
-        montyInverse = inverse;
-    }
-
     __device__ void permute(F in[WIDTH], F out[WIDTH]) {
         F state[WIDTH];
         for (int i = 0; i < WIDTH; i++) {
@@ -138,21 +117,21 @@ class Hasher {
 
         int rounds_f_half = ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addRc<F, WIDTH>(state, externalRoundConstants, i);
-            sbox<F, WIDTH>(state, D);
+            addExtRc<F, WIDTH>(state, Params::getExternalRoundConstants()[i]);
+            sbox<F, WIDTH>(state, Params::getD());
             externalLinearLayer<F, WIDTH>(state);
         }
 
         for (int i = 0; i < ROUNDS_P; i++) {
-            state[0] += internalRoundConstants[i];
-            state[0] ^= D;
-            internalLinearLayer<F, WIDTH>(state, matInternalDiagM1,
-                                          montyInverse);
+            addIntRc<F, WIDTH>(state, Params::getInternalRoundConstants(), i);
+            state[0] ^= Params::getD();
+            internalLinearLayer<F, WIDTH>(state, Params::getMatInternalDiagM1(),
+                                          Params::getMontyInverse());
         }
 
         for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addRc<F, WIDTH>(state, externalRoundConstants, i);
-            sbox<F, WIDTH>(state, D);
+            addExtRc<F, WIDTH>(state, Params::getExternalRoundConstants()[i]);
+            sbox<F, WIDTH>(state, Params::getD());
             externalLinearLayer<F, WIDTH>(state);
         }
 
@@ -194,7 +173,7 @@ class Hasher {
         }
     }
 
-    __device__ void absorb(F *in, size_t nIn, HasherState<F, WIDTH> *state) {
+    __device__ void absorb(F *in, size_t nIn, HasherState<Params> *state) {
         for (int i = 0; i < nIn; i++) {
             state->data[state->index] = in[i];
             state->index++;
@@ -206,7 +185,7 @@ class Hasher {
     }
 
     __device__ void absorbRow(Matrix<F> *in, int row_idx,
-                              HasherState<F, WIDTH> *state) {
+                              HasherState<Params> *state) {
         if (in->row_major) {
             F *row = &in->values[in->width * row_idx];
             absorb(row, in->width, state);
@@ -217,8 +196,7 @@ class Hasher {
         }
     }
 
-    __device__ void finalize(HasherState<F, WIDTH> *state,
-                             F out[DIGEST_WIDTH]) {
+    __device__ void finalize(HasherState<Params> *state, F out[DIGEST_WIDTH]) {
         if (state->index != 0) {
             permute(state->data, state->data);
         }
