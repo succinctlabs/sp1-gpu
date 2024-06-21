@@ -1,16 +1,12 @@
-use std::borrow::Borrow;
-
 use sp1_core::air::{PublicValues, Word};
 use sp1_core::utils::{SP1ProverOpts, DIGEST_SIZE};
-use sp1_prover::utils::words_to_bytes;
-use sp1_recursion_core::air::RecursionPublicValues;
-use tracing::{debug_span, info_span, instrument};
+use tracing::{debug_span, instrument};
 
 use p3_baby_bear::BabyBear;
 
 use p3_field::AbstractField;
 
-use p3_challenger::{CanObserve, FieldChallenger};
+use p3_challenger::CanObserve;
 
 use sp1_core::stark::{Challenge, Challenger, ShardProof, StarkMachine, Val};
 use sp1_prover::{
@@ -498,16 +494,11 @@ impl SP1GpuProver {
 #[cfg(test)]
 mod tests {
 
-    use std::fs::File;
-    use std::io::{Read, Write};
-
     use super::*;
 
     use moongate_core::utils::init_tracer;
 
     use anyhow::Result;
-    use p3_field::PrimeField32;
-    use serial_test::serial;
     use sp1_core::io::SP1Stdin;
     use sp1_core::runtime::SP1Context;
     use sp1_core::utils::tests::FIBONACCI_ELF;
