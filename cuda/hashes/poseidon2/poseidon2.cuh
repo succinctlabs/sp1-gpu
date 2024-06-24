@@ -134,13 +134,12 @@ __device__ void internalLinearLayer(
 template<typename Params>
 struct HasherState {
     using F = typename Params::F;
-    static const int WIDTH = Params::WIDTH;
 
-    F data[WIDTH];
+    F data[Params::WIDTH];
     size_t index;
 
     __device__ HasherState() : index(0) {
-        for (int i = 0; i < WIDTH; ++i) {
+        for (int i = 0; i < Params::WIDTH; ++i) {
             data[i] = F(0);
         }
     }
@@ -149,72 +148,74 @@ struct HasherState {
 template<typename Params>
 class Hasher {
     using F = typename Params::F;
-    static const int DIGEST_WIDTH = Params::DIGEST_WIDTH;
-    static const int RATE = Params::RATE;
-    static const int WIDTH = Params::WIDTH;
-    static const int ROUNDS_F = Params::ROUNDS_F;
-    static const int ROUNDS_P = Params::ROUNDS_P;
 
   public:
-    __device__ void permute(F in[WIDTH], F out[WIDTH]) {
-        F state[WIDTH];
-        for (int i = 0; i < WIDTH; i++) {
+    __device__ void permute(F in[Params::WIDTH], F out[Params::WIDTH]) {
+        F state[Params::WIDTH];
+        for (int i = 0; i < Params::WIDTH; i++) {
             state[i] = in[i];
         }
 
-        const F D = Params::getD();
-        const F(*EXT_RC)[WIDTH] = Params::getExternalRoundConstants();
-        const F* INT_RC = Params::getInternalRoundConstants();
-        const F* MAT_INT_DIAG_M1 = Params::getMatInternalDiagM1();
-        const F& MONTY_INV = Params::getMontyInverse();
+        externalLinearLayer<F, Params::WIDTH>(state);
 
-        externalLinearLayer<F, WIDTH>(state);
-
-        int rounds_f_half = ROUNDS_F / 2;
+        int rounds_f_half = Params::ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addExtRc<F, WIDTH>(state, EXT_RC[i]);
-            sbox<F, WIDTH>(state, D);
-            externalLinearLayer<F, WIDTH>(state);
+            addExtRc<F, Params::WIDTH>(
+                state,
+                Params::EXTERNAL_ROUND_CONSTANTS[i]
+            );
+            sbox<F, Params::WIDTH>(state, Params::D);
+            externalLinearLayer<F, Params::WIDTH>(state);
         }
 
-        for (int i = 0; i < ROUNDS_P; i++) {
-            state[0] += INT_RC[i];
-            state[0] ^= D;
-            internalLinearLayer<F, WIDTH>(state, MAT_INT_DIAG_M1, MONTY_INV);
+        for (int i = 0; i < Params::ROUNDS_P; i++) {
+            state[0] += Params::INTERNAL_ROUND_CONSTANTS[i];
+            state[0] ^= Params::D;
+            internalLinearLayer<F, Params::WIDTH>(
+                state,
+                Params::MAT_INTERNAL_DIAG_M1,
+                Params::MONTY_INVERSE
+            );
         }
 
-        for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addExtRc<F, WIDTH>(state, EXT_RC[i]);
-            sbox<F, WIDTH>(state, D);
-            externalLinearLayer<F, WIDTH>(state);
+        for (int i = rounds_f_half; i < Params::ROUNDS_F; i++) {
+            addExtRc<F, Params::WIDTH>(
+                state,
+                Params::EXTERNAL_ROUND_CONSTANTS[i]
+            );
+            sbox<F, Params::WIDTH>(state, Params::D);
+            externalLinearLayer<F, Params::WIDTH>(state);
         }
 
-        for (int i = 0; i < WIDTH; i++) {
+        for (int i = 0; i < Params::WIDTH; i++) {
             out[i] = state[i];
         }
     }
 
-    __device__ void
-    compress(F left[DIGEST_WIDTH], F right[DIGEST_WIDTH], F out[DIGEST_WIDTH]) {
-        F state[WIDTH];
-        for (int i = 0; i < DIGEST_WIDTH; i++) {
+    __device__ void compress(
+        F left[Params::DIGEST_WIDTH],
+        F right[Params::DIGEST_WIDTH],
+        F out[Params::DIGEST_WIDTH]
+    ) {
+        F state[Params::WIDTH];
+        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
             state[i] = left[i];
-            state[i + DIGEST_WIDTH] = right[i];
+            state[i + Params::DIGEST_WIDTH] = right[i];
         }
         permute(state, state);
-        for (int i = 0; i < DIGEST_WIDTH; i++) {
+        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
             out[i] = state[i];
         }
     }
 
-    __device__ void hash(F* in, size_t nIn, F out[DIGEST_WIDTH]) {
-        F state[WIDTH];
-        for (int i = 0; i < WIDTH; i++) {
+    __device__ void hash(F* in, size_t nIn, F out[Params::DIGEST_WIDTH]) {
+        F state[Params::WIDTH];
+        for (int i = 0; i < Params::WIDTH; i++) {
             state[i] = F(0);
         }
 
-        for (int i = 0; i < nIn; i += RATE) {
-            for (int j = 0; j < RATE; j++) {
+        for (int i = 0; i < nIn; i += Params::RATE) {
+            for (int j = 0; j < Params::RATE; j++) {
                 if (i + j < nIn) {
                     state[j] = in[i + j];
                 }
@@ -222,7 +223,7 @@ class Hasher {
             permute(state, state);
         }
 
-        for (int i = 0; i < DIGEST_WIDTH; i++) {
+        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
             out[i] = state[i];
         }
     }
@@ -231,7 +232,7 @@ class Hasher {
         for (int i = 0; i < nIn; i++) {
             state->data[state->index] = in[i];
             state->index++;
-            if (state->index == RATE) {
+            if (state->index == Params::RATE) {
                 permute(state->data, state->data);
                 state->index = 0;
             }
@@ -250,11 +251,12 @@ class Hasher {
         }
     }
 
-    __device__ void finalize(HasherState<Params>* state, F out[DIGEST_WIDTH]) {
+    __device__ void
+    finalize(HasherState<Params>* state, F out[Params::DIGEST_WIDTH]) {
         if (state->index != 0) {
             permute(state->data, state->data);
         }
-        for (int i = 0; i < DIGEST_WIDTH; i++) {
+        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
             out[i] = state->data[i];
         }
     }
