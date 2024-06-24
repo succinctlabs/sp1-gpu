@@ -11,7 +11,7 @@ use p3_air::Air;
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_core::air::SP1_PROOF_NUM_PV_ELTS;
+use sp1_core::stark::PROOF_MAX_NUM_PVS;
 use sp1_core::{
     air::MachineAir,
     stark::{AirOpenedValues, Chip, GenericVerifierConstraintFolder},
@@ -57,6 +57,9 @@ where
     // Get a lock for compiling the folder, making sure that only one thread is compiling at a time.
     let _guard = CUDA_P3_EVAL_LOCK.lock().unwrap();
 
+    CUDA_P3_EVAL_CODE_RESET();
+    CUDA_P3_EVAL_EXPR_CTR_RESET();
+
     let preprocessed_width = chip.preprocessed_width();
     let width = chip.width();
     let permutation_width = chip.permutation_width();
@@ -81,7 +84,7 @@ where
             .map(SymbolicFolderVar::permutation_next)
             .collect(),
     };
-    let public_values = (0..SP1_PROOF_NUM_PV_ELTS)
+    let public_values = (0..PROOF_MAX_NUM_PVS)
         .map(SymbolicFolderVar::public_value)
         .collect::<Vec<_>>();
     let perm_challenges = (0..2)

@@ -11,4 +11,4 @@ pub mod poseidon2;
 pub mod runtime;
 pub mod stark;
 pub mod time;
-pub(crate) mod utils;
+pub mod utils;

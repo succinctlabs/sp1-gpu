@@ -1,0 +1,25 @@
+[package]
+name = "moongate-prover"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+p3-baby-bear = { workspace = true }
+p3-challenger = { workspace = true }
+p3-field = { workspace = true }
+
+sp1-core = { workspace = true }
+sp1-recursion-core = { workspace = true }
+sp1-recursion-program = { workspace = true }
+sp1-recursion-compiler = { workspace = true }
+sp1-prover = { workspace = true }
+
+moongate-core = { path = "../core" }
+
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["std", "env-filter"] }
+
+
+[dev-dependencies]
+serial_test = "3.1.1"
+anyhow = "1.0.83"

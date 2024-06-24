@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::mpsc;
 
+use p3_challenger::FieldChallenger;
 use tracing::trace_span;
 
 use itertools::{izip, Itertools};
@@ -409,6 +410,7 @@ pub fn commit_phase(
     for x in current {
         assert_eq!(x, final_poly);
     }
+    challenger.observe_ext_element(final_poly);
 
     CommitPhaseResult {
         commits,
@@ -558,7 +560,7 @@ pub mod opening_gpu {
 mod tests {
     use crate::device::memory::ToHost;
     use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
-    use crate::stark::FriGpuProver;
+    use crate::stark::StarkGpuProver;
     use p3_baby_bear::BabyBear;
     use p3_challenger::FieldChallenger;
     use p3_commit::Pcs;
@@ -685,7 +687,7 @@ mod tests {
 
         let config = SC::default();
         let machine = RiscvAir::machine(config);
-        let gpu_prover = FriGpuProver::new(machine);
+        let gpu_prover = StarkGpuProver::new(machine);
 
         // Execute the program.
         let record = execute_core(program);
