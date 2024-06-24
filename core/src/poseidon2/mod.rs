@@ -13,7 +13,7 @@ pub mod poseidon2_bb31_16_kernels {
     #[allow(unused_attributes)]
     #[link_name = "poseidon2_bb31_16_gpu"]
     extern "C" {
-        pub fn permute(
+        pub fn permute_bb31(
             input: *const [BabyBear; WIDTH],
             output: *mut [BabyBear; WIDTH],
             n: usize,
@@ -21,7 +21,7 @@ pub mod poseidon2_bb31_16_kernels {
             n_threads_per_block: usize,
         );
 
-        pub fn compress(
+        pub fn compress_bb31(
             left: *const [BabyBear; DIGEST_WIDTH],
             right: *const [BabyBear; DIGEST_WIDTH],
             output: *mut [BabyBear; DIGEST_WIDTH],
@@ -30,7 +30,7 @@ pub mod poseidon2_bb31_16_kernels {
             n_threads_per_block: usize,
         );
 
-        pub fn hash(
+        pub fn hash_bb31(
             input: *const BabyBear,
             n_input: usize,
             output: *mut [BabyBear; DIGEST_WIDTH],
@@ -197,7 +197,7 @@ pub mod tests {
         // Execute the kernel.
         unsafe {
             output_device.set_len(n * DIGEST_WIDTH);
-            poseidon2_bb31_16_kernels::permute(
+            poseidon2_bb31_16_kernels::permute_bb31(
                 input_device.as_ptr(),
                 output_device.as_mut_ptr(),
                 n,
@@ -254,7 +254,7 @@ pub mod tests {
 
         // Execute the kernel.
         unsafe {
-            poseidon2_bb31_16_kernels::compress(
+            poseidon2_bb31_16_kernels::compress_bb31(
                 left_device.as_ptr(),
                 right_device.as_ptr(),
                 output_device.as_slice_mut().as_mut_ptr(),
@@ -305,7 +305,7 @@ pub mod tests {
 
         // Execute the kernel.
         unsafe {
-            poseidon2_bb31_16_kernels::hash(
+            poseidon2_bb31_16_kernels::hash_bb31(
                 input_device.as_slice().as_ptr(),
                 N_INPUT,
                 output_device.as_slice_mut().as_mut_ptr(),
