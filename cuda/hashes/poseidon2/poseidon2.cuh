@@ -33,25 +33,6 @@ __device__ void mdsLightPermutation4x4(F state[4]) {
 }
 
 template<typename F, int WIDTH>
-__device__ void applySecondExternalMatrix(F state[WIDTH]) {
-    // for (int i = 0; i < WIDTH; i += 4) {
-    //     mdsLightPermutation4x4<F>(state + i);
-    // }
-
-    F sums[4] = {state[0], state[1], state[2], state[3]};
-    for (int i = 4; i < WIDTH; i += 4) {
-        sums[0] += state[i];
-        sums[1] += state[i + 1];
-        sums[2] += state[i + 2];
-        sums[3] += state[i + 3];
-    }
-
-    for (int i = 0; i < WIDTH; i++) {
-        state[i] += sums[i % 4];
-    }
-}
-
-template<typename F, int WIDTH>
 __device__ void externalLinearLayer(F state[WIDTH]) {
     switch (WIDTH) {
         case 2: {
@@ -78,14 +59,21 @@ __device__ void externalLinearLayer(F state[WIDTH]) {
             for (int i = 0; i < WIDTH; i += 4) {
                 mdsLightPermutation4x4<F>(state + i);
             }
-            applySecondExternalMatrix<F, WIDTH>(state);
+
+            F sums[4] = {state[0], state[1], state[2], state[3]};
+            for (int i = 4; i < WIDTH; i += 4) {
+                sums[0] += state[i];
+                sums[1] += state[i + 1];
+                sums[2] += state[i + 2];
+                sums[3] += state[i + 3];
+            }
+
+            for (int i = 0; i < WIDTH; i++) {
+                state[i] += sums[i % 4];
+            }
+
             break;
     }
-}
-
-template<typename F, int WIDTH>
-__device__ void addIntRc(F state[WIDTH], const F rc[WIDTH], int round) {
-    state[0] += rc[round];
 }
 
 template<typename F, int WIDTH>
@@ -174,28 +162,30 @@ class Hasher {
             state[i] = in[i];
         }
 
+        const F D = Params::getD();
+        const F(*EXT_RC)[WIDTH] = Params::getExternalRoundConstants();
+        const F* INT_RC = Params::getInternalRoundConstants();
+        const F* MAT_INT_DIAG_M1 = Params::getMatInternalDiagM1();
+        const F& MONTY_INV = Params::getMontyInverse();
+
         externalLinearLayer<F, WIDTH>(state);
 
         int rounds_f_half = ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addExtRc<F, WIDTH>(state, Params::getExternalRoundConstants()[i]);
-            sbox<F, WIDTH>(state, Params::getD());
+            addExtRc<F, WIDTH>(state, EXT_RC[i]);
+            sbox<F, WIDTH>(state, D);
             externalLinearLayer<F, WIDTH>(state);
         }
 
         for (int i = 0; i < ROUNDS_P; i++) {
-            addIntRc<F, WIDTH>(state, Params::getInternalRoundConstants(), i);
-            state[0] ^= Params::getD();
-            internalLinearLayer<F, WIDTH>(
-                state,
-                Params::getMatInternalDiagM1(),
-                Params::getMontyInverse()
-            );
+            state[0] += INT_RC[i];
+            state[0] ^= D;
+            internalLinearLayer<F, WIDTH>(state, MAT_INT_DIAG_M1, MONTY_INV);
         }
 
         for (int i = rounds_f_half; i < ROUNDS_F; i++) {
-            addExtRc<F, WIDTH>(state, Params::getExternalRoundConstants()[i]);
-            sbox<F, WIDTH>(state, Params::getD());
+            addExtRc<F, WIDTH>(state, EXT_RC[i]);
+            sbox<F, WIDTH>(state, D);
             externalLinearLayer<F, WIDTH>(state);
         }
 
