@@ -101,6 +101,7 @@ pub struct SP1GpuProver {
     compress_prover: StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the shrink machine.
+    #[allow(dead_code)]
     shrink_prover: StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
 }
 
@@ -515,7 +516,7 @@ mod tests {
 
         let prover = SP1GpuProver::new();
 
-        let mut cpu_prover = SP1Prover::new();
+        let cpu_prover = SP1Prover::new();
 
         tracing::info!("initializing prover");
         let opts = SP1ProverOpts {
@@ -528,12 +529,12 @@ mod tests {
         let context = SP1Context::default();
 
         tracing::info!("setup elf");
-        let (pk, vk) = cpu_prover.setup(elf);
+        let (pk, vk) = prover.setup(elf);
 
         tracing::info!("prove core");
         let stdin = SP1Stdin::new();
         let core_proof = cpu_prover.prove_core(&pk, &stdin, opts, context)?;
-        let public_values = core_proof.public_values.clone();
+        let _public_values = core_proof.public_values.clone();
 
         tracing::info!("verify core");
         cpu_prover.verify(&core_proof.proof, &vk)?;
