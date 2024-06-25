@@ -1,6 +1,13 @@
+use std::fs::File;
+use std::io::{Seek, Write};
+use std::sync::Arc;
+use std::time::Instant;
+
+use size::Size;
+
 use sp1_core::air::{PublicValues, Word};
-use sp1_core::utils::{SP1ProverOpts, DIGEST_SIZE};
-use tracing::{debug_span, instrument};
+use sp1_core::utils::{SP1CoreProverError, SP1ProverOpts, DIGEST_SIZE};
+use tracing::instrument;
 
 use p3_baby_bear::BabyBear;
 
@@ -8,19 +15,20 @@ use p3_field::AbstractField;
 
 use p3_challenger::CanObserve;
 
-use sp1_core::stark::{Challenge, Challenger, ShardProof, StarkMachine, Val};
+use sp1_core::stark::MachineRecord;
+use sp1_core::stark::{Challenge, Challenger, MachineProof, ShardProof, Val};
 use sp1_prover::{
-    ReduceProgramType, SP1CoreProof, SP1DeferredMemoryLayout, SP1Prover, SP1ProvingKey,
-    SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin, SP1VerifyingKey,
+    ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout, SP1Prover,
+    SP1ProvingKey, SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin,
+    SP1VerifyingKey,
 };
 use sp1_recursion_program::hints::Hintable;
 use sp1_recursion_program::machine::{
     SP1CompressVerifier, SP1DeferredVerifier, SP1RecursiveVerifier, SP1RootVerifier,
 };
 
-use sp1_core::runtime::ExecutionError;
-use sp1_core::runtime::ExecutionReport;
-use sp1_core::stark::MachineRecord;
+use sp1_core::runtime::{ExecutionError, ExecutionRecord, NoOpSubproofVerifier, SP1Context};
+use sp1_core::runtime::{ExecutionReport, ShardingConfig};
 use sp1_core::{
     runtime::{Program, Runtime},
     stark::{RiscvAir, StarkGenericConfig, StarkProvingKey, StarkVerifyingKey},
@@ -95,14 +103,15 @@ pub struct SP1GpuProver {
     pub shrink_vk: StarkVerifyingKey<InnerSC>,
 
     /// The prover for the core machine.
-    core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
+    pub(crate) core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the compress machine.
-    compress_prover: StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub(crate) compress_prover:
+        StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the shrink machine.
-    #[allow(dead_code)]
-    shrink_prover: StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub(crate) shrink_prover:
+        StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
 }
 
 impl SP1GpuProver {
@@ -171,7 +180,7 @@ impl SP1GpuProver {
     #[instrument(name = "setup", level = "debug", skip_all)]
     pub fn setup(&self, elf: &[u8]) -> (SP1ProvingKey, SP1VerifyingKey) {
         let program = Program::from(elf);
-        let (pk, vk) = self.core_machine().setup(&program);
+        let (pk, vk) = self.core_prover.setup(&program);
         let vk = SP1VerifyingKey { vk };
         let pk = SP1ProvingKey {
             pk,
@@ -186,10 +195,11 @@ impl SP1GpuProver {
     pub fn execute(
         elf: &[u8],
         stdin: &SP1Stdin,
+        context: SP1Context,
     ) -> Result<(SP1PublicValues, ExecutionReport), ExecutionError> {
         let program = Program::from(elf);
         let opts = SP1CoreOpts::default();
-        let mut runtime = Runtime::new(program, opts);
+        let mut runtime = Runtime::with_context(program, opts, context);
         runtime.write_vecs(&stdin.buffer);
         for (proof, vkey) in stdin.proofs.iter() {
             runtime.write_proof(proof.clone(), vkey.clone());
@@ -199,6 +209,152 @@ impl SP1GpuProver {
             SP1PublicValues::from(&runtime.state.public_values_stream),
             runtime.report,
         ))
+    }
+
+    /// Generate shard proofs which split up and prove the valid execution of a RISC-V program with
+    /// the core prover. Uses the provided context.
+    #[instrument(name = "prove_core", level = "info", skip_all)]
+    pub fn prove_core<'a>(
+        &'a self,
+        pk: &SP1ProvingKey,
+        stdin: &SP1Stdin,
+        opts: SP1ProverOpts,
+        mut context: SP1Context<'a>,
+    ) -> Result<SP1CoreProof, SP1CoreProverError> {
+        context
+            .subproof_verifier
+            .get_or_insert_with(|| Arc::new(self));
+        let config = CoreSC::default();
+        let program = Program::from(&pk.elf);
+        let (proof, public_values_stream) =
+            sp1_core::utils::prove_with_context(program, stdin, config, opts.core_opts, context)?;
+        let public_values = SP1PublicValues::from(&public_values_stream);
+        Ok(SP1CoreProof {
+            proof: SP1CoreProofData(proof.shard_proofs),
+            stdin: stdin.clone(),
+            public_values,
+        })
+    }
+
+    pub fn get_recursion_core_inputs<'a>(
+        &'a self,
+        vk: &'a StarkVerifyingKey<CoreSC>,
+        leaf_challenger: &'a Challenger<CoreSC>,
+        shard_proofs: &[ShardProof<CoreSC>],
+        batch_size: usize,
+        is_complete: bool,
+    ) -> Vec<SP1RecursionMemoryLayout<'a, CoreSC, RiscvAir<BabyBear>>> {
+        let mut core_inputs = Vec::new();
+        let mut reconstruct_challenger = self.core_prover.config().challenger();
+        vk.observe_into(&mut reconstruct_challenger);
+
+        // Prepare the inputs for the recursion programs.
+        for batch in shard_proofs.chunks(batch_size) {
+            let proofs = batch.to_vec();
+
+            core_inputs.push(SP1RecursionMemoryLayout {
+                vk,
+                machine: self.core_prover.machine(),
+                shard_proofs: proofs,
+                leaf_challenger,
+                initial_reconstruct_challenger: reconstruct_challenger.clone(),
+                is_complete,
+                total_core_shards: shard_proofs.len(),
+            });
+
+            for proof in batch.iter() {
+                reconstruct_challenger.observe(proof.commitment.main_commit);
+                reconstruct_challenger.observe_slice(
+                    &proof.public_values[0..self.core_prover.machine().num_pv_elts()],
+                );
+            }
+        }
+
+        // Check that the leaf challenger is the same as the reconstruct challenger.
+        assert_eq!(
+            reconstruct_challenger.sponge_state,
+            leaf_challenger.sponge_state
+        );
+        assert_eq!(
+            reconstruct_challenger.input_buffer,
+            leaf_challenger.input_buffer
+        );
+        assert_eq!(
+            reconstruct_challenger.output_buffer,
+            leaf_challenger.output_buffer
+        );
+        core_inputs
+    }
+
+    pub fn get_recursion_deferred_inputs<'a>(
+        &'a self,
+        vk: &'a StarkVerifyingKey<CoreSC>,
+        leaf_challenger: &'a Challenger<InnerSC>,
+        last_proof_pv: &PublicValues<Word<BabyBear>, BabyBear>,
+        deferred_proofs: &[ShardProof<InnerSC>],
+        batch_size: usize,
+        total_core_shards: usize,
+    ) -> Vec<SP1DeferredMemoryLayout<'a, InnerSC, RecursionAir<BabyBear, 3>>> {
+        // Prepare the inputs for the deferred proofs recursive verification.
+        let mut deferred_digest = [Val::<InnerSC>::zero(); DIGEST_SIZE];
+        let mut deferred_inputs = Vec::new();
+
+        for batch in deferred_proofs.chunks(batch_size) {
+            let proofs = batch.to_vec();
+
+            deferred_inputs.push(SP1DeferredMemoryLayout {
+                compress_vk: &self.compress_vk,
+                machine: self.compress_prover.machine(),
+                proofs,
+                start_reconstruct_deferred_digest: deferred_digest.to_vec(),
+                is_complete: false,
+                sp1_vk: vk,
+                sp1_machine: self.core_prover.machine(),
+                end_pc: Val::<InnerSC>::zero(),
+                end_shard: last_proof_pv.shard + BabyBear::one(),
+                leaf_challenger: leaf_challenger.clone(),
+                committed_value_digest: last_proof_pv.committed_value_digest.to_vec(),
+                deferred_proofs_digest: last_proof_pv.deferred_proofs_digest.to_vec(),
+                total_core_shards,
+            });
+
+            deferred_digest = Self::hash_deferred_proofs(deferred_digest, batch);
+        }
+        deferred_inputs
+    }
+
+    /// Generate the inputs for the first layer of recursive proofs.
+    #[allow(clippy::type_complexity)]
+    pub fn get_first_layer_inputs<'a>(
+        &'a self,
+        vk: &'a SP1VerifyingKey,
+        leaf_challenger: &'a Challenger<InnerSC>,
+        shard_proofs: &[ShardProof<InnerSC>],
+        deferred_proofs: &[ShardProof<InnerSC>],
+        batch_size: usize,
+    ) -> (
+        Vec<SP1RecursionMemoryLayout<'a, InnerSC, RiscvAir<BabyBear>>>,
+        Vec<SP1DeferredMemoryLayout<'a, InnerSC, RecursionAir<BabyBear, 3>>>,
+    ) {
+        let is_complete = shard_proofs.len() == 1 && deferred_proofs.is_empty();
+        let core_inputs = self.get_recursion_core_inputs(
+            &vk.vk,
+            leaf_challenger,
+            shard_proofs,
+            batch_size,
+            is_complete,
+        );
+        let last_proof_pv =
+            PublicValues::from_vec(shard_proofs.last().unwrap().public_values.clone());
+        let deferred_inputs = self.get_recursion_deferred_inputs(
+            &vk.vk,
+            leaf_challenger,
+            &last_proof_pv,
+            deferred_proofs,
+            batch_size,
+            shard_proofs.len(),
+        );
+        (core_inputs, deferred_inputs)
     }
 
     /// Reduce shards proofs to a single shard proof using the recursion prover.
@@ -214,13 +370,14 @@ impl SP1GpuProver {
         let batch_size = 2;
 
         let shard_proofs = &proof.proof.0;
+        let total_core_shards = shard_proofs.len();
         // Get the leaf challenger.
-        let mut leaf_challenger = self.core_prover.config().challenger();
+        let mut leaf_challenger = self.core_prover.machine().config().challenger();
         vk.vk.observe_into(&mut leaf_challenger);
         shard_proofs.iter().for_each(|proof| {
             leaf_challenger.observe(proof.commitment.main_commit);
             leaf_challenger
-                .observe_slice(&proof.public_values[0..self.core_machine().num_pv_elts()]);
+                .observe_slice(&proof.public_values[0..self.core_prover.machine().num_pv_elts()]);
         });
 
         // Run the recursion and reduce programs.
@@ -287,10 +444,11 @@ impl SP1GpuProver {
 
                             let input = SP1ReduceMemoryLayout {
                                 compress_vk: &self.compress_vk,
-                                recursive_machine: self.compress_machine(),
+                                recursive_machine: self.compress_prover.machine(),
                                 shard_proofs,
                                 kinds,
                                 is_complete,
+                                total_core_shards,
                             };
 
                             let proof = self.compress_machine_proof(
@@ -317,14 +475,6 @@ impl SP1GpuProver {
         })
     }
 
-    fn core_machine(&self) -> &StarkMachine<CoreSC, RiscvAir<BabyBear>> {
-        self.core_prover.machine()
-    }
-
-    fn compress_machine(&self) -> &StarkMachine<InnerSC, ReduceAir<BabyBear>> {
-        self.compress_prover.machine()
-    }
-
     /// Generates a proof using the compress machine and recursive runtime.
     ///
     /// The proof will execute the program and prove it in a single shard.
@@ -333,38 +483,31 @@ impl SP1GpuProver {
         input: impl Hintable<InnerConfig>,
         program: &RecursionProgram<BabyBear>,
         pk: &StarkProvingKey<InnerSC>,
-        _opts: SP1ProverOpts,
+        opts: SP1ProverOpts,
     ) -> ShardProof<InnerSC> {
         let mut runtime = RecursionRuntime::<Val<InnerSC>, Challenge<InnerSC>, _>::new(
             program,
             self.compress_prover.config().perm.clone(),
         );
+
         let mut witness_stream = Vec::new();
         witness_stream.extend(input.write());
 
-        let runtime_span = debug_span!("Execute recursive program").entered();
         runtime.witness_stream = witness_stream.into();
         runtime.run();
         runtime.print_stats();
-        let record = runtime.record;
-        runtime_span.exit();
 
         let mut recursive_challenger = self.compress_prover.config().challenger();
-        // Observe the preprocessed commitment.
-        pk.observe_into(&mut recursive_challenger);
-        // Commit to the main trace.
-        let main_data =
-            debug_span!("Commit_main").in_scope(|| self.compress_prover.commit_main(&record, 1));
-        // Observe the main commit and public inputs.
-        recursive_challenger.observe(main_data.commit);
-        let num_pv_elts = self.compress_prover.machine().num_pv_elts();
-        recursive_challenger.observe_slice(&record.public_values::<BabyBear>()[0..num_pv_elts]);
-
-        debug_span!("Prove shard").in_scope(|| {
-            self.compress_prover
-                .prove_shard(pk, main_data, &mut recursive_challenger)
-                .unwrap()
-        })
+        self.compress_prover
+            .prove(
+                pk,
+                runtime.record,
+                &mut recursive_challenger,
+                opts.recursion_opts,
+            )
+            .shard_proofs
+            .pop()
+            .unwrap()
     }
 
     /// Accumulate deferred proofs into a single digest.
@@ -375,121 +518,210 @@ impl SP1GpuProver {
         SP1Prover::hash_deferred_proofs(prev_digest, deferred_proofs)
     }
 
-    pub fn get_recursion_core_inputs<'a>(
-        &'a self,
-        vk: &'a StarkVerifyingKey<CoreSC>,
-        leaf_challenger: &'a Challenger<CoreSC>,
-        shard_proofs: &[ShardProof<CoreSC>],
-        batch_size: usize,
-        is_complete: bool,
-    ) -> Vec<SP1RecursionMemoryLayout<'a, CoreSC, RiscvAir<BabyBear>>> {
-        let mut core_inputs = Vec::new();
-        let mut reconstruct_challenger = self.core_prover.config().challenger();
-        vk.observe_into(&mut reconstruct_challenger);
+    pub fn prove_core_simple(
+        &self,
+        runtime: Runtime,
+    ) -> Result<MachineProof<CoreSC>, SP1CoreProverError> {
+        // Setup the machine.
+        let (pk, _) = self.core_prover.setup(runtime.program.as_ref());
 
-        // Prepare the inputs for the recursion programs.
-        for batch in shard_proofs.chunks(batch_size) {
-            let proofs = batch.to_vec();
+        // Prove the program.
+        let mut challenger = self.core_prover.config().challenger();
+        let proving_start = Instant::now();
+        let proof =
+            self.core_prover
+                .prove(&pk, runtime.record, &mut challenger, SP1CoreOpts::default());
+        let proving_duration = proving_start.elapsed().as_millis();
+        let nb_bytes = bincode::serialize(&proof).unwrap().len();
 
-            core_inputs.push(SP1RecursionMemoryLayout {
-                vk,
-                machine: self.core_machine(),
-                shard_proofs: proofs,
-                leaf_challenger,
-                initial_reconstruct_challenger: reconstruct_challenger.clone(),
-                is_complete,
-            });
+        // Print the summary.
+        tracing::info!(
+            "summary: cycles={}, e2e={}, khz={:.2}, proofSize={}",
+            runtime.state.global_clk,
+            proving_duration,
+            (runtime.state.global_clk as f64 / proving_duration as f64),
+            Size::from_bytes(nb_bytes),
+        );
 
-            for proof in batch.iter() {
-                reconstruct_challenger.observe(proof.commitment.main_commit);
-                reconstruct_challenger
-                    .observe_slice(&proof.public_values[0..self.core_machine().num_pv_elts()]);
+        Ok(proof)
+    }
+
+    pub fn prove_core_with_context(
+        &self,
+        program: Program,
+        stdin: &SP1Stdin,
+        opts: SP1CoreOpts,
+        context: SP1Context,
+    ) -> Result<(MachineProof<CoreSC>, Vec<u8>), SP1CoreProverError> {
+        let proving_start = Instant::now();
+
+        // Execute the program.
+        let mut runtime = Runtime::with_context(program.clone(), opts, context);
+        runtime.write_vecs(&stdin.buffer);
+        for proof in stdin.proofs.iter() {
+            runtime.write_proof(proof.0.clone(), proof.1.clone());
+        }
+
+        // Setup the machine.
+        let (pk, vk) = self.core_prover.setup(runtime.program.as_ref());
+
+        // If we don't need to batch, we can just run the program normally and prove it.
+        if opts.shard_batch_size == 0 {
+            // Execute the runtime and collect all the events..
+            runtime.run().map_err(SP1CoreProverError::ExecutionError)?;
+
+            // If debugging is enabled, we will also debug the constraints.
+            #[cfg(debug_assertions)]
+            {
+                let mut challenger = self.core_prover.config().challenger();
+                self.core_prover.machine().debug_constraints(
+                    &pk,
+                    runtime.record.clone(),
+                    &mut challenger,
+                );
+            }
+
+            // Generate the proof and return the proof and public values.
+            let public_values = std::mem::take(&mut runtime.state.public_values_stream);
+            let proof = self.prove_core_simple(runtime)?;
+            return Ok((proof, public_values));
+        }
+
+        // Execute the program, saving checkpoints at the start of every `shard_batch_size` cycle range.
+        let mut checkpoints = Vec::new();
+        let (public_values_stream, public_values) = loop {
+            // Execute the runtime until we reach a checkpoint.
+            let (checkpoint, done) = tracing::info_span!("collect_checkpoints")
+                .in_scope(|| runtime.execute_state())
+                .map_err(SP1CoreProverError::ExecutionError)?;
+
+            // Save the checkpoint to a temp file.
+            let mut tempfile = tempfile::tempfile().map_err(SP1CoreProverError::IoError)?;
+            let mut writer = std::io::BufWriter::new(&mut tempfile);
+            bincode::serialize_into(&mut writer, &checkpoint)
+                .map_err(SP1CoreProverError::SerializationError)?;
+            writer.flush().map_err(SP1CoreProverError::IoError)?;
+            drop(writer);
+            tempfile
+                .seek(std::io::SeekFrom::Start(0))
+                .map_err(SP1CoreProverError::IoError)?;
+            checkpoints.push(tempfile);
+
+            // If we've reached the final checkpoint, break out of the loop.
+            if done {
+                break (
+                    std::mem::take(&mut runtime.state.public_values_stream),
+                    runtime.record.public_values,
+                );
+            }
+        };
+
+        // For each checkpoint, generate events, shard them, commit shards, and observe in challenger.
+        let sharding_config = ShardingConfig::default();
+        let mut shard_main_datas = Vec::new();
+        let mut challenger = self.core_prover.config().challenger();
+        vk.observe_into(&mut challenger);
+        for (num, checkpoint_file) in checkpoints.iter_mut().enumerate() {
+            let (mut record, _) = tracing::info_span!("commit_checkpoint", num)
+                .in_scope(|| trace_checkpoint(program.clone(), checkpoint_file, opts));
+            record.public_values = public_values;
+            reset_seek(&mut *checkpoint_file);
+
+            // Shard the record into shards.
+            let checkpoint_shards = tracing::info_span!("shard")
+                .in_scope(|| self.core_prover.machine().shard(record, &sharding_config));
+
+            // Commit to each shard.
+            let (commitments, commit_data) = tracing::info_span!("commit")
+                .in_scope(|| self.core_prover.commit_shards(&checkpoint_shards));
+            shard_main_datas.push(commit_data);
+
+            // Observe the commitments.
+            for (commitment, shard) in commitments.into_iter().zip(checkpoint_shards.iter()) {
+                challenger.observe(commitment);
+                challenger.observe_slice(
+                    &shard.public_values::<BabyBear>()[0..self.core_prover.machine().num_pv_elts()],
+                );
             }
         }
 
-        // Check that the leaf challenger is the same as the reconstruct challenger.
-        assert_eq!(
-            reconstruct_challenger.sponge_state,
-            leaf_challenger.sponge_state
-        );
-        assert_eq!(
-            reconstruct_challenger.input_buffer,
-            leaf_challenger.input_buffer
-        );
-        assert_eq!(
-            reconstruct_challenger.output_buffer,
-            leaf_challenger.output_buffer
-        );
-        core_inputs
-    }
+        // For each checkpoint, generate events and shard again, then prove the shards.
+        let mut shard_proofs = Vec::<ShardProof<_>>::new();
+        let mut report_aggregate = ExecutionReport::default();
+        for (num, mut checkpoint_file) in checkpoints.into_iter().enumerate() {
+            let checkpoint_shards = {
+                let (mut events, report) = tracing::info_span!("prove_checkpoint", num)
+                    .in_scope(|| trace_checkpoint(program.clone(), &checkpoint_file, opts));
+                report_aggregate += report;
+                events.public_values = public_values;
+                reset_seek(&mut checkpoint_file);
+                tracing::debug_span!("shard")
+                    .in_scope(|| self.core_prover.machine().shard(events, &sharding_config))
+            };
+            let mut checkpoint_proofs = checkpoint_shards
+                .into_iter()
+                .map(|shard| {
+                    let shard_data = self.core_prover.commit_main(&shard, shard.index() as usize);
 
-    pub fn get_recursion_deferred_inputs<'a>(
-        &'a self,
-        vk: &'a StarkVerifyingKey<CoreSC>,
-        leaf_challenger: &'a Challenger<InnerSC>,
-        last_proof_pv: &PublicValues<Word<BabyBear>, BabyBear>,
-        deferred_proofs: &[ShardProof<InnerSC>],
-        batch_size: usize,
-    ) -> Vec<SP1DeferredMemoryLayout<'a, InnerSC, RecursionAir<BabyBear, 3>>> {
-        // Prepare the inputs for the deferred proofs recursive verification.
-        let mut deferred_digest = [Val::<InnerSC>::zero(); DIGEST_SIZE];
-        let mut deferred_inputs = Vec::new();
-
-        for batch in deferred_proofs.chunks(batch_size) {
-            let proofs = batch.to_vec();
-
-            deferred_inputs.push(SP1DeferredMemoryLayout {
-                compress_vk: &self.compress_vk,
-                machine: self.compress_machine(),
-                proofs,
-                start_reconstruct_deferred_digest: deferred_digest.to_vec(),
-                is_complete: false,
-                sp1_vk: vk,
-                sp1_machine: self.core_machine(),
-                end_pc: Val::<InnerSC>::zero(),
-                end_shard: last_proof_pv.shard,
-                leaf_challenger: leaf_challenger.clone(),
-                committed_value_digest: last_proof_pv.committed_value_digest.to_vec(),
-                deferred_proofs_digest: last_proof_pv.deferred_proofs_digest.to_vec(),
-            });
-
-            deferred_digest = Self::hash_deferred_proofs(deferred_digest, batch);
+                    self.core_prover
+                        .prove_shard(&pk, shard_data, &mut challenger.clone())
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            shard_proofs.append(&mut checkpoint_proofs);
         }
-        deferred_inputs
-    }
+        // Log some of the `ExecutionReport` information.
+        tracing::info!(
+            "execution report (totals): total_cycles={}, total_syscall_cycles={}",
+            report_aggregate.total_instruction_count(),
+            report_aggregate.total_syscall_count()
+        );
+        // Print the opcode and syscall count tables like `du`:
+        // sorted by count (descending) and with the count in the first column.
+        tracing::info!("execution report (opcode counts):");
+        for line in ExecutionReport::sorted_table_lines(&report_aggregate.opcode_counts) {
+            tracing::info!("  {line}");
+        }
+        tracing::info!("execution report (syscall counts):");
+        for line in ExecutionReport::sorted_table_lines(&report_aggregate.syscall_counts) {
+            tracing::info!("  {line}");
+        }
 
-    /// Generate the inputs for the first layer of recursive proofs.
-    #[allow(clippy::type_complexity)]
-    pub fn get_first_layer_inputs<'a>(
-        &'a self,
-        vk: &'a SP1VerifyingKey,
-        leaf_challenger: &'a Challenger<InnerSC>,
-        shard_proofs: &[ShardProof<InnerSC>],
-        deferred_proofs: &[ShardProof<InnerSC>],
-        batch_size: usize,
-    ) -> (
-        Vec<SP1RecursionMemoryLayout<'a, InnerSC, RiscvAir<BabyBear>>>,
-        Vec<SP1DeferredMemoryLayout<'a, InnerSC, RecursionAir<BabyBear, 3>>>,
-    ) {
-        let is_complete = shard_proofs.len() == 1 && deferred_proofs.is_empty();
-        let core_inputs = self.get_recursion_core_inputs(
-            &vk.vk,
-            leaf_challenger,
-            shard_proofs,
-            batch_size,
-            is_complete,
+        let proof = MachineProof { shard_proofs };
+
+        // Print the summary.
+        let proving_time = proving_start.elapsed().as_secs_f64();
+        tracing::info!(
+            "summary: cycles={}, e2e={}, khz={:.2}, proofSize={}",
+            runtime.state.global_clk,
+            proving_time,
+            (runtime.state.global_clk as f64 / proving_time),
+            bincode::serialize(&proof).unwrap().len(),
         );
-        let last_proof_pv =
-            PublicValues::from_vec(shard_proofs.last().unwrap().public_values.clone());
-        let deferred_inputs = self.get_recursion_deferred_inputs(
-            &vk.vk,
-            leaf_challenger,
-            &last_proof_pv,
-            deferred_proofs,
-            batch_size,
-        );
-        (core_inputs, deferred_inputs)
+
+        Ok((proof, public_values_stream))
     }
+}
+
+fn trace_checkpoint(
+    program: Program,
+    file: &File,
+    opts: SP1CoreOpts,
+) -> (ExecutionRecord, ExecutionReport) {
+    let mut reader = std::io::BufReader::new(file);
+    let state = bincode::deserialize_from(&mut reader).expect("failed to deserialize state");
+    let mut runtime = Runtime::recover(program.clone(), state, opts);
+    // We already passed the deferred proof verifier when creating checkpoints, so the proofs were
+    // already verified. So here we use a noop verifier to not print any warnings.
+    runtime.subproof_verifier = Arc::new(NoOpSubproofVerifier);
+    let (events, _) =
+        tracing::debug_span!("runtime.trace").in_scope(|| runtime.execute_record().unwrap());
+    (events, runtime.report)
+}
+
+fn reset_seek(file: &mut File) {
+    file.seek(std::io::SeekFrom::Start(0))
+        .expect("failed to seek to start of tempfile");
 }
 
 #[cfg(test)]
@@ -514,6 +746,8 @@ mod tests {
     fn test_e2e() -> Result<()> {
         let elf = FIBONACCI_ELF;
 
+        init_tracer();
+
         let prover = SP1GpuProver::new();
 
         let cpu_prover = SP1Prover::new();
@@ -533,13 +767,12 @@ mod tests {
 
         tracing::info!("prove core");
         let stdin = SP1Stdin::new();
-        let core_proof = cpu_prover.prove_core(&pk, &stdin, opts, context)?;
+        let core_proof = prover.prove_core(&pk, &stdin, opts, context)?;
         let _public_values = core_proof.public_values.clone();
 
         tracing::info!("verify core");
         cpu_prover.verify(&core_proof.proof, &vk)?;
 
-        init_tracer();
         tracing::info!("compress");
         let compressed_proof = prover.compress(&vk, core_proof, vec![], opts)?;
 
