@@ -12,7 +12,6 @@ extern "C" rustCudaError_t cuda_device_synchronize() {
     return CUDA_SUCCESS_MOON; 
 } 
 
-
 // Cuda events.
 
 extern "C" rustCudaError_t cuda_event_create(cudaEvent_t *event) {

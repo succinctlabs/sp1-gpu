@@ -110,6 +110,13 @@ pub unsafe fn copy_device_to_device<T: Copy>(
     .into()
 }
 
+pub fn cuda_mem_get_info() -> Result<(usize, usize), CudaError> {
+    let mut free: usize = 0;
+    let mut total: usize = 0;
+    unsafe { ffi::cuda_mem_get_info(&mut free, &mut total) }.to_result()?;
+    Ok((free, total))
+}
+
 #[cfg(test)]
 mod tests {
 

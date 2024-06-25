@@ -12,6 +12,11 @@ extern "C" rustCudaError_t cuda_free(void *devPtr) {
     return CUDA_SUCCESS_MOON;
 }
 
+extern "C" rustCudaError_t cuda_mem_get_info(size_t *free, size_t *total) {
+    CUDA_OK(cudaMemGetInfo(free, total));
+    return CUDA_SUCCESS_MOON;
+}
+
 extern "C" rustCudaError_t cuda_mem_copy_host_to_device(void *dst,
                                                         const void *src,
                                                         size_t count) {

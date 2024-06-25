@@ -491,6 +491,7 @@ where
                 AirOpenedValues { local, next }
             })
             .collect::<Vec<_>>();
+
         let permutation_opened_values = permutation_values
             .into_iter()
             .map(|op| {
@@ -498,6 +499,7 @@ where
                 AirOpenedValues { local, next }
             })
             .collect::<Vec<_>>();
+
         let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
         for chip in shard_chips.iter() {
             let log_quotient_degree = chip.log_quotient_degree();
@@ -551,27 +553,39 @@ where
         })
     }
 
-    pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<GpuMainData<SC>>) {
+    /// Generates shard commitments and returns the commitments and traces.
+    pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let finished = AtomicU32::new(0);
         let parent_span = tracing::debug_span!("commit to all shards");
-        let (commitments, shard_main_data): (Vec<_>, Vec<_>) = parent_span.in_scope(|| {
+        parent_span.in_scope(|| {
             shards
                 .iter()
                 .map(|shard| {
                     tracing::debug_span!(parent: &parent_span, "commit to shard").in_scope(|| {
-                        let index = shard.index();
-                        let data = self.commit_main(shard, index as usize);
+                        let time = std::time::Instant::now();
+                        let host_trace_data = self.trace_generator.generate_main_traces(
+                            &self.machine,
+                            shard,
+                            shard.index() as usize,
+                        );
+                        debug!("Time to generate main traces: {:?}", time.elapsed());
+                        // Copy main traces to the device.
+                        let time = CudaInstant::now().unwrap();
+                        let trace_data = host_trace_data.to_device();
+                        debug!(
+                            "Time to copy traces to device: {:?}",
+                            time.elapsed().unwrap()
+                        );
+                        let (commit, _) = timed_debug!(
+                            "Committing main traces",
+                            self.commit_main_traces(&trace_data)
+                        );
                         finished.fetch_add(1, Ordering::Relaxed);
-                        let commitment = data.commit;
-                        (commitment, data)
+                        (commit, host_trace_data)
                     })
                 })
-                .collect::<Vec<_>>()
-                .into_iter()
                 .unzip()
-        });
-
-        (commitments, shard_main_data)
+        })
     }
 
     fn prove_shards(
@@ -583,13 +597,13 @@ where
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
-        let (shard_commits, shard_data) = self.commit_shards(&shards);
+        let (shard_commits, trace_data) = self.commit_shards(&shards);
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {
             shard_commits
                 .into_iter()
-                .zip(shards.iter())
+                .zip(shards)
                 .for_each(|(commitment, shard)| {
                     challenger.observe(commitment);
                     challenger.observe_slice(
@@ -604,18 +618,23 @@ where
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
         let shard_proofs = parent_span.in_scope(|| {
-            shard_data
+            trace_data
                 .into_iter()
-                .zip(shards)
-                .map(|(data, _)| {
+                .map(|shard_trace_data| {
                     tracing::debug_span!(parent: &parent_span, "prove shard opening").in_scope(
                         || {
-                            // let idx = shard.index() as usize;
-                            // let ordering = data.trace_data.chip_ordering.clone();
-                            // let chips = self
-                            //     .machine
-                            //     .shard_chips_ordered(&ordering)
-                            //     .collect::<Vec<_>>();
+                            let data = debug_span!("commit shard").in_scope(|| {
+                                let trace_data = shard_trace_data.to_device();
+                                let (commit, prover_data) = timed_debug!(
+                                    "Committing main traces",
+                                    self.commit_main_traces(&trace_data)
+                                );
+                                GpuMainData {
+                                    trace_data,
+                                    commit,
+                                    prover_data,
+                                }
+                            });
                             let proof =
                                 self.prove_shard(pk, data, &mut challenger.clone()).unwrap();
                             finished.fetch_add(1, Ordering::Relaxed);
