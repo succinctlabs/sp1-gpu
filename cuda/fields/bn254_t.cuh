@@ -1,3 +1,5 @@
-#include "bb31_t.cuh"
+#pragma once
 
-using bn254_t = bb31_t; // Placeholder
+#include "alt_bn128.hpp"
+
+using bn254_t = fp_t;

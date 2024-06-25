@@ -5,14 +5,14 @@
 
 namespace poseidon2 {
 
-template<typename F, int WIDTH>
+template<typename F, const int WIDTH>
 __device__ void addExtRc(F state[WIDTH], const F rc[WIDTH]) {
     for (int i = 0; i < WIDTH; i++) {
         state[i] += rc[i];
     }
 }
 
-template<typename F, int WIDTH>
+template<typename F, const int WIDTH>
 __device__ void sbox(F state[WIDTH], const int D) {
     for (int i = 0; i < WIDTH; i++) {
         state[i] ^= D;
@@ -32,7 +32,7 @@ __device__ void mdsLightPermutation4x4(F state[4]) {
     state[2] = t01233 + t23;
 }
 
-template<typename F, int WIDTH>
+template<typename F, const int WIDTH>
 __device__ void externalLinearLayer(F state[WIDTH]) {
     switch (WIDTH) {
         case 2: {
@@ -76,7 +76,7 @@ __device__ void externalLinearLayer(F state[WIDTH]) {
     }
 }
 
-template<typename F, int WIDTH>
+template<typename F, const int WIDTH>
 __device__ void
 matmulInternal(F state[WIDTH], const F matInternalDiagM1[WIDTH]) {
     F sum = F {0};
@@ -90,7 +90,7 @@ matmulInternal(F state[WIDTH], const F matInternalDiagM1[WIDTH]) {
     }
 }
 
-template<typename F, int WIDTH>
+template<typename F, const int WIDTH>
 __device__ void internalLinearLayer(
     F state[WIDTH],
     const F matInternalDiagM1[WIDTH],
@@ -125,7 +125,7 @@ __device__ void internalLinearLayer(
         case 24:
             matmulInternal<F, WIDTH>(state, matInternalDiagM1);
             for (int i = 0; i < WIDTH; i++) {
-                state[i] = state[i] * montyInverse;  // ?
+                state[i] = state[i] * montyInverse;
             }
             break;
     }
