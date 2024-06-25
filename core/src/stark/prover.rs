@@ -37,7 +37,6 @@ use sp1_core::{
 use air::P3EvalFolder;
 use tracing::trace_span;
 
-use crate::device::memory::cuda_mem_get_info;
 use crate::fri::FriGpuOpeningProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
@@ -238,8 +237,6 @@ where
     where
         A: for<'a> Air<ProverConstraintFolder<'a, SC>>,
     {
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
         let GpuMainData {
             trace_data: main_trace_data,
             commit: main_commit,
@@ -258,8 +255,7 @@ where
             .machine
             .shard_chips_ordered(&chip_ordering)
             .collect::<Vec<_>>();
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
+
         // Print some statistics.
         let mut total_lde_size = 0;
         let log_blowup = self.committer.log_blowup();
@@ -476,9 +472,6 @@ where
         drop(perm_prover_data);
         drop(quotient_prover_data);
 
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
-
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
             openings.try_into().unwrap();
@@ -491,9 +484,6 @@ where
             })
             .collect::<Vec<_>>();
 
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
-
         let main_opened_values = main_values
             .into_iter()
             .map(|op| {
@@ -502,8 +492,6 @@ where
             })
             .collect::<Vec<_>>();
 
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
         let permutation_opened_values = permutation_values
             .into_iter()
             .map(|op| {
@@ -512,8 +500,6 @@ where
             })
             .collect::<Vec<_>>();
 
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
         let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
         for chip in shard_chips.iter() {
             let log_quotient_degree = chip.log_quotient_degree();
@@ -521,8 +507,7 @@ where
             let slice = quotient_values.drain(0..degree);
             quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
         }
-        let (free, total) = cuda_mem_get_info().unwrap();
-        println!("free: {free}, total: {total}, used: {}", free - total);
+
         let opened_values = main_opened_values
             .into_iter()
             .zip_eq(permutation_opened_values)
@@ -569,7 +554,7 @@ where
     }
 
     /// Generates shard commitments and returns the commitments and traces.
-    pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<GpuMainData<SC>>) {
+    pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let finished = AtomicU32::new(0);
         let parent_span = tracing::debug_span!("commit to all shards");
         parent_span.in_scope(|| {
@@ -591,17 +576,12 @@ where
                             "Time to copy traces to device: {:?}",
                             time.elapsed().unwrap()
                         );
-                        let (commit, prover_data) = timed_debug!(
+                        let (commit, _) = timed_debug!(
                             "Committing main traces",
                             self.commit_main_traces(&trace_data)
                         );
                         finished.fetch_add(1, Ordering::Relaxed);
-                        let main_data = GpuMainData {
-                            trace_data,
-                            commit,
-                            prover_data,
-                        };
-                        (commit, main_data)
+                        (commit, host_trace_data)
                     })
                 })
                 .unzip()
@@ -617,7 +597,7 @@ where
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
-        let (shard_commits, data) = self.commit_shards(&shards);
+        let (shard_commits, trace_data) = self.commit_shards(&shards);
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {
@@ -638,22 +618,23 @@ where
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
         let shard_proofs = parent_span.in_scope(|| {
-            data.into_iter()
-                .map(|data| {
+            trace_data
+                .into_iter()
+                .map(|shard_trace_data| {
                     tracing::debug_span!(parent: &parent_span, "prove shard opening").in_scope(
                         || {
-                            // let data = debug_span!("commit shard").in_scope(|| {
-                            //     let trace_data = shard_trace_data.to_device();
-                            //     let (commit, prover_data) = timed_debug!(
-                            //         "Committing main traces",
-                            //         self.commit_main_traces(&trace_data)
-                            //     );
-                            //     GpuMainData {
-                            //         trace_data,
-                            //         commit,
-                            //         prover_data,
-                            //     }
-                            // });
+                            let data = debug_span!("commit shard").in_scope(|| {
+                                let trace_data = shard_trace_data.to_device();
+                                let (commit, prover_data) = timed_debug!(
+                                    "Committing main traces",
+                                    self.commit_main_traces(&trace_data)
+                                );
+                                GpuMainData {
+                                    trace_data,
+                                    commit,
+                                    prover_data,
+                                }
+                            });
                             let proof =
                                 self.prove_shard(pk, data, &mut challenger.clone()).unwrap();
                             finished.fetch_add(1, Ordering::Relaxed);

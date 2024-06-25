@@ -17,6 +17,8 @@ type SC = BabyBearPoseidon2;
 fn main() {
     let program = Program::from(FIBONACCI_ELF);
 
+    env::set_var("RUST_LOG", "debug");
+
     let config = SC::default();
     let machine = RiscvAir::machine(config);
     let prover = StarkGpuProver::new(machine);
@@ -24,8 +26,6 @@ fn main() {
     let (pk, vk) = prover.setup(&program);
     // Execute the program.
     let record = execute_core(program);
-
-    env::set_var("RUST_LOG", "debug");
 
     init_tracer();
 
