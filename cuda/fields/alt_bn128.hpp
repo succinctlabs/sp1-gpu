@@ -56,11 +56,3 @@ typedef mont_t<
     device::ALT_BN128_one,
     device::ALT_BN128_Px4>
     fp_mont;
-
-struct fp_t: public fp_mont {
-    using mem_t = fp_t;
-
-    __device__ __forceinline__ fp_t() {}
-
-    __device__ __forceinline__ fp_t(const fp_mont& a) : fp_mont(a) {}
-};

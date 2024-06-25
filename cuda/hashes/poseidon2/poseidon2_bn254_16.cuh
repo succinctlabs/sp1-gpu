@@ -9,40 +9,39 @@ namespace constants {
     constexpr const int DIGEST_WIDTH = 1;  // ?
     constexpr const int RATE = 1;  // ?
     constexpr const int WIDTH = 3;
-    constexpr const int ROUNDS_P = 56;
-    constexpr const int ROUNDS_F = 8;
+    constexpr const int ROUNDS_P = 3;  // 56;
+    constexpr const int ROUNDS_F = 3;  // 8;
     constexpr const int D = 5;
 
-    static __device__ __constant__ bn254_t INTERNAL_ROUND_CONSTANTS[ROUNDS_P] =
-        {bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0}, bn254_t {0},
-         bn254_t {0}};
+#define TO_CUDA_T(limb64) (uint32_t)(limb64), (uint32_t)(limb64 >> 32)
 
-    static __device__ __constant__ bn254_t
-        EXTERNAL_ROUND_CONSTANTS[ROUNDS_F][WIDTH] = {
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}},
-            {bn254_t {0}, bn254_t {0}, bn254_t {0}}
+    __constant__ constexpr const bn254_t INTERNAL_ROUND_CONSTANTS[ROUNDS_P] = {
+        {TO_CUDA_T(0x0000000000000000)},
+        {TO_CUDA_T(0x0000000000000000)},
+        {TO_CUDA_T(0x0000000000000000)}
     };
 
-    static __device__ __constant__ bn254_t
-        MAT_INTERNAL_DIAG_M1[WIDTH] = {bn254_t {0}, bn254_t {0}, bn254_t {0}};
+    __constant__ constexpr const bn254_t
+        EXTERNAL_ROUND_CONSTANTS[ROUNDS_F][WIDTH] = {
+            {{TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)}},
+            {{TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)}},
+            {{TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)},
+             {TO_CUDA_T(0x0000000000000000)}}
+    };
 
-    static __device__ __constant__ bn254_t MONTY_INVERSE = bn254_t {0};
+    __constant__ constexpr const bn254_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
+        {TO_CUDA_T(0x0000000000000000)},
+        {TO_CUDA_T(0x0000000000000000)},
+        {TO_CUDA_T(0x0000000000000000)}
+    };
+
+    __constant__ constexpr const bn254_t MONTY_INVERSE;
+
 }  // namespace constants
 
 class BarretoNaehrig16 {

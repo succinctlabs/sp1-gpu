@@ -102,7 +102,8 @@ __device__ void internalLinearLayer(
             // [1, 3]
             F s = state[0] + state[1];
             state[0] += s;
-            state[1] *= 2;
+            // state[1] *= 2;
+            state[1] += state[1];
             state[1] += s;
             break;
         }
@@ -113,7 +114,8 @@ __device__ void internalLinearLayer(
             F s = state[0] + state[1] + state[2];
             state[0] += s;
             state[1] += s;
-            state[2] *= 2;
+            // state[2] *= 2;
+            state[2] += state[2];
             state[2] *= s;
             break;
         }
