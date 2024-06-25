@@ -1,5 +1,12 @@
+use std::fs::File;
+use std::io::{Seek, Write};
+use std::sync::Arc;
+use std::time::Instant;
+
+use size::Size;
+
 use sp1_core::air::{PublicValues, Word};
-use sp1_core::utils::{SP1ProverOpts, DIGEST_SIZE};
+use sp1_core::utils::{SP1CoreProverError, SP1ProverOpts, DIGEST_SIZE};
 use tracing::instrument;
 
 use p3_baby_bear::BabyBear;
@@ -8,18 +15,20 @@ use p3_field::AbstractField;
 
 use p3_challenger::CanObserve;
 
-use sp1_core::stark::{Challenge, Challenger, ShardProof, Val};
+use sp1_core::stark::MachineRecord;
+use sp1_core::stark::{Challenge, Challenger, MachineProof, ShardProof, Val};
 use sp1_prover::{
-    ReduceProgramType, SP1CoreProof, SP1DeferredMemoryLayout, SP1Prover, SP1ProvingKey,
-    SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin, SP1VerifyingKey,
+    ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout, SP1Prover,
+    SP1ProvingKey, SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin,
+    SP1VerifyingKey,
 };
 use sp1_recursion_program::hints::Hintable;
 use sp1_recursion_program::machine::{
     SP1CompressVerifier, SP1DeferredVerifier, SP1RecursiveVerifier, SP1RootVerifier,
 };
 
-use sp1_core::runtime::ExecutionReport;
-use sp1_core::runtime::{ExecutionError, SP1Context};
+use sp1_core::runtime::{ExecutionError, ExecutionRecord, NoOpSubproofVerifier, SP1Context};
+use sp1_core::runtime::{ExecutionReport, ShardingConfig};
 use sp1_core::{
     runtime::{Program, Runtime},
     stark::{RiscvAir, StarkGenericConfig, StarkProvingKey, StarkVerifyingKey},
@@ -94,14 +103,15 @@ pub struct SP1GpuProver {
     pub shrink_vk: StarkVerifyingKey<InnerSC>,
 
     /// The prover for the core machine.
-    core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
+    pub(crate) core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the compress machine.
-    compress_prover: StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub(crate) compress_prover:
+        StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the shrink machine.
-    #[allow(dead_code)]
-    shrink_prover: StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub(crate) shrink_prover:
+        StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
 }
 
 impl SP1GpuProver {
@@ -201,30 +211,30 @@ impl SP1GpuProver {
         ))
     }
 
-    // /// Generate shard proofs which split up and prove the valid execution of a RISC-V program with
-    // /// the core prover. Uses the provided context.
-    // #[instrument(name = "prove_core", level = "info", skip_all)]
-    // pub fn prove_core<'a>(
-    //     &'a self,
-    //     pk: &SP1ProvingKey,
-    //     stdin: &SP1Stdin,
-    //     opts: SP1ProverOpts,
-    //     mut context: SP1Context<'a>,
-    // ) -> Result<SP1CoreProof, SP1CoreProverError> {
-    //     context
-    //         .subproof_verifier
-    //         .get_or_insert_with(|| Arc::new(self));
-    //     let config = CoreSC::default();
-    //     let program = Program::from(&pk.elf);
-    //     let (proof, public_values_stream) =
-    //         sp1_core::utils::prove_with_context(program, stdin, config, opts.core_opts, context)?;
-    //     let public_values = SP1PublicValues::from(&public_values_stream);
-    //     Ok(SP1CoreProof {
-    //         proof: SP1CoreProofData(proof.shard_proofs),
-    //         stdin: stdin.clone(),
-    //         public_values,
-    //     })
-    // }
+    /// Generate shard proofs which split up and prove the valid execution of a RISC-V program with
+    /// the core prover. Uses the provided context.
+    #[instrument(name = "prove_core", level = "info", skip_all)]
+    pub fn prove_core<'a>(
+        &'a self,
+        pk: &SP1ProvingKey,
+        stdin: &SP1Stdin,
+        opts: SP1ProverOpts,
+        mut context: SP1Context<'a>,
+    ) -> Result<SP1CoreProof, SP1CoreProverError> {
+        context
+            .subproof_verifier
+            .get_or_insert_with(|| Arc::new(self));
+        let config = CoreSC::default();
+        let program = Program::from(&pk.elf);
+        let (proof, public_values_stream) =
+            sp1_core::utils::prove_with_context(program, stdin, config, opts.core_opts, context)?;
+        let public_values = SP1PublicValues::from(&public_values_stream);
+        Ok(SP1CoreProof {
+            proof: SP1CoreProofData(proof.shard_proofs),
+            stdin: stdin.clone(),
+            public_values,
+        })
+    }
 
     pub fn get_recursion_core_inputs<'a>(
         &'a self,
@@ -507,6 +517,211 @@ impl SP1GpuProver {
     ) -> [Val<CoreSC>; 8] {
         SP1Prover::hash_deferred_proofs(prev_digest, deferred_proofs)
     }
+
+    pub fn prove_core_simple(
+        &self,
+        runtime: Runtime,
+    ) -> Result<MachineProof<CoreSC>, SP1CoreProverError> {
+        // Setup the machine.
+        let (pk, _) = self.core_prover.setup(runtime.program.as_ref());
+
+        // Prove the program.
+        let mut challenger = self.core_prover.config().challenger();
+        let proving_start = Instant::now();
+        let proof =
+            self.core_prover
+                .prove(&pk, runtime.record, &mut challenger, SP1CoreOpts::default());
+        let proving_duration = proving_start.elapsed().as_millis();
+        let nb_bytes = bincode::serialize(&proof).unwrap().len();
+
+        // Print the summary.
+        tracing::info!(
+            "summary: cycles={}, e2e={}, khz={:.2}, proofSize={}",
+            runtime.state.global_clk,
+            proving_duration,
+            (runtime.state.global_clk as f64 / proving_duration as f64),
+            Size::from_bytes(nb_bytes),
+        );
+
+        Ok(proof)
+    }
+
+    pub fn prove_core_with_context(
+        &self,
+        program: Program,
+        stdin: &SP1Stdin,
+        opts: SP1CoreOpts,
+        context: SP1Context,
+    ) -> Result<(MachineProof<CoreSC>, Vec<u8>), SP1CoreProverError> {
+        let proving_start = Instant::now();
+
+        // Execute the program.
+        let mut runtime = Runtime::with_context(program.clone(), opts, context);
+        runtime.write_vecs(&stdin.buffer);
+        for proof in stdin.proofs.iter() {
+            runtime.write_proof(proof.0.clone(), proof.1.clone());
+        }
+
+        // Setup the machine.
+        let (pk, vk) = self.core_prover.setup(runtime.program.as_ref());
+
+        // If we don't need to batch, we can just run the program normally and prove it.
+        if opts.shard_batch_size == 0 {
+            // Execute the runtime and collect all the events..
+            runtime.run().map_err(SP1CoreProverError::ExecutionError)?;
+
+            // If debugging is enabled, we will also debug the constraints.
+            #[cfg(debug_assertions)]
+            {
+                let mut challenger = self.core_prover.config().challenger();
+                self.core_prover.machine().debug_constraints(
+                    &pk,
+                    runtime.record.clone(),
+                    &mut challenger,
+                );
+            }
+
+            // Generate the proof and return the proof and public values.
+            let public_values = std::mem::take(&mut runtime.state.public_values_stream);
+            let proof = self.prove_core_simple(runtime)?;
+            return Ok((proof, public_values));
+        }
+
+        // Execute the program, saving checkpoints at the start of every `shard_batch_size` cycle range.
+        let mut checkpoints = Vec::new();
+        let (public_values_stream, public_values) = loop {
+            // Execute the runtime until we reach a checkpoint.
+            let (checkpoint, done) = tracing::info_span!("collect_checkpoints")
+                .in_scope(|| runtime.execute_state())
+                .map_err(SP1CoreProverError::ExecutionError)?;
+
+            // Save the checkpoint to a temp file.
+            let mut tempfile = tempfile::tempfile().map_err(SP1CoreProverError::IoError)?;
+            let mut writer = std::io::BufWriter::new(&mut tempfile);
+            bincode::serialize_into(&mut writer, &checkpoint)
+                .map_err(SP1CoreProverError::SerializationError)?;
+            writer.flush().map_err(SP1CoreProverError::IoError)?;
+            drop(writer);
+            tempfile
+                .seek(std::io::SeekFrom::Start(0))
+                .map_err(SP1CoreProverError::IoError)?;
+            checkpoints.push(tempfile);
+
+            // If we've reached the final checkpoint, break out of the loop.
+            if done {
+                break (
+                    std::mem::take(&mut runtime.state.public_values_stream),
+                    runtime.record.public_values,
+                );
+            }
+        };
+
+        // For each checkpoint, generate events, shard them, commit shards, and observe in challenger.
+        let sharding_config = ShardingConfig::default();
+        let mut shard_main_datas = Vec::new();
+        let mut challenger = self.core_prover.config().challenger();
+        vk.observe_into(&mut challenger);
+        for (num, checkpoint_file) in checkpoints.iter_mut().enumerate() {
+            let (mut record, _) = tracing::info_span!("commit_checkpoint", num)
+                .in_scope(|| trace_checkpoint(program.clone(), checkpoint_file, opts));
+            record.public_values = public_values;
+            reset_seek(&mut *checkpoint_file);
+
+            // Shard the record into shards.
+            let checkpoint_shards = tracing::info_span!("shard")
+                .in_scope(|| self.core_prover.machine().shard(record, &sharding_config));
+
+            // Commit to each shard.
+            let (commitments, commit_data) = tracing::info_span!("commit")
+                .in_scope(|| self.core_prover.commit_shards(&checkpoint_shards));
+            shard_main_datas.push(commit_data);
+
+            // Observe the commitments.
+            for (commitment, shard) in commitments.into_iter().zip(checkpoint_shards.iter()) {
+                challenger.observe(commitment);
+                challenger.observe_slice(
+                    &shard.public_values::<BabyBear>()[0..self.core_prover.machine().num_pv_elts()],
+                );
+            }
+        }
+
+        // For each checkpoint, generate events and shard again, then prove the shards.
+        let mut shard_proofs = Vec::<ShardProof<_>>::new();
+        let mut report_aggregate = ExecutionReport::default();
+        for (num, mut checkpoint_file) in checkpoints.into_iter().enumerate() {
+            let checkpoint_shards = {
+                let (mut events, report) = tracing::info_span!("prove_checkpoint", num)
+                    .in_scope(|| trace_checkpoint(program.clone(), &checkpoint_file, opts));
+                report_aggregate += report;
+                events.public_values = public_values;
+                reset_seek(&mut checkpoint_file);
+                tracing::debug_span!("shard")
+                    .in_scope(|| self.core_prover.machine().shard(events, &sharding_config))
+            };
+            let mut checkpoint_proofs = checkpoint_shards
+                .into_iter()
+                .map(|shard| {
+                    let shard_data = self.core_prover.commit_main(&shard, shard.index() as usize);
+
+                    self.core_prover
+                        .prove_shard(&pk, shard_data, &mut challenger.clone())
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+            shard_proofs.append(&mut checkpoint_proofs);
+        }
+        // Log some of the `ExecutionReport` information.
+        tracing::info!(
+            "execution report (totals): total_cycles={}, total_syscall_cycles={}",
+            report_aggregate.total_instruction_count(),
+            report_aggregate.total_syscall_count()
+        );
+        // Print the opcode and syscall count tables like `du`:
+        // sorted by count (descending) and with the count in the first column.
+        tracing::info!("execution report (opcode counts):");
+        for line in ExecutionReport::sorted_table_lines(&report_aggregate.opcode_counts) {
+            tracing::info!("  {line}");
+        }
+        tracing::info!("execution report (syscall counts):");
+        for line in ExecutionReport::sorted_table_lines(&report_aggregate.syscall_counts) {
+            tracing::info!("  {line}");
+        }
+
+        let proof = MachineProof { shard_proofs };
+
+        // Print the summary.
+        let proving_time = proving_start.elapsed().as_secs_f64();
+        tracing::info!(
+            "summary: cycles={}, e2e={}, khz={:.2}, proofSize={}",
+            runtime.state.global_clk,
+            proving_time,
+            (runtime.state.global_clk as f64 / proving_time),
+            bincode::serialize(&proof).unwrap().len(),
+        );
+
+        Ok((proof, public_values_stream))
+    }
+}
+
+fn trace_checkpoint(
+    program: Program,
+    file: &File,
+    opts: SP1CoreOpts,
+) -> (ExecutionRecord, ExecutionReport) {
+    let mut reader = std::io::BufReader::new(file);
+    let state = bincode::deserialize_from(&mut reader).expect("failed to deserialize state");
+    let mut runtime = Runtime::recover(program.clone(), state, opts);
+    // We already passed the deferred proof verifier when creating checkpoints, so the proofs were
+    // already verified. So here we use a noop verifier to not print any warnings.
+    runtime.subproof_verifier = Arc::new(NoOpSubproofVerifier);
+    let (events, _) =
+        tracing::debug_span!("runtime.trace").in_scope(|| runtime.execute_record().unwrap());
+    (events, runtime.report)
+}
+
+fn reset_seek(file: &mut File) {
+    file.seek(std::io::SeekFrom::Start(0))
+        .expect("failed to seek to start of tempfile");
 }
 
 #[cfg(test)]
@@ -531,6 +746,8 @@ mod tests {
     fn test_e2e() -> Result<()> {
         let elf = FIBONACCI_ELF;
 
+        init_tracer();
+
         let prover = SP1GpuProver::new();
 
         let cpu_prover = SP1Prover::new();
@@ -550,13 +767,12 @@ mod tests {
 
         tracing::info!("prove core");
         let stdin = SP1Stdin::new();
-        let core_proof = cpu_prover.prove_core(&pk, &stdin, opts, context)?;
+        let core_proof = prover.prove_core(&pk, &stdin, opts, context)?;
         let _public_values = core_proof.public_values.clone();
 
         tracing::info!("verify core");
         cpu_prover.verify(&core_proof.proof, &vk)?;
 
-        init_tracer();
         tracing::info!("compress");
         let compressed_proof = prover.compress(&vk, core_proof, vec![], opts)?;
 

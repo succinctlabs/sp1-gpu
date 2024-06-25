@@ -1615,16 +1615,22 @@ name = "moongate-prover"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "moongate-core",
+ "num-bigint 0.4.5",
  "p3-baby-bear",
  "p3-challenger",
  "p3-field",
  "serial_test",
+ "size",
  "sp1-core",
  "sp1-prover",
  "sp1-recursion-compiler",
  "sp1-recursion-core",
+ "sp1-recursion-gnark-ffi",
  "sp1-recursion-program",
+ "tempfile",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
 ]
