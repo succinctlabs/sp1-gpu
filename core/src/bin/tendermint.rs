@@ -29,7 +29,7 @@ fn main() {
     let record = execute_core(program);
 
     env::set_var("RUST_LOG", "debug");
-    env::set_var("SHARD_SIZE", "2097152");
+    env::set_var("SHARD_SIZE", "1048576");
 
     init_tracer();
 
