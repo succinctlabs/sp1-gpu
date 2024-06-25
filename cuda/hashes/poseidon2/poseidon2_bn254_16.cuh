@@ -9,38 +9,27 @@ namespace constants {
     constexpr const int DIGEST_WIDTH = 1;  // ?
     constexpr const int RATE = 1;  // ?
     constexpr const int WIDTH = 3;
-    constexpr const int ROUNDS_P = 3;  // 56;
-    constexpr const int ROUNDS_F = 3;  // 8;
+    constexpr const int ROUNDS_P = 1;  // 56; Set to 1 for simplicity.
+    constexpr const int ROUNDS_F = 1;  // 8; Set to 1 for simplicity.
     constexpr const int D = 5;
 
 #define TO_CUDA_T(limb64) (uint32_t)(limb64), (uint32_t)(limb64 >> 32)
 
+    __constant__ constexpr const bn254_t ZERO;
+
     __constant__ constexpr const bn254_t INTERNAL_ROUND_CONSTANTS[ROUNDS_P] = {
-        {TO_CUDA_T(0x0000000000000000)},
-        {TO_CUDA_T(0x0000000000000000)},
-        {TO_CUDA_T(0x0000000000000000)}
+        ZERO,
     };
 
     __constant__ constexpr const bn254_t
         EXTERNAL_ROUND_CONSTANTS[ROUNDS_F][WIDTH] = {
-            {{TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)}},
-            {{TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)}},
-            {{TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)},
-             {TO_CUDA_T(0x0000000000000000)}}
+            {ZERO, ZERO, ZERO},
     };
 
-    __constant__ constexpr const bn254_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
-        {TO_CUDA_T(0x0000000000000000)},
-        {TO_CUDA_T(0x0000000000000000)},
-        {TO_CUDA_T(0x0000000000000000)}
-    };
+    __constant__ constexpr const bn254_t MAT_INTERNAL_DIAG_M1[WIDTH] =
+        {ZERO, ZERO, ZERO};
 
-    __constant__ constexpr const bn254_t MONTY_INVERSE;
+    __constant__ constexpr const bn254_t MONTY_INVERSE = ZERO;
 
 }  // namespace constants
 
