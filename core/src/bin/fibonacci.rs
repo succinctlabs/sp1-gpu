@@ -1,6 +1,7 @@
 use std::env;
 
 use p3_challenger::CanObserve;
+use p3_field::{AbstractField, Field};
 use sp1_core::{
     runtime::Program,
     stark::{MachineRecord, RiscvAir, StarkGenericConfig, Verifier},
@@ -36,6 +37,7 @@ fn main() {
     let e2e_time = std::time::Instant::now();
     let shards = debug_span!("Shard execution trace").in_scope(|| gpu_prover.shard(record));
 
+    let mut cumulative_sum = <<SC as StarkGenericConfig>::Challenge as AbstractField>::zero();
     let e2e_time_no_shard = std::time::Instant::now();
     for (i, shard) in shards.into_iter().enumerate() {
         let main_data =
@@ -65,7 +67,12 @@ fn main() {
             &proof,
         )
         .unwrap();
+        for vals in proof.opened_values.chips.iter() {
+            cumulative_sum += vals.cumulative_sum;
+        }
     }
+    info!("Cumulative sum: {}", cumulative_sum);
+    assert!(cumulative_sum.is_zero());
     let e2e = e2e_time.elapsed();
     let e2e_no_shard = e2e_time_no_shard.elapsed();
     info!(

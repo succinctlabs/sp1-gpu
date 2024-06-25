@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -18,10 +20,12 @@ use sp1_core::stark::AirOpenedValues;
 
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
+use sp1_core::stark::MachineProof;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
 use sp1_core::stark::ShardProof;
 use sp1_core::stark::StarkVerifyingKey;
+use sp1_core::utils::SP1CoreOpts;
 use sp1_core::{
     air::MachineAir,
     stark::{
@@ -545,6 +549,99 @@ where
             chip_ordering,
             public_values,
         })
+    }
+
+    pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<GpuMainData<SC>>) {
+        let finished = AtomicU32::new(0);
+        let parent_span = tracing::debug_span!("commit to all shards");
+        let (commitments, shard_main_data): (Vec<_>, Vec<_>) = parent_span.in_scope(|| {
+            shards
+                .iter()
+                .map(|shard| {
+                    tracing::debug_span!(parent: &parent_span, "commit to shard").in_scope(|| {
+                        let index = shard.index();
+                        let data = self.commit_main(shard, index as usize);
+                        finished.fetch_add(1, Ordering::Relaxed);
+                        let commitment = data.commit;
+                        (commitment, data)
+                    })
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .unzip()
+        });
+
+        (commitments, shard_main_data)
+    }
+
+    fn prove_shards(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        shards: Vec<A::Record>,
+        challenger: &mut SC::Challenger,
+    ) -> MachineProof<SC> {
+        // Observe the preprocessed commitment.
+        pk.observe_into(challenger);
+        // Generate and commit the traces for each segment.
+        let (shard_commits, shard_data) = self.commit_shards(&shards);
+
+        // Observe the challenges for each segment.
+        tracing::debug_span!("observing all challenges").in_scope(|| {
+            shard_commits
+                .into_iter()
+                .zip(shards.iter())
+                .for_each(|(commitment, shard)| {
+                    challenger.observe(commitment);
+                    challenger.observe_slice(
+                        &shard.public_values::<SC::Val>()[0..self.machine.num_pv_elts()],
+                    );
+                });
+        });
+
+        let finished = AtomicU32::new(0);
+
+        // Generate a proof for each segment. Note that we clone the challenger so we can observe
+        // identical global challenges across the segments.
+        let parent_span = tracing::debug_span!("prove shards");
+        let shard_proofs = parent_span.in_scope(|| {
+            shard_data
+                .into_iter()
+                .zip(shards)
+                .map(|(data, _)| {
+                    tracing::debug_span!(parent: &parent_span, "prove shard opening").in_scope(
+                        || {
+                            // let idx = shard.index() as usize;
+                            // let ordering = data.trace_data.chip_ordering.clone();
+                            // let chips = self
+                            //     .machine
+                            //     .shard_chips_ordered(&ordering)
+                            //     .collect::<Vec<_>>();
+                            let proof =
+                                self.prove_shard(pk, data, &mut challenger.clone()).unwrap();
+                            finished.fetch_add(1, Ordering::Relaxed);
+                            proof
+                        },
+                    )
+                })
+                .collect::<Vec<_>>()
+        });
+
+        MachineProof { shard_proofs }
+    }
+
+    pub fn prove(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        record: A::Record,
+        challenger: &mut SC::Challenger,
+        _opts: SP1CoreOpts,
+    ) -> MachineProof<SC> {
+        let shards = tracing::info_span!("shard_record").in_scope(|| {
+            self.machine
+                .shard(record, &<A::Record as MachineRecord>::Config::default())
+        });
+
+        tracing::info_span!("prove_shards").in_scope(|| self.prove_shards(pk, shards, challenger))
     }
 }
 

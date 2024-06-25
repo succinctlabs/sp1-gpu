@@ -1,6 +1,6 @@
 use std::env;
 
-use p3_challenger::CanObserve;
+use p3_field::{AbstractField, Field};
 use sp1_core::{
     runtime::Program,
     stark::{MachineRecord, RiscvAir, StarkGenericConfig, Verifier},
@@ -39,24 +39,24 @@ fn main() {
 
     let e2e_time = std::time::Instant::now();
     let shards = debug_span!("Shard execution trace").in_scope(|| gpu_prover.shard(record));
+    assert_eq!(shards.len(), 8);
 
+    let mut cumulative_sum = <<SC as StarkGenericConfig>::Challenge as AbstractField>::zero();
+
+    let mut challenger = gpu_prover.config().challenger();
+    vk.observe_into(&mut challenger);
     let e2e_time_no_shard = std::time::Instant::now();
     for (i, shard) in shards.into_iter().enumerate() {
         let main_data =
             info_span!("Commit_main").in_scope(|| gpu_prover.commit_main(&shard, i + 1));
         // Observe the main commit.
-        let main_commit = main_data.commit;
-        let mut challenger = gpu_prover.config().challenger();
-        challenger.observe(main_commit);
         let proof = info_span!("prove shard").in_scope(|| {
             gpu_prover
-                .prove_shard(&pk, main_data, &mut challenger)
+                .prove_shard(&pk, main_data, &mut challenger.clone())
                 .unwrap()
         });
 
         // Verify the proof.
-        let mut challenger = gpu_prover.config().challenger();
-        challenger.observe(main_commit);
         let shard_chips = gpu_prover
             .machine()
             .shard_chips_ordered(&proof.chip_ordering)
@@ -65,11 +65,16 @@ fn main() {
             gpu_prover.config(),
             &vk,
             &shard_chips,
-            &mut challenger,
+            &mut challenger.clone(),
             &proof,
         )
         .unwrap();
+        for vals in proof.opened_values.chips.iter() {
+            cumulative_sum += vals.cumulative_sum;
+        }
     }
+    info!("Cumulative sum: {}", cumulative_sum);
+    assert!(cumulative_sum.is_zero());
     let e2e = e2e_time.elapsed();
     let e2e_no_shard = e2e_time_no_shard.elapsed();
     info!(
