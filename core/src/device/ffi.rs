@@ -9,6 +9,8 @@ extern "C" {
 
     pub(crate) fn cuda_free(ptr: *const c_void) -> CudaRustError;
 
+    pub(crate) fn cuda_mem_get_info(free: *mut usize, total: *mut usize) -> CudaRustError;
+
     pub(crate) fn cuda_mem_copy_host_to_device(
         dst: *mut c_void,
         src: *const c_void,
