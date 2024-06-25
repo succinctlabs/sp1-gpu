@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::Ordering;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -216,7 +214,7 @@ where
             "Time to copy traces to device: {:?}",
             time.elapsed().unwrap()
         );
-        // let time = CudaInstant::now().unwrap();
+
         let (commit, prover_data) = timed_debug!(
             "Committing main traces",
             self.commit_main_traces(&trace_data)
@@ -555,7 +553,6 @@ where
 
     /// Generates shard commitments and returns the commitments and traces.
     pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-        let finished = AtomicU32::new(0);
         let parent_span = tracing::debug_span!("commit to all shards");
         parent_span.in_scope(|| {
             shards
@@ -576,11 +573,12 @@ where
                             "Time to copy traces to device: {:?}",
                             time.elapsed().unwrap()
                         );
+
                         let (commit, _) = timed_debug!(
                             "Committing main traces",
                             self.commit_main_traces(&trace_data)
                         );
-                        finished.fetch_add(1, Ordering::Relaxed);
+
                         (commit, host_trace_data)
                     })
                 })
@@ -612,8 +610,6 @@ where
                 });
         });
 
-        let finished = AtomicU32::new(0);
-
         // Generate a proof for each segment. Note that we clone the challenger so we can observe
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
@@ -635,10 +631,7 @@ where
                                     prover_data,
                                 }
                             });
-                            let proof =
-                                self.prove_shard(pk, data, &mut challenger.clone()).unwrap();
-                            finished.fetch_add(1, Ordering::Relaxed);
-                            proof
+                            self.prove_shard(pk, data, &mut challenger.clone()).unwrap()
                         },
                     )
                 })
