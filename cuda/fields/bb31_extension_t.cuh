@@ -104,6 +104,17 @@ class bb31_extension_t {
         return a /= b;
     }
 
+    friend __device__ __forceinline__ bool operator!=(
+        const bb31_extension_t& lhs, 
+        const bb31_extension_t& rhs
+    ) {
+        for (int i = 0; i < D; ++i) {
+            if (lhs.value[i].val != rhs.value[i].val)
+                return true;
+        }
+        return false;
+    }
+
     __device__ __forceinline__ bb31_extension_t frobenius() {
         bb31_t z0 = bb31_t(1728404513);
         bb31_t z = z0;
@@ -148,3 +159,72 @@ class bb31_extension_t {
         return frobeniusInverse();
     }
 };
+/*
+__device__ bb31_extension_t atomicCAS(bb31_extension_t* address, bb31_extension_t compare, bb31_extension_t val) {
+    bb31_extension_t old = *address;
+    for (int i = 0; i < bb31_extension_t::D; ++i) {
+        old.value[i].val = atomicCAS(
+            reinterpret_cast<uint32_t*>(&address->value[i].val), 
+            compare.value[i].val, 
+            val.value[i].val);
+    }
+    return old;
+}
+
+__device__ bb31_extension_t atomicAdd(bb31_extension_t* address, bb31_extension_t value) {
+    bb31_extension_t old = *address;
+    bb31_extension_t assumed;
+    
+    do {
+        assumed = old;
+        bb31_extension_t newVal = assumed + value;
+        old = atomicCAS(address, assumed, newVal);
+    } while (assumed != old);
+
+    return old;
+}
+*/
+/*
+// Atomic Compare-and-Swap (CAS) operation
+__device__ bb31_extension_t atomicCAS(bb31_extension_t* address, bb31_extension_t compare, bb31_extension_t new_value) {
+    bb31_extension_t old_value = *address;
+    if (old_value.value[0] == compare.value[0] &&
+        old_value.value[1] == compare.value[1] &&
+        old_value.value[2] == compare.value[2] &&
+        old_value.value[3] == compare.value[3]) {
+        if (atomicCAS(&address->value[0].val, compare.value[0].val, new_value.value[0].val) == compare.value[0].val &&
+            atomicCAS(&address->value[1].val, compare.value[1].val, new_value.value[1].val) == compare.value[1].val &&
+            atomicCAS(&address->value[2].val, compare.value[2].val, new_value.value[2].val) == compare.value[2].val &&
+            atomicCAS(&address->value[3].val, compare.value[3].val, new_value.value[3].val) == compare.value[3].val) {
+            return old_value;
+        }
+    }
+    return *address;
+}
+
+// Atomic Add operation
+__device__ bb31_extension_t atomicAdd(bb31_extension_t* address, bb31_extension_t value) {
+    bb31_extension_t old_value, new_value;
+    do {
+        old_value = *address;
+        new_value = old_value + value;
+    } while (atomicCAS(address, old_value, new_value) != old_value);
+    return new_value;
+}
+*/
+__device__ bb31_t atomicAdd(bb31_t* address, bb31_t value) {
+    bb31_t old_val, new_val;
+    do {
+        old_val = *address;
+        new_val = old_val + value;
+    } while (atomicCAS((uint32_t*)&(address->val), old_val.val, new_val.val) != old_val.val);
+    return new_val;
+}
+
+__device__ bb31_extension_t atomicAdd(bb31_extension_t* address, bb31_extension_t value) {
+    bb31_extension_t old = *address;
+    for (int i = 0; i < bb31_extension_t::D; ++i) {
+        old.value[i] = atomicAdd(&address->value[i], value.value[i]);
+    }
+    return old; 
+}
