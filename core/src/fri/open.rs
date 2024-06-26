@@ -116,7 +116,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
         let (tx, rx) = mpsc::channel();
 
+        
+
         let all_opened_values = std::thread::scope(|s| {
+            //let mut counter_p = 0;
             let all_opened_values = mats_and_points
                 .into_iter()
                 .map(|(mats, points)| {
@@ -133,6 +136,14 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     let tx = tx.clone();
                                     let num_reduced_at_height = num_reduced[log_height];
                                     num_reduced[log_height] += mat.width();
+                                    
+                                    // let h_mat = mat.to_host();
+                                    // println!("w: {:?} v: {}", &h_mat.width, &h_mat.values.len());
+                                    // h_mat.values.iter().take(4).for_each(|number| println!("{}", number));
+                                    //println!("{}", &counter_p);
+                                    //counter_p+=1;
+                                    //let h_point = point.to_host();
+                                    //println!("{:?}", h_point);
 
                                     s.spawn(move || {
                                         // Use Barycentric interpolation to evaluate the matrix at the given point.
