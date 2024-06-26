@@ -18,7 +18,8 @@ pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
     include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
 
 fn main() {
-    env::set_var("RUST_LOG", "debug");
+    let rust_log = env::var("RUST_LOG").unwrap_or("debug".into());
+    env::set_var("RUST_LOG", rust_log);
     env::set_var("SHARD_SIZE", "2097152");
 
     let program = Program::from(TENDERMINT_BENCHMARK_ELF);
