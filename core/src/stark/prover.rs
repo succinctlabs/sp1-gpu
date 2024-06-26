@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::Ordering;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -555,7 +553,6 @@ where
 
     /// Generates shard commitments and returns the commitments and traces.
     pub fn commit_shards(&self, shards: &[A::Record]) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-        let finished = AtomicU32::new(0);
         let parent_span = tracing::debug_span!("commit to all shards");
         parent_span.in_scope(|| {
             shards
@@ -580,7 +577,6 @@ where
                             "Committing main traces",
                             self.commit_main_traces(&trace_data)
                         );
-                        finished.fetch_add(1, Ordering::Relaxed);
                         (commit, host_trace_data)
                     })
                 })
@@ -593,7 +589,7 @@ where
         pk: &StarkProvingKey<SC>,
         shards: Vec<A::Record>,
         challenger: &mut SC::Challenger,
-    ) -> MachineProof<SC> {
+    ) -> Result<MachineProof<SC>, CudaError> {
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
@@ -612,8 +608,6 @@ where
                 });
         });
 
-        let finished = AtomicU32::new(0);
-
         // Generate a proof for each segment. Note that we clone the challenger so we can observe
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
@@ -621,8 +615,9 @@ where
             trace_data
                 .into_iter()
                 .map(|shard_trace_data| {
-                    tracing::debug_span!(parent: &parent_span, "prove shard opening").in_scope(
-                        || {
+                    let index = shard_trace_data.index;
+                    tracing::debug_span!(parent: &parent_span, "prove shard", shard = index)
+                        .in_scope(|| {
                             let data = debug_span!("commit shard").in_scope(|| {
                                 let trace_data = shard_trace_data.to_device();
                                 let (commit, prover_data) = timed_debug!(
@@ -635,17 +630,13 @@ where
                                     prover_data,
                                 }
                             });
-                            let proof =
-                                self.prove_shard(pk, data, &mut challenger.clone()).unwrap();
-                            finished.fetch_add(1, Ordering::Relaxed);
-                            proof
-                        },
-                    )
+                            self.prove_shard(pk, data, &mut challenger.clone())
+                        })
                 })
-                .collect::<Vec<_>>()
-        });
+                .collect::<Result<Vec<_>, CudaError>>()
+        })?;
 
-        MachineProof { shard_proofs }
+        Ok(MachineProof { shard_proofs })
     }
 
     pub fn prove(
@@ -660,7 +651,8 @@ where
                 .shard(record, &<A::Record as MachineRecord>::Config::default())
         });
 
-        tracing::info_span!("prove_shards").in_scope(|| self.prove_shards(pk, shards, challenger))
+        tracing::info_span!("prove_shards")
+            .in_scope(|| self.prove_shards(pk, shards, challenger).unwrap())
     }
 }
 
