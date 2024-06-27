@@ -157,7 +157,6 @@ where
             .shard(record, &<A::Record as MachineRecord>::Config::default())
     }
 
-    #[tracing::instrument(skip_all)]
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
