@@ -41,7 +41,6 @@ __global__ void interpolateCosetKernel(
     bb31_t gPowers_i = g^row;
     for (int i = row; i < cosetHeight; i += rowStride) { 
         size_t rev = bit_rev(i, cosetLogHeight);
-        // bb31_t gPowers_i = g^rev;
         bb31_extension_t diff = point - shift * gPowers_i;
         bb31_extension_t scale = gPowers_i * diff.reciprocal();
         sum += scale * cosetEvals.values[col * cosetEvals.height + rev];

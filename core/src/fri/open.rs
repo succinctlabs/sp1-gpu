@@ -139,12 +139,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mats_device = mat_views.to_device();
         let points_device = points_device.to_device();
 
-        let rounds_data = RoundsData::<SC::Val, SC::Challenge> {
-            mats: mats_device.as_ptr(),
-            points: points_device.as_ptr(),
-            log_blowup: pcs.fri_config().log_blowup,
-        };
-
         let all_opened_values = {
             //let mut counter_p = 0;
             let all_opened_values = mats_and_points
