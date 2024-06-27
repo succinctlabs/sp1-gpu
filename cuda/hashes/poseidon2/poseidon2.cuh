@@ -6,142 +6,6 @@
 namespace poseidon2 {
 
 template<typename Params>
-__device__ void
-addExtRc(typename Params::F state[Params::WIDTH], typename Params::pF rc) {
-    for (int i = 0; i < Params::WIDTH; i++) {
-        state[i] += rc[i];
-    }
-}
-
-template<typename Params>
-__device__ void sbox(typename Params::F state[Params::WIDTH]) {
-    for (int i = 0; i < Params::WIDTH; i++) {
-        state[i] ^= Params::D;
-    }
-}
-
-template<typename Params>
-__device__ void mdsLightPermutation4x4(typename Params::F state[4]) {
-    using F = typename Params::F;
-    F t01 = state[0] + state[1];
-    F t23 = state[2] + state[3];
-    F t0123 = t01 + t23;
-    F t01123 = t0123 + state[1];
-    F t01233 = t0123 + state[3];
-    state[3] = t01233 + (state[0] << 1);
-    state[1] = t01123 + (state[2] << 1);
-    state[0] = t01123 + t01;
-    state[2] = t01233 + t23;
-}
-
-template<typename Params>
-__device__ void externalLinearLayer(typename Params::F state[Params::WIDTH]) {
-    using F = typename Params::F;
-    switch (Params::WIDTH) {
-        case 2: {
-            F sum = state[0] + state[1];
-            state[0] += sum;
-            state[1] += sum;
-            break;
-        }
-        case 3: {
-            F sum = state[0] + state[1] + state[2];
-            state[0] += sum;
-            state[1] += sum;
-            state[2] += sum;
-            break;
-        }
-        case 4:
-            mdsLightPermutation4x4<Params>(state);
-            break;
-        case 8:
-        case 12:
-        case 16:
-        case 20:
-        case 24:
-            for (int i = 0; i < Params::WIDTH; i += 4) {
-                mdsLightPermutation4x4<Params>(state + i);
-            }
-
-            F sums[4] = {state[0], state[1], state[2], state[3]};
-            for (int i = 4; i < Params::WIDTH; i += 4) {
-                sums[0] += state[i];
-                sums[1] += state[i + 1];
-                sums[2] += state[i + 2];
-                sums[3] += state[i + 3];
-            }
-
-            for (int i = 0; i < Params::WIDTH; i++) {
-                state[i] += sums[i % 4];
-            }
-
-            break;
-    }
-}
-
-template<typename Params>
-__device__ void matmulInternal(
-    typename Params::F state[Params::WIDTH],
-    typename Params::pF matInternalDiagM1
-) {
-    using F = typename Params::F;
-    F sum;
-    sum.zero();
-    for (int i = 0; i < Params::WIDTH; i++) {
-        sum += state[i];
-    }
-
-    for (int i = 0; i < Params::WIDTH; i++) {
-        state[i] *= matInternalDiagM1[i];
-        state[i] += sum;
-    }
-}
-
-template<typename Params>
-__device__ void internalLinearLayer(
-    typename Params::F state[Params::WIDTH],
-    typename Params::pF matInternalDiagM1,
-    typename Params::F montyInverse
-) {
-    using F = typename Params::F;
-    switch (Params::WIDTH) {
-        case 2: {
-            // [2, 1]
-            // [1, 3]
-            F s = state[0] + state[1];
-            state[0] += s;
-            // state[1] *= 2;
-            state[1] += state[1];
-            state[1] += s;
-            break;
-        }
-        case 3: {
-            // [2, 1, 1]
-            // [1, 2, 1]
-            // [1, 1, 3]
-            F s = state[0] + state[1] + state[2];
-            state[0] += s;
-            state[1] += s;
-            // state[2] *= 2;
-            state[2] += state[2];
-            state[2] *= s;
-            break;
-        }
-        case 4:
-        case 8:
-        case 12:
-        case 16:
-        case 20:
-        case 24:
-            matmulInternal<Params>(state, matInternalDiagM1);
-            for (int i = 0; i < Params::WIDTH; i++) {
-                state[i] = state[i] * montyInverse;
-            }
-            break;
-    }
-}
-
-template<typename Params>
 struct HasherState {
     using F = typename Params::F;
 
@@ -160,7 +24,133 @@ class Hasher {
     using F = typename Params::F;
     using pF = typename Params::pF;
 
+  private:
+    __device__ void addExtRc(F state[Params::WIDTH], pF rc) {
+        for (int i = 0; i < Params::WIDTH; i++) {
+            state[i] += rc[i];
+        }
+    }
+
+    __device__ void sbox(F state[Params::WIDTH]) {
+        for (int i = 0; i < Params::WIDTH; i++) {
+            state[i] ^= Params::D;
+        }
+    }
+
+    __device__ void mdsLightPermutation4x4(F state[4]) {
+        F t01 = state[0] + state[1];
+        F t23 = state[2] + state[3];
+        F t0123 = t01 + t23;
+        F t01123 = t0123 + state[1];
+        F t01233 = t0123 + state[3];
+        state[3] = t01233 + (state[0] << 1);
+        state[1] = t01123 + (state[2] << 1);
+        state[0] = t01123 + t01;
+        state[2] = t01233 + t23;
+    }
+
+    __device__ void externalLinearLayer(F state[Params::WIDTH]) {
+        switch (Params::WIDTH) {
+            case 2: {
+                F sum = state[0] + state[1];
+                state[0] += sum;
+                state[1] += sum;
+                break;
+            }
+            case 3: {
+                F sum = state[0] + state[1] + state[2];
+                state[0] += sum;
+                state[1] += sum;
+                state[2] += sum;
+                break;
+            }
+            case 4:
+                mdsLightPermutation4x4<Params>(state);
+                break;
+            case 8:
+            case 12:
+            case 16:
+            case 20:
+            case 24:
+                for (int i = 0; i < Params::WIDTH; i += 4) {
+                    mdsLightPermutation4x4<Params>(state + i);
+                }
+
+                F sums[4] = {state[0], state[1], state[2], state[3]};
+                for (int i = 4; i < Params::WIDTH; i += 4) {
+                    sums[0] += state[i];
+                    sums[1] += state[i + 1];
+                    sums[2] += state[i + 2];
+                    sums[3] += state[i + 3];
+                }
+
+                for (int i = 0; i < Params::WIDTH; i++) {
+                    state[i] += sums[i % 4];
+                }
+
+                break;
+        }
+    }
+
+    __device__ void
+    matmulInternal(F state[Params::WIDTH], pF matInternalDiagM1) {
+        F sum;
+        sum.zero();
+        for (int i = 0; i < Params::WIDTH; i++) {
+            sum += state[i];
+        }
+
+        for (int i = 0; i < Params::WIDTH; i++) {
+            state[i] *= matInternalDiagM1[i];
+            state[i] += sum;
+        }
+    }
+
+    __device__ void internalLinearLayer(
+        F state[Params::WIDTH],
+        pF matInternalDiagM1,
+        F montyInverse
+    ) {
+        switch (Params::WIDTH) {
+            case 2: {
+                // [2, 1]
+                // [1, 3]
+                F s = state[0] + state[1];
+                state[0] += s;
+                // state[1] *= 2;
+                state[1] += state[1];
+                state[1] += s;
+                break;
+            }
+            case 3: {
+                // [2, 1, 1]
+                // [1, 2, 1]
+                // [1, 1, 3]
+                F s = state[0] + state[1] + state[2];
+                state[0] += s;
+                state[1] += s;
+                // state[2] *= 2;
+                state[2] += state[2];
+                state[2] *= s;
+                break;
+            }
+            case 4:
+            case 8:
+            case 12:
+            case 16:
+            case 20:
+            case 24:
+                matmulInternal<Params>(state, matInternalDiagM1);
+                for (int i = 0; i < Params::WIDTH; i++) {
+                    state[i] = state[i] * montyInverse;
+                }
+                break;
+        }
+    }
+
   public:
+    // TODO: are we sacrificing infornation about the length of the params?
+    // TODO: poseidon2 params should be passed around more cleanly
     __device__ void permute(
         F in[Params::WIDTH],
         F out[Params::WIDTH],
@@ -350,7 +340,7 @@ class Hasher {
 template<typename Params>
 class DynamicHasher: public Hasher<Params> {
     using F = typename Params::F;
-    using pF = typename Params::pF;
+    using pF = pF;
 
   private:
     pF internalRoundConstants;
