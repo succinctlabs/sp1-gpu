@@ -5,8 +5,8 @@ use p3_challenger::{CanObserve, FieldChallenger};
 
 use itertools::Itertools;
 
-use tracing::debug;
-use tracing::debug_span;
+use tracing::{debug, info};
+use tracing::{debug_span, info_span};
 
 use p3_baby_bear::BabyBear;
 use p3_commit::Pcs;
@@ -263,7 +263,7 @@ where
             total_lde_size += stats.lde_memory_size(log_blowup);
             debug!("{}", stats);
         }
-        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+        info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
         let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
 
@@ -323,7 +323,7 @@ where
         // Compute quotient values.
 
         // Compute values
-        let quotient_values_span = debug_span!("Compute shard quotient values");
+        let quotient_values_span = info_span!("Compute shard quotient values");
         let guard = quotient_values_span.enter();
         let quotient_values = std::thread::scope(|s| {
             let mut quotient_value_handles = Vec::with_capacity(shard_chips.len());

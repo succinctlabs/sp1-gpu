@@ -17,13 +17,13 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
-sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-recursion-program = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-recursion-compiler = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-primitives = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-recursion-gnark-ffi = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-recursion-program = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-recursion-compiler = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-primitives = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
+sp1-recursion-gnark-ffi = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/better-sharding" }
 
 
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
