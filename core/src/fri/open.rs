@@ -272,6 +272,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                         reduced_opening_for_log_height_device.set_max_len();
                                         opening_gpu::compute_reduced_openings_for_log_height(
                                             mat.view(),
+                                            point,
                                             inv_denoms_at_point.as_ptr(),
                                             alpha,
                                             alpha_pow_offset,
@@ -600,7 +601,8 @@ pub mod opening_gpu {
         #[link_name = "computeInverseDenominators"]
         pub fn compute_inverse_denominators(
             max_rows: usize,
-            num_mats: usize,
+            num_points: usize,
+            inv_row_indices: *const usize,
             nums_rows: *const usize,
             logs_num_rows: *const usize,
             shifts: *const F,
@@ -625,6 +627,7 @@ pub mod opening_gpu {
         #[link_name = "computeReducedOpeningForLogHeight"]
         pub fn compute_reduced_openings_for_log_height(
             matrix: MatrixViewDevice<F>,
+            point: EF,
             inv_denoms: *const EF,
             alpha: EF,
             alpha_pow_offset: EF,

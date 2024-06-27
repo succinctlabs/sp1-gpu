@@ -22,7 +22,7 @@ namespace helpers {
 namespace opening_kernels {
 
 __global__ void computeInverseDenominatorsKernel(
-    size_t maxRows,
+    size_t* invRowIndices,
     size_t* numsRows,
     size_t* logsNumRows,
     bb31_t* shifts,
@@ -31,28 +31,29 @@ __global__ void computeInverseDenominatorsKernel(
     bb31_extension_t* invDenoms
 ) {
     size_t rowIdx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t matIdx = blockIdx.y * blockDim.y + threadIdx.y;
+    size_t pointIdx = blockIdx.y * blockDim.y + threadIdx.y;
 
-    bb31_t shift = shifts[matIdx];
-    size_t numRows = numsRows[matIdx];
+    bb31_t shift = shifts[pointIdx];
+    size_t numRows = numsRows[pointIdx];
+    size_t InvIdx = invRowIndices[pointIdx];
 
     if (rowIdx >= numRows) {
         return;
     }
 
-    bb31_t generator = threadGeneratorPowers[matIdx * blockDim.x + 1];
+    bb31_t generator = threadGeneratorPowers[pointIdx * blockDim.x + 1];
     bb31_t blockGenerator = generator^(blockIdx.x * blockDim.x);
-    bb31_t genPower = blockGenerator * threadGeneratorPowers[matIdx * blockDim.x + threadIdx.x];
+    bb31_t genPower = blockGenerator * threadGeneratorPowers[pointIdx * blockDim.x + threadIdx.x];
     bb31_t x = shift * genPower;
 
-    bb31_extension_t point = points[matIdx * maxRows + rowIdx];
+    bb31_extension_t point = points[pointIdx];
     bb31_extension_t diff = bb31_extension_t(x) - point;
 
 
-    size_t logNumRows = logsNumRows[matIdx];
+    size_t logNumRows = logsNumRows[pointIdx];
     size_t bitrev = bit_rev(rowIdx, logNumRows); 
 
-    invDenoms[matIdx * maxRows + bitrev] = diff.reciprocal();
+    invDenoms[InvIdx + bitrev] = diff.reciprocal();
 }
 
 __global__ void interpolateCosetsKernel(
@@ -117,6 +118,7 @@ __global__ void interpolateCosetsKernel(
 __global__ void reducedOpeningsForLogHeightKernel(
     Matrix<bb31_t> matrix,
     size_t numRows,
+    bb31_extension_t point,
     bb31_extension_t* invDenoms,
     bb31_extension_t alpha,
     bb31_extension_t alphaPowOffset,
@@ -161,7 +163,8 @@ namespace opening_gpu {
 
 extern "C" void computeInverseDenominators(
     size_t maxRows,
-    size_t numMats,
+    size_t numPoints,
+    size_t* invRowIndices,
     size_t* numsRows,
     size_t* logsNumRows,
     bb31_t* shifts,
@@ -173,10 +176,10 @@ extern "C" void computeInverseDenominators(
     size_t numBlocksX = (maxRows - 1) / numThreads + 1; 
 
     dim3 blockDim(1024);
-    dim3 gridDim(numBlocksX, numMats);
+    dim3 gridDim(numBlocksX, numPoints);
 
     opening_kernels::computeInverseDenominatorsKernel<<<gridDim, blockDim>>>(
-        maxRows,
+        invRowIndices,
         numsRows,
         logsNumRows,
         shifts,
@@ -218,6 +221,7 @@ extern "C" void interpolateCosets(
 
 extern "C" void computeReducedOpeningForLogHeight(
     Matrix<bb31_t> matrix,
+    bb31_extension_t point,
     bb31_extension_t* invDenoms,
     bb31_extension_t alpha,
     bb31_extension_t alphaPowOffset,
@@ -230,6 +234,7 @@ extern "C" void computeReducedOpeningForLogHeight(
     opening_kernels::reducedOpeningsForLogHeightKernel<<<numBlocks, numThreads>>>(
         matrix,
         matrix.height,
+        point,
         invDenoms,
         alpha,
         alphaPowOffset,
