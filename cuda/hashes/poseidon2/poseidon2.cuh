@@ -210,6 +210,9 @@ class Hasher {
             state[i] = left[i];
             state[i + Params::DIGEST_WIDTH] = right[i];
         }
+        for (int i = 2 * Params::DIGEST_WIDTH; i < Params::WIDTH; i++) {
+            state[i].zero();
+        }
         permute(
             state,
             state,
