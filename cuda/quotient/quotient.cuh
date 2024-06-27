@@ -6,16 +6,6 @@
 #include "../fields/bb31_extension_t.cuh"
 #include "../matrix/matrix.cuh"
 
-#define QUOTIENT(CHIP_TYPE)                                                  \
-    {                                                                        \
-        CHIP_TYPE chipInstance;                                              \
-        quotient_kernels::computeValues<<<numBlocks, numThreadsPerBlock>>>(  \
-            chipInstance, evalProgram, evalProgramLen, cumulativeSum,        \
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  \
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     \
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); \
-    }
-
 namespace quotient_kernels {
 template <typename Val, typename Challenge>
 __global__ void computeValues(Operation *evalProgram,
@@ -203,90 +193,6 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
-
-    // switch (chipId) {
-    //     case 0:
-    //         QUOTIENT(CPUAir);
-    //         break;
-    //     case 1:
-    //         QUOTIENT(ProgramAir);
-    //         break;
-    //     case 2:
-    //         QUOTIENT(ShaExtendAir);
-    //         break;
-    //     case 3:
-    //         QUOTIENT(ShaCompressAir);
-    //         break;
-    //     case 4:
-    //         QUOTIENT(EdAddAssignAir);
-    //         break;
-    //     case 5:
-    //         QUOTIENT(EdDecompressAir);
-    //         break;
-    //     case 6:
-    //         QUOTIENT(Secp256k1DecompressAir);
-    //         break;
-    //     case 7:
-    //         QUOTIENT(Secp256k1AddAssignAir);
-    //         break;
-    //     case 8:
-    //         QUOTIENT(Secp256k1DoubleAssignAir);
-    //         break;
-    //     case 9:
-    //         QUOTIENT(KeccakPermuteAir);
-    //         break;
-    //     case 10:
-    //         QUOTIENT(Bn254AddAssignAir);
-    //         break;
-    //     case 11:
-    //         QUOTIENT(Bn254DoubleAssignAir);
-    //         break;
-    //     case 12:
-    //         QUOTIENT(Bls12381AddAssignAir);
-    //         break;
-    //     case 13:
-    //         QUOTIENT(Bls12381DoubleAssignAir);
-    //         break;
-    //     case 14:
-    //         QUOTIENT(Uint256MulModAir);
-    //         break;
-    //     case 15:
-    //         QUOTIENT(Bls12381DecompressAir);
-    //         break;
-    //     case 16:
-    //         QUOTIENT(DivRemAir);
-    //         break;
-    //     case 17:
-    //         QUOTIENT(AddSubAir);
-    //         break;
-    //     case 18:
-    //         QUOTIENT(BitwiseAir);
-    //         break;
-    //     case 19:
-    //         QUOTIENT(MulAir);
-    //         break;
-    //     case 20:
-    //         QUOTIENT(ShiftRightAir);
-    //         break;
-    //     case 21:
-    //         QUOTIENT(ShiftLeftAir);
-    //         break;
-    //     case 22:
-    //         QUOTIENT(LtAir);
-    //         break;
-    //     case 23:
-    //         QUOTIENT(MemoryInitAir);
-    //         break;
-    //     case 24:
-    //         QUOTIENT(MemoryFinalizeAir);
-    //         break;
-    //     case 25:
-    //         QUOTIENT(MemoryProgramAir);
-    //         break;
-    //     case 26:
-    //         QUOTIENT(ByteAir);
-    //         break;
-    // } 
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); 
   }
 }  // namespace quotient_gpu

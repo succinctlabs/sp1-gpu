@@ -15,9 +15,10 @@ use moongate_core::{
 type SC = BabyBearPoseidon2;
 
 fn main() {
-    let program = Program::from(FIBONACCI_ELF);
+    let rust_log = env::var("RUST_LOG").unwrap_or("debug".into());
+    env::set_var("RUST_LOG", rust_log);
 
-    env::set_var("RUST_LOG", "debug");
+    let program = Program::from(FIBONACCI_ELF);
 
     let config = SC::default();
     let machine = RiscvAir::machine(config);
