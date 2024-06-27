@@ -25,13 +25,13 @@ class Hasher {
     using pF_t = typename Params::pF_t;
 
   private:
-    __device__ void addExtRc(F_t state[Params::WIDTH], pF_t rc) {
+    __device__ static void addExtRc(F_t state[Params::WIDTH], pF_t rc) {
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] += rc[i];
         }
     }
 
-    __device__ void sbox(F_t state[Params::WIDTH]) {
+    __device__ static void sbox(F_t state[Params::WIDTH]) {
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] ^= Params::D;
         }
@@ -40,7 +40,7 @@ class Hasher {
   public:
     // TODO: are we sacrificing infornation about the length of the params?
     // TODO: poseidon2 params should be passed around more cleanly
-    __device__ void permute(
+    __device__ static void permute(
         F_t in[Params::WIDTH],
         F_t out[Params::WIDTH],
         pF_t internalRoundConstants,
@@ -79,7 +79,7 @@ class Hasher {
         }
     }
 
-    __device__ void compress(
+    __device__ static void compress(
         F_t left[Params::DIGEST_WIDTH],
         F_t right[Params::DIGEST_WIDTH],
         F_t out[Params::DIGEST_WIDTH],
@@ -109,7 +109,7 @@ class Hasher {
         }
     }
 
-    __device__ void hash(
+    __device__ static void hash(
         F_t* in,
         size_t nIn,
         F_t out[Params::DIGEST_WIDTH],
@@ -144,7 +144,7 @@ class Hasher {
         }
     }
 
-    __device__ void absorb(
+    __device__ static void absorb(
         F_t* in,
         size_t nIn,
         HasherState<Params>* state,
@@ -170,7 +170,7 @@ class Hasher {
         }
     }
 
-    __device__ void absorbRow(
+    __device__ static void absorbRow(
         Matrix<F_t>* in,
         int row_idx,
         HasherState<Params>* state,
@@ -205,7 +205,7 @@ class Hasher {
         }
     }
 
-    __device__ void finalize(
+    __device__ static void finalize(
         HasherState<Params>* state,
         F_t out[Params::DIGEST_WIDTH],
         pF_t internalRoundConstants,
@@ -370,7 +370,8 @@ class StaticHasher: public Hasher<Params> {
     using F_t = typename Params::F_t;
 
   public:
-    __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
+    __device__ static void
+    permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
         Hasher<Params>::permute(
             in,
             out,
@@ -381,7 +382,7 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void compress(
+    __device__ static void compress(
         F_t left[Params::DIGEST_WIDTH],
         F_t right[Params::DIGEST_WIDTH],
         F_t out[Params::DIGEST_WIDTH]
@@ -397,7 +398,8 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
+    __device__ static void
+    hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::hash(
             in,
             nIn,
@@ -409,7 +411,8 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
+    __device__ static void
+    absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
         Hasher<Params>::absorb(
             in,
             nIn,
@@ -421,7 +424,7 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void
+    __device__ static void
     absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
         Hasher<Params>::absorbRow(
             in,
@@ -434,7 +437,7 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void
+    __device__ static void
     finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::finalize(
             state,
