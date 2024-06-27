@@ -21,6 +21,40 @@ namespace helpers {
 
 namespace opening_kernels {
 
+__global__ void computeInverseDenominatorsKernel(
+    size_t maxRows,
+    size_t* numsRows,
+    size_t* logsNumRows,
+    bb31_t* shifts,
+    bb31_t* threadGeneratorPowers,
+    bb31_extension_t* points,
+    bb31_extension_t* invDenoms
+) {
+    size_t rowIdx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t matIdx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    bb31_t shift = shifts[matIdx];
+    size_t numRows = numsRows[matIdx];
+
+    if (rowIdx >= numRows) {
+        return;
+    }
+
+    bb31_t generator = threadGeneratorPowers[matIdx * blockDim.x + 1];
+    bb31_t blockGenerator = generator^(blockIdx.x * blockDim.x);
+    bb31_t genPower = blockGenerator * threadGeneratorPowers[matIdx * blockDim.x + threadIdx.x];
+    bb31_t x = shift * genPower;
+
+    bb31_extension_t point = points[matIdx * maxRows + rowIdx];
+    bb31_extension_t diff = bb31_extension_t(x) - point;
+
+
+    size_t logNumRows = logsNumRows[matIdx];
+    size_t bitrev = bit_rev(rowIdx, logNumRows); 
+
+    invDenoms[matIdx * maxRows + bitrev] = diff.reciprocal();
+}
+
 __global__ void interpolateCosetsKernel(
     bb31_t** polysEvals,          
     size_t* cosetHeights,                 
@@ -40,13 +74,14 @@ __global__ void interpolateCosetsKernel(
     size_t cosetLogHeight = cosetLogHeights[index];
     bb31_t shift = shifts[index];
     bb31_extension_t point = points[index];
-    bb31_t g = gValues[index];
+    bb31_t* gWarpPowers = gValues + index * blockDim.x;
     bb31_extension_t barycentricScalar = barycentricScalars[index];
 
     bb31_extension_t sum = bb31_extension_t::zero();
 
+    bb31_t g = gWarpPowers[1];
     bb31_t gStride = g^rowStride; 
-    bb31_t gPowers_i = g^row;
+    bb31_t gPowers_i = (g^(threadIdx.y * blockDim.x)) * gWarpPowers[threadIdx.x];
     for (int i = row; i < cosetHeight; i += rowStride) { 
         size_t rev = bit_rev(i, cosetLogHeight);
         bb31_extension_t diff = point - shift * gPowers_i;
@@ -79,73 +114,27 @@ __global__ void interpolateCosetsKernel(
 }
 
 
-__global__ void interpolateCosetKernel(
-    Matrix<bb31_t> cosetEvals,          
-    size_t cosetHeight,                 
-    size_t cosetLogHeight,             
-    bb31_t shift,                       
-    bb31_extension_t point,
-    bb31_t g,
-    bb31_extension_t barycentricScalar,
-    bb31_extension_t* output
-) {
-    size_t col = blockIdx.x;                             
-    uint32_t row = threadIdx.y * blockDim.x + threadIdx.x; 
-    uint32_t rowStride = blockDim.x * blockDim.y;         
-
-    bb31_extension_t sum = bb31_extension_t::zero();
-
-    bb31_t gStride = g^rowStride; 
-    bb31_t gPowers_i = g^row;
-    for (int i = row; i < cosetHeight; i += rowStride) { 
-        size_t rev = bit_rev(i, cosetLogHeight);
-        bb31_extension_t diff = point - shift * gPowers_i;
-        bb31_extension_t scale = gPowers_i * diff.reciprocal();
-        sum += scale * cosetEvals.values[col * cosetEvals.height + rev];
-        gPowers_i *= gStride;
-    }
-
-    extern __shared__ bb31_extension_t sdata[];
-    sdata[row] = sum;
-    __syncthreads();
-
-    int steps = 32;
-    if (row < steps) {
-        bb31_extension_t blockSum = bb31_extension_t::zero();
-        for (int i = row; i < rowStride; i+=steps) { 
-            blockSum += sdata[i];
-        }
-        sdata[row] = blockSum;
-        __syncwarp();
-
-        if (row == 0) {
-            blockSum = bb31_extension_t::zero();
-            for (int i = 0; i < steps; i++) { 
-                blockSum += sdata[i];
-            }
-            output[col] = blockSum * barycentricScalar;
-        }
-    }
-}
-
 __global__ void reducedOpeningsForLogHeightKernel(
     Matrix<bb31_t> matrix,
     size_t numRows,
     bb31_extension_t* invDenoms,
-    bb31_extension_t* alphaPowers,
+    bb31_extension_t alpha,
     bb31_extension_t alphaPowOffset,
-    bb31_extension_t sumAlphaPowTimesY,
+    bb31_extension_t* openedValues,
     bb31_extension_t* reducedOpeningsForLogHeight
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= numRows) return;
     reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
     bb31_extension_t rowSum = bb31_extension_t::zero();
+
+    bb31_extension_t alphaPower = bb31_extension_t::one();
     for (size_t i = 0; i < matrix.width; i++) {
-        rowSum += matrix.values[i * matrix.height + idx] * alphaPowers[i];
+        rowSum += (matrix.values[i * matrix.height + idx] - openedValues[i]) * alphaPower;
+        alphaPower *= alpha;
     }
     reducedOpeningsForLogHeight[idx] +=
-        invDenoms[idx] * alphaPowOffset * (rowSum - sumAlphaPowTimesY);
+        invDenoms[idx] * alphaPowOffset * rowSum;
 }
 
 __global__ void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
@@ -168,6 +157,34 @@ __global__ void batchMultiplicativeInverse(
 }  // namespace opening_kernels
 
 namespace opening_gpu {
+
+
+extern "C" void computeInverseDenominators(
+    size_t maxRows,
+    size_t numMats,
+    size_t* numsRows,
+    size_t* logsNumRows,
+    bb31_t* shifts,
+    bb31_t* threadGeneratorPowers,
+    bb31_extension_t* points,
+    bb31_extension_t* invDenoms
+) {
+    size_t numThreads = 1024;
+    size_t numBlocksX = (maxRows - 1) / numThreads + 1; 
+
+    dim3 blockDim(1024);
+    dim3 gridDim(numBlocksX, numMats);
+
+    opening_kernels::computeInverseDenominatorsKernel<<<gridDim, blockDim>>>(
+        maxRows,
+        numsRows,
+        logsNumRows,
+        shifts,
+        threadGeneratorPowers,
+        points,
+        invDenoms
+    );
+}
 
 extern "C" void interpolateCosets(
     bb31_t** polysEvals,
@@ -198,40 +215,13 @@ extern "C" void interpolateCosets(
     );
 }
 
-extern "C" void interpolateCoset(
-    Matrix<bb31_t> cosetEvals,
-    size_t cosetHeight,
-    size_t cosetLogHeight,
-    bb31_t shift,
-    bb31_extension_t point,
-    bb31_extension_t barycentricScalar,
-    bb31_t g,
-    bb31_extension_t* output
-) {
-    dim3 stageGrid(cosetEvals.width);
-    dim3 stageBlock(32, 32);
-
-    opening_kernels::interpolateCosetKernel<<<
-    stageGrid, 
-    stageBlock, 
-    sizeof(bb31_extension_t) * stageBlock.x * stageBlock.y>>>(
-        cosetEvals,
-        cosetHeight,
-        cosetLogHeight,
-        shift,
-        point,
-        g,
-        barycentricScalar,
-        output
-    );
-}
 
 extern "C" void computeReducedOpeningForLogHeight(
     Matrix<bb31_t> matrix,
     bb31_extension_t* invDenoms,
-    bb31_extension_t* alphaPowers,
+    bb31_extension_t alpha,
     bb31_extension_t alphaPowOffset,
-    bb31_extension_t sumAlphaPowTimesY,
+    bb31_extension_t * openedValues,
     bb31_extension_t* reducedOpeningsForLogHeight
 ) {
     size_t numThreads = 1024;
@@ -241,9 +231,9 @@ extern "C" void computeReducedOpeningForLogHeight(
         matrix,
         matrix.height,
         invDenoms,
-        alphaPowers,
+        alpha,
         alphaPowOffset,
-        sumAlphaPowTimesY,
+        openedValues,
         reducedOpeningsForLogHeight
     );
 }
