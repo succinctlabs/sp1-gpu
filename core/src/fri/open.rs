@@ -1,19 +1,17 @@
 use std::marker::PhantomData;
-use std::sync::mpsc;
 
 use p3_challenger::FieldChallenger;
 use p3_field::two_adic_coset_zerofier;
 use p3_field::Field;
 use tracing::trace_span;
 
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use p3_challenger::CanObserve;
 use p3_challenger::CanSample;
 use p3_challenger::CanSampleBits;
 use p3_challenger::GrindingChallenger;
 use p3_commit::{OpenedValues, Pcs};
-use p3_field::cyclic_subgroup_coset_known_order;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
@@ -26,16 +24,13 @@ use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
 use p3_matrix::dense::RowMajorMatrix;
 use p3_symmetric::Hash;
-use p3_util::linear_map::LinearMap;
 use p3_util::log2_ceil_usize;
-use p3_util::reverse_slice_index_bits;
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
 use sp1_core::stark::{OpeningProof, PcsProverData};
 use sp1_core::utils::baby_bear_poseidon2::ChallengeMmcs;
 use sp1_core::utils::log2_strict_usize;
 use sp1_core::utils::BabyBearPoseidon2;
-use sp1_core::utils::InnerChallenge;
 use sp1_core::utils::{InnerVal, InnerValMmcs};
 
 use crate::device::buffer::DeviceBuffer;
@@ -106,21 +101,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
-        // For each unique opening point z, we will find the largest degree bound
-        // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
-        let inv_denoms = tracing::debug_span!("Compute inverse denominators").in_scope(|| {
-            let heights_and_points = mats_and_points
-                .iter()
-                .map(|(mats, points)| (mats.iter().map(|m| m.height).collect_vec(), *points))
-                .collect_vec();
-            compute_inverse_denominators(&heights_and_points, BabyBear::generator())
-        });
-
         let mut reduced_openings: [Option<Vec<SC::Challenge>>; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
-        let (tx, rx) = mpsc::channel();
+        // let (tx, rx) = mpsc::channel();
 
         // Interpolate cosets.
 
@@ -147,6 +132,13 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut points_for_inv = vec![];
         let mut shifts_for_inv = vec![];
 
+        // Values for computing reduced openings.
+        let mut alpha_pow_offsets = vec![];
+        let mut matrices_for_openings = vec![];
+        let mut ys_indices = vec![];
+        let mut ys_index = 0;
+
+        let get_data_for_device_span = tracing::debug_span!("Get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
             mats.iter()
                 .zip(points.iter())
@@ -185,6 +177,15 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                             two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), *point);
                         let barycentric_scalar = zerofier * denominator.inverse();
                         barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
+
+                        let num_reduced_at_height = num_reduced[log_height];
+                        num_reduced[log_height] += mat.width();
+                        let alpha_pow_offset = alpha.exp_u64(num_reduced_at_height as u64);
+                        alpha_pow_offsets.push(alpha_pow_offset);
+                        matrices_for_openings.push(mat.view());
+
+                        ys_indices.push(ys_index);
+                        ys_index += mat.width();
                     }
 
                     for _ in 0..points_for_mat.len() {
@@ -195,6 +196,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     }
                 })
         });
+        get_data_for_device_span.exit();
 
         let num_points = points_for_inv.len();
         assert_eq!(nums_rows.len(), num_points);
@@ -210,7 +212,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let points_for_inv = points_for_inv.to_device();
         let shifts_for_inv = shifts_for_inv.to_device();
 
-        // Assign the output buffers.
+        // For each unique opening point z, we will find the largest degree bound
+        // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset);
         unsafe {
             inv_denominators.set_max_len();
@@ -235,44 +238,80 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         assert_eq!(opening_points.len(), total_polys);
         assert_eq!(barycentric_scalars.len(), total_polys);
 
-        let poly_evals = poly_evals.to_device();
-        let coset_heights = coset_heights.to_device();
-        let coset_log_heights = coset_log_heights.to_device();
-        let shifts = shifts.to_device();
-        let g_values = g_values.to_device();
-        let opening_points = opening_points.to_device();
-        let barycentric_scalars = barycentric_scalars.to_device();
+        let ys_output_buffer = {
+            let mut ys_output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys);
 
-        let mut output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys);
+            let poly_evals = poly_evals.to_device();
+            let coset_heights = coset_heights.to_device();
+            let coset_log_heights = coset_log_heights.to_device();
+            let shifts = shifts.to_device();
+            let g_values = g_values.to_device();
+            let opening_points = opening_points.to_device();
+            let barycentric_scalars = barycentric_scalars.to_device();
 
-        unsafe {
-            output_buffer.set_max_len();
-            opening_gpu::interpolate_cosets_raw(
-                poly_evals.as_ptr(),
-                poly_evals.len(),
-                coset_heights.as_ptr(),
-                coset_log_heights.as_ptr(),
-                shifts.as_ptr(),
-                opening_points.as_ptr(),
-                barycentric_scalars.as_ptr(),
-                g_values.as_ptr(),
-                output_buffer.as_mut_ptr(),
-            );
-        }
+            unsafe {
+                ys_output_buffer.set_max_len();
+                opening_gpu::interpolate_cosets_raw(
+                    poly_evals.as_ptr(),
+                    poly_evals.len(),
+                    coset_heights.as_ptr(),
+                    coset_log_heights.as_ptr(),
+                    shifts.as_ptr(),
+                    opening_points.as_ptr(),
+                    barycentric_scalars.as_ptr(),
+                    g_values.as_ptr(),
+                    ys_output_buffer.as_mut_ptr(),
+                );
+            }
+            ys_output_buffer
+        };
 
         interpolate_cosets_span.exit();
 
         let ys_out_host_span = tracing::debug_span!("ys_out_host").entered();
-        let ys_output = output_buffer.to_host();
+        let ys_output = ys_output_buffer.to_host();
         ys_out_host_span.exit();
 
         assert_eq!(ys_output.len(), total_polys);
-        let mut index = 0;
 
-        let compute_openings_span = tracing::debug_span!("Compute openings").entered();
+        let compute_openings_span = tracing::debug_span!("Compute opened values").entered();
         let mut point_index = 0;
         let all_opened_values = {
-            //let mut counter_p = 0;
+            let mut reduced_openings_device = DeviceBuffer::<EF>::with_capacity(inv_offset);
+
+            {
+                // Compute openings fused.
+                let compute_reduced_openings_span =
+                    tracing::debug_span!("Compute reduced openings on device").entered();
+                let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
+                let matrices_for_openings = matrices_for_openings.to_device();
+                let ys_indices = ys_indices.to_device();
+                unsafe {
+                    reduced_openings_device.set_max_len();
+                    opening_gpu::compute_reduced_openings(
+                        matrices_for_openings.as_ptr(),
+                        global_max_height,
+                        points_for_inv.as_ptr(),
+                        num_points,
+                        inv_indices_device.as_ptr(),
+                        inv_denominators.as_ptr(),
+                        alpha,
+                        alpha_pow_offsets_device.as_ptr(),
+                        ys_output_buffer.as_ptr(),
+                        ys_indices.as_ptr(),
+                        reduced_openings_device.as_mut_ptr(),
+                    );
+                }
+                compute_reduced_openings_span.exit();
+            }
+
+            let copy_reduced_openings_span =
+                tracing::debug_span!("Copy reduced openings to host").entered();
+            let reduced_opening_host = reduced_openings_device.into_host();
+            copy_reduced_openings_span.exit();
+
+            let copy_values_span = tracing::debug_span!("Copy opened values to host").entered();
+            let mut index = 0;
             let all_opened_values = mats_and_points
                 .into_iter()
                 .map(|(mats, points)| {
@@ -283,60 +322,24 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
                             let opened_values_for_mat = points_for_mat
                                 .iter()
-                                .map(|&point| {
-                                    let inv_denoms = &inv_denoms;
-                                    let tx = tx.clone();
-                                    let num_reduced_at_height = num_reduced[log_height];
-                                    num_reduced[log_height] += mat.width();
-
-                                    let ys = &output_buffer[index..index + mat.width()];
+                                .map(|_| {
                                     let ys_host = ys_output[index..index + mat.width()].to_vec();
                                     index += mat.width();
 
-                                    let alpha_pow_offset =
-                                        alpha.exp_u64(num_reduced_at_height as u64);
-
-                                    let inv_denoms_at_point_ref = inv_denoms.get(&point).unwrap();
-
                                     let inv_index = inv_indices[point_index];
                                     point_index += 1;
-                                    let inv_denoms_at_point =
-                                        &inv_denominators[inv_index..inv_index + mat.height()];
 
-                                    let inv_denoms_host = inv_denoms_at_point.to_host();
-                                    for (exp, val) in
-                                        inv_denoms_host.iter().zip(inv_denoms_at_point_ref.iter())
+                                    let reduced_opening_for_log_height =
+                                        &reduced_opening_host[inv_index..inv_index + mat.height()];
+
+                                    let openings_at_height = reduced_openings[log_height]
+                                        .get_or_insert_with(|| {
+                                            vec![SC::Challenge::zero(); 1 << log_height]
+                                        });
+                                    for (i, x) in reduced_opening_for_log_height.iter().enumerate()
                                     {
-                                        assert_eq!(
-                                            exp, val,
-                                            "inv_denoms_host: {:?}, inv_denoms_at_point_ref: {:?}",
-                                            exp, val
-                                        );
+                                        openings_at_height[i] += *x;
                                     }
-
-                                    let span = trace_span!("Compute reduced openings").entered();
-                                    let mut reduced_opening_for_log_height_device: DeviceBuffer<
-                                        SC::Challenge,
-                                    > = DeviceBuffer::with_capacity(mat.height);
-
-                                    unsafe {
-                                        reduced_opening_for_log_height_device.set_max_len();
-                                        opening_gpu::compute_reduced_openings_for_log_height(
-                                            mat.view(),
-                                            point,
-                                            inv_denoms_at_point.as_ptr(),
-                                            alpha,
-                                            alpha_pow_offset,
-                                            ys.as_ptr(),
-                                            reduced_opening_for_log_height_device.as_mut_ptr(),
-                                        );
-                                    }
-                                    let reduced_opening_for_log_height_host =
-                                        reduced_opening_for_log_height_device.to_host();
-                                    span.exit();
-
-                                    tx.send((log_height, reduced_opening_for_log_height_host))
-                                        .unwrap();
 
                                     ys_host
                                 })
@@ -346,26 +349,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
-
-            drop(tx);
-
-            for (log_height, reduced_opening) in rx.iter() {
-                let openings_at_height = reduced_openings[log_height]
-                    .get_or_insert_with(|| vec![SC::Challenge::zero(); 1 << log_height]);
-                for (i, x) in reduced_opening.into_iter().enumerate() {
-                    openings_at_height[i] += x;
-                }
-            }
-
-            // Get all opened values by joining all the hadles and collecing the results.
+            copy_values_span.exit();
             all_opened_values
-                .into_iter()
-                .map(|x| {
-                    x.into_iter()
-                        .map(|y| y.into_iter().collect::<Vec<_>>())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
         };
         compute_openings_span.exit();
 
@@ -442,57 +427,6 @@ fn open_batch(
         .collect();
 
     (openings, proof)
-}
-
-#[allow(clippy::type_complexity)]
-pub fn compute_inverse_denominators(
-    heights_and_points: &[(Vec<usize>, &Vec<Vec<InnerChallenge>>)],
-    coset_shift: BabyBear,
-) -> LinearMap<InnerChallenge, Vec<InnerChallenge>> {
-    let mut max_log_height_for_point: LinearMap<InnerChallenge, usize> = LinearMap::new();
-    for (heights, points) in heights_and_points {
-        for (height, points_for_mat) in izip!(heights, *points) {
-            let log_height = log2_strict_usize(*height);
-            for &z in points_for_mat {
-                if let Some(lh) = max_log_height_for_point.get_mut(&z) {
-                    *lh = core::cmp::max(*lh, log_height);
-                } else {
-                    max_log_height_for_point.insert(z, log_height);
-                }
-            }
-        }
-    }
-
-    // Compute the largest subgroup we will use, in bitrev order.
-    let max_log_height = *max_log_height_for_point.values().max().unwrap();
-    let mut subgroup = cyclic_subgroup_coset_known_order(
-        BabyBear::two_adic_generator(max_log_height),
-        coset_shift,
-        1 << max_log_height,
-    )
-    .collect_vec();
-    reverse_slice_index_bits(&mut subgroup);
-
-    max_log_height_for_point
-        .into_iter()
-        .map(|(z, log_height)| {
-            let input = &subgroup[..(1 << log_height)]
-                .iter()
-                .map(|&x| InnerChallenge::from_base(x) - z)
-                .collect_vec()
-                .to_device();
-            let mut output: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(input.len());
-            unsafe {
-                output.set_len(input.len());
-                opening_gpu::batch_multiplicative_inverse(
-                    input.as_ptr(),
-                    output.as_mut_ptr(),
-                    input.len(),
-                );
-            }
-            (z, output.to_host())
-        })
-        .collect()
 }
 
 pub fn prove(
@@ -627,19 +561,9 @@ impl<SC> Default for FriGpuOpeningProver<SC> {
 }
 
 pub mod opening_gpu {
-    use crate::device::memory::ToHost;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
-    use p3_field::two_adic_coset_zerofier;
-    use p3_field::AbstractExtensionField;
-    use p3_field::AbstractField;
-    use p3_field::Field;
-    use p3_field::TwoAdicField;
-    use p3_util::log2_strict_usize;
-    use sp1_core::utils::InnerChallenge;
 
-    use crate::device::buffer::DeviceBuffer;
-    use crate::device::memory::ToDevice;
     use crate::matrix::MatrixViewDevice;
 
     type F = BabyBear;
@@ -686,6 +610,21 @@ pub mod opening_gpu {
             reduced_openings_for_log_height: *mut EF,
         );
 
+        #[link_name = "computeReducedOpenings"]
+        pub fn compute_reduced_openings(
+            mats: *const MatrixViewDevice<F>,
+            max_height: usize,
+            points: *const EF,
+            num_points: usize,
+            inv_indices: *const usize,
+            inv_denoms: *const EF,
+            alpha: EF,
+            alpha_pow_offsets: *const EF,
+            ys: *const EF,
+            ys_indices: *const usize,
+            reduced_openings: *mut EF,
+        );
+
         #[link_name = "fetchRow"]
         pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
 
@@ -696,16 +635,12 @@ pub mod opening_gpu {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::memory::ToHost;
     use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
     use crate::stark::StarkGpuProver;
     use p3_baby_bear::BabyBear;
     use p3_challenger::FieldChallenger;
     use p3_commit::Pcs;
     use p3_field::extension::BinomialExtensionField;
-    use p3_interpolation::interpolate_coset;
-    use p3_matrix::{bitrev::BitReversalPerm, dense::RowMajorMatrix, Matrix};
-    use rand::Rng;
 
     use sp1_core::stark::StarkGenericConfig;
     use sp1_core::{
@@ -716,7 +651,6 @@ mod tests {
 
     use crate::stark::tests::execute_core;
     type SC = BabyBearPoseidon2;
-    use crate::{device::memory::ToDevice, fri::opening_gpu};
     use p3_commit::PolynomialSpace;
 
     use super::FriGpuOpeningProver;

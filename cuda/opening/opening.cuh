@@ -114,6 +114,41 @@ __global__ void interpolateCosetsKernel(
 }
 
 
+__global__ void reducedOpeningsKernel(
+    Matrix<bb31_t>* mats,
+    bb31_extension_t* points,
+    size_t* invIndices,
+    bb31_extension_t* invDenoms,
+    bb31_extension_t alpha,
+    bb31_extension_t* alphaPowOffsets,
+    bb31_extension_t* openedValues,
+    size_t * openedValuesIndices,
+    bb31_extension_t* reducedOpenings
+) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t pointIdx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    Matrix<bb31_t> matrix = mats[pointIdx];
+    size_t numRows = matrix.height;
+    if (idx >= numRows) return;
+
+    size_t invIdx = invIndices[pointIdx];
+    bb31_extension_t point = points[pointIdx];
+    bb31_extension_t alphaPowOffset = alphaPowOffsets[pointIdx];
+    size_t openValuesIdx = openedValuesIndices[pointIdx];
+
+    reducedOpenings[invIdx + idx] = bb31_extension_t::zero();
+    bb31_extension_t rowSum = bb31_extension_t::zero();
+
+    bb31_extension_t alphaPower = bb31_extension_t::one();
+    for (size_t i = 0; i < matrix.width; i++) {
+        rowSum += (matrix.values[i * matrix.height + idx] - openedValues[openValuesIdx + i]) * alphaPower;
+        alphaPower *= alpha;
+    }
+    reducedOpenings[invIdx + idx] +=
+        invDenoms[invIdx + idx] * alphaPowOffset * rowSum;
+}
+
 __global__ void reducedOpeningsForLogHeightKernel(
     Matrix<bb31_t> matrix,
     size_t numRows,
@@ -239,6 +274,38 @@ extern "C" void computeReducedOpeningForLogHeight(
         alphaPowOffset,
         openedValues,
         reducedOpeningsForLogHeight
+    );
+}
+
+extern "C" void computeReducedOpenings(
+    Matrix<bb31_t>* mats,
+    size_t maxHeight,
+    bb31_extension_t* points,
+    size_t numPoints,
+    size_t * invIndices,
+    bb31_extension_t* invDenoms,
+    bb31_extension_t alpha,
+    bb31_extension_t* alphaPowOffsets,
+    bb31_extension_t * openedValues,
+    size_t * openedValuesIndices,
+    bb31_extension_t* reducedOpenings
+) {
+    size_t numThreads = 1024;
+    size_t numBlocksX = (maxHeight - 1) / numThreads + 1; 
+
+    dim3 blockDim(1024);
+    dim3 gridDim(numBlocksX, numPoints);
+
+    opening_kernels::reducedOpeningsKernel<<<gridDim, blockDim>>>(
+        mats,
+        points,
+        invIndices,
+        invDenoms,
+        alpha,
+        alphaPowOffsets,
+        openedValues,
+        openedValuesIndices,
+        reducedOpenings
     );
 }
 
