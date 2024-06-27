@@ -73,7 +73,7 @@ class Hasher {
             case 20:
             case 24:
                 for (int i = 0; i < Params::WIDTH; i += 4) {
-                    mdsLightPermutation4x4(state + i);  // ?
+                    mdsLightPermutation4x4(state + i);
                 }
 
                 F_t sums[4] = {state[0], state[1], state[2], state[3]};
@@ -112,33 +112,39 @@ class Hasher {
         F_t montyInverse
     ) {
         switch (Params::WIDTH) {
-            case 2: {
-                // [2, 1]
-                // [1, 3]
-                F_t s = state[0] + state[1];
-                state[0] += s;
-                // state[1] *= 2;
-                state[1] += state[1];
-                state[1] += s;
-                break;
-            }
+            // case 2: {
+            //     // [2, 1]
+            //     // [1, 3]
+            //     F_t s = state[0] + state[1];
+            //     state[0] += s;
+            //     // state[1] *= 2;
+            //     state[1] += state[1];
+            //     state[1] += s;
+            //     break;
+            // }
             case 3: {
+                /*
+                let sum: AF = state.iter().cloned().sum();
+                for i in 0..WIDTH {
+                    state[i] *= AF::from_f(mat_internal_diag_m_1[i]);
+                    state[i] += sum.clone();
+                }
+                */
                 // [2, 1, 1]
                 // [1, 2, 1]
                 // [1, 1, 3]
                 F_t s = state[0] + state[1] + state[2];
-                state[0] += s;
-                state[1] += s;
-                // state[2] *= 2;
-                state[2] += state[2];
-                state[2] *= s;
+                for (int i = 0; i < Params::WIDTH; i++) {
+                    state[i] *= matInternalDiagM1[i];
+                    state[i] += s;
+                }
                 break;
             }
-            case 4:
-            case 8:
-            case 12:
-            case 16:
-            case 20:
+            // case 4:
+            // case 8:
+            // case 12:
+            // case 16:
+            // case 20:
             case 24:
                 matmulInternal(state, matInternalDiagM1);
                 for (int i = 0; i < Params::WIDTH; i++) {

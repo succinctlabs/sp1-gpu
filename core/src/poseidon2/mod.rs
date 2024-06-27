@@ -47,8 +47,8 @@ pub mod poseidon2_bn254_3_kernels {
     pub const DIGEST_WIDTH: usize = 1;
     pub const RATE: usize = 1;
     pub const WIDTH: usize = 3;
-    pub const ROUNDS_F: usize = 1;
-    pub const ROUNDS_P: usize = 1;
+    pub const ROUNDS_F: usize = 8;
+    pub const ROUNDS_P: usize = 56;
     pub const D_U64: u64 = 5;
 
     #[allow(unused_attributes)]
