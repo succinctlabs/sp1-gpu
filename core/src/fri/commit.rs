@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::thread;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
