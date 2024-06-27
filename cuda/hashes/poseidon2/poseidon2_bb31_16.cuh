@@ -119,27 +119,21 @@ class BabyBear {
         constants::MAT_INTERNAL_DIAG_M1;
     static constexpr const F_t MONTY_INVERSE = constants::MONTY_INVERSE;
 
-    __device__ static void internalLinearLayer(
-        F_t state[WIDTH],
-        pF_t matInternalDiagM1,
-        F_t montyInverse
-    ) {
-        matmulInternal(state, matInternalDiagM1);
+    __device__ static void internalLinearLayer(F_t state[WIDTH], pF_t, F_t) {
+        matmulInternal(state);
         for (int i = 0; i < WIDTH; i++) {
-            state[i] = state[i] * montyInverse;
+            state[i] = state[i] * MONTY_INVERSE;
         }
     }
 
-    __device__ static void
-    matmulInternal(F_t state[WIDTH], pF_t matInternalDiagM1) {
+    __device__ static void matmulInternal(F_t state[WIDTH]) {
         F_t sum;
         sum.zero();
         for (int i = 0; i < WIDTH; i++) {
             sum += state[i];
         }
-
         for (int i = 0; i < WIDTH; i++) {
-            state[i] *= matInternalDiagM1[i];
+            state[i] *= MAT_INTERNAL_DIAG_M1[i];
             state[i] += sum;
         }
     }
