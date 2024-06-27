@@ -174,7 +174,9 @@ mod tests {
     use crate::device::memory::{ToDevice, ToHost};
     use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
     use crate::merkle_tree::FieldMerkleTreeGpu;
-    use crate::poseidon2::tests::{poseidon2_bb31_16_compressor, poseidon2_bb31_16_hasher};
+    use crate::poseidon2::tests::bb31_tests::{
+        poseidon2_bb31_16_compressor, poseidon2_bb31_16_hasher,
+    };
     use crate::{
         device::buffer::DeviceBuffer, merkle_tree::merkle_tree_gpu,
         poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,

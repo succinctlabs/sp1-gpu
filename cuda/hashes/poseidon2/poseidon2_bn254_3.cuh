@@ -15,6 +15,7 @@ namespace constants {
 
 }  // namespace constants
 
+// TODO: rename
 class BarretoNaehrig3 {
   public:
     using F = bn254_t;

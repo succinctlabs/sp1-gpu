@@ -65,7 +65,7 @@ class Hasher {
                 break;
             }
             case 4:
-                mdsLightPermutation4x4<Params>(state);
+                mdsLightPermutation4x4(state);
                 break;
             case 8:
             case 12:
@@ -73,7 +73,7 @@ class Hasher {
             case 20:
             case 24:
                 for (int i = 0; i < Params::WIDTH; i += 4) {
-                    mdsLightPermutation4x4<Params>(state + i);
+                    mdsLightPermutation4x4(state + i);
                 }
 
                 F sums[4] = {state[0], state[1], state[2], state[3]};
@@ -140,7 +140,7 @@ class Hasher {
             case 16:
             case 20:
             case 24:
-                matmulInternal<Params>(state, matInternalDiagM1);
+                matmulInternal(state, matInternalDiagM1);
                 for (int i = 0; i < Params::WIDTH; i++) {
                     state[i] = state[i] * montyInverse;
                 }
@@ -164,25 +164,25 @@ class Hasher {
             state[i] = in[i];
         }
 
-        externalLinearLayer<Params>(state);
+        externalLinearLayer(state);
 
         int rounds_f_half = Params::ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
-            addExtRc<Params>(state, externalRoundConstants + i * Params::WIDTH);
-            sbox<Params>(state);
-            externalLinearLayer<Params>(state);
+            addExtRc(state, externalRoundConstants + i * Params::WIDTH);
+            sbox(state);
+            externalLinearLayer(state);
         }
 
         for (int i = 0; i < Params::ROUNDS_P; i++) {
             state[0] += internalRoundConstants[i];
             state[0] ^= Params::D;
-            internalLinearLayer<Params>(state, matInternalDiagM1, montyInverse);
+            internalLinearLayer(state, matInternalDiagM1, montyInverse);
         }
 
         for (int i = rounds_f_half; i < Params::ROUNDS_F; i++) {
-            addExtRc<Params>(state, externalRoundConstants + i * Params::WIDTH);
-            sbox<Params>(state);
-            externalLinearLayer<Params>(state);
+            addExtRc(state, externalRoundConstants + i * Params::WIDTH);
+            sbox(state);
+            externalLinearLayer(state);
         }
 
         for (int i = 0; i < Params::WIDTH; i++) {
@@ -340,7 +340,7 @@ class Hasher {
 template<typename Params>
 class DynamicHasher: public Hasher<Params> {
     using F = typename Params::F;
-    using pF = pF;
+    using pF = typename Params::pF;
 
   private:
     pF internalRoundConstants;
@@ -365,9 +365,9 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     void setParams(
-        const F* internalRC,
-        const F* externalRC,
-        const F* internalDiagM1,
+        const pF internalRC,
+        const pF externalRC,
+        const pF internalDiagM1,
         F inverse
     ) {
         cudaMemcpy(
