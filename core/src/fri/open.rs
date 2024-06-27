@@ -135,15 +135,17 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut g_values = vec![];
         let mut opening_points = vec![];
         let mut barycentric_scalars = vec![];
-        let mut point_indices = vec![];
         let mut total_polys = 0;
-        let mut points_offset = 0;
 
-        // // Values for inverse denominators.
-        // let mut nums_rows = vec![];
-        // let mut logs_num_rows = vec![];
-        // let mut inv_denom_shifts = vec![];
-        // let mut thread_generator_powers = vec![];
+        // Values for inverse denominators.
+        let mut nums_rows = vec![];
+        let mut log_nums_rows = vec![];
+        let mut inv_indices = vec![];
+        let mut thread_generator_powers = vec![];
+        let mut inv_offset = 0;
+        let mut num_points = 0;
+        let mut points_for_inv = vec![];
+        let mut shifts_for_inv = vec![];
 
         mats_and_points.iter().for_each(|(mats, points)| {
             mats.iter()
@@ -164,9 +166,20 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     coset_log_heights.extend((0..num_polys).map(|_| coset_log_height));
                     coset_heights.extend((0..num_polys).map(|_| coset_height));
 
+                    let log_height = log2_strict_usize(mat.height());
+                    let height_g = BabyBear::two_adic_generator(log_height);
+                    let g_thread_gen = height_g.powers().take(1024).collect::<Vec<_>>();
+
                     for point in points_for_mat {
-                        point_indices.extend((0..cols).map(|_| points_offset));
-                        points_offset += coset_height;
+                        nums_rows.push(mat.height());
+                        log_nums_rows.push(log_height);
+                        inv_indices.push(inv_offset);
+                        inv_offset += mat.height();
+                        points_for_inv.push(*point);
+                        num_points += 1;
+                        thread_generator_powers.extend_from_slice(&g_thread_gen);
+                        shifts_for_inv.push(shift);
+
                         opening_points.extend((0..cols).map(|_| *point));
                         let zerofier =
                             two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), *point);
@@ -183,6 +196,37 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 })
         });
 
+        let num_points = points_for_inv.len();
+        assert_eq!(nums_rows.len(), num_points);
+        assert_eq!(log_nums_rows.len(), num_points);
+        assert_eq!(inv_indices.len(), num_points);
+        assert_eq!(thread_generator_powers.len(), num_points * 1024);
+        assert_eq!(points_for_inv.len(), num_points);
+
+        let inv_indices_device = inv_indices.to_device();
+        let nums_rows = nums_rows.to_device();
+        let log_nums_rows = log_nums_rows.to_device();
+        let thread_generator_powers = thread_generator_powers.to_device();
+        let points_for_inv = points_for_inv.to_device();
+        let shifts_for_inv = shifts_for_inv.to_device();
+
+        // Assign the output buffers.
+        let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset);
+        unsafe {
+            inv_denominators.set_max_len();
+            opening_gpu::compute_inverse_denominators(
+                global_max_height,
+                num_points,
+                inv_indices_device.as_ptr(),
+                nums_rows.as_ptr(),
+                log_nums_rows.as_ptr(),
+                shifts_for_inv.as_ptr(),
+                thread_generator_powers.as_ptr(),
+                points_for_inv.as_ptr(),
+                inv_denominators.as_mut_ptr(),
+            );
+        }
+
         assert_eq!(poly_evals.len(), total_polys);
         assert_eq!(coset_heights.len(), total_polys);
         assert_eq!(coset_log_heights.len(), total_polys);
@@ -190,7 +234,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         assert_eq!(g_values.len(), total_polys * 32);
         assert_eq!(opening_points.len(), total_polys);
         assert_eq!(barycentric_scalars.len(), total_polys);
-        assert_eq!(point_indices.len(), total_polys);
 
         let poly_evals = poly_evals.to_device();
         let coset_heights = coset_heights.to_device();
@@ -199,15 +242,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let g_values = g_values.to_device();
         let opening_points = opening_points.to_device();
         let barycentric_scalars = barycentric_scalars.to_device();
-        let point_indices = point_indices.to_device();
 
         let mut output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys);
 
-        let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(points_offset);
-
         unsafe {
             output_buffer.set_max_len();
-            inv_denominators.set_max_len();
             opening_gpu::interpolate_cosets_raw(
                 poly_evals.as_ptr(),
                 poly_evals.len(),
@@ -231,7 +270,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut index = 0;
 
         let compute_openings_span = tracing::debug_span!("Compute openings").entered();
-        let mut counter = 0;
+        let mut point_index = 0;
         let all_opened_values = {
             //let mut counter_p = 0;
             let all_opened_values = mats_and_points
@@ -250,9 +289,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     let num_reduced_at_height = num_reduced[log_height];
                                     num_reduced[log_height] += mat.width();
 
-                                    let point_offset = counter;
-                                    counter += 1 << log_height;
-
                                     let ys = &output_buffer[index..index + mat.width()];
                                     let ys_host = ys_output[index..index + mat.width()].to_vec();
                                     index += mat.width();
@@ -260,8 +296,23 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     let alpha_pow_offset =
                                         alpha.exp_u64(num_reduced_at_height as u64);
 
+                                    let inv_denoms_at_point_ref = inv_denoms.get(&point).unwrap();
+
+                                    let inv_index = inv_indices[point_index];
+                                    point_index += 1;
                                     let inv_denoms_at_point =
-                                        inv_denoms.get(&point).unwrap().to_device();
+                                        &inv_denominators[inv_index..inv_index + mat.height()];
+
+                                    let inv_denoms_host = inv_denoms_at_point.to_host();
+                                    for (exp, val) in
+                                        inv_denoms_host.iter().zip(inv_denoms_at_point_ref.iter())
+                                    {
+                                        assert_eq!(
+                                            exp, val,
+                                            "inv_denoms_host: {:?}, inv_denoms_at_point_ref: {:?}",
+                                            exp, val
+                                        );
+                                    }
 
                                     let span = trace_span!("Compute reduced openings").entered();
                                     let mut reduced_opening_for_log_height_device: DeviceBuffer<

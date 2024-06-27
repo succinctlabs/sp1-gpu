@@ -49,7 +49,6 @@ __global__ void computeInverseDenominatorsKernel(
     bb31_extension_t point = points[pointIdx];
     bb31_extension_t diff = bb31_extension_t(x) - point;
 
-
     size_t logNumRows = logsNumRows[pointIdx];
     size_t bitrev = bit_rev(rowIdx, logNumRows); 
 
