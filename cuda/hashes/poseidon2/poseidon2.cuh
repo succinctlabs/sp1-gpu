@@ -51,12 +51,7 @@ class Hasher {
 
     __device__ void externalLinearLayer(F_t state[Params::WIDTH]) {
         switch (Params::WIDTH) {
-            // case 2: {
-            //     F_t sum = state[0] + state[1];
-            //     state[0] += sum;
-            //     state[1] += sum;
-            //     break;
-            // }
+            // TODO: Implementations vary so this could be a static method in Params
             case 3: {
                 F_t sum = state[0] + state[1] + state[2];
                 state[0] += sum;
@@ -64,18 +59,10 @@ class Hasher {
                 state[2] += sum;
                 break;
             }
-            // case 4:
-            //     mdsLightPermutation4x4(state);
-            //     break;
-            // case 8:
-            // case 12:
             case 16:
-            // case 20:
-            // case 24:
                 for (int i = 0; i < Params::WIDTH; i += 4) {
                     mdsLightPermutation4x4(state + i);
                 }
-
                 F_t sums[4] = {state[0], state[1], state[2], state[3]};
                 for (int i = 4; i < Params::WIDTH; i += 4) {
                     sums[0] += state[i];
@@ -83,11 +70,9 @@ class Hasher {
                     sums[2] += state[i + 2];
                     sums[3] += state[i + 3];
                 }
-
                 for (int i = 0; i < Params::WIDTH; i++) {
                     state[i] += sums[i % 4];
                 }
-
                 break;
         }
     }
@@ -112,27 +97,8 @@ class Hasher {
         F_t montyInverse
     ) {
         switch (Params::WIDTH) {
-            // case 2: {
-            //     // [2, 1]
-            //     // [1, 3]
-            //     F_t s = state[0] + state[1];
-            //     state[0] += s;
-            //     // state[1] *= 2;
-            //     state[1] += state[1];
-            //     state[1] += s;
-            //     break;
-            // }
+            // TODO: Implementations vary so this could be a static method in Params
             case 3: {
-                /*
-                let sum: AF = state.iter().cloned().sum();
-                for i in 0..WIDTH {
-                    state[i] *= AF::from_f(mat_internal_diag_m_1[i]);
-                    state[i] += sum.clone();
-                }
-                */
-                // [2, 1, 1]
-                // [1, 2, 1]
-                // [1, 1, 3]
                 F_t s = state[0] + state[1] + state[2];
                 for (int i = 0; i < Params::WIDTH; i++) {
                     state[i] *= matInternalDiagM1[i];
@@ -140,12 +106,7 @@ class Hasher {
                 }
                 break;
             }
-            // case 4:
-            // case 8:
-            // case 12:
             case 16:
-            // case 20:
-            // case 24:
                 matmulInternal(state, matInternalDiagM1);
                 for (int i = 0; i < Params::WIDTH; i++) {
                     state[i] = state[i] * montyInverse;
@@ -373,31 +334,35 @@ class DynamicHasher: public Hasher<Params> {
         cudaFree(matInternalDiagM1);
     }
 
-    void setParams(
-        F_t (*internalRC)[Params::ROUNDS_P],
-        F_t (*externalRC)[Params::ROUNDS_F * Params::WIDTH],
-        F_t (*internalDiagM1)[Params::WIDTH]
-        // F inverse
-    ) {
+    void setInternalRoundConstants(F_t (*internalRC)[Params::ROUNDS_P]) {
         cudaMemcpy(
             internalRoundConstants,
             internalRC,
             Params::ROUNDS_P * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
+    }
+
+    void setExternalRoundConstants(F_t (*externalRC)[Params::ROUNDS_F * Params::WIDTH]) {
         cudaMemcpy(
             externalRoundConstants,
             externalRC,
             Params::ROUNDS_F * Params::WIDTH * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
+    }
+
+    void setMatInternalDiagM1(F_t (*internalDiagM1)[Params::WIDTH]) {
         cudaMemcpy(
             matInternalDiagM1,
             internalDiagM1,
             Params::WIDTH * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
-        // montyInverse = inverse;
+    }
+
+    void setMontyInverse(F_t montyInverse) {
+        this->montyInverse = montyInverse;
     }
 
     __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {

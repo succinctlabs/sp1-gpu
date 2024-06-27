@@ -31,7 +31,8 @@
 //
 template<
     const size_t N,
-    const size_t N_32, const uint32_t MOD[(N + 31) / 32],
+    const size_t N_32,
+    const uint32_t MOD[(N + 31) / 32],
     const uint32_t& M0,
     const uint32_t RR[(N + 31) / 32],
     const uint32_t ONE[(N + 31) / 32],
@@ -204,10 +205,8 @@ public:
     inline size_t len() const                           { return n;       }
 
     inline mont_t() {}
-    // TODO: attempt to simplify this
-    constexpr mont_t(const uint32_t p[N_32])
-    {
-        for (size_t i = 0; i < N_32; i++)
+    inline mont_t(const uint32_t* p) {
+        for (size_t i = 0; i < n; i++)
             even[i] = p[i];
     }
 

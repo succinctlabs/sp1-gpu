@@ -96,6 +96,7 @@ namespace constants {
     };
 
     constexpr const bb31_t MONTY_INVERSE = bb31_t(943718400);
+    
 }  // namespace constants
 
 class BabyBear16 {
