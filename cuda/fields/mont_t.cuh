@@ -29,11 +29,15 @@
 //
 //    __device__ __constant__ /*const*/ my_M0 = <literal>;
 //
-template<const size_t N, const uint32_t MOD[(N+31)/32], const uint32_t& M0,
-         const uint32_t RR[(N+31)/32], const uint32_t ONE[(N+31)/32],
-         const uint32_t MODx[(N+31)/32] = MOD>
-class __align__(((N+63)/64)&1 ? 8 : 16) mont_t {
-public:
+template<
+    const size_t N,
+    const size_t N_32, const uint32_t MOD[(N + 31) / 32],
+    const uint32_t& M0,
+    const uint32_t RR[(N + 31) / 32],
+    const uint32_t ONE[(N + 31) / 32],
+    const uint32_t MODx[(N + 31) / 32] = MOD>
+class __align__(((N + 63) / 64) & 1 ? 8 : 16) mont_t {
+  public:
     static const size_t nbits = N;
     static constexpr size_t __device__ bit_length() { return N; }
     static const uint32_t degree = 1;
@@ -41,19 +45,18 @@ public:
 protected:
     static const size_t n = (N+31)/32;
 private:
-    uint32_t even[n];
+  uint32_t even[N_32];
 
-    static inline void mul_n(uint32_t* acc, const uint32_t* a, uint32_t bi,
-                             size_t n=n)
-    {
-        for (size_t j = 0; j < n; j += 2)
-            asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
-                : "=r"(acc[j]), "=r"(acc[j+1])
-                : "r"(a[j]), "r"(bi));
+  static inline void
+  mul_n(uint32_t * acc, const uint32_t* a, uint32_t bi, size_t n = N_32) {
+      for (size_t j = 0; j < n; j += 2)
+          asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+              : "=r"(acc[j]), "=r"(acc[j + 1])
+              : "r"(a[j]), "r"(bi));
     }
 
     static inline void cmad_n(uint32_t* acc, const uint32_t* a, uint32_t bi,
-                              size_t n=n)
+                              size_t n=N_32)
     {
         asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.cc.u32 %1, %2, %3, %1;"
             : "+r"(acc[0]), "+r"(acc[1])
@@ -65,7 +68,7 @@ private:
         // return carry flag
     }
 
-    static inline void cadd_n(uint32_t* acc, const uint32_t* a, size_t n=n)
+    static inline void cadd_n(uint32_t* acc, const uint32_t* a, size_t n=N_32)
     {
         asm("add.cc.u32 %0, %0, %1;" : "+r"(acc[0]) : "r"(a[0]));
         for (size_t i = 1; i < n; i++)
@@ -95,7 +98,7 @@ private:
 
     private:
         static inline void mad_row(uint32_t* odd, uint32_t* even,
-                                   const uint32_t* a, uint32_t bi, size_t n=n)
+                                   const uint32_t* a, uint32_t bi, size_t n=N_32)
         {
             cmad_n(odd, a+1, bi, n-2);
             asm("madc.lo.cc.u32 %0, %2, %3, 0; madc.hi.u32 %1, %2, %3, 0;"
@@ -201,9 +204,10 @@ public:
     inline size_t len() const                           { return n;       }
 
     inline mont_t() {}
-    inline mont_t(const uint32_t *p)
+    // TODO: attempt to simplify this
+    constexpr mont_t(const uint32_t p[N_32])
     {
-        for (size_t i = 0; i < n; i++)
+        for (size_t i = 0; i < N_32; i++)
             even[i] = p[i];
     }
 

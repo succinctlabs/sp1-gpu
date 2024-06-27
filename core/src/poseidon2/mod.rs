@@ -41,9 +41,44 @@ pub mod poseidon2_bb31_16_kernels {
     }
 }
 
+// pub mod sum_bb31_kernels {
+//     use super::poseidon2_bb31_16_kernels::WIDTH;
+//     use p3_baby_bear::BabyBear;
+
+//     #[allow(unused_attributes)]
+//     #[link_name = "sum_bb31_gpu"]
+//     extern "C" {
+//         pub fn sum_bb31(
+//             left: *const [BabyBear; WIDTH],
+//             right: *const [BabyBear; WIDTH],
+//             output: *mut [BabyBear; WIDTH],
+//             n: usize,
+//             n_blocks: usize,
+//             n_threads_per_block: usize,
+//         );
+//     }
+// }
+
+// pub mod sum_bn254_kernels {
+//     use super::poseidon2_bb31_16_kernels::WIDTH;
+//     use p3_bn254_fr::Bn254Fr;
+
+//     #[allow(unused_attributes)]
+//     #[link_name = "sum_bb31_gpu"]
+//     extern "C" {
+//         pub fn sum_bn254(
+//             left: *const [Bn254Fr; WIDTH],
+//             right: *const [Bn254Fr; WIDTH],
+//             output: *mut [Bn254Fr; WIDTH],
+//             n: usize,
+//             n_blocks: usize,
+//             n_threads_per_block: usize,
+//         );
+//     }
+// }
+
 #[cfg(test)]
 pub mod tests {
-
     use crate::device::buffer::DeviceBuffer;
     use crate::device::memory::ToDevice;
     use crate::device::memory::ToHost;
@@ -321,4 +356,122 @@ pub mod tests {
             assert_eq!(gt[i], output[i]);
         }
     }
+
+    // use super::sum_bb31_kernels;
+
+    // #[test]
+    // fn test_sum_bb31() {
+    //     // Setup the random number generator.
+    //     let mut rng = thread_rng();
+
+    //     // Setup the testing parameters.
+    //     let n = 128;
+    //     let threads_per_block = 32;
+    //     let num_blocks = n / threads_per_block + 1;
+
+    //     // Generate the input data on the host.
+    //     let left: Vec<[BabyBear; 16]> = (0..n)
+    //         .map(|_| [rng.gen::<BabyBear>(); WIDTH])
+    //         .collect::<Vec<_>>();
+    //     let right: Vec<[BabyBear; 16]> = (0..n)
+    //         .map(|_| [rng.gen::<BabyBear>(); WIDTH])
+    //         .collect::<Vec<_>>();
+    //     let mut output: Vec<[BabyBear; WIDTH]> = Vec::new();
+    //     output.resize(n, [BabyBear::zero(); WIDTH]);
+
+    //     // Copy the input data to the device.
+    //     let left_device = left.to_device();
+    //     let right_device = right.to_device();
+    //     let mut output_device = output.to_device();
+
+    //     // Execute the source implementation.
+    //     let mut gt: Vec<[BabyBear; WIDTH]> = Vec::new();
+    //     for i in 0..n {
+    //         let mut state = [BabyBear::zero(); WIDTH];
+    //         for j in 0..WIDTH {
+    //             state[j] = left[i][j] + right[i][j];
+    //         }
+    //         gt.push(state);
+    //     }
+
+    //     // Execute the kernel.
+    //     unsafe {
+    //         sum_bb31_kernels::sum_bb31(
+    //             left_device.as_ptr(),
+    //             right_device.as_ptr(),
+    //             output_device.as_slice_mut().as_mut_ptr(),
+    //             n,
+    //             num_blocks,
+    //             threads_per_block,
+    //         );
+    //     }
+
+    //     // Copy the result of the kernel to the host.
+    //     output_device.copy_to_host(&mut output[..]);
+
+    //     for i in 0..n {
+    //         assert_eq!(gt[i], output[i]);
+    //     }
+    // }
+
+    // use super::sum_bn254_kernels;
+    // use p3_bn254_fr::Bn254Fr;
+
+    // #[test]
+    // fn test_sum_bn254() {
+    //     // Setup the random number generator.
+    //     let mut rng = thread_rng();
+
+    //     // Setup the testing parameters.
+    //     let n = 128;
+    //     let threads_per_block = 32;
+    //     let num_blocks = n / threads_per_block + 1;
+
+    //     // Generate the input data on the host.
+    //     let left: Vec<[Bn254Fr; 16]> = (0..n)
+    //         .map(|_| [rng.gen::<Bn254Fr>(); WIDTH])
+    //         .collect::<Vec<_>>();
+    //     let right: Vec<[Bn254Fr; 16]> = (0..n)
+    //         .map(|_| [rng.gen::<Bn254Fr>(); WIDTH])
+    //         .collect::<Vec<_>>();
+    //     let mut output: Vec<[Bn254Fr; WIDTH]> = Vec::new();
+    //     output.resize(n, [Bn254Fr::zero(); WIDTH]);
+
+    //     // Copy the input data to the device.
+    //     let left_device = left.to_device();
+    //     let right_device = right.to_device();
+    //     let mut output_device = output.to_device();
+
+    //     let M: Bn254Fr = Bn254Fr::one();
+
+    //     // Execute the source implementation.
+    //     let mut gt: Vec<[Bn254Fr; WIDTH]> = Vec::new();
+    //     for i in 0..n {
+    //         let mut state = [Bn254Fr::zero(); WIDTH];
+    //         for j in 0..WIDTH {
+    //             state[j] = left[i][j] + right[i][j];
+    //             state[j] *= M;
+    //         }
+    //         gt.push(state);
+    //     }
+
+    //     // Execute the kernel.
+    //     unsafe {
+    //         sum_bn254_kernels::sum_bn254(
+    //             left_device.as_ptr(),
+    //             right_device.as_ptr(),
+    //             output_device.as_slice_mut().as_mut_ptr(),
+    //             n,
+    //             num_blocks,
+    //             threads_per_block,
+    //         );
+    //     }
+
+    //     // Copy the result of the kernel to the host.
+    //     output_device.copy_to_host(&mut output[..]);
+
+    //     for i in 0..n {
+    //         assert_eq!(gt[i], output[i]);
+    //     }
+    // }
 }

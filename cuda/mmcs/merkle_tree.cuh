@@ -19,7 +19,7 @@ __global__ void firstDigestLayer(
     }
 
     HasherState<HashParams> state = HasherState<HashParams>();
-    Hasher<HashParams> hasher;
+    StaticHasher<HashParams> hasher;
 
     for (int i = 0; i < nTallestMatrices; i++) {
         hasher.absorbRow(&tallestMatrices[i], rowIdx, &state);
@@ -40,7 +40,7 @@ __global__ void compressAndInject(
 
     using F = typename HashParams::F;
 
-    Hasher<HashParams> hasher;
+    StaticHasher<HashParams> hasher;
 
     if (nMatricesToInject == 0) {
         hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1],
