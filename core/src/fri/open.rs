@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 use std::sync::mpsc;
 
 use p3_challenger::FieldChallenger;
-use sp1_core::stark::StarkGenericConfig;
+use p3_field::two_adic_coset_zerofier;
+use p3_field::Field;
 use tracing::trace_span;
 
 use itertools::{izip, Itertools};
@@ -125,20 +126,98 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
         let (tx, rx) = mpsc::channel();
 
-        let (mat_views, points_device): (Vec<_>, Vec<SC::Challenge>) = mats_and_points
-            .iter()
-            .flat_map(|(mats, points)| {
-                mats.iter()
-                    .zip(points.iter())
-                    .flat_map(|(mat, points_for_mat)| {
-                        points_for_mat.iter().map(|point| (mat.view(), *point))
-                    })
-            })
-            .unzip();
+        // Interpolate cosets.
 
-        let mats_device = mat_views.to_device();
-        let points_device = points_device.to_device();
+        let interpolate_cosets_span = tracing::debug_span!("Interpolate cosets").entered();
 
+        let shift = InnerVal::generator();
+        let mut poly_evals = vec![];
+        let mut coset_heights = vec![];
+        let mut coset_log_heights = vec![];
+        let mut shifts = vec![];
+        let mut g_values = vec![];
+        let mut opening_points = vec![];
+        let mut barycentric_scalars = vec![];
+        let mut total_polys = 0;
+
+        mats_and_points.iter().for_each(|(mats, points)| {
+            mats.iter()
+                .zip(points.iter())
+                .for_each(|(mat, points_for_mat)| {
+                    // Use Barycentric interpolation to evaluate the matrix at the given point.
+                    let coset_height = mat.height() >> pcs.fri_config().log_blowup;
+                    let cols = mat.width();
+                    let num_polys = cols * points_for_mat.len();
+                    total_polys += num_polys;
+                    let coset_log_height = log2_strict_usize(coset_height);
+                    let g = BabyBear::two_adic_generator(coset_log_height);
+                    let denominator = F::from_canonical_usize(coset_height)
+                        * shift.exp_u64(coset_height as u64 - 1);
+
+                    g_values.extend((0..num_polys).map(|_| g));
+                    shifts.extend((0..num_polys).map(|_| shift));
+                    coset_log_heights.extend((0..num_polys).map(|_| coset_log_height));
+                    coset_heights.extend((0..num_polys).map(|_| coset_height));
+
+                    for point in points_for_mat {
+                        opening_points.extend((0..cols).map(|_| *point));
+                        let zerofier =
+                            two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), *point);
+                        let barycentric_scalar = zerofier * denominator.inverse();
+                        barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
+                    }
+
+                    for _ in 0..points_for_mat.len() {
+                        let poly_evals_iter = unsafe {
+                            (0..cols).map(|col| mat.values.as_ptr().add(col * mat.height))
+                        };
+                        poly_evals.extend(poly_evals_iter);
+                    }
+                })
+        });
+
+        let mut output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys);
+        assert_eq!(poly_evals.len(), total_polys);
+        assert_eq!(coset_heights.len(), total_polys);
+        assert_eq!(coset_log_heights.len(), total_polys);
+        assert_eq!(shifts.len(), total_polys);
+        assert_eq!(g_values.len(), total_polys);
+        assert_eq!(opening_points.len(), total_polys);
+        assert_eq!(barycentric_scalars.len(), total_polys);
+
+        let poly_evals = poly_evals.to_device();
+        let coset_heights = coset_heights.to_device();
+        let coset_log_heights = coset_log_heights.to_device();
+        let shifts = shifts.to_device();
+        let g_values = g_values.to_device();
+        let opening_points = opening_points.to_device();
+        let barycentric_scalars = barycentric_scalars.to_device();
+
+        unsafe {
+            output_buffer.set_max_len();
+            opening_gpu::interpolate_cosets_raw(
+                poly_evals.as_ptr(),
+                poly_evals.len(),
+                coset_heights.as_ptr(),
+                coset_log_heights.as_ptr(),
+                shifts.as_ptr(),
+                opening_points.as_ptr(),
+                barycentric_scalars.as_ptr(),
+                g_values.as_ptr(),
+                output_buffer.as_mut_ptr(),
+            );
+        }
+
+        interpolate_cosets_span.exit();
+
+        let ys_out_host_span = tracing::debug_span!("ys_out_host").entered();
+        let ys_output = output_buffer.to_host();
+        ys_out_host_span.exit();
+
+        assert_eq!(ys_output.len(), total_polys);
+        let mut index = 0;
+
+        let compute_openings_span = tracing::debug_span!("Compute openings").entered();
         let all_opened_values = {
             //let mut counter_p = 0;
             let all_opened_values = mats_and_points
@@ -158,17 +237,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     let num_reduced_at_height = num_reduced[log_height];
                                     num_reduced[log_height] += mat.width();
 
-                                    // Use Barycentric interpolation to evaluate the matrix at the given point.
-                                    let coset_height = mat.height >> pcs.fri_config().log_blowup;
-
-                                    let span = trace_span!("Interpolate coset").entered();
-                                    let ys = opening_gpu::interpolate_coset(
-                                        mat.view(),
-                                        coset_height,
-                                        InnerVal::generator(),
-                                        point,
-                                    );
-                                    span.exit();
+                                    let ys = ys_output[index..index + mat.width()].to_vec();
+                                    index += mat.width();
 
                                     let span = trace_span!("Reduce powers").entered();
                                     let alpha_pow_offset =
@@ -231,13 +301,14 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 })
                 .collect::<Vec<_>>()
         };
+        compute_openings_span.exit();
 
         compute_reduce_openings_span.exit();
 
-        let (fri_proof, query_indices) = trace_span!("Fri Proof")
+        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), &reduced_openings, challenger));
 
-        let query_openings_span = trace_span!("Compute query openings").entered();
+        let query_openings_span = tracing::debug_span!("Compute query openings").entered();
         let query_openings = query_indices
             .into_iter()
             .map(|index| {
@@ -526,6 +597,7 @@ pub mod opening_gpu {
         #[link_name = "interpolateCosets"]
         pub fn interpolate_cosets_raw(
             polys_evals: *const *const BabyBear,
+            num_polys: usize,
             coset_heights: *const usize,
             coset_log_heights: *const usize,
             shift: *const F,
@@ -568,19 +640,49 @@ pub mod opening_gpu {
         let barycentric_scalar = zerofier * denominator.inverse();
 
         let mut output_device: DeviceBuffer<InnerChallenge> = DeviceBuffer::with_capacity(cols);
+
+        let g_values = vec![g; cols].to_device();
+        let barycentric_scalars = vec![barycentric_scalar; cols].to_device();
+        let shifts = vec![shift; cols].to_device();
+        let coset_log_heights = vec![coset_log_height; cols].to_device();
+        let coset_heights = vec![coset_height; cols].to_device();
+        let points = vec![point; cols].to_device();
+
+        let poly_evals = unsafe {
+            (0..cols)
+                .map(|col| coset_evals.values.add(col * coset_evals.height))
+                .collect::<Vec<_>>()
+                .to_device()
+        };
+
         unsafe {
-            output_device.set_len(cols);
-            interpolate_coset_raw(
-                coset_evals,
-                coset_height,
-                coset_log_height,
-                shift,
-                point,
-                barycentric_scalar,
-                g,
+            output_device.set_max_len();
+            interpolate_cosets_raw(
+                poly_evals.as_ptr(),
+                cols,
+                coset_heights.as_ptr(),
+                coset_log_heights.as_ptr(),
+                shifts.as_ptr(),
+                points.as_ptr(),
+                barycentric_scalars.as_ptr(),
+                g_values.as_ptr(),
                 output_device.as_mut_ptr(),
             );
-        };
+        }
+
+        // unsafe {
+        //     output_device.set_len(cols);
+        //     interpolate_coset_raw(
+        //         coset_evals,
+        //         coset_height,
+        //         coset_log_height,
+        //         shift,
+        //         point,
+        //         barycentric_scalar,
+        //         g,
+        //         output_device.as_mut_ptr(),
+        //     );
+        // };
 
         output_device.to_host()
     }
