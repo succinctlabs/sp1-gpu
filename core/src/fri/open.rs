@@ -263,6 +263,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     ys_output_buffer.as_mut_ptr(),
                 );
             }
+
             ys_output_buffer
         };
 
@@ -279,35 +280,35 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let all_opened_values = {
             let mut reduced_openings_device = DeviceBuffer::<EF>::with_capacity(inv_offset);
 
-            {
-                // Compute openings fused.
-                let compute_reduced_openings_span =
-                    tracing::debug_span!("Compute reduced openings on device").entered();
-                let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
-                let matrices_for_openings = matrices_for_openings.to_device();
-                let ys_indices = ys_indices.to_device();
-                unsafe {
-                    reduced_openings_device.set_max_len();
-                    opening_gpu::compute_reduced_openings(
-                        matrices_for_openings.as_ptr(),
-                        global_max_height,
-                        points_for_inv.as_ptr(),
-                        num_points,
-                        inv_indices_device.as_ptr(),
-                        inv_denominators.as_ptr(),
-                        alpha,
-                        alpha_pow_offsets_device.as_ptr(),
-                        ys_output_buffer.as_ptr(),
-                        ys_indices.as_ptr(),
-                        reduced_openings_device.as_mut_ptr(),
-                    );
-                }
-                compute_reduced_openings_span.exit();
+            // Compute openings fused.
+            let compute_reduced_openings_span =
+                tracing::debug_span!("Compute reduced openings on device").entered();
+            let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
+            let matrices_for_openings = matrices_for_openings.to_device();
+            let ys_indices = ys_indices.to_device();
+
+            unsafe {
+                reduced_openings_device.set_max_len();
+                opening_gpu::compute_reduced_openings(
+                    matrices_for_openings.as_ptr(),
+                    global_max_height,
+                    points_for_inv.as_ptr(),
+                    num_points,
+                    inv_indices_device.as_ptr(),
+                    inv_denominators.as_ptr(),
+                    alpha,
+                    alpha_pow_offsets_device.as_ptr(),
+                    ys_output_buffer.as_ptr(),
+                    ys_indices.as_ptr(),
+                    reduced_openings_device.as_mut_ptr(),
+                );
             }
+
+            compute_reduced_openings_span.exit();
 
             let copy_reduced_openings_span =
                 tracing::debug_span!("Copy reduced openings to host").entered();
-            let reduced_opening_host = reduced_openings_device.into_host();
+            let reduced_opening_host = reduced_openings_device.to_host();
             copy_reduced_openings_span.exit();
 
             let copy_values_span = tracing::debug_span!("Copy opened values to host").entered();
@@ -613,6 +614,19 @@ pub mod opening_gpu {
             ys_indices: *const usize,
             reduced_openings: *mut EF,
         );
+
+        #[link_name = "ReduceSums"]
+        pub fn reduce_sums(
+            heights: *const usize,
+            max_height: usize,
+            num_points: usize,
+            inv_indices: *const usize,
+            reduced_openings: *const EF,
+            reduced_sums: *mut EF,
+        );
+
+        #[link_name = "numBlocksSums"]
+        pub fn num_block_sums(max_height: usize) -> usize;
 
         #[link_name = "fetchRow"]
         pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);

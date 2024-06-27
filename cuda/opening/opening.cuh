@@ -150,7 +150,7 @@ __global__ void reducedOpeningsKernel(
 const size_t BLOCK_DIM = 256;
 const size_t COARSE_FACTOR = 1;
 
-__global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings, bb31_extension_t* output ) {
+__global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings, bb31_extension_t* reducedSums ) {
 
     size_t ptIdx = blockIdx.y * blockDim.y + threadIdx.y;
     size_t height = heights[ptIdx];
@@ -167,7 +167,7 @@ __global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_exten
 
     bb31_extension_t sum = bb31_extension_t::zero();
     for (size_t tile = 0; tile < COARSE_FACTOR * 2; tile++) {
-        sum += reducedOpenings[invIdx + idx + tile * BLOCK_DIM];
+        // sum += reducedOpenings[invIdx + idx + tile * BLOCK_DIM];
     }
 
     input_s[tid] = sum;
@@ -181,7 +181,7 @@ __global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_exten
     }
 
     if (tid == 0) {
-        output[ptIdx + blockIdx.x * blockDim.x] = input_s[0];
+        reducedSums[ptIdx * gridDim.x + blockIdx.x] = input_s[0];
     }
 } 
 
@@ -294,6 +294,34 @@ extern "C" void computeReducedOpenings(
         openedValues,
         openedValuesIndices,
         reducedOpenings
+    );
+}
+
+extern "C" size_t numBlocksSums(size_t maxHeight) {
+    size_t numThreads = opening_kernels::BLOCK_DIM;
+    size_t numBlocksX = ((maxHeight - 1) / (numThreads * opening_kernels::COARSE_FACTOR * 2)) + 1; 
+    return numBlocksX;
+}
+
+extern "C" void ReduceSums(
+    size_t* heights,
+    size_t maxHeight,
+    size_t numPoints,
+    size_t * invIndices,
+    bb31_extension_t* reducedOpenings,
+    bb31_extension_t* reducedSums
+) {
+    size_t numThreads = opening_kernels::BLOCK_DIM;
+    size_t numBlocksX = ((maxHeight - 1) / (numThreads * opening_kernels::COARSE_FACTOR * 2)) + 1; 
+
+    dim3 blockDim(numThreads);
+    dim3 gridDim(numBlocksX, numPoints);
+
+    opening_kernels::ReduceSumKernel<<<gridDim, blockDim>>>(
+        heights,
+        invIndices,
+        reducedOpenings,
+        reducedSums
     );
 }
 
