@@ -104,6 +104,14 @@ class bb31_extension_t {
         return a /= b;
     }
 
+    __device__ __forceinline__ bb31_extension_t exp_power_of_two(size_t log_power) {
+        bb31_extension_t ret = *this;
+        for (size_t i = 0; i < log_power; i++) {
+            ret *= ret;
+        }
+        return ret;
+    }
+
     friend __device__ __forceinline__ bool operator!=(
         const bb31_extension_t& lhs, 
         const bb31_extension_t& rhs

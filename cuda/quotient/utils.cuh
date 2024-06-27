@@ -23,7 +23,6 @@ enum class SymbolicFolderVarType : std::uint32_t {
     Empty = 16,
 };
 
-
 struct SymbolicFolderVar {
     SymbolicFolderVarType variant;
     bb31_t f;

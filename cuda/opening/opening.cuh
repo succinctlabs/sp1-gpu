@@ -1,34 +1,51 @@
+#pragma once
+
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <ntt/ntt.cuh>
+#include <cstdint>
 
 #include "../fields/bb31_extension_t.cuh"
 #include "../utils/exception.cuh"
 #include "../matrix/matrix.cuh"
 
+
+namespace helpers {
+    template<typename F> __device__ __forceinline__ F twoAdicCosetZerofier(size_t log_n, F shift, F x)  {
+        F x_pow = x.exp_power_of_two(log_n);
+        F shift_pow = shift.exp_power_of_two(log_n);
+        F res = x_pow - shift_pow;
+        return res;
+    }
+}
+
 namespace opening_kernels {
 
 __global__ void interpolateCosetKernel(
     Matrix<bb31_t> cosetEvals,          
-    size_t cosetHeight,                 // = ROWS (= 65536)
-    size_t cosetLogHeight,              // = log2(cosetHeight) = 16
-    bb31_t shift,                       // = ROOT_OF_UNITY = bb31_t(1) << (cosetLogHeight - 1)
+    size_t cosetHeight,                 
+    size_t cosetLogHeight,             
+    bb31_t shift,                       
     bb31_extension_t point,
-    bb31_t* gPowers,
+    bb31_t g,
     bb31_extension_t barycentricScalar,
     bb31_extension_t* output
 ) {
-    size_t col = blockIdx.x;                             // [0..11)
-    size_t row = threadIdx.y * blockDim.x + threadIdx.x; // [0..32) * 32 + [0..32) = [0..1024)
-    size_t rowStride = blockDim.x * blockDim.y;          // 1024
+    size_t col = blockIdx.x;                             
+    uint32_t row = threadIdx.y * blockDim.x + threadIdx.x; 
+    uint32_t rowStride = blockDim.x * blockDim.y;         
 
     bb31_extension_t sum = bb31_extension_t::zero();
-    for (int i = row; i < cosetHeight; i += rowStride) { // 0..65536
+
+    bb31_t gStride = g^rowStride; 
+    bb31_t gPowers_i = g^row;
+    for (int i = row; i < cosetHeight; i += rowStride) { 
         size_t rev = bit_rev(i, cosetLogHeight);
-        bb31_t gPowers_i = gPowers[i];
+        // bb31_t gPowers_i = g^rev;
         bb31_extension_t diff = point - shift * gPowers_i;
         bb31_extension_t scale = gPowers_i * diff.reciprocal();
         sum += scale * cosetEvals.values[col * cosetEvals.height + rev];
+        gPowers_i *= gStride;
     }
 
     extern __shared__ bb31_extension_t sdata[];
@@ -53,8 +70,6 @@ __global__ void interpolateCosetKernel(
         }
     }
 }
-
-
 
 __global__ void reducedOpeningsForLogHeightKernel(
     Matrix<bb31_t> matrix,
@@ -103,7 +118,7 @@ extern "C" void interpolateCoset(
     bb31_t shift,
     bb31_extension_t point,
     bb31_extension_t barycentricScalar,
-    bb31_t* gPowers,
+    bb31_t g,
     bb31_extension_t* output
 ) {
     dim3 stageGrid(cosetEvals.width);
@@ -118,7 +133,7 @@ extern "C" void interpolateCoset(
         cosetLogHeight,
         shift,
         point,
-        gPowers,
+        g,
         barycentricScalar,
         output
     );

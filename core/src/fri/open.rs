@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 use std::sync::mpsc;
 
 use p3_challenger::FieldChallenger;
+use sp1_core::stark::StarkGenericConfig;
 use tracing::trace_span;
 
 use itertools::{izip, Itertools};
@@ -41,6 +42,7 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
+use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -73,6 +75,13 @@ impl<SC: BabyBearPoseidon2Config> Default for FriCpuOpeningProver<SC> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
+
+#[repr(C)]
+pub struct RoundsData<F, EF> {
+    mats: *const MatrixViewDevice<F>,
+    points: *const EF,
+    log_blowup: usize,
+}
 
 impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
@@ -116,9 +125,27 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
         let (tx, rx) = mpsc::channel();
 
-        
+        let (mat_views, points_device): (Vec<_>, Vec<SC::Challenge>) = mats_and_points
+            .iter()
+            .flat_map(|(mats, points)| {
+                mats.iter()
+                    .zip(points.iter())
+                    .flat_map(|(mat, points_for_mat)| {
+                        points_for_mat.iter().map(|point| (mat.view(), *point))
+                    })
+            })
+            .unzip();
 
-        let all_opened_values = std::thread::scope(|s| {
+        let mats_device = mat_views.to_device();
+        let points_device = points_device.to_device();
+
+        let rounds_data = RoundsData::<SC::Val, SC::Challenge> {
+            mats: mats_device.as_ptr(),
+            points: points_device.as_ptr(),
+            log_blowup: pcs.fri_config().log_blowup,
+        };
+
+        let all_opened_values = {
             //let mut counter_p = 0;
             let all_opened_values = mats_and_points
                 .into_iter()
@@ -136,64 +163,52 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                                     let tx = tx.clone();
                                     let num_reduced_at_height = num_reduced[log_height];
                                     num_reduced[log_height] += mat.width();
-                                    
-                                    // let h_mat = mat.to_host();
-                                    // println!("w: {:?} v: {}", &h_mat.width, &h_mat.values.len());
-                                    // h_mat.values.iter().take(4).for_each(|number| println!("{}", number));
-                                    //println!("{}", &counter_p);
-                                    //counter_p+=1;
-                                    //let h_point = point.to_host();
-                                    //println!("{:?}", h_point);
 
-                                    s.spawn(move || {
-                                        // Use Barycentric interpolation to evaluate the matrix at the given point.
-                                        let coset_height =
-                                            mat.height >> pcs.fri_config().log_blowup;
+                                    // Use Barycentric interpolation to evaluate the matrix at the given point.
+                                    let coset_height = mat.height >> pcs.fri_config().log_blowup;
 
-                                        let span = trace_span!("Interpolate coset").entered();
-                                        let ys = opening_gpu::interpolate_coset(
-                                            mat.view(),
-                                            coset_height,
-                                            InnerVal::generator(),
-                                            point,
-                                        );
-                                        span.exit();
+                                    let span = trace_span!("Interpolate coset").entered();
+                                    let ys = opening_gpu::interpolate_coset(
+                                        mat.view(),
+                                        coset_height,
+                                        InnerVal::generator(),
+                                        point,
+                                    );
+                                    span.exit();
 
-                                        let span = trace_span!("Reduce powers").entered();
-                                        let alpha_pow_offset =
-                                            alpha.exp_u64(num_reduced_at_height as u64);
-                                        let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
-                                        span.exit();
+                                    let span = trace_span!("Reduce powers").entered();
+                                    let alpha_pow_offset =
+                                        alpha.exp_u64(num_reduced_at_height as u64);
+                                    let sum_alpha_pows_times_y = alpha_reducer.reduce_ext(&ys);
+                                    span.exit();
 
-                                        let inv_denoms_at_point =
-                                            inv_denoms.get(&point).unwrap().to_device();
-                                        let alpha_powers = alpha_reducer.powers.to_device();
+                                    let inv_denoms_at_point =
+                                        inv_denoms.get(&point).unwrap().to_device();
+                                    let alpha_powers = alpha_reducer.powers.to_device();
 
-                                        let span =
-                                            trace_span!("Compute reduced openings").entered();
-                                        let mut reduced_opening_for_log_height_device: DeviceBuffer<
+                                    let span = trace_span!("Compute reduced openings").entered();
+                                    let mut reduced_opening_for_log_height_device: DeviceBuffer<
                                         SC::Challenge,
                                     > = DeviceBuffer::with_capacity(mat.height);
-                                        unsafe {
-                                            reduced_opening_for_log_height_device.set_max_len();
-                                            opening_gpu::compute_reduced_openings_for_log_height(
-                                                mat.view(),
-                                                inv_denoms_at_point.as_ptr(),
-                                                alpha_powers.as_ptr(),
-                                                alpha_pow_offset,
-                                                sum_alpha_pows_times_y,
-                                                reduced_opening_for_log_height_device.as_mut_ptr(),
-                                            );
-                                        }
-                                        let reduced_opening_for_log_height_host =
-                                            reduced_opening_for_log_height_device.to_host();
-                                        span.exit();
+                                    unsafe {
+                                        reduced_opening_for_log_height_device.set_max_len();
+                                        opening_gpu::compute_reduced_openings_for_log_height(
+                                            mat.view(),
+                                            inv_denoms_at_point.as_ptr(),
+                                            alpha_powers.as_ptr(),
+                                            alpha_pow_offset,
+                                            sum_alpha_pows_times_y,
+                                            reduced_opening_for_log_height_device.as_mut_ptr(),
+                                        );
+                                    }
+                                    let reduced_opening_for_log_height_host =
+                                        reduced_opening_for_log_height_device.to_host();
+                                    span.exit();
 
-                                        tx.send((log_height, reduced_opening_for_log_height_host))
-                                            .unwrap();
+                                    tx.send((log_height, reduced_opening_for_log_height_host))
+                                        .unwrap();
 
-                                        ys
-                                    })
+                                    ys
                                 })
                                 .collect::<Vec<_>>();
                             opened_values_for_mat
@@ -217,11 +232,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 .into_iter()
                 .map(|x| {
                     x.into_iter()
-                        .map(|y| y.into_iter().map(|z| z.join().unwrap()).collect::<Vec<_>>())
+                        .map(|y| y.into_iter().collect::<Vec<_>>())
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>()
-        });
+        };
 
         compute_reduce_openings_span.exit();
 
@@ -510,7 +525,7 @@ pub mod opening_gpu {
             shift: F,
             point: EF,
             barycentric_scalar: EF,
-            g_powers: *const F,
+            g: F,
             output: *mut EF,
         );
 
@@ -540,8 +555,6 @@ pub mod opening_gpu {
         let cols = coset_evals.width;
         let coset_log_height = log2_strict_usize(coset_height);
         let g = BabyBear::two_adic_generator(coset_log_height);
-        let g_powers = g.powers().take(coset_height).collect::<Vec<_>>();
-        let g_powers_device = g_powers.to_device();
 
         let zerofier = two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), point);
         let denominator =
@@ -558,7 +571,7 @@ pub mod opening_gpu {
                 shift,
                 point,
                 barycentric_scalar,
-                g_powers_device.as_ptr(),
+                g,
                 output_device.as_mut_ptr(),
             );
         };
