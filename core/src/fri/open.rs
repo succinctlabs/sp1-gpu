@@ -599,17 +599,6 @@ pub mod opening_gpu {
             output: *mut EF,
         );
 
-        #[link_name = "computeReducedOpeningForLogHeight"]
-        pub fn compute_reduced_openings_for_log_height(
-            matrix: MatrixViewDevice<F>,
-            point: EF,
-            inv_denoms: *const EF,
-            alpha: EF,
-            alpha_pow_offset: EF,
-            ys: *const EF,
-            reduced_openings_for_log_height: *mut EF,
-        );
-
         #[link_name = "computeReducedOpenings"]
         pub fn compute_reduced_openings(
             mats: *const MatrixViewDevice<F>,
@@ -657,34 +646,6 @@ mod tests {
     use crate::utils::init_tracer;
 
     type EF = BinomialExtensionField<BabyBear, 4>;
-
-    // #[test]
-    // pub fn test_interpolate_coset_gpu() {
-    //     let mut rng = rand::thread_rng();
-    //     let rows = 256;
-    //     let log_blowup = 1;
-    //     let cols = 100;
-    //     let matrix: RowMajorMatrix<BabyBear> =
-    //         RowMajorMatrix::rand(&mut rng, rows << log_blowup, cols);
-
-    //     let (low_coset, _) = matrix.split_rows(matrix.height() >> log_blowup);
-    //     let shift: BabyBear = rng.gen();
-    //     let point: BinomialExtensionField<BabyBear, 4> = rng.gen();
-    //     let gt = interpolate_coset(&BitReversalPerm::new_view(low_coset), shift, point);
-
-    //     let coset_evals = matrix.to_device().to_column_major();
-    //     let coset_height = rows;
-    //     let output = opening_gpu::interpolate_coset(coset_evals.view(), coset_height, shift, point);
-
-    //     for i in 0..output.len() {
-    //         assert_eq!(output[i], gt[i]);
-    //     }
-    //     println!("matched across {:?} elements", output.len());
-
-    //     let coset_evals_host = coset_evals.to_host();
-    //     println!("height: {:?}", coset_evals_host.height());
-    //     println!("width: {:?}", coset_evals_host.width());
-    // }
 
     #[test]
     #[ignore]

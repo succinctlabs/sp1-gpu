@@ -147,32 +147,43 @@ __global__ void reducedOpeningsKernel(
     reducedOpenings[invIdx + idx] = invDenoms[invIdx + idx] * alphaPowOffset * rowSum;
 }
 
-__global__ void reduce(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings) {
-} 
+const size_t BLOCK_DIM = 256;
+const size_t COARSE_FACTOR = 1;
 
-__global__ void reducedOpeningsForLogHeightKernel(
-    Matrix<bb31_t> matrix,
-    size_t numRows,
-    bb31_extension_t point,
-    bb31_extension_t* invDenoms,
-    bb31_extension_t alpha,
-    bb31_extension_t alphaPowOffset,
-    bb31_extension_t* openedValues,
-    bb31_extension_t* reducedOpeningsForLogHeight
-) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= numRows) return;
-    reducedOpeningsForLogHeight[idx] = bb31_extension_t::zero();
-    bb31_extension_t rowSum = bb31_extension_t::zero();
+__global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings, bb31_extension_t* output ) {
 
-    bb31_extension_t alphaPower = bb31_extension_t::one();
-    for (size_t i = 0; i < matrix.width; i++) {
-        rowSum += (matrix.values[i * matrix.height + idx] - openedValues[i]) * alphaPower;
-        alphaPower *= alpha;
+    size_t ptIdx = blockIdx.y * blockDim.y + threadIdx.y;
+    size_t height = heights[ptIdx];
+    size_t invIdx = invIndices[ptIdx];
+
+    size_t segment = COARSE_FACTOR * 2 * blockDim.x * blockIdx.x;
+
+    size_t idx = segment + threadIdx.x;
+    size_t tid = threadIdx.x;
+
+     if (idx >= height) return;
+
+    __shared__ bb31_extension_t input_s[BLOCK_DIM];
+
+    bb31_extension_t sum = bb31_extension_t::zero();
+    for (size_t tile = 0; tile < COARSE_FACTOR * 2; tile++) {
+        sum += reducedOpenings[invIdx + idx + tile * BLOCK_DIM];
     }
-    reducedOpeningsForLogHeight[idx] +=
-        invDenoms[idx] * alphaPowOffset * rowSum;
-}
+
+    input_s[tid] = sum;
+
+    #pragma unroll
+    for (size_t stride = BLOCK_DIM / 2; stride > 0; stride /= 2) {
+        __syncthreads();
+        if (tid < stride) {
+            input_s[tid] += input_s[tid + stride];
+        }
+    }
+
+    if (tid == 0) {
+        output[ptIdx + blockIdx.x * blockDim.x] = input_s[0];
+    }
+} 
 
 __global__ void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
     for (size_t i = 0; i < matrix.width; i++) {
@@ -253,30 +264,6 @@ extern "C" void interpolateCosets(
     );
 }
 
-
-extern "C" void computeReducedOpeningForLogHeight(
-    Matrix<bb31_t> matrix,
-    bb31_extension_t point,
-    bb31_extension_t* invDenoms,
-    bb31_extension_t alpha,
-    bb31_extension_t alphaPowOffset,
-    bb31_extension_t * openedValues,
-    bb31_extension_t* reducedOpeningsForLogHeight
-) {
-    size_t numThreads = 1024;
-    size_t numBlocks = (matrix.height - 1) / numThreads + 1;
-
-    opening_kernels::reducedOpeningsForLogHeightKernel<<<numBlocks, numThreads>>>(
-        matrix,
-        matrix.height,
-        point,
-        invDenoms,
-        alpha,
-        alphaPowOffset,
-        openedValues,
-        reducedOpeningsForLogHeight
-    );
-}
 
 extern "C" void computeReducedOpenings(
     Matrix<bb31_t>* mats,
