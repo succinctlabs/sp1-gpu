@@ -34,6 +34,7 @@ use sp1_core::{
     stark::{RiscvAir, StarkGenericConfig, StarkProvingKey, StarkVerifyingKey},
     utils::{BabyBearPoseidon2, SP1CoreOpts},
 };
+use sp1_primitives::types::RecursionProgramType;
 
 use sp1_recursion_core::{
     runtime::{RecursionProgram, Runtime as RecursionRuntime},
@@ -145,7 +146,7 @@ impl SP1GpuProver {
         let shrink_program = SP1RootVerifier::<InnerConfig, _, _>::build(
             compress_prover.machine(),
             &compress_vk,
-            true,
+            RecursionProgramType::Shrink,
         );
         let shrink_machine = CompressAir::wrap_machine_dyn(InnerSC::compressed());
         let (shrink_pk, shrink_vk) = shrink_machine.setup(&shrink_program);

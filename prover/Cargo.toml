@@ -14,6 +14,7 @@ sp1-recursion-program = { workspace = true }
 sp1-recursion-compiler = { workspace = true }
 sp1-prover = { workspace = true }
 sp1-recursion-gnark-ffi = { workspace = true }
+sp1-primitives = { workspace = true }
 
 moongate-core = { path = "../core" }
 
