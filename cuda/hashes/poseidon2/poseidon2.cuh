@@ -51,12 +51,12 @@ class Hasher {
 
     __device__ void externalLinearLayer(F_t state[Params::WIDTH]) {
         switch (Params::WIDTH) {
-            case 2: {
-                F_t sum = state[0] + state[1];
-                state[0] += sum;
-                state[1] += sum;
-                break;
-            }
+            // case 2: {
+            //     F_t sum = state[0] + state[1];
+            //     state[0] += sum;
+            //     state[1] += sum;
+            //     break;
+            // }
             case 3: {
                 F_t sum = state[0] + state[1] + state[2];
                 state[0] += sum;
@@ -64,14 +64,14 @@ class Hasher {
                 state[2] += sum;
                 break;
             }
-            case 4:
-                mdsLightPermutation4x4(state);
-                break;
-            case 8:
-            case 12:
+            // case 4:
+            //     mdsLightPermutation4x4(state);
+            //     break;
+            // case 8:
+            // case 12:
             case 16:
-            case 20:
-            case 24:
+            // case 20:
+            // case 24:
                 for (int i = 0; i < Params::WIDTH; i += 4) {
                     mdsLightPermutation4x4(state + i);
                 }
@@ -143,9 +143,9 @@ class Hasher {
             // case 4:
             // case 8:
             // case 12:
-            // case 16:
+            case 16:
             // case 20:
-            case 24:
+            // case 24:
                 matmulInternal(state, matInternalDiagM1);
                 for (int i = 0; i < Params::WIDTH; i++) {
                     state[i] = state[i] * montyInverse;
