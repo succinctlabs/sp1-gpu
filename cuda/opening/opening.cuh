@@ -137,7 +137,6 @@ __global__ void reducedOpeningsKernel(
     bb31_extension_t alphaPowOffset = alphaPowOffsets[pointIdx];
     size_t openValuesIdx = openedValuesIndices[pointIdx];
 
-    reducedOpenings[invIdx + idx] = bb31_extension_t::zero();
     bb31_extension_t rowSum = bb31_extension_t::zero();
 
     bb31_extension_t alphaPower = bb31_extension_t::one();
@@ -145,9 +144,11 @@ __global__ void reducedOpeningsKernel(
         rowSum += (matrix.values[i * matrix.height + idx] - openedValues[openValuesIdx + i]) * alphaPower;
         alphaPower *= alpha;
     }
-    reducedOpenings[invIdx + idx] +=
-        invDenoms[invIdx + idx] * alphaPowOffset * rowSum;
+    reducedOpenings[invIdx + idx] = invDenoms[invIdx + idx] * alphaPowOffset * rowSum;
 }
+
+__global__ void reduce(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings) {
+} 
 
 __global__ void reducedOpeningsForLogHeightKernel(
     Matrix<bb31_t> matrix,
