@@ -75,7 +75,7 @@ namespace column_major {}
 }  // namespace merkle_tree_kernels
 
 extern "C" namespace merkle_tree_gpu {
-    using HashParams = poseidon2_bb31_16::BabyBear16;
+    using HashParams = poseidon2_bb31_16::BabyBear;
     using F_t = typename HashParams::F_t;
 
     extern "C" void first_digest_layer(

@@ -37,84 +37,6 @@ class Hasher {
         }
     }
 
-    __device__ void mdsLightPermutation4x4(F_t state[4]) {
-        F_t t01 = state[0] + state[1];
-        F_t t23 = state[2] + state[3];
-        F_t t0123 = t01 + t23;
-        F_t t01123 = t0123 + state[1];
-        F_t t01233 = t0123 + state[3];
-        state[3] = t01233 + (state[0] << 1);
-        state[1] = t01123 + (state[2] << 1);
-        state[0] = t01123 + t01;
-        state[2] = t01233 + t23;
-    }
-
-    __device__ void externalLinearLayer(F_t state[Params::WIDTH]) {
-        switch (Params::WIDTH) {
-            // TODO: Implementations vary so this could be a static method in Params
-            case 3: {
-                F_t sum = state[0] + state[1] + state[2];
-                state[0] += sum;
-                state[1] += sum;
-                state[2] += sum;
-                break;
-            }
-            case 16:
-                for (int i = 0; i < Params::WIDTH; i += 4) {
-                    mdsLightPermutation4x4(state + i);
-                }
-                F_t sums[4] = {state[0], state[1], state[2], state[3]};
-                for (int i = 4; i < Params::WIDTH; i += 4) {
-                    sums[0] += state[i];
-                    sums[1] += state[i + 1];
-                    sums[2] += state[i + 2];
-                    sums[3] += state[i + 3];
-                }
-                for (int i = 0; i < Params::WIDTH; i++) {
-                    state[i] += sums[i % 4];
-                }
-                break;
-        }
-    }
-
-    __device__ void
-    matmulInternal(F_t state[Params::WIDTH], pF_t matInternalDiagM1) {
-        F_t sum;
-        sum.zero();
-        for (int i = 0; i < Params::WIDTH; i++) {
-            sum += state[i];
-        }
-
-        for (int i = 0; i < Params::WIDTH; i++) {
-            state[i] *= matInternalDiagM1[i];
-            state[i] += sum;
-        }
-    }
-
-    __device__ void internalLinearLayer(
-        F_t state[Params::WIDTH],
-        pF_t matInternalDiagM1,
-        F_t montyInverse
-    ) {
-        switch (Params::WIDTH) {
-            // TODO: Implementations vary so this could be a static method in Params
-            case 3: {
-                F_t s = state[0] + state[1] + state[2];
-                for (int i = 0; i < Params::WIDTH; i++) {
-                    state[i] *= matInternalDiagM1[i];
-                    state[i] += s;
-                }
-                break;
-            }
-            case 16:
-                matmulInternal(state, matInternalDiagM1);
-                for (int i = 0; i < Params::WIDTH; i++) {
-                    state[i] = state[i] * montyInverse;
-                }
-                break;
-        }
-    }
-
   public:
     // TODO: are we sacrificing infornation about the length of the params?
     // TODO: poseidon2 params should be passed around more cleanly
@@ -131,25 +53,25 @@ class Hasher {
             state[i] = in[i];
         }
 
-        externalLinearLayer(state);
+        Params::externalLinearLayer(state);
 
         int rounds_f_half = Params::ROUNDS_F / 2;
         for (int i = 0; i < rounds_f_half; i++) {
             addExtRc(state, externalRoundConstants + i * Params::WIDTH);
             sbox(state);
-            externalLinearLayer(state);
+            Params::externalLinearLayer(state);
         }
 
         for (int i = 0; i < Params::ROUNDS_P; i++) {
             state[0] += internalRoundConstants[i];
             state[0] ^= Params::D;
-            internalLinearLayer(state, matInternalDiagM1, montyInverse);
+            Params::internalLinearLayer(state, matInternalDiagM1, montyInverse);
         }
 
         for (int i = rounds_f_half; i < Params::ROUNDS_F; i++) {
             addExtRc(state, externalRoundConstants + i * Params::WIDTH);
             sbox(state);
-            externalLinearLayer(state);
+            Params::externalLinearLayer(state);
         }
 
         for (int i = 0; i < Params::WIDTH; i++) {
@@ -343,7 +265,8 @@ class DynamicHasher: public Hasher<Params> {
         );
     }
 
-    void setExternalRoundConstants(F_t (*externalRC)[Params::ROUNDS_F * Params::WIDTH]) {
+    void setExternalRoundConstants(F_t (*externalRC
+    )[Params::ROUNDS_F * Params::WIDTH]) {
         cudaMemcpy(
             externalRoundConstants,
             externalRC,

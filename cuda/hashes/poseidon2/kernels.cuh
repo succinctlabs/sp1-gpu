@@ -95,7 +95,7 @@ __global__ void hash(
 }  // namespace poseidon2_bn254_kernels
 
 extern "C" namespace poseidon2_bb31_16_gpu {
-    using HashParams = poseidon2_bb31_16::BabyBear16;
+    using HashParams = poseidon2_bb31_16::BabyBear;
     using F_t = typename HashParams::F_t;
 
     extern "C" void permute_bb31(
@@ -135,7 +135,7 @@ extern "C" namespace poseidon2_bb31_16_gpu {
 }  // namespace poseidon2_bb31_16_gpu
 
 extern "C" namespace poseidon2_bn254_3_gpu {
-    using HashParams = poseidon2_bn254_3::BarretoNaehrig3;
+    using HashParams = poseidon2_bn254_3::Bn254;
     using F_t = typename HashParams::F_t;
 
     extern "C" void permute_bn254(

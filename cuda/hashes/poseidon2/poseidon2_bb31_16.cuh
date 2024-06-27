@@ -96,10 +96,10 @@ namespace constants {
     };
 
     constexpr const bb31_t MONTY_INVERSE = bb31_t(943718400);
-    
+
 }  // namespace constants
 
-class BabyBear16 {
+class BabyBear {
   public:
     using F_t = bb31_t;
     using pF_t = const F_t*;
@@ -118,6 +118,59 @@ class BabyBear16 {
     static constexpr pF_t MAT_INTERNAL_DIAG_M1 =
         constants::MAT_INTERNAL_DIAG_M1;
     static constexpr const F_t MONTY_INVERSE = constants::MONTY_INVERSE;
+
+    __device__ static void internalLinearLayer(
+        F_t state[WIDTH],
+        pF_t matInternalDiagM1,
+        F_t montyInverse
+    ) {
+        matmulInternal(state, matInternalDiagM1);
+        for (int i = 0; i < WIDTH; i++) {
+            state[i] = state[i] * montyInverse;
+        }
+    }
+
+    __device__ static void
+    matmulInternal(F_t state[WIDTH], pF_t matInternalDiagM1) {
+        F_t sum;
+        sum.zero();
+        for (int i = 0; i < WIDTH; i++) {
+            sum += state[i];
+        }
+
+        for (int i = 0; i < WIDTH; i++) {
+            state[i] *= matInternalDiagM1[i];
+            state[i] += sum;
+        }
+    }
+
+    __device__ static void externalLinearLayer(F_t state[WIDTH]) {
+        for (int i = 0; i < WIDTH; i += 4) {
+            mdsLightPermutation4x4(state + i);
+        }
+        F_t sums[4] = {state[0], state[1], state[2], state[3]};
+        for (int i = 4; i < WIDTH; i += 4) {
+            sums[0] += state[i];
+            sums[1] += state[i + 1];
+            sums[2] += state[i + 2];
+            sums[3] += state[i + 3];
+        }
+        for (int i = 0; i < WIDTH; i++) {
+            state[i] += sums[i % 4];
+        }
+    }
+
+    __device__ static void mdsLightPermutation4x4(F_t state[4]) {
+        F_t t01 = state[0] + state[1];
+        F_t t23 = state[2] + state[3];
+        F_t t0123 = t01 + t23;
+        F_t t01123 = t0123 + state[1];
+        F_t t01233 = t0123 + state[3];
+        state[3] = t01233 + (state[0] << 1);
+        state[1] = t01123 + (state[2] << 1);
+        state[0] = t01123 + t01;
+        state[2] = t01233 + t23;
+    }
 };
 
 }  // namespace poseidon2_bb31_16
