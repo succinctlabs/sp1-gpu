@@ -141,11 +141,19 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     extern "C" void permute_bn254(
         F(*in)[HashParams::WIDTH],
         F(*out)[HashParams::WIDTH],
+        F(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
         poseidon2::DynamicHasher<HashParams> hasher;
+        hasher.setParams(
+            internalRoundConstants,
+            externalRoundConstants,
+            diffusionMatrixM1
+        );
         poseidon2_bn254_kernels::permute<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, in, out, n);
     }
@@ -154,11 +162,19 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F(*left)[HashParams::DIGEST_WIDTH],
         F(*right)[HashParams::DIGEST_WIDTH],
         F(*out)[HashParams::DIGEST_WIDTH],
+        F(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
         poseidon2::DynamicHasher<HashParams> hasher;
+        hasher.setParams(
+            internalRoundConstants,
+            externalRoundConstants,
+            diffusionMatrixM1
+        );
         poseidon2_bn254_kernels::compress<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, left, right, out, n);
     }
@@ -167,50 +183,58 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F * in,
         size_t nIn,
         F(*out)[HashParams::DIGEST_WIDTH],
+        F(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
         poseidon2::DynamicHasher<HashParams> hasher;
+        hasher.setParams(
+            internalRoundConstants,
+            externalRoundConstants,
+            diffusionMatrixM1
+        );
         poseidon2_bn254_kernels::hash<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, in, nIn, out, n);
     }
 }  // namespace poseidon2_bn254_3_gpu
 
-namespace sum_bb31_kernels {
-__global__ void sum_bb31(
-    bb31_t (*left)[poseidon2_bb31_16::BabyBear16::WIDTH],
-    bb31_t (*right)[poseidon2_bb31_16::BabyBear16::WIDTH],
-    bb31_t (*out)[poseidon2_bb31_16::BabyBear16::WIDTH],
-    size_t n
-) {
-    size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (idx >= n) {
-        return;
-    }
-    for (size_t ii = 0; ii < poseidon2_bb31_16::BabyBear16::WIDTH; ii++) {
-        out[idx][ii] = left[idx][ii] + right[idx][ii];
-    }
-}
-}  // namespace sum_bb31_kernels
+// namespace sum_bb31_kernels {
+// __global__ void sum_bb31(
+//     bb31_t (*left)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//     bb31_t (*right)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//     bb31_t (*out)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//     size_t n
+// ) {
+//     size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
+//     if (idx >= n) {
+//         return;
+//     }
+//     for (size_t ii = 0; ii < poseidon2_bb31_16::BabyBear16::WIDTH; ii++) {
+//         out[idx][ii] = left[idx][ii] + right[idx][ii];
+//     }
+// }
+// }  // namespace sum_bb31_kernels
 
-extern "C" namespace sum_bb31_gpu {
-    extern "C" void sum_bb31(
-        bb31_t(*left)[poseidon2_bb31_16::BabyBear16::WIDTH],
-        bb31_t(*right)[poseidon2_bb31_16::BabyBear16::WIDTH],
-        bb31_t(*out)[poseidon2_bb31_16::BabyBear16::WIDTH],
-        size_t n,
-        size_t nBlocks,
-        size_t nThreadsPerBlock
-    ) {
-        sum_bb31_kernels::sum_bb31<<<nBlocks, nThreadsPerBlock>>>(
-            left,
-            right,
-            out,
-            n
-        );
-    }
-}  // namespace sum_bb31_16_gpu
+// extern "C" namespace sum_bb31_gpu {
+//     extern "C" void sum_bb31(
+//         bb31_t(*left)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//         bb31_t(*right)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//         bb31_t(*out)[poseidon2_bb31_16::BabyBear16::WIDTH],
+//         size_t n,
+//         size_t nBlocks,
+//         size_t nThreadsPerBlock
+//     ) {
+//         sum_bb31_kernels::sum_bb31<<<nBlocks, nThreadsPerBlock>>>(
+//             left,
+//             right,
+//             out,
+//             n
+//         );
+//     }
+// }  // namespace sum_bb31_16_gpu
 
 // #include "../../fields/bn254_t.cuh"
 

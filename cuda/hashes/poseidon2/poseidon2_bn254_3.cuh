@@ -9,8 +9,8 @@ namespace constants {
     constexpr const int DIGEST_WIDTH = 1;  // ?
     constexpr const int RATE = 1;  // ?
     constexpr const int WIDTH = 3;
-    constexpr const int ROUNDS_P = 1;  // 56; Set to 1 for simplicity.
-    constexpr const int ROUNDS_F = 1;  // 8; Set to 1 for simplicity.
+    constexpr const int ROUNDS_P = 56;
+    constexpr const int ROUNDS_F = 8;
     constexpr const int D = 5;
 
 }  // namespace constants
@@ -18,7 +18,7 @@ namespace constants {
 // TODO: rename
 class BarretoNaehrig3 {
   public:
-    using F = bn254_t;
+    using F = bn254_t;  // TODO: rename to F_t
     using pF = F*;
 
     static constexpr const int DIGEST_WIDTH = constants::DIGEST_WIDTH;

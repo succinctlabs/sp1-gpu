@@ -365,10 +365,10 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     void setParams(
-        const pF internalRC,
-        const pF externalRC,
-        const pF internalDiagM1,
-        F inverse
+        F (*internalRC)[Params::ROUNDS_P],
+        F (*externalRC)[Params::ROUNDS_F * Params::WIDTH],
+        F (*internalDiagM1)[Params::WIDTH]
+        // F inverse
     ) {
         cudaMemcpy(
             internalRoundConstants,
@@ -388,7 +388,7 @@ class DynamicHasher: public Hasher<Params> {
             Params::WIDTH * sizeof(F),
             cudaMemcpyHostToDevice
         );
-        montyInverse = inverse;
+        // montyInverse = inverse;
     }
 
     __device__ void permute(F in[Params::WIDTH], F out[Params::WIDTH]) {

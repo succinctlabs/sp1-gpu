@@ -57,6 +57,9 @@ pub mod poseidon2_bn254_3_kernels {
         pub fn permute_bn254(
             input: *const [Bn254Fr; WIDTH],
             output: *mut [Bn254Fr; WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
@@ -66,6 +69,9 @@ pub mod poseidon2_bn254_3_kernels {
             left: *const [Bn254Fr; DIGEST_WIDTH],
             right: *const [Bn254Fr; DIGEST_WIDTH],
             output: *mut [Bn254Fr; DIGEST_WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
@@ -75,6 +81,9 @@ pub mod poseidon2_bn254_3_kernels {
             input: *const Bn254Fr,
             n_input: usize,
             output: *mut [Bn254Fr; DIGEST_WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
@@ -118,8 +127,8 @@ pub mod poseidon2_bn254_3_kernels {
 //     }
 // }
 
-#[cfg(test)]
 pub mod tests {
+    #[cfg(test)]
     pub mod bb31_tests {
 
         use crate::device::buffer::DeviceBuffer;
@@ -402,12 +411,18 @@ pub mod tests {
         }
     }
 
+    #[cfg(test)]
     pub mod bn254_tests {
         use crate::device::memory::ToDevice;
-        use p3_bn254_fr::Bn254Fr;
+        use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
         use p3_field::AbstractField;
+        use p3_poseidon2::Poseidon2;
+        use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
+        use p3_symmetric::{CryptographicHasher, PaddingFreeSponge};
         use rand::thread_rng;
         use rand::Rng;
+        // use sp1_core::utils::ec::weierstrass::bn254::Bn254;
+        use sp1_recursion_core::stark::poseidon2::bn254_poseidon2_rc3;
 
         use super::super::poseidon2_bn254_3_kernels;
         use super::super::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
@@ -416,6 +431,37 @@ pub mod tests {
         use super::super::poseidon2_bn254_3_kernels::ROUNDS_F;
         use super::super::poseidon2_bn254_3_kernels::ROUNDS_P;
         use super::super::poseidon2_bn254_3_kernels::WIDTH;
+
+        pub fn poseidon2_bn254_3_perm(
+        ) -> Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>
+        {
+            let mut round_constants = bn254_poseidon2_rc3();
+            let internal_start = ROUNDS_F / 2;
+            let internal_end = (ROUNDS_F / 2) + ROUNDS_P;
+            let internal_round_constants = round_constants
+                .drain(internal_start..internal_end)
+                .map(|vec| vec[0])
+                .collect::<Vec<_>>();
+            let external_round_constants = round_constants;
+            Poseidon2::<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, WIDTH, D_U64>::new(
+                ROUNDS_F,
+                external_round_constants,
+                Poseidon2ExternalMatrixGeneral,
+                ROUNDS_P,
+                internal_round_constants,
+                DiffusionMatrixBN254,
+            )
+        }
+
+        pub fn poseidon2_bn254_3_hasher() -> PaddingFreeSponge<
+            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
+            WIDTH,
+            RATE,
+            DIGEST_WIDTH,
+        > {
+            let perm = poseidon2_bn254_3_perm();
+            PaddingFreeSponge::new(perm)
+        }
 
         #[test]
         fn test_hash_gpu_bn254() {
@@ -440,14 +486,28 @@ pub mod tests {
             let mut output_device = output.to_device();
 
             // Execute the source implementation.
-            // let sponge = poseidon2_bn254_3_hasher();
+            let sponge = poseidon2_bn254_3_hasher();
 
-            // let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
-            // #[allow(clippy::needless_range_loop)]
-            // for i in 0..n {
-            //     let data = input[i * N_INPUT..(i + 1) * N_INPUT].to_vec();
-            //     gt.push(sponge.hash_iter(data));
-            // }
+            let mut round_constants = bn254_poseidon2_rc3();
+            let internal_start = ROUNDS_F / 2;
+            let internal_end = (ROUNDS_F / 2) + ROUNDS_P;
+            let internal_round_constants = round_constants
+                .drain(internal_start..internal_end)
+                .map(|vec| vec[0])
+                .collect::<Vec<_>>();
+            let external_round_constants = round_constants;
+
+            let internal_rounds_constats_device = internal_round_constants.to_device();
+            let external_rounds_constats_device = external_round_constants.to_device();
+            let diffusion_matrix_m1 = [Bn254Fr::one(), Bn254Fr::one(), Bn254Fr::two()];
+            let diffusion_matrix_m1_device = diffusion_matrix_m1.to_device();
+
+            let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
+            #[allow(clippy::needless_range_loop)]
+            for i in 0..n {
+                let data = input[i * N_INPUT..(i + 1) * N_INPUT].to_vec();
+                gt.push(sponge.hash_iter(data));
+            }
 
             // Execute the kernel.
             unsafe {
@@ -455,6 +515,9 @@ pub mod tests {
                     input_device.as_slice().as_ptr(),
                     N_INPUT,
                     output_device.as_slice_mut().as_mut_ptr(),
+                    internal_rounds_constats_device.as_slice().as_ptr(),
+                    external_rounds_constats_device.as_slice().as_ptr(),
+                    diffusion_matrix_m1_device.as_slice().as_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -462,10 +525,10 @@ pub mod tests {
             }
 
             // Copy the result of the kernel to the host.
-            // output_device.copy_to_host(&mut output[..]);
-            // for i in 0..n {
-            //     assert_eq!(gt[i], output[i]);
-            // }
+            output_device.copy_to_host(&mut output[..]);
+            for i in 0..n {
+                assert_eq!(gt[i], output[i]);
+            }
         }
     }
 
