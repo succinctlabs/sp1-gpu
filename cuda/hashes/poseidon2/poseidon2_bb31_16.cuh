@@ -100,8 +100,8 @@ namespace constants {
 
 class BabyBear16 {
   public:
-    using F = bb31_t;
-    using pF = const F*;
+    using F_t = bb31_t;
+    using pF_t = const F_t*;
 
     static constexpr const int DIGEST_WIDTH = constants::DIGEST_WIDTH;
     static constexpr const int RATE = constants::RATE;
@@ -110,13 +110,13 @@ class BabyBear16 {
     static constexpr const int ROUNDS_P = constants::ROUNDS_P;
     static constexpr const int D = constants::D;
 
-    static constexpr const F* INTERNAL_ROUND_CONSTANTS =
+    static constexpr pF_t INTERNAL_ROUND_CONSTANTS =
         constants::INTERNAL_ROUND_CONSTANTS;
-    static constexpr const F* EXTERNAL_ROUND_CONSTANTS =
+    static constexpr pF_t EXTERNAL_ROUND_CONSTANTS =
         constants::EXTERNAL_ROUND_CONSTANTS;
-    static constexpr const F* MAT_INTERNAL_DIAG_M1 =
+    static constexpr pF_t MAT_INTERNAL_DIAG_M1 =
         constants::MAT_INTERNAL_DIAG_M1;
-    static constexpr const F MONTY_INVERSE = constants::MONTY_INVERSE;
+    static constexpr const F_t MONTY_INVERSE = constants::MONTY_INVERSE;
 };
 
 }  // namespace poseidon2_bb31_16

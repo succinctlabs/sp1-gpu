@@ -7,9 +7,9 @@ namespace poseidon2 {
 
 template<typename Params>
 struct HasherState {
-    using F = typename Params::F;
+    using F_t = typename Params::F_t;
 
-    F data[Params::WIDTH];
+    F_t data[Params::WIDTH];
     size_t index;
 
     __device__ HasherState() : index(0) {
@@ -21,44 +21,44 @@ struct HasherState {
 
 template<typename Params>
 class Hasher {
-    using F = typename Params::F;
-    using pF = typename Params::pF;
+    using F_t = typename Params::F_t;
+    using pF_t = typename Params::pF_t;
 
   private:
-    __device__ void addExtRc(F state[Params::WIDTH], pF rc) {
+    __device__ void addExtRc(F_t state[Params::WIDTH], pF_t rc) {
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] += rc[i];
         }
     }
 
-    __device__ void sbox(F state[Params::WIDTH]) {
+    __device__ void sbox(F_t state[Params::WIDTH]) {
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] ^= Params::D;
         }
     }
 
-    __device__ void mdsLightPermutation4x4(F state[4]) {
-        F t01 = state[0] + state[1];
-        F t23 = state[2] + state[3];
-        F t0123 = t01 + t23;
-        F t01123 = t0123 + state[1];
-        F t01233 = t0123 + state[3];
+    __device__ void mdsLightPermutation4x4(F_t state[4]) {
+        F_t t01 = state[0] + state[1];
+        F_t t23 = state[2] + state[3];
+        F_t t0123 = t01 + t23;
+        F_t t01123 = t0123 + state[1];
+        F_t t01233 = t0123 + state[3];
         state[3] = t01233 + (state[0] << 1);
         state[1] = t01123 + (state[2] << 1);
         state[0] = t01123 + t01;
         state[2] = t01233 + t23;
     }
 
-    __device__ void externalLinearLayer(F state[Params::WIDTH]) {
+    __device__ void externalLinearLayer(F_t state[Params::WIDTH]) {
         switch (Params::WIDTH) {
             case 2: {
-                F sum = state[0] + state[1];
+                F_t sum = state[0] + state[1];
                 state[0] += sum;
                 state[1] += sum;
                 break;
             }
             case 3: {
-                F sum = state[0] + state[1] + state[2];
+                F_t sum = state[0] + state[1] + state[2];
                 state[0] += sum;
                 state[1] += sum;
                 state[2] += sum;
@@ -73,10 +73,10 @@ class Hasher {
             case 20:
             case 24:
                 for (int i = 0; i < Params::WIDTH; i += 4) {
-                    mdsLightPermutation4x4(state + i);
+                    mdsLightPermutation4x4(state + i);  // ?
                 }
 
-                F sums[4] = {state[0], state[1], state[2], state[3]};
+                F_t sums[4] = {state[0], state[1], state[2], state[3]};
                 for (int i = 4; i < Params::WIDTH; i += 4) {
                     sums[0] += state[i];
                     sums[1] += state[i + 1];
@@ -93,8 +93,8 @@ class Hasher {
     }
 
     __device__ void
-    matmulInternal(F state[Params::WIDTH], pF matInternalDiagM1) {
-        F sum;
+    matmulInternal(F_t state[Params::WIDTH], pF_t matInternalDiagM1) {
+        F_t sum;
         sum.zero();
         for (int i = 0; i < Params::WIDTH; i++) {
             sum += state[i];
@@ -107,15 +107,15 @@ class Hasher {
     }
 
     __device__ void internalLinearLayer(
-        F state[Params::WIDTH],
-        pF matInternalDiagM1,
-        F montyInverse
+        F_t state[Params::WIDTH],
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
         switch (Params::WIDTH) {
             case 2: {
                 // [2, 1]
                 // [1, 3]
-                F s = state[0] + state[1];
+                F_t s = state[0] + state[1];
                 state[0] += s;
                 // state[1] *= 2;
                 state[1] += state[1];
@@ -126,7 +126,7 @@ class Hasher {
                 // [2, 1, 1]
                 // [1, 2, 1]
                 // [1, 1, 3]
-                F s = state[0] + state[1] + state[2];
+                F_t s = state[0] + state[1] + state[2];
                 state[0] += s;
                 state[1] += s;
                 // state[2] *= 2;
@@ -152,14 +152,14 @@ class Hasher {
     // TODO: are we sacrificing infornation about the length of the params?
     // TODO: poseidon2 params should be passed around more cleanly
     __device__ void permute(
-        F in[Params::WIDTH],
-        F out[Params::WIDTH],
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        F_t in[Params::WIDTH],
+        F_t out[Params::WIDTH],
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
-        F state[Params::WIDTH];
+        F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] = in[i];
         }
@@ -191,15 +191,15 @@ class Hasher {
     }
 
     __device__ void compress(
-        F left[Params::DIGEST_WIDTH],
-        F right[Params::DIGEST_WIDTH],
-        F out[Params::DIGEST_WIDTH],
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        F_t left[Params::DIGEST_WIDTH],
+        F_t right[Params::DIGEST_WIDTH],
+        F_t out[Params::DIGEST_WIDTH],
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
-        F state[Params::WIDTH];
+        F_t state[Params::WIDTH];
         for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
             state[i] = left[i];
             state[i + Params::DIGEST_WIDTH] = right[i];
@@ -218,15 +218,15 @@ class Hasher {
     }
 
     __device__ void hash(
-        F* in,
+        F_t* in,
         size_t nIn,
-        F out[Params::DIGEST_WIDTH],
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        F_t out[Params::DIGEST_WIDTH],
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
-        F state[Params::WIDTH];
+        F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i].zero();
         }
@@ -253,13 +253,13 @@ class Hasher {
     }
 
     __device__ void absorb(
-        F* in,
+        F_t* in,
         size_t nIn,
         HasherState<Params>* state,
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
         for (int i = 0; i < nIn; i++) {
             state->data[state->index] = in[i];
@@ -279,16 +279,16 @@ class Hasher {
     }
 
     __device__ void absorbRow(
-        Matrix<F>* in,
+        Matrix<F_t>* in,
         int row_idx,
         HasherState<Params>* state,
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
         if (in->row_major) {
-            F* row = &in->values[in->width * row_idx];
+            F_t* row = &in->values[in->width * row_idx];
             absorb(
                 row,
                 in->width,
@@ -315,11 +315,11 @@ class Hasher {
 
     __device__ void finalize(
         HasherState<Params>* state,
-        F out[Params::DIGEST_WIDTH],
-        pF internalRoundConstants,
-        pF externalRoundConstants,
-        pF matInternalDiagM1,
-        F montyInverse
+        F_t out[Params::DIGEST_WIDTH],
+        pF_t internalRoundConstants,
+        pF_t externalRoundConstants,
+        pF_t matInternalDiagM1,
+        F_t montyInverse
     ) {
         if (state->index != 0) {
             permute(
@@ -339,23 +339,23 @@ class Hasher {
 
 template<typename Params>
 class DynamicHasher: public Hasher<Params> {
-    using F = typename Params::F;
-    using pF = typename Params::pF;
+    using F_t = typename Params::F_t;
+    using pF_t = typename Params::pF_t;
 
   private:
-    pF internalRoundConstants;
-    pF externalRoundConstants;
-    pF matInternalDiagM1;
-    F montyInverse;
+    pF_t internalRoundConstants;
+    pF_t externalRoundConstants;
+    pF_t matInternalDiagM1;
+    F_t montyInverse;
 
   public:
     DynamicHasher() {
-        cudaMalloc(&internalRoundConstants, Params::ROUNDS_P * sizeof(F));
+        cudaMalloc(&internalRoundConstants, Params::ROUNDS_P * sizeof(F_t));
         cudaMalloc(
             &externalRoundConstants,
-            Params::ROUNDS_F * Params::WIDTH * sizeof(F)
+            Params::ROUNDS_F * Params::WIDTH * sizeof(F_t)
         );
-        cudaMalloc(&matInternalDiagM1, Params::WIDTH * sizeof(F));
+        cudaMalloc(&matInternalDiagM1, Params::WIDTH * sizeof(F_t));
     }
 
     ~DynamicHasher() {
@@ -365,33 +365,33 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     void setParams(
-        F (*internalRC)[Params::ROUNDS_P],
-        F (*externalRC)[Params::ROUNDS_F * Params::WIDTH],
-        F (*internalDiagM1)[Params::WIDTH]
+        F_t (*internalRC)[Params::ROUNDS_P],
+        F_t (*externalRC)[Params::ROUNDS_F * Params::WIDTH],
+        F_t (*internalDiagM1)[Params::WIDTH]
         // F inverse
     ) {
         cudaMemcpy(
             internalRoundConstants,
             internalRC,
-            Params::ROUNDS_P * sizeof(F),
+            Params::ROUNDS_P * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
         cudaMemcpy(
             externalRoundConstants,
             externalRC,
-            Params::ROUNDS_F * Params::WIDTH * sizeof(F),
+            Params::ROUNDS_F * Params::WIDTH * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
         cudaMemcpy(
             matInternalDiagM1,
             internalDiagM1,
-            Params::WIDTH * sizeof(F),
+            Params::WIDTH * sizeof(F_t),
             cudaMemcpyHostToDevice
         );
         // montyInverse = inverse;
     }
 
-    __device__ void permute(F in[Params::WIDTH], F out[Params::WIDTH]) {
+    __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
         Hasher<Params>::permute(
             in,
             out,
@@ -403,9 +403,9 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     __device__ void compress(
-        F left[Params::DIGEST_WIDTH],
-        F right[Params::DIGEST_WIDTH],
-        F out[Params::DIGEST_WIDTH]
+        F_t left[Params::DIGEST_WIDTH],
+        F_t right[Params::DIGEST_WIDTH],
+        F_t out[Params::DIGEST_WIDTH]
     ) {
         Hasher<Params>::compress(
             left,
@@ -418,7 +418,7 @@ class DynamicHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void hash(F* in, size_t nIn, F out[Params::DIGEST_WIDTH]) {
+    __device__ void hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::hash(
             in,
             nIn,
@@ -430,7 +430,7 @@ class DynamicHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void absorb(F* in, size_t nIn, HasherState<Params>* state) {
+    __device__ void absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
         Hasher<Params>::absorb(
             in,
             nIn,
@@ -443,7 +443,7 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     __device__ void
-    absorbRow(Matrix<F>* in, int row_idx, HasherState<Params>* state) {
+    absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
         Hasher<Params>::absorbRow(
             in,
             row_idx,
@@ -456,7 +456,7 @@ class DynamicHasher: public Hasher<Params> {
     }
 
     __device__ void
-    finalize(HasherState<Params>* state, F out[Params::DIGEST_WIDTH]) {
+    finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::finalize(
             state,
             out,
@@ -470,10 +470,10 @@ class DynamicHasher: public Hasher<Params> {
 
 template<typename Params>
 class StaticHasher: public Hasher<Params> {
-    using F = typename Params::F;
+    using F_t = typename Params::F_t;
 
   public:
-    __device__ void permute(F in[Params::WIDTH], F out[Params::WIDTH]) {
+    __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
         Hasher<Params>::permute(
             in,
             out,
@@ -485,9 +485,9 @@ class StaticHasher: public Hasher<Params> {
     }
 
     __device__ void compress(
-        F left[Params::DIGEST_WIDTH],
-        F right[Params::DIGEST_WIDTH],
-        F out[Params::DIGEST_WIDTH]
+        F_t left[Params::DIGEST_WIDTH],
+        F_t right[Params::DIGEST_WIDTH],
+        F_t out[Params::DIGEST_WIDTH]
     ) {
         Hasher<Params>::compress(
             left,
@@ -500,7 +500,7 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void hash(F* in, size_t nIn, F out[Params::DIGEST_WIDTH]) {
+    __device__ void hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::hash(
             in,
             nIn,
@@ -512,7 +512,7 @@ class StaticHasher: public Hasher<Params> {
         );
     }
 
-    __device__ void absorb(F* in, size_t nIn, HasherState<Params>* state) {
+    __device__ void absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
         Hasher<Params>::absorb(
             in,
             nIn,
@@ -525,7 +525,7 @@ class StaticHasher: public Hasher<Params> {
     }
 
     __device__ void
-    absorbRow(Matrix<F>* in, int row_idx, HasherState<Params>* state) {
+    absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
         Hasher<Params>::absorbRow(
             in,
             row_idx,
@@ -538,7 +538,7 @@ class StaticHasher: public Hasher<Params> {
     }
 
     __device__ void
-    finalize(HasherState<Params>* state, F out[Params::DIGEST_WIDTH]) {
+    finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
         Hasher<Params>::finalize(
             state,
             out,

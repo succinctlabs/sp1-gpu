@@ -18,8 +18,8 @@ namespace constants {
 // TODO: rename
 class BarretoNaehrig3 {
   public:
-    using F = bn254_t;  // TODO: rename to F_t
-    using pF = F*;
+    using F_t = bn254_t;  // TODO: rename to F_t
+    using pF_t = F_t*;
 
     static constexpr const int DIGEST_WIDTH = constants::DIGEST_WIDTH;
     static constexpr const int RATE = constants::RATE;

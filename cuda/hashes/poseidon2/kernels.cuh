@@ -96,11 +96,11 @@ __global__ void hash(
 
 extern "C" namespace poseidon2_bb31_16_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear16;
-    using F = typename HashParams::F;
+    using F_t = typename HashParams::F_t;
 
     extern "C" void permute_bb31(
-        F(*in)[HashParams::WIDTH],
-        F(*out)[HashParams::WIDTH],
+        F_t(*in)[HashParams::WIDTH],
+        F_t(*out)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -110,9 +110,9 @@ extern "C" namespace poseidon2_bb31_16_gpu {
     }
 
     extern "C" void compress_bb31(
-        F(*left)[HashParams::DIGEST_WIDTH],
-        F(*right)[HashParams::DIGEST_WIDTH],
-        F(*out)[HashParams::DIGEST_WIDTH],
+        F_t(*left)[HashParams::DIGEST_WIDTH],
+        F_t(*right)[HashParams::DIGEST_WIDTH],
+        F_t(*out)[HashParams::DIGEST_WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -122,9 +122,9 @@ extern "C" namespace poseidon2_bb31_16_gpu {
     }
 
     extern "C" void hash_bb31(
-        F * in,
+        F_t * in,
         size_t nIn,
-        F(*out)[HashParams::DIGEST_WIDTH],
+        F_t(*out)[HashParams::DIGEST_WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -136,14 +136,14 @@ extern "C" namespace poseidon2_bb31_16_gpu {
 
 extern "C" namespace poseidon2_bn254_3_gpu {
     using HashParams = poseidon2_bn254_3::BarretoNaehrig3;
-    using F = typename HashParams::F;
+    using F_t = typename HashParams::F_t;
 
     extern "C" void permute_bn254(
-        F(*in)[HashParams::WIDTH],
-        F(*out)[HashParams::WIDTH],
-        F(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F(*diffusionMatrixM1)[HashParams::WIDTH],
+        F_t(*in)[HashParams::WIDTH],
+        F_t(*out)[HashParams::WIDTH],
+        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -159,12 +159,12 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     }
 
     extern "C" void compress_bn254(
-        F(*left)[HashParams::DIGEST_WIDTH],
-        F(*right)[HashParams::DIGEST_WIDTH],
-        F(*out)[HashParams::DIGEST_WIDTH],
-        F(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F(*diffusionMatrixM1)[HashParams::WIDTH],
+        F_t(*left)[HashParams::DIGEST_WIDTH],
+        F_t(*right)[HashParams::DIGEST_WIDTH],
+        F_t(*out)[HashParams::DIGEST_WIDTH],
+        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -180,12 +180,12 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     }
 
     extern "C" void hash_bn254(
-        F * in,
+        F_t * in,
         size_t nIn,
-        F(*out)[HashParams::DIGEST_WIDTH],
-        F(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F(*diffusionMatrixM1)[HashParams::WIDTH],
+        F_t(*out)[HashParams::DIGEST_WIDTH],
+        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock

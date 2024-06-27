@@ -11,8 +11,8 @@ using namespace poseidon2;
 
 template <typename HashParams>
 __global__ void firstDigestLayer(
-    Matrix<typename HashParams::F> *tallestMatrices, size_t nTallestMatrices,
-    typename HashParams::F (*digests)[HashParams::DIGEST_WIDTH]) {
+    Matrix<typename HashParams::F_t> *tallestMatrices, size_t nTallestMatrices,
+    typename HashParams::F_t (*digests)[HashParams::DIGEST_WIDTH]) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (rowIdx >= tallestMatrices[0].height) {
         return;
@@ -29,16 +29,16 @@ __global__ void firstDigestLayer(
 
 template <typename HashParams>
 __global__ void compressAndInject(
-    typename HashParams::F (*prevLayer)[HashParams::DIGEST_WIDTH],
-    size_t nPrevLayer, Matrix<typename HashParams::F> *matricesToInject,
+    typename HashParams::F_t (*prevLayer)[HashParams::DIGEST_WIDTH],
+    size_t nPrevLayer, Matrix<typename HashParams::F_t> *matricesToInject,
     size_t nMatricesToInject,
-    typename HashParams::F (*nextDigests)[HashParams::DIGEST_WIDTH]) {
+    typename HashParams::F_t (*nextDigests)[HashParams::DIGEST_WIDTH]) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (rowIdx >= nPrevLayer / 2) {
         return;
     }
 
-    using F = typename HashParams::F;
+    using F_t = typename HashParams::F_t;
 
     StaticHasher<HashParams> hasher;
 
@@ -51,14 +51,14 @@ __global__ void compressAndInject(
     size_t nextLen = matricesToInject[0].height;
     // size_t nextLenPadded = nPrevLayer / 2;
 
-    F defaultDigest[HashParams::DIGEST_WIDTH] = {F(0), F(0), F(0),
-                                                 F(0), F(0), F(0)};
+    F_t defaultDigest[HashParams::DIGEST_WIDTH] = {F_t(0), F_t(0), F_t(0),
+                                                 F_t(0), F_t(0), F_t(0)};
 
-    F digest[HashParams::DIGEST_WIDTH];
+    F_t digest[HashParams::DIGEST_WIDTH];
     hasher.compress(prevLayer[rowIdx * 2], prevLayer[rowIdx * 2 + 1], digest);
 
     if (rowIdx < nextLen) {
-        F tallestDigest[HashParams::DIGEST_WIDTH];
+        F_t tallestDigest[HashParams::DIGEST_WIDTH];
         HasherState<HashParams> state = HasherState<HashParams>();
         for (int i = 0; i < nMatricesToInject; i++) {
             hasher.absorbRow(&matricesToInject[i], rowIdx, &state);
@@ -66,8 +66,8 @@ __global__ void compressAndInject(
         hasher.finalize(&state, tallestDigest);
         hasher.compress(digest, tallestDigest, nextDigests[rowIdx]);
     } else {
-        hasher.compress((F *)digest, (F *)defaultDigest,
-                        (F *)nextDigests[rowIdx]);
+        hasher.compress((F_t *)digest, (F_t *)defaultDigest,
+                        (F_t *)nextDigests[rowIdx]);
     }
 }
 
@@ -76,22 +76,29 @@ namespace column_major {}
 
 extern "C" namespace merkle_tree_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear16;
-    using F = typename HashParams::F;
+    using F_t = typename HashParams::F_t;
 
     extern "C" void first_digest_layer(
-        Matrix<F> * tallestMatrices, size_t nTallestMatrices,
-        F(*digests)[HashParams::DIGEST_WIDTH], size_t nBlocks,
-        size_t nThreadsPerBlock) {
+        Matrix<F_t> * tallestMatrices,
+        size_t nTallestMatrices,
+        F_t(*digests)[HashParams::DIGEST_WIDTH],
+        size_t nBlocks,
+        size_t nThreadsPerBlock
+    ) {
         merkle_tree_kernels::firstDigestLayer<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(tallestMatrices, nTallestMatrices,
                                             digests);
     }
 
     extern "C" void compress_and_inject(
-        F(*prevLayer)[HashParams::DIGEST_WIDTH], size_t nPrevLayer,
-        Matrix<F> * matricesToInject, size_t nMatricesToInject,
-        F(*nextDigests)[HashParams::DIGEST_WIDTH], size_t nBlocks,
-        size_t nThreadsPerBlock) {
+        F_t(*prevLayer)[HashParams::DIGEST_WIDTH],
+        size_t nPrevLayer,
+        Matrix<F_t> * matricesToInject,
+        size_t nMatricesToInject,
+        F_t(*nextDigests)[HashParams::DIGEST_WIDTH],
+        size_t nBlocks,
+        size_t nThreadsPerBlock
+    ) {
         merkle_tree_kernels::compressAndInject<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(prevLayer, nPrevLayer,
                                             matricesToInject, nMatricesToInject,
