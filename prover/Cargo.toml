@@ -1,5 +1,5 @@
 [package]
-name = "moongate-prover"
+name = "sp1-moongate-prover"
 version = "0.1.0"
 edition = "2021"
 

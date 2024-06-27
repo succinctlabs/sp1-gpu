@@ -18,9 +18,8 @@ use p3_challenger::CanObserve;
 use sp1_core::stark::MachineRecord;
 use sp1_core::stark::{Challenge, Challenger, MachineProof, ShardProof, Val};
 use sp1_prover::{
-    ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout, SP1Prover,
-    SP1ProvingKey, SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin,
-    SP1VerifyingKey,
+    ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout, SP1ProvingKey,
+    SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin, SP1VerifyingKey,
 };
 use sp1_recursion_program::hints::Hintable;
 use sp1_recursion_program::machine::{
@@ -515,7 +514,7 @@ impl SP1GpuProver {
         prev_digest: [Val<CoreSC>; DIGEST_SIZE],
         deferred_proofs: &[ShardProof<InnerSC>],
     ) -> [Val<CoreSC>; 8] {
-        SP1Prover::hash_deferred_proofs(prev_digest, deferred_proofs)
+        sp1_prover::SP1Prover::hash_deferred_proofs(prev_digest, deferred_proofs)
     }
 
     pub fn prove_core_simple(
@@ -750,8 +749,6 @@ mod tests {
 
         let prover = SP1GpuProver::new();
 
-        let cpu_prover = SP1Prover::new();
-
         tracing::info!("initializing prover");
         let opts = SP1ProverOpts {
             core_opts: SP1CoreOpts {
@@ -771,13 +768,13 @@ mod tests {
         let _public_values = core_proof.public_values.clone();
 
         tracing::info!("verify core");
-        cpu_prover.verify(&core_proof.proof, &vk)?;
+        prover.verify(&core_proof.proof, &vk)?;
 
         tracing::info!("compress");
         let compressed_proof = prover.compress(&vk, core_proof, vec![], opts)?;
 
         tracing::info!("verify compressed");
-        cpu_prover.verify_compressed(&compressed_proof, &vk)?;
+        prover.verify_compressed(&compressed_proof, &vk)?;
 
         // tracing::info!("shrink");
         // let shrink_proof = prover.shrink(compressed_proof)?;
