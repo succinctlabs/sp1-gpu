@@ -523,6 +523,18 @@ pub mod opening_gpu {
             output: *mut EF,
         );
 
+        #[link_name = "interpolateCosets"]
+        pub fn interpolate_cosets_raw(
+            polys_evals: *const *const BabyBear,
+            coset_heights: *const usize,
+            coset_log_heights: *const usize,
+            shift: *const F,
+            point: *const EF,
+            barycentric_scalars: *const EF,
+            g_values: *const F,
+            output: *mut EF,
+        );
+
         #[link_name = "computeReducedOpeningForLogHeight"]
         pub fn compute_reduced_openings_for_log_height(
             matrix: MatrixViewDevice<F>,

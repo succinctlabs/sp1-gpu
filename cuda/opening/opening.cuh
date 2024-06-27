@@ -21,6 +21,64 @@ namespace helpers {
 
 namespace opening_kernels {
 
+__global__ void interpolateCosetsKernel(
+    bb31_t** polysEvals,          
+    size_t* cosetHeights,                 
+    size_t* cosetLogHeights,             
+    bb31_t* shifts,                       
+    bb31_extension_t* points,
+    bb31_t* gValues,
+    bb31_extension_t * barycentricScalars,
+    bb31_extension_t* output
+) {
+    size_t index = blockIdx.x;                             
+    uint32_t row = threadIdx.y * blockDim.x + threadIdx.x; 
+    uint32_t rowStride = blockDim.x * blockDim.y;         
+
+    bb31_t* polyEvals = polysEvals[index];
+    size_t cosetHeight = cosetHeights[index];
+    size_t cosetLogHeight = cosetLogHeights[index];
+    bb31_t shift = shifts[index];
+    bb31_extension_t point = points[index];
+    bb31_t g = gValues[index];
+    bb31_extension_t barycentricScalar = barycentricScalars[index];
+
+    bb31_extension_t sum = bb31_extension_t::zero();
+
+    bb31_t gStride = g^rowStride; 
+    bb31_t gPowers_i = g^row;
+    for (int i = row; i < cosetHeight; i += rowStride) { 
+        size_t rev = bit_rev(i, cosetLogHeight);
+        bb31_extension_t diff = point - shift * gPowers_i;
+        bb31_extension_t scale = gPowers_i * diff.reciprocal();
+        sum += scale * polyEvals[rev];
+        gPowers_i *= gStride;
+    }
+
+    extern __shared__ bb31_extension_t sdata[];
+    sdata[row] = sum;
+    __syncthreads();
+
+    int steps = 32;
+    if (row < steps) {
+        bb31_extension_t blockSum = bb31_extension_t::zero();
+        for (int i = row; i < rowStride; i+=steps) { 
+            blockSum += sdata[i];
+        }
+        sdata[row] = blockSum;
+        __syncwarp();
+
+        if (row == 0) {
+            blockSum = bb31_extension_t::zero();
+            for (int i = 0; i < steps; i++) { 
+                blockSum += sdata[i];
+            }
+            output[index] = blockSum * barycentricScalar;
+        }
+    }
+}
+
+
 __global__ void interpolateCosetKernel(
     Matrix<bb31_t> cosetEvals,          
     size_t cosetHeight,                 
@@ -110,6 +168,36 @@ __global__ void batchMultiplicativeInverse(
 }  // namespace opening_kernels
 
 namespace opening_gpu {
+
+extern "C" void interpolateCosets(
+    bb31_t** polysEvals,
+    size_t numPolys,
+    size_t*  cosetHeights,
+    size_t * cosetLogHeights,
+    bb31_t* shifts,
+    bb31_extension_t* points,
+    bb31_extension_t* barycentricScalars,
+    bb31_t* gValues,
+    bb31_extension_t* output
+) {
+    dim3 stageGrid(numPolys);
+    dim3 stageBlock(32, 32);
+
+    opening_kernels::interpolateCosetsKernel<<<
+    stageGrid, 
+    stageBlock, 
+    sizeof(bb31_extension_t) * stageBlock.x * stageBlock.y>>>(
+        polysEvals,
+        cosetHeights,
+        cosetLogHeights,
+        shifts,
+        points,
+        gValues,
+        barycentricScalars,
+        output
+    );
+}
+
 extern "C" void interpolateCoset(
     Matrix<bb31_t> cosetEvals,
     size_t cosetHeight,
