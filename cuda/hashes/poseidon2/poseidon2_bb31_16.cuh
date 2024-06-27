@@ -102,7 +102,7 @@ namespace constants {
 class BabyBear {
   public:
     using F_t = bb31_t;
-    using pF_t = const F_t*;
+    using pF_t = const F_t;
 
     static constexpr const int DIGEST_WIDTH = constants::DIGEST_WIDTH;
     static constexpr const int RATE = constants::RATE;
@@ -111,15 +111,15 @@ class BabyBear {
     static constexpr const int ROUNDS_P = constants::ROUNDS_P;
     static constexpr const int D = constants::D;
 
-    static constexpr pF_t INTERNAL_ROUND_CONSTANTS =
+    static constexpr pF_t* INTERNAL_ROUND_CONSTANTS =
         constants::INTERNAL_ROUND_CONSTANTS;
-    static constexpr pF_t EXTERNAL_ROUND_CONSTANTS =
+    static constexpr pF_t* EXTERNAL_ROUND_CONSTANTS =
         constants::EXTERNAL_ROUND_CONSTANTS;
-    static constexpr pF_t MAT_INTERNAL_DIAG_M1 =
+    static constexpr pF_t* MAT_INTERNAL_DIAG_M1 =
         constants::MAT_INTERNAL_DIAG_M1;
     static constexpr const F_t MONTY_INVERSE = constants::MONTY_INVERSE;
 
-    __device__ static void internalLinearLayer(F_t state[WIDTH], pF_t, F_t) {
+    __device__ static void internalLinearLayer(F_t state[WIDTH], pF_t*, F_t) {
         matmulInternal(state);
         for (int i = 0; i < WIDTH; i++) {
             state[i] = state[i] * MONTY_INVERSE;

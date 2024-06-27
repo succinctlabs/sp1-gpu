@@ -18,7 +18,7 @@ namespace constants {
 class Bn254 {
   public:
     using F_t = bn254_t;
-    using pF_t = F_t*;
+    using pF_t = F_t;
 
     static constexpr const int DIGEST_WIDTH = constants::DIGEST_WIDTH;
     static constexpr const int RATE = constants::RATE;
@@ -28,7 +28,7 @@ class Bn254 {
     static constexpr const int D = constants::D;
 
     __device__ static void
-    internalLinearLayer(F_t state[WIDTH], pF_t matInternalDiagM1, F_t _) {
+    internalLinearLayer(F_t state[WIDTH], F_t matInternalDiagM1[WIDTH], F_t _) {
         F_t s = state[0] + state[1] + state[2];
         for (int i = 0; i < WIDTH; i++) {
             state[i] *= matInternalDiagM1[i];
