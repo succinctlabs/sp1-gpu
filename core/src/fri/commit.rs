@@ -10,7 +10,7 @@ use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
-use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 
 pub struct TwoAdicFriCommitter<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
     dft: DeviceDft<F>,

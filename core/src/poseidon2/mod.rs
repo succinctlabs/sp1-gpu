@@ -1,6 +1,6 @@
 pub mod constants;
 
-pub mod poseidon2_bb31_16_kernels {
+pub mod poseidon2_baby_bear_16_kernels {
     use p3_baby_bear::BabyBear;
 
     pub const ROUNDS_F: usize = 8;
@@ -11,9 +11,9 @@ pub mod poseidon2_bb31_16_kernels {
     pub const D_U64: u64 = 7;
 
     #[allow(unused_attributes)]
-    #[link_name = "poseidon2_bb31_16_gpu"]
+    #[link_name = "poseidon2_baby_bear_16_gpu"]
     extern "C" {
-        pub fn permute_bb31(
+        pub fn permute_baby_bear(
             input: *const [BabyBear; WIDTH],
             output: *mut [BabyBear; WIDTH],
             n: usize,
@@ -21,7 +21,7 @@ pub mod poseidon2_bb31_16_kernels {
             n_threads_per_block: usize,
         );
 
-        pub fn compress_bb31(
+        pub fn compress_baby_bear(
             left: *const [BabyBear; DIGEST_WIDTH],
             right: *const [BabyBear; DIGEST_WIDTH],
             output: *mut [BabyBear; DIGEST_WIDTH],
@@ -30,7 +30,7 @@ pub mod poseidon2_bb31_16_kernels {
             n_threads_per_block: usize,
         );
 
-        pub fn hash_bb31(
+        pub fn hash_baby_bear(
             input: *const BabyBear,
             n_input: usize,
             output: *mut [BabyBear; DIGEST_WIDTH],
@@ -93,7 +93,7 @@ pub mod poseidon2_bn254_3_kernels {
 
 pub mod tests {
     #[cfg(test)]
-    pub mod bb31_tests {
+    pub mod baby_bear_tests {
 
         use crate::device::buffer::DeviceBuffer;
         use crate::device::memory::ToDevice;
@@ -112,13 +112,13 @@ pub mod tests {
         use rand::thread_rng;
         use rand::Rng;
 
-        use super::super::poseidon2_bb31_16_kernels;
-        use super::super::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
-        use super::super::poseidon2_bb31_16_kernels::D_U64;
-        use super::super::poseidon2_bb31_16_kernels::RATE;
-        use super::super::poseidon2_bb31_16_kernels::ROUNDS_F;
-        use super::super::poseidon2_bb31_16_kernels::ROUNDS_P;
-        use super::super::poseidon2_bb31_16_kernels::WIDTH;
+        use super::super::poseidon2_baby_bear_16_kernels;
+        use super::super::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+        use super::super::poseidon2_baby_bear_16_kernels::D_U64;
+        use super::super::poseidon2_baby_bear_16_kernels::RATE;
+        use super::super::poseidon2_baby_bear_16_kernels::ROUNDS_F;
+        use super::super::poseidon2_baby_bear_16_kernels::ROUNDS_P;
+        use super::super::poseidon2_baby_bear_16_kernels::WIDTH;
 
         fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
             let mut round_constants = RC_16_30.to_vec();
@@ -135,7 +135,7 @@ pub mod tests {
             )
         }
 
-        pub fn poseidon2_bb31_16_perm(
+        pub fn poseidon2_baby_bear_16_perm(
         ) -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>
         {
             let (external_round_constants, internal_round_constants) = round_constants();
@@ -155,23 +155,23 @@ pub mod tests {
             )
         }
 
-        pub fn poseidon2_bb31_16_hasher() -> PaddingFreeSponge<
+        pub fn poseidon2_baby_bear_16_hasher() -> PaddingFreeSponge<
             Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
             WIDTH,
             RATE,
             DIGEST_WIDTH,
         > {
-            let perm = poseidon2_bb31_16_perm();
+            let perm = poseidon2_baby_bear_16_perm();
             PaddingFreeSponge::new(perm)
         }
 
-        pub fn poseidon2_bb31_16_compressor() -> TruncatedPermutation<
+        pub fn poseidon2_baby_bear_16_compressor() -> TruncatedPermutation<
             Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
             2,
             8,
             16,
         > {
-            let perm = poseidon2_bb31_16_perm();
+            let perm = poseidon2_baby_bear_16_perm();
             TruncatedPermutation::new(perm)
         }
 
@@ -219,7 +219,7 @@ pub mod tests {
         }
 
         #[test]
-        fn test_permute_bb31_gpu() {
+        fn test_permute_baby_bear_gpu() {
             // Setup the random number generator.
             let mut rng = thread_rng();
 
@@ -238,7 +238,7 @@ pub mod tests {
             let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
 
             // Execute the source implementation.
-            let perm = poseidon2_bb31_16_perm();
+            let perm = poseidon2_baby_bear_16_perm();
             let mut gt = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
@@ -249,7 +249,7 @@ pub mod tests {
             // Execute the kernel.
             unsafe {
                 output_device.set_len(n * DIGEST_WIDTH);
-                poseidon2_bb31_16_kernels::permute_bb31(
+                poseidon2_baby_bear_16_kernels::permute_baby_bear(
                     input_device.as_ptr(),
                     output_device.as_mut_ptr(),
                     n,
@@ -266,7 +266,7 @@ pub mod tests {
         }
 
         #[test]
-        fn test_compress_bb31_gpu() {
+        fn test_compress_baby_bear_gpu() {
             // Setup the random number generator.
             let mut rng = thread_rng();
 
@@ -291,7 +291,7 @@ pub mod tests {
             let mut output_device = output.to_device();
 
             // Execute the source implementation.
-            let perm = poseidon2_bb31_16_perm();
+            let perm = poseidon2_baby_bear_16_perm();
             let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
@@ -306,7 +306,7 @@ pub mod tests {
 
             // Execute the kernel.
             unsafe {
-                poseidon2_bb31_16_kernels::compress_bb31(
+                poseidon2_baby_bear_16_kernels::compress_baby_bear(
                     left_device.as_ptr(),
                     right_device.as_ptr(),
                     output_device.as_slice_mut().as_mut_ptr(),
@@ -324,7 +324,7 @@ pub mod tests {
         }
 
         #[test]
-        fn test_hash_bb31_gpu() {
+        fn test_hash_baby_bear_gpu() {
             // Setup the random number generator.
             let mut rng = thread_rng();
 
@@ -346,7 +346,7 @@ pub mod tests {
             let mut output_device = output.to_device();
 
             // Execute the source implementation.
-            let sponge = poseidon2_bb31_16_hasher();
+            let sponge = poseidon2_baby_bear_16_hasher();
 
             let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
@@ -357,7 +357,7 @@ pub mod tests {
 
             // Execute the kernel.
             unsafe {
-                poseidon2_bb31_16_kernels::hash_bb31(
+                poseidon2_baby_bear_16_kernels::hash_baby_bear(
                     input_device.as_slice().as_ptr(),
                     N_INPUT,
                     output_device.as_slice_mut().as_mut_ptr(),

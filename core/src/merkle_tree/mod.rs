@@ -6,7 +6,7 @@ use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
-use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -97,7 +97,7 @@ pub mod merkle_tree_gpu {
     use p3_baby_bear::BabyBear;
 
     use crate::merkle_tree::MatrixViewDevice;
-    use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+    use crate::poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_gpu"]
@@ -174,12 +174,12 @@ mod tests {
     use crate::device::memory::{ToDevice, ToHost};
     use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
     use crate::merkle_tree::FieldMerkleTreeGpu;
-    use crate::poseidon2::tests::bb31_tests::{
-        poseidon2_bb31_16_compressor, poseidon2_bb31_16_hasher,
+    use crate::poseidon2::tests::baby_bear_tests::{
+        poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
     };
     use crate::{
         device::buffer::DeviceBuffer, merkle_tree::merkle_tree_gpu,
-        poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
+        poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     };
 
     use p3_baby_bear::BabyBear;
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn test_first_digest_layer() {
         let n = 1 << 16;
-        let hasher = poseidon2_bb31_16_hasher();
+        let hasher = poseidon2_baby_bear_16_hasher();
 
         let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
         let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
@@ -218,8 +218,8 @@ mod tests {
     #[test]
     fn test_compress_and_inject() {
         let n = 1 << 16;
-        let hasher = poseidon2_bb31_16_hasher();
-        let compressor = poseidon2_bb31_16_compressor();
+        let hasher = poseidon2_baby_bear_16_hasher();
+        let compressor = poseidon2_baby_bear_16_compressor();
 
         let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
         let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
@@ -278,8 +278,8 @@ mod tests {
     #[test]
     fn test_commit_matrices() {
         let n = 1 << 16;
-        let hasher = poseidon2_bb31_16_hasher();
-        let compressor = poseidon2_bb31_16_compressor();
+        let hasher = poseidon2_baby_bear_16_hasher();
+        let compressor = poseidon2_baby_bear_16_compressor();
 
         let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
@@ -299,8 +299,8 @@ mod tests {
     #[test]
     fn test_col_major_commit_matrices() {
         let n = 1 << 16;
-        let hasher = poseidon2_bb31_16_hasher();
-        let compressor = poseidon2_bb31_16_compressor();
+        let hasher = poseidon2_baby_bear_16_hasher();
+        let compressor = poseidon2_baby_bear_16_compressor();
 
         let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 

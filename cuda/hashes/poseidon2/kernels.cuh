@@ -2,7 +2,7 @@
 #include "poseidon2_bb31_16.cuh"
 #include "poseidon2_bn254_3.cuh"
 
-namespace poseidon2_bb31_kernels {
+namespace poseidon2_baby_bear_kernels {
 using namespace poseidon2;
 
 template<typename HashParams>
@@ -44,7 +44,7 @@ hash(bb31_t* in, int nIn, bb31_t (*out)[HashParams::DIGEST_WIDTH], int n) {
     StaticHasher<HashParams> hasher;
     hasher.hash(in + idx * nIn, nIn, out[idx]);
 }
-}  // namespace poseidon2_bb31_kernels
+}  // namespace poseidon2_baby_bear_kernels
 
 namespace poseidon2_bn254_kernels {
 using namespace poseidon2;
@@ -94,22 +94,22 @@ __global__ void hash(
 }
 }  // namespace poseidon2_bn254_kernels
 
-extern "C" namespace poseidon2_bb31_16_gpu {
+extern "C" namespace poseidon2_baby_bear_16_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear;
     using F_t = typename HashParams::F_t;
 
-    extern "C" void permute_bb31(
+    extern "C" void permute_baby_bear(
         F_t(*in)[HashParams::WIDTH],
         F_t(*out)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_bb31_kernels::permute<HashParams>
+        poseidon2_baby_bear_kernels::permute<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(in, out, n);
     }
 
-    extern "C" void compress_bb31(
+    extern "C" void compress_baby_bear(
         F_t(*left)[HashParams::DIGEST_WIDTH],
         F_t(*right)[HashParams::DIGEST_WIDTH],
         F_t(*out)[HashParams::DIGEST_WIDTH],
@@ -117,11 +117,11 @@ extern "C" namespace poseidon2_bb31_16_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_bb31_kernels::compress<HashParams>
+        poseidon2_baby_bear_kernels::compress<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(left, right, out, n);
     }
 
-    extern "C" void hash_bb31(
+    extern "C" void hash_baby_bear(
         F_t * in,
         size_t nIn,
         F_t(*out)[HashParams::DIGEST_WIDTH],
@@ -129,10 +129,10 @@ extern "C" namespace poseidon2_bb31_16_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_bb31_kernels::hash<HashParams>
+        poseidon2_baby_bear_kernels::hash<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(in, nIn, out, n);
     }
-}  // namespace poseidon2_bb31_16_gpu
+}  // namespace poseidon2_baby_bear_16_gpu
 
 extern "C" namespace poseidon2_bn254_3_gpu {
     using HashParams = poseidon2_bn254_3::Bn254;
