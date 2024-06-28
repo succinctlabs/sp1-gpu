@@ -19,7 +19,8 @@ use sp1_core::stark::MachineRecord;
 use sp1_core::stark::{Challenge, Challenger, MachineProof, ShardProof, Val};
 use sp1_prover::{
     ReduceProgramType, SP1CoreProof, SP1CoreProofData, SP1DeferredMemoryLayout, SP1ProvingKey,
-    SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1Stdin, SP1VerifyingKey,
+    SP1PublicValues, SP1RecursionMemoryLayout, SP1ReduceProof, SP1RootMemoryLayout, SP1Stdin,
+    SP1VerifyingKey,
 };
 use sp1_recursion_program::hints::Hintable;
 use sp1_recursion_program::machine::{
@@ -545,6 +546,48 @@ impl SP1GpuProver {
         Ok(proof)
     }
 
+    /// Wrap a reduce proof into a STARK proven over a SNARK-friendly field.
+    #[instrument(name = "shrink", level = "info", skip_all)]
+    pub fn shrink(
+        &self,
+        reduced_proof: SP1ReduceProof<InnerSC>,
+        opts: SP1ProverOpts,
+    ) -> Result<SP1ReduceProof<InnerSC>, SP1RecursionProverError> {
+        // Make the compress proof.
+        let input = SP1RootMemoryLayout {
+            machine: self.compress_prover.machine(),
+            proof: reduced_proof.proof,
+            is_reduce: true,
+        };
+
+        // Run the compress program.
+        let mut runtime = RecursionRuntime::<Val<InnerSC>, Challenge<InnerSC>, _>::new(
+            &self.shrink_program,
+            self.shrink_prover.config().perm.clone(),
+        );
+
+        let mut witness_stream = Vec::new();
+        witness_stream.extend(input.write());
+
+        runtime.witness_stream = witness_stream.into();
+        runtime.run();
+        runtime.print_stats();
+        tracing::debug!("Compress program executed successfully");
+
+        // Prove the compress program.
+        let mut compress_challenger = self.shrink_prover.config().challenger();
+        let mut compress_proof = self.shrink_prover.prove(
+            &self.shrink_pk,
+            runtime.record,
+            &mut compress_challenger,
+            opts.recursion_opts,
+        );
+
+        Ok(SP1ReduceProof {
+            proof: compress_proof.shard_proofs.pop().unwrap(),
+        })
+    }
+
     pub fn prove_core_with_context(
         &self,
         program: Program,
@@ -828,13 +871,10 @@ mod tests {
     /// not needed.
     #[test]
     fn bench_e2e() -> Result<()> {
-        const ELF: &[u8] =
+        const FIB_ELF: &[u8] =
             include_bytes!("../../../zkvm-perf/programs/fibonacci/elf/riscv32im-succinct-zkvm-elf");
 
-        pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
-            include_bytes!("../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
-
-        let elf = TENDERMINT_BENCHMARK_ELF;
+        let elf = FIB_ELF;
 
         init_tracer();
 
@@ -873,19 +913,34 @@ mod tests {
         tracing::info!("verify compressed");
         prover.verify_compressed(&compressed_proof, &vk)?;
 
-        let total_time = prove_core_time + compress_time;
-        tracing::info!(
-            "Summary: cycles={}, e2e={:?}, khz={:.2}",
-            cycles,
-            total_time,
-            (cycles as f64 / (total_time.as_millis() as f64)),
-        );
-
         // tracing::info!("shrink");
-        // let shrink_proof = prover.shrink(compressed_proof)?;
+        // let time = std::time::Instant::now();
+        // let shrink_proof = prover.shrink(compressed_proof, opts)?;
+        // let shrink_time = time.elapsed();
 
         // tracing::info!("verify shrink");
         // prover.verify_shrink(&shrink_proof, &vk)?;
+
+        let total_compress_time = prove_core_time + compress_time;
+        // let total_shrink_time = total_compress_time + shrink_time;
+        tracing::info!(
+            "Summary: cycles={}, compress_e2e={:?}, compress_khz={:.2}",
+            cycles,
+            total_compress_time,
+            (cycles as f64 / (total_compress_time.as_millis() as f64)),
+        );
+        // tracing::info!(
+        //     "Summary: cycles={}, shrink_e2e={:?}, shrink_khz={:.2}",
+        //     cycles,
+        //     total_shrink_time,
+        //     (cycles as f64 / (total_shrink_time.as_millis() as f64)),
+        // );
+        tracing::info!(
+            "Summary: core_time={:?}, compress_time={:?}, compress_percent={:.2}",
+            prove_core_time,
+            compress_time,
+            (compress_time.as_millis() as f64 / (prove_core_time.as_millis() as f64)),
+        );
 
         // tracing::info!("wrap bn254");
         // let wrapped_bn254_proof = prover.wrap_bn254(shrink_proof)?;
