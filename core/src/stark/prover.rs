@@ -207,6 +207,7 @@ where
             self.trace_generator
                 .generate_main_traces(&self.machine, shard, index);
         debug!("Time to generate main traces: {:?}", time.elapsed());
+
         // Copy main traces to the device.
         let time = CudaInstant::now().unwrap();
         let trace_data = host_trace_data.to_device();
@@ -253,6 +254,15 @@ where
             .machine
             .shard_chips_ordered(&chip_ordering)
             .collect::<Vec<_>>();
+        info!(
+            "Shard {}: [{}]",
+            main_trace_data.index,
+            shard_chips
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
 
         // Print some statistics.
         let mut total_lde_size = 0;
@@ -262,6 +272,19 @@ where
             let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
             total_lde_size += stats.lde_memory_size(log_blowup);
             debug!("{}", stats);
+
+            let width = main_trace_data.traces[i].width();
+            let height = main_trace_data.traces[i].height();
+            let permutation_width = perm_domains_and_traces[i].1.width();
+            let total_width = width + permutation_width;
+            info!(
+                "Shard {:<5} Chip {:<12}: {:>8} = {}W x {}H",
+                main_trace_data.index,
+                shard_chips[i].name(),
+                total_width * height,
+                total_width,
+                height,
+            );
         }
         info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
@@ -785,6 +808,34 @@ where
             })
             .collect::<Vec<_>>();
 
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&main_trace_data.chip_ordering)
+            .collect::<Vec<_>>();
+        info!(
+            "Shard {}: [{}]",
+            main_trace_data.index,
+            shard_chips
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        for i in 0..shard_chips.len() {
+            let width = main_trace_data.traces[i].width();
+            let height = main_trace_data.traces[i].height();
+            let permutation_width = perm_domains_and_traces[i].1.width();
+            let total_width = width + permutation_width;
+            info!(
+                "{:<5} {:<12} {:>8} = {}W x {}H",
+                main_trace_data.index,
+                shard_chips[i].name(),
+                total_width * height,
+                total_width,
+                height,
+            );
+        }
+
         let (permutation_commit, perm_prover_data) = self.commit(perm_domains_and_traces);
 
         // Observe the permutation commitment.
@@ -798,10 +849,6 @@ where
         let host_perm_prover_data = perm_prover_data;
 
         // Compute quotient values.
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&main_trace_data.chip_ordering)
-            .collect::<Vec<_>>();
 
         // Compute values
         let time = std::time::Instant::now();
