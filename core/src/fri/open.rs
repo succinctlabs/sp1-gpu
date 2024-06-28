@@ -38,7 +38,6 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -71,13 +70,6 @@ impl<SC: BabyBearPoseidon2Config> Default for FriCpuOpeningProver<SC> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
-
-#[repr(C)]
-pub struct RoundsData<F, EF> {
-    mats: *const MatrixViewDevice<F>,
-    points: *const EF,
-    log_blowup: usize,
-}
 
 impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
@@ -205,18 +197,17 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         assert_eq!(thread_generator_powers.len(), num_points * 1024);
         assert_eq!(points_for_inv.len(), num_points);
 
-        let inv_indices_device = inv_indices.to_device();
-        let nums_rows = nums_rows.to_device();
-        let log_nums_rows = log_nums_rows.to_device();
-        let thread_generator_powers = thread_generator_powers.to_device();
-        let points_for_inv = points_for_inv.to_device();
-        let shifts_for_inv = shifts_for_inv.to_device();
-
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset);
+        let inv_indices_device = inv_indices.to_device();
         unsafe {
             inv_denominators.set_max_len();
+            let nums_rows = nums_rows.to_device();
+            let log_nums_rows = log_nums_rows.to_device();
+            let thread_generator_powers = thread_generator_powers.to_device();
+            let points_for_inv = points_for_inv.to_device();
+            let shifts_for_inv = shifts_for_inv.to_device();
             opening_gpu::compute_inverse_denominators(
                 global_max_height,
                 num_points,

@@ -834,7 +834,7 @@ mod tests {
         pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
             include_bytes!("../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
 
-        let elf = ELF;
+        let elf = TENDERMINT_BENCHMARK_ELF;
 
         init_tracer();
 
@@ -843,7 +843,7 @@ mod tests {
         tracing::info!("initializing prover");
         let opts = SP1ProverOpts {
             core_opts: SP1CoreOpts {
-                shard_size: 1 << 21,
+                shard_size: 1 << 22,
                 ..Default::default()
             },
             recursion_opts: SP1CoreOpts::default(),
