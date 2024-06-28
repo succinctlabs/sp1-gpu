@@ -6,7 +6,7 @@ use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
-use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -97,7 +97,7 @@ pub mod merkle_tree_gpu {
     use p3_baby_bear::BabyBear;
 
     use crate::merkle_tree::MatrixViewDevice;
-    use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+    use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_gpu"]
@@ -179,7 +179,7 @@ mod tests {
     };
     use crate::{
         device::buffer::DeviceBuffer, merkle_tree::merkle_tree_gpu,
-        poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+        poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     };
 
     use p3_baby_bear::BabyBear;

@@ -1,5 +1,6 @@
+pub mod baby_bear_gpu;
+pub mod bn254_gpu;
 pub mod constants;
-pub mod hashers;
 
 pub mod tests {
     #[cfg(test)]
@@ -22,13 +23,13 @@ pub mod tests {
         use rand::thread_rng;
         use rand::Rng;
 
-        use crate::poseidon2::hashers::baby_bear_16::HasherBabyBearGPU;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::D_U64;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::RATE;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::ROUNDS_F;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::ROUNDS_P;
-        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::WIDTH;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::D_U64;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::RATE;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::ROUNDS_F;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::ROUNDS_P;
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::WIDTH;
+        use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
 
         fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
             let mut round_constants = RC_16_30.to_vec();
@@ -302,14 +303,14 @@ pub mod tests {
         use rand::thread_rng;
         use rand::Rng;
 
-        use crate::poseidon2::hashers::bn254_3::poseidon2_bn254_3_constants;
-        use crate::poseidon2::hashers::bn254_3::HasherBn254GPU;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::D_U64;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::RATE;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::ROUNDS_F;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::ROUNDS_P;
-        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::WIDTH;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_constants;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::D_U64;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::RATE;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::ROUNDS_F;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::ROUNDS_P;
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::WIDTH;
+        use crate::poseidon2::bn254_gpu::HasherBn254GPU;
 
         pub fn poseidon2_bn254_3_perm(
         ) -> Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>
