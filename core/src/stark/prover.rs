@@ -325,8 +325,8 @@ where
         // Compute values
         let quotient_values_span = info_span!("Compute shard quotient values");
         let guard = quotient_values_span.enter();
-        let quotient_values = std::thread::scope(|s| {
-            let mut quotient_value_handles = Vec::with_capacity(shard_chips.len());
+        let quotient_values = {
+            let mut results = Vec::with_capacity(shard_chips.len());
 
             for (i, ((chip, trace), (perm_domain, perm_trace))) in shard_chips
                 .iter()
@@ -338,52 +338,45 @@ where
                 let public_values = public_values.as_slice();
                 let permutation_challenges = permutation_challenges.as_slice();
                 let parent = &quotient_values_span;
-                let handle = s.spawn(move || {
-                    let chip_span =
-                        trace_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
-                            .entered();
-                    let trace_domain = perm_domain;
-                    let main_lde = self.committer.encode(*trace_domain, trace, false).unwrap();
-                    let permutation_lde = self
-                        .committer
-                        .encode(*perm_domain, perm_trace, false)
-                        .unwrap();
+                let chip_span =
+                    debug_span!(parent: parent, "Compute quotient for chip", chip = chip.name())
+                        .entered();
+                let trace_domain = perm_domain;
+                let main_lde = self.committer.encode(*trace_domain, trace, false).unwrap();
+                let permutation_lde = self
+                    .committer
+                    .encode(*perm_domain, perm_trace, false)
+                    .unwrap();
 
-                    let copy_prep_span =
-                        trace_span!(parent: parent, "Copy preprocessed data to device").entered();
-                    let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
-                    let preprocessed_lde = preprocessed_index
-                        .map(|idx| pk.data.leaves[idx].to_device().to_column_major());
-                    copy_prep_span.exit();
+                let copy_prep_span =
+                    trace_span!(parent: parent, "Copy preprocessed data to device").entered();
+                let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
+                let preprocessed_lde =
+                    preprocessed_index.map(|idx| pk.data.leaves[idx].to_device().to_column_major());
+                copy_prep_span.exit();
 
-                    let cumulative_sum = cumulative_sums[i];
+                let cumulative_sum = cumulative_sums[i];
 
-                    let values = self
-                        .quotient_generator
-                        .generate_quotient_values(
-                            chip,
-                            *trace_domain,
-                            preprocessed_lde,
-                            main_lde,
-                            permutation_lde,
-                            permutation_challenges,
-                            folding_challenge,
-                            public_values,
-                            cumulative_sum,
-                        )
-                        .unwrap();
-                    chip_span.exit();
+                let values = self
+                    .quotient_generator
+                    .generate_quotient_values(
+                        chip,
+                        *trace_domain,
+                        preprocessed_lde,
+                        main_lde,
+                        permutation_lde,
+                        permutation_challenges,
+                        folding_challenge,
+                        public_values,
+                        cumulative_sum,
+                    )
+                    .unwrap();
+                chip_span.exit();
 
-                    values
-                });
-                quotient_value_handles.push(handle);
+                results.push(values);
             }
-
-            quotient_value_handles
-                .into_iter()
-                .map(|handle| handle.join().unwrap())
-                .collect::<Vec<_>>()
-        });
+            results
+        };
         drop(guard);
         drop(quotient_values_span);
 

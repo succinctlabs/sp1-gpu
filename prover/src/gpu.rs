@@ -103,15 +103,13 @@ pub struct SP1GpuProver {
     pub shrink_vk: StarkVerifyingKey<InnerSC>,
 
     /// The prover for the core machine.
-    pub(crate) core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
+    pub core_prover: StarkGpuProver<CoreSC, RiscvAir<<CoreSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the compress machine.
-    pub(crate) compress_prover:
-        StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub compress_prover: StarkGpuProver<InnerSC, ReduceAir<<InnerSC as StarkGenericConfig>::Val>>,
 
     /// The prover for the shrink machine.
-    pub(crate) shrink_prover:
-        StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
+    pub shrink_prover: StarkGpuProver<InnerSC, CompressAir<<InnerSC as StarkGenericConfig>::Val>>,
 }
 
 impl SP1GpuProver {
@@ -145,7 +143,7 @@ impl SP1GpuProver {
         let shrink_program = SP1RootVerifier::<InnerConfig, _, _>::build(
             compress_prover.machine(),
             &compress_vk,
-            RecursionProgramType::Shrink,
+            true,
         );
         let shrink_machine = CompressAir::wrap_machine_dyn(InnerSC::compressed());
         let (shrink_pk, shrink_vk) = shrink_machine.setup(&shrink_program);
@@ -269,7 +267,10 @@ impl SP1GpuProver {
                 leaf_challenger,
                 initial_reconstruct_challenger: reconstruct_challenger.clone(),
                 is_complete,
-                total_core_shards: shard_proofs.len(),
+                total_core_shards: shard_proofs
+                    .iter()
+                    .filter(|proof| proof.contains_cpu())
+                    .count(),
             });
 
             for proof in batch.iter() {
@@ -380,7 +381,10 @@ impl SP1GpuProver {
         let batch_size = 2;
 
         let shard_proofs = &proof.proof.0;
-        let total_core_shards = shard_proofs.len();
+        let total_core_shards = shard_proofs
+            .iter()
+            .filter(|proof| proof.contains_cpu())
+            .count();
         // Get the leaf challenger.
         let mut leaf_challenger = self.core_prover.machine().config().challenger();
         vk.vk.observe_into(&mut leaf_challenger);
