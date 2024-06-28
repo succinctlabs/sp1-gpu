@@ -203,36 +203,22 @@ class DynamicHasher: public Hasher<Params> {
   public:
     RoundConstants<Params> roundConstants;
 
-    void setInternalRoundConstants(pF_t (*internalRC)[Params::ROUNDS_P]) {
-        cudaMemcpy(
-            roundConstants.internalRoundConstants,
-            internalRC,
-            Params::ROUNDS_P * sizeof(pF_t),
-            cudaMemcpyHostToDevice
-        );
+    void setInternalRoundConstants(pF_t (*internalRoundConstants
+    )[Params::ROUNDS_P]) {
+        roundConstants.internalRoundConstants = &(*internalRoundConstants)[0];
     }
 
-    void setExternalRoundConstants(pF_t (*externalRC
+    void setExternalRoundConstants(pF_t (*externalRoundConstants
     )[Params::ROUNDS_F * Params::WIDTH]) {
-        cudaMemcpy(
-            roundConstants.externalRoundConstants,
-            externalRC,
-            Params::ROUNDS_F * Params::WIDTH * sizeof(pF_t),
-            cudaMemcpyHostToDevice
-        );
+        roundConstants.externalRoundConstants = &(*externalRoundConstants)[0];
     }
 
-    void setMatInternalDiagM1(pF_t (*internalDiagM1)[Params::WIDTH]) {
-        cudaMemcpy(
-            roundConstants.matInternalDiagM1,
-            internalDiagM1,
-            Params::WIDTH * sizeof(pF_t),
-            cudaMemcpyHostToDevice
-        );
+    void setMatInternalDiagM1(pF_t (*matInternalDiagM1)[Params::WIDTH]) {
+        roundConstants.matInternalDiagM1 = &(*matInternalDiagM1)[0];
     }
 
     void setMontyInverse(pF_t montyInverse) {
-        roundConstants.montyInverse = montyInverse;
+        roundConstants.montyInverse = &(*montyInverse)[0];
     }
 
     __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
