@@ -899,8 +899,10 @@ mod tests {
         tracing::info!("prove core");
         let time = std::time::Instant::now();
         let core_proof = prover.prove_core(&pk, &stdin, opts, context)?;
-        let _public_values = core_proof.public_values.clone();
         let prove_core_time = time.elapsed();
+
+        let _public_values = core_proof.public_values.clone();
+        let num_shards = core_proof.proof.0.len();
 
         tracing::info!("verify core");
         prover.verify(&core_proof.proof, &vk)?;
@@ -924,8 +926,9 @@ mod tests {
         let total_compress_time = prove_core_time + compress_time;
         // let total_shrink_time = total_compress_time + shrink_time;
         tracing::info!(
-            "Summary: cycles={}, compress_e2e={:?}, compress_khz={:.2}",
+            "Summary: cycles={}, shards = {}, compress_e2e={:?}, compress_khz={:.2}",
             cycles,
+            num_shards,
             total_compress_time,
             (cycles as f64 / (total_compress_time.as_millis() as f64)),
         );
