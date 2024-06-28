@@ -203,27 +203,6 @@ class DynamicHasher: public Hasher<Params> {
   public:
     RoundConstants<Params> roundConstants;
 
-    DynamicHasher() {
-        cudaMalloc(
-            &roundConstants.internalRoundConstants,
-            Params::ROUNDS_P * sizeof(F_t)
-        );
-        cudaMalloc(
-            &roundConstants.externalRoundConstants,
-            Params::ROUNDS_F * Params::WIDTH * sizeof(F_t)
-        );
-        cudaMalloc(
-            &roundConstants.matInternalDiagM1,
-            Params::WIDTH * sizeof(F_t)
-        );
-    }
-
-    ~DynamicHasher() {
-        cudaFree(roundConstants.internalRoundConstants);
-        cudaFree(roundConstants.externalRoundConstants);
-        cudaFree(roundConstants.matInternalDiagM1);
-    }
-
     void setInternalRoundConstants(pF_t (*internalRC)[Params::ROUNDS_P]) {
         cudaMemcpy(
             roundConstants.internalRoundConstants,
