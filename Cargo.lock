@@ -1611,32 +1611,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "moongate-prover"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "moongate-core",
- "num-bigint 0.4.6",
- "p3-baby-bear",
- "p3-challenger",
- "p3-field",
- "serial_test",
- "size",
- "sp1-core",
- "sp1-primitives",
- "sp1-prover",
- "sp1-recursion-compiler",
- "sp1-recursion-core",
- "sp1-recursion-gnark-ffi",
- "sp1-recursion-program",
- "tempfile",
- "thiserror",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3042,6 +3016,32 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "sp1-moongate-prover"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "moongate-core",
+ "num-bigint 0.4.6",
+ "p3-baby-bear",
+ "p3-challenger",
+ "p3-field",
+ "serial_test",
+ "size",
+ "sp1-core",
+ "sp1-primitives",
+ "sp1-prover",
+ "sp1-recursion-compiler",
+ "sp1-recursion-core",
+ "sp1-recursion-gnark-ffi",
+ "sp1-recursion-program",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
