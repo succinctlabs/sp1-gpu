@@ -1,6 +1,8 @@
+use crate::matrix::MatrixViewDevice;
 use p3_baby_bear::BabyBear;
 
 pub mod poseidon2_baby_bear_16_kernels {
+    use crate::matrix::MatrixViewDevice;
     use p3_baby_bear::BabyBear;
 
     pub const ROUNDS_F: usize = 8;
@@ -35,6 +37,28 @@ pub mod poseidon2_baby_bear_16_kernels {
             n_input: usize,
             output: *mut [BabyBear; DIGEST_WIDTH],
             n: usize,
+            n_blocks: usize,
+            n_threads_per_block: usize,
+        );
+    }
+
+    #[allow(unused_attributes)]
+    #[link_name = "merkle_tree_gpu"]
+    extern "C" {
+        pub fn first_digest_layer(
+            tallest_matrices: *const MatrixViewDevice<BabyBear>,
+            n_tallest_matrices: usize,
+            digests: *mut [BabyBear; DIGEST_WIDTH],
+            n_blocks: usize,
+            n_threads_per_block: usize,
+        );
+
+        pub fn compress_and_inject(
+            prev_layer: *const [BabyBear; DIGEST_WIDTH],
+            n_prev_layer: usize,
+            matrices_to_inject: *const MatrixViewDevice<BabyBear>,
+            n_matrices_to_inject: usize,
+            next_digests: *mut [BabyBear; DIGEST_WIDTH],
             n_blocks: usize,
             n_threads_per_block: usize,
         );
@@ -85,16 +109,14 @@ impl HasherBabyBearGPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        unsafe {
-            poseidon2_baby_bear_16_kernels::compress_baby_bear(
-                left,
-                right,
-                output,
-                n,
-                n_blocks,
-                n_threads_per_block,
-            );
-        }
+        poseidon2_baby_bear_16_kernels::compress_baby_bear(
+            left,
+            right,
+            output,
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
     }
 
     /// # Safety
@@ -107,15 +129,53 @@ impl HasherBabyBearGPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        unsafe {
-            poseidon2_baby_bear_16_kernels::hash_baby_bear(
-                input,
-                n_input,
-                output,
-                n,
-                n_blocks,
-                n_threads_per_block,
-            );
-        }
+        poseidon2_baby_bear_16_kernels::hash_baby_bear(
+            input,
+            n_input,
+            output,
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+
+    /// # Safety
+    pub unsafe fn first_digest_layer(
+        &self,
+        tallest_matrices: *const MatrixViewDevice<BabyBear>,
+        n_tallest_matrices: usize,
+        digests: *mut [BabyBear; DIGEST_WIDTH],
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_baby_bear_16_kernels::first_digest_layer(
+            tallest_matrices,
+            n_tallest_matrices,
+            digests,
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+
+    /// # Safety
+    pub unsafe fn compress_and_inject(
+        &self,
+        prev_layer: *const [BabyBear; DIGEST_WIDTH],
+        n_prev_layer: usize,
+        matrices_to_inject: *const MatrixViewDevice<BabyBear>,
+        n_matrices_to_inject: usize,
+        next_digests: *mut [BabyBear; DIGEST_WIDTH],
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_baby_bear_16_kernels::compress_and_inject(
+            prev_layer,
+            n_prev_layer,
+            matrices_to_inject,
+            n_matrices_to_inject,
+            next_digests,
+            n_blocks,
+            n_threads_per_block,
+        );
     }
 }

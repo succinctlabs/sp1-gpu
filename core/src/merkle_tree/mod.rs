@@ -4,9 +4,9 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::MatrixViewDevice;
 use crate::matrix::RowMajorMatrixDevice;
 use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -39,9 +39,10 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
             .to_device();
 
         let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
+        let hasher = HasherBabyBearGPU::new();
         unsafe {
             first_digest_layer.set_len(max_height);
-            merkle_tree_gpu::first_digest_layer(
+            hasher.first_digest_layer(
                 tallest_matrices.as_ptr(),
                 tallest_matrices.len(),
                 first_digest_layer.as_mut_ptr(),
@@ -68,7 +69,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
                 DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(next_layer_len);
             unsafe {
                 next_digests.set_len(next_layer_len);
-                merkle_tree_gpu::compress_and_inject(
+                hasher.compress_and_inject(
                     prev_layer.as_ptr(),
                     prev_layer.len(),
                     matrices_to_inject.as_ptr(),
@@ -90,35 +91,6 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
 
     pub fn root(&self) -> [BabyBear; DIGEST_WIDTH] {
         self.digest_layers.last().unwrap().to_host()[0]
-    }
-}
-
-pub mod merkle_tree_gpu {
-    use p3_baby_bear::BabyBear;
-
-    use crate::merkle_tree::MatrixViewDevice;
-    use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-
-    #[allow(unused_attributes)]
-    #[link_name = "merkle_tree_gpu"]
-    extern "C" {
-        pub fn first_digest_layer(
-            tallest_matrices: *const MatrixViewDevice<BabyBear>,
-            n_tallest_matrices: usize,
-            digests: *mut [BabyBear; DIGEST_WIDTH],
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-
-        pub fn compress_and_inject(
-            prev_layer: *const [BabyBear; DIGEST_WIDTH],
-            n_prev_layer: usize,
-            matrices_to_inject: *const MatrixViewDevice<BabyBear>,
-            n_matrices_to_inject: usize,
-            next_digests: *mut [BabyBear; DIGEST_WIDTH],
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
     }
 }
 
@@ -178,8 +150,9 @@ mod tests {
         poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
     };
     use crate::{
-        device::buffer::DeviceBuffer, merkle_tree::merkle_tree_gpu,
+        device::buffer::DeviceBuffer,
         poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+        poseidon2::baby_bear_gpu::HasherBabyBearGPU,
     };
 
     use p3_baby_bear::BabyBear;
@@ -194,10 +167,10 @@ mod tests {
         let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
         let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
         let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
-
+        let hasher_gpu = HasherBabyBearGPU::new();
         unsafe {
             digests.set_len(n);
-            merkle_tree_gpu::first_digest_layer(
+            hasher_gpu.first_digest_layer(
                 tallest_matrices.as_ptr(),
                 tallest_matrices.len(),
                 digests.as_mut_ptr(),
@@ -226,9 +199,11 @@ mod tests {
 
         let tallest_matrices = vec![matrix_device_1.view()].to_device();
         let mut first_layer_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+
+        let hasher_gpu = HasherBabyBearGPU::new();
         unsafe {
             first_layer_digests.set_len(n);
-            merkle_tree_gpu::first_digest_layer(
+            hasher_gpu.first_digest_layer(
                 tallest_matrices.as_ptr(),
                 tallest_matrices.len(),
                 first_layer_digests.as_mut_ptr(),
@@ -241,7 +216,7 @@ mod tests {
         let mut next_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1);
         unsafe {
             next_digests.set_len(n / 2);
-            merkle_tree_gpu::compress_and_inject(
+            hasher_gpu.compress_and_inject(
                 first_layer_digests.as_ptr(),
                 first_layer_digests.len(),
                 matrices_to_inject.as_ptr(),

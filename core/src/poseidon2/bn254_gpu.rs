@@ -108,18 +108,16 @@ impl HasherBn254GPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        unsafe {
-            poseidon2_bn254_3_kernels::permute_bn254(
-                input,
-                output,
-                self.internal_rounds_constats_device.as_slice().as_ptr(),
-                self.external_rounds_constats_device.as_slice().as_ptr(),
-                self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-                n,
-                n_blocks,
-                n_threads_per_block,
-            );
-        }
+        poseidon2_bn254_3_kernels::permute_bn254(
+            input,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
     }
 
     /// # Safety
@@ -132,19 +130,17 @@ impl HasherBn254GPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        unsafe {
-            poseidon2_bn254_3_kernels::compress_bn254(
-                left,
-                right,
-                output,
-                self.internal_rounds_constats_device.as_slice().as_ptr(),
-                self.external_rounds_constats_device.as_slice().as_ptr(),
-                self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-                n,
-                n_blocks,
-                n_threads_per_block,
-            );
-        }
+        poseidon2_bn254_3_kernels::compress_bn254(
+            left,
+            right,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
     }
 
     /// # Safety
@@ -157,18 +153,16 @@ impl HasherBn254GPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        unsafe {
-            poseidon2_bn254_3_kernels::hash_bn254(
-                input,
-                n_input,
-                output,
-                self.internal_rounds_constats_device.as_slice().as_ptr(),
-                self.external_rounds_constats_device.as_slice().as_ptr(),
-                self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-                n,
-                n_blocks,
-                n_threads_per_block,
-            );
-        }
+        poseidon2_bn254_3_kernels::hash_bn254(
+            input,
+            n_input,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
     }
 }
