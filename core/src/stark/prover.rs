@@ -49,7 +49,7 @@ use crate::{
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
-    poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+    poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{CpuQuotientValuesGenerator, QuotientValues},
     time::CudaInstant,
 };

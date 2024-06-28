@@ -39,7 +39,7 @@ use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
-use crate::poseidon2::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
 use crate::stark::GpuProverData;
 

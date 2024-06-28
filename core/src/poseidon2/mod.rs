@@ -1,95 +1,5 @@
 pub mod constants;
-
-pub mod poseidon2_baby_bear_16_kernels {
-    use p3_baby_bear::BabyBear;
-
-    pub const ROUNDS_F: usize = 8;
-    pub const ROUNDS_P: usize = 13;
-    pub const WIDTH: usize = 16;
-    pub const RATE: usize = 8;
-    pub const DIGEST_WIDTH: usize = 8;
-    pub const D_U64: u64 = 7;
-
-    #[allow(unused_attributes)]
-    #[link_name = "poseidon2_baby_bear_16_gpu"]
-    extern "C" {
-        pub fn permute_baby_bear(
-            input: *const [BabyBear; WIDTH],
-            output: *mut [BabyBear; WIDTH],
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-
-        pub fn compress_baby_bear(
-            left: *const [BabyBear; DIGEST_WIDTH],
-            right: *const [BabyBear; DIGEST_WIDTH],
-            output: *mut [BabyBear; DIGEST_WIDTH],
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-
-        pub fn hash_baby_bear(
-            input: *const BabyBear,
-            n_input: usize,
-            output: *mut [BabyBear; DIGEST_WIDTH],
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-    }
-}
-
-pub mod poseidon2_bn254_3_kernels {
-    use p3_bn254_fr::Bn254Fr;
-
-    pub const DIGEST_WIDTH: usize = 1;
-    pub const RATE: usize = 2;
-    pub const WIDTH: usize = 3;
-    pub const ROUNDS_F: usize = 8;
-    pub const ROUNDS_P: usize = 56;
-    pub const D_U64: u64 = 5;
-
-    #[allow(unused_attributes)]
-    #[link_name = "poseidon2_bn254_3_gpu"]
-    extern "C" {
-        pub fn permute_bn254(
-            input: *const [Bn254Fr; WIDTH],
-            output: *mut [Bn254Fr; WIDTH],
-            internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
-            diffusion_matrix_m1: *const Bn254Fr,
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-
-        pub fn compress_bn254(
-            left: *const [Bn254Fr; DIGEST_WIDTH],
-            right: *const [Bn254Fr; DIGEST_WIDTH],
-            output: *mut [Bn254Fr; DIGEST_WIDTH],
-            internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
-            diffusion_matrix_m1: *const Bn254Fr,
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-
-        pub fn hash_bn254(
-            input: *const Bn254Fr,
-            n_input: usize,
-            output: *mut [Bn254Fr; DIGEST_WIDTH],
-            internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
-            diffusion_matrix_m1: *const Bn254Fr,
-            n: usize,
-            n_blocks: usize,
-            n_threads_per_block: usize,
-        );
-    }
-}
+pub mod hashers;
 
 pub mod tests {
     #[cfg(test)]
@@ -112,13 +22,13 @@ pub mod tests {
         use rand::thread_rng;
         use rand::Rng;
 
-        use super::super::poseidon2_baby_bear_16_kernels;
-        use super::super::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-        use super::super::poseidon2_baby_bear_16_kernels::D_U64;
-        use super::super::poseidon2_baby_bear_16_kernels::RATE;
-        use super::super::poseidon2_baby_bear_16_kernels::ROUNDS_F;
-        use super::super::poseidon2_baby_bear_16_kernels::ROUNDS_P;
-        use super::super::poseidon2_baby_bear_16_kernels::WIDTH;
+        use crate::poseidon2::hashers::baby_bear_16::HasherBabyBearGPU;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::D_U64;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::RATE;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::ROUNDS_F;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::ROUNDS_P;
+        use crate::poseidon2::hashers::poseidon2_baby_bear_16_kernels::WIDTH;
 
         fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
             let mut round_constants = RC_16_30.to_vec();
@@ -247,9 +157,10 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBabyBearGPU::new();
             unsafe {
                 output_device.set_len(n * DIGEST_WIDTH);
-                poseidon2_baby_bear_16_kernels::permute_baby_bear(
+                hasher.permute(
                     input_device.as_ptr(),
                     output_device.as_mut_ptr(),
                     n,
@@ -305,8 +216,9 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBabyBearGPU::new();
             unsafe {
-                poseidon2_baby_bear_16_kernels::compress_baby_bear(
+                hasher.compress(
                     left_device.as_ptr(),
                     right_device.as_ptr(),
                     output_device.as_slice_mut().as_mut_ptr(),
@@ -356,8 +268,9 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBabyBearGPU::new();
             unsafe {
-                poseidon2_baby_bear_16_kernels::hash_baby_bear(
+                hasher.hash(
                     input_device.as_slice().as_ptr(),
                     N_INPUT,
                     output_device.as_slice_mut().as_mut_ptr(),
@@ -385,37 +298,18 @@ pub mod tests {
         use p3_poseidon2::Poseidon2;
         use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
         use p3_symmetric::Permutation;
-        // use p3_symmetric::TruncatedPermutation;
         use p3_symmetric::{CryptographicHasher, PaddingFreeSponge};
         use rand::thread_rng;
         use rand::Rng;
-        use sp1_recursion_core::stark::poseidon2::bn254_poseidon2_rc3;
 
-        use super::super::poseidon2_bn254_3_kernels;
-        use super::super::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
-        use super::super::poseidon2_bn254_3_kernels::D_U64;
-        use super::super::poseidon2_bn254_3_kernels::RATE;
-        use super::super::poseidon2_bn254_3_kernels::ROUNDS_F;
-        use super::super::poseidon2_bn254_3_kernels::ROUNDS_P;
-        use super::super::poseidon2_bn254_3_kernels::WIDTH;
-
-        pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Vec<Bn254Fr>)
-        {
-            let mut round_constants = bn254_poseidon2_rc3();
-            let internal_start = ROUNDS_F / 2;
-            let internal_end = (ROUNDS_F / 2) + ROUNDS_P;
-            let internal_round_constants = round_constants
-                .drain(internal_start..internal_end)
-                .map(|vec| vec[0])
-                .collect::<Vec<_>>();
-            let external_round_constants = round_constants;
-            let diffusion_matrix_m1 = [Bn254Fr::one(), Bn254Fr::one(), Bn254Fr::two()].to_vec();
-            (
-                internal_round_constants,
-                external_round_constants,
-                diffusion_matrix_m1,
-            )
-        }
+        use crate::poseidon2::hashers::bn254_3::poseidon2_bn254_3_constants;
+        use crate::poseidon2::hashers::bn254_3::HasherBn254GPU;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::D_U64;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::RATE;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::ROUNDS_F;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::ROUNDS_P;
+        use crate::poseidon2::hashers::poseidon2_bn254_3_kernels::WIDTH;
 
         pub fn poseidon2_bn254_3_perm(
         ) -> Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>
@@ -471,13 +365,6 @@ pub mod tests {
             let input_device = input.to_device();
             let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
 
-            let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
-                poseidon2_bn254_3_constants();
-
-            let internal_rounds_constats_device = internal_rounds_constats.to_device();
-            let external_rounds_constats_device = external_rounds_constats.to_device();
-            let diffusion_matrix_m1_device = diffusion_matrix_m1.to_device();
-
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
             let mut gt = Vec::new();
@@ -488,14 +375,12 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBn254GPU::new();
             unsafe {
                 output_device.set_len(n * DIGEST_WIDTH);
-                poseidon2_bn254_3_kernels::permute_bn254(
+                hasher.permute(
                     input_device.as_ptr(),
                     output_device.as_mut_ptr(),
-                    internal_rounds_constats_device.as_slice().as_ptr(),
-                    external_rounds_constats_device.as_slice().as_ptr(),
-                    diffusion_matrix_m1_device.as_slice().as_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -534,13 +419,6 @@ pub mod tests {
             let right_device = right.to_device();
             let mut output_device = output.to_device();
 
-            let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
-                poseidon2_bn254_3_constants();
-
-            let internal_rounds_constats_device = internal_rounds_constats.to_device();
-            let external_rounds_constats_device = external_rounds_constats.to_device();
-            let diffusion_matrix_m1_device = diffusion_matrix_m1.to_device();
-
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
             let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
@@ -556,14 +434,12 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBn254GPU::new();
             unsafe {
-                poseidon2_bn254_3_kernels::compress_bn254(
+                hasher.compress(
                     left_device.as_ptr(),
                     right_device.as_ptr(),
                     output_device.as_slice_mut().as_mut_ptr(),
-                    internal_rounds_constats_device.as_slice().as_ptr(),
-                    external_rounds_constats_device.as_slice().as_ptr(),
-                    diffusion_matrix_m1_device.as_slice().as_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -599,13 +475,6 @@ pub mod tests {
             let input_device = input.to_device();
             let mut output_device = output.to_device();
 
-            let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
-                poseidon2_bn254_3_constants();
-
-            let internal_rounds_constats_device = internal_rounds_constats.to_device();
-            let external_rounds_constats_device = external_rounds_constats.to_device();
-            let diffusion_matrix_m1_device = diffusion_matrix_m1.to_device();
-
             // Execute the source implementation.
             let sponge = poseidon2_bn254_3_hasher();
             let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
@@ -616,14 +485,12 @@ pub mod tests {
             }
 
             // Execute the kernel.
+            let hasher = HasherBn254GPU::new();
             unsafe {
-                poseidon2_bn254_3_kernels::hash_bn254(
+                hasher.hash(
                     input_device.as_slice().as_ptr(),
                     N_INPUT,
                     output_device.as_slice_mut().as_mut_ptr(),
-                    internal_rounds_constats_device.as_slice().as_ptr(),
-                    external_rounds_constats_device.as_slice().as_ptr(),
-                    diffusion_matrix_m1_device.as_slice().as_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
