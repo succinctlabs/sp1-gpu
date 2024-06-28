@@ -34,7 +34,6 @@ use sp1_core::{
     stark::{RiscvAir, StarkGenericConfig, StarkProvingKey, StarkVerifyingKey},
     utils::{BabyBearPoseidon2, SP1CoreOpts},
 };
-use sp1_primitives::types::RecursionProgramType;
 
 use sp1_recursion_core::{
     runtime::{RecursionProgram, Runtime as RecursionRuntime},
@@ -252,7 +251,18 @@ impl SP1GpuProver {
         for batch in shard_proofs.chunks(batch_size) {
             let proofs = batch.to_vec();
 
+            let pv = PublicValues::from_vec(proofs[0].public_values.clone());
             core_inputs.push(SP1RecursionMemoryLayout {
+                initial_shard: pv.shard,
+                current_shard: pv.shard,
+                start_pc: pv.start_pc,
+                current_pc: pv.start_pc,
+                committed_value_digest_arr: pv
+                    .committed_value_digest
+                    .into_iter()
+                    .map(|x| x.0.to_vec())
+                    .collect(),
+                deferred_proofs_digest_arr: pv.deferred_proofs_digest.to_vec(),
                 vk,
                 machine: self.core_prover.machine(),
                 shard_proofs: proofs,
