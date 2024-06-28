@@ -936,10 +936,10 @@ mod tests {
         //     (cycles as f64 / (total_shrink_time.as_millis() as f64)),
         // );
         tracing::info!(
-            "Summary: core_time={:?}, compress_time={:?}, compress_percent={:.2}",
+            "Summary: core_time={:?}, compress_time={:?}, compress_percent={:.2}%",
             prove_core_time,
             compress_time,
-            (compress_time.as_millis() as f64 / (prove_core_time.as_millis() as f64)),
+            (compress_time.as_millis() as f64 / (total_compress_time.as_millis() as f64)) * 100.0,
         );
 
         // tracing::info!("wrap bn254");
