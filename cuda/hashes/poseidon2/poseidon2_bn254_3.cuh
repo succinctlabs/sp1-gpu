@@ -6,8 +6,8 @@ namespace poseidon2_bn254_3 {
 
 namespace constants {
 
-    constexpr const int DIGEST_WIDTH = 1;  // ?
-    constexpr const int RATE = 1;  // ?
+    constexpr const int DIGEST_WIDTH = 1;
+    constexpr const int RATE = 2;
     constexpr const int WIDTH = 3;
     constexpr const int ROUNDS_P = 56;
     constexpr const int ROUNDS_F = 8;
