@@ -254,15 +254,6 @@ where
             .machine
             .shard_chips_ordered(&chip_ordering)
             .collect::<Vec<_>>();
-        info!(
-            "Shard {}: [{}]",
-            main_trace_data.index,
-            shard_chips
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
 
         // Print some statistics.
         let mut total_lde_size = 0;
@@ -272,19 +263,6 @@ where
             let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
             total_lde_size += stats.lde_memory_size(log_blowup);
             debug!("{}", stats);
-
-            let width = main_trace_data.traces[i].width();
-            let height = main_trace_data.traces[i].height();
-            let permutation_width = perm_domains_and_traces[i].1.width();
-            let total_width = width + permutation_width;
-            info!(
-                "Shard {:<5} Chip {:<12}: {:>8} = {}W x {}H",
-                main_trace_data.index,
-                shard_chips[i].name(),
-                total_width * height,
-                total_width,
-                height,
-            );
         }
         info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
@@ -303,6 +281,31 @@ where
         let permutation_traces = debug_span!("Generate permutation traces").in_scope(|| {
             self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
         })?;
+
+        info!(
+            "Shard {}: [{}]",
+            main_trace_data.index,
+            shard_chips
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
+        for (i, chip) in shard_chips.iter().enumerate() {
+            let width = traces[i].width();
+            let height = traces[i].height();
+            let permutation_width = permutation_traces[i].width();
+            let total_width = width + permutation_width;
+            info!(
+                "Shard {:<5} Chip {:<12}: {:>8} = {}W x {}H",
+                main_trace_data.index,
+                chip.name(),
+                total_width * height,
+                total_width,
+                height,
+            );
+        }
 
         // Commit to the permutation traces.
         let span = debug_span!("Commit to permutation traces").entered();
