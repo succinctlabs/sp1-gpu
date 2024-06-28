@@ -142,9 +142,9 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     extern "C" void permute_bn254(
         F_t(*in)[HashParams::WIDTH],
         F_t(*out)[HashParams::WIDTH],
-        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
+        pF_t* internalRoundConstants,
+        pF_t* externalRoundConstants,
+        pF_t* matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -161,9 +161,9 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t(*left)[HashParams::DIGEST_WIDTH],
         F_t(*right)[HashParams::DIGEST_WIDTH],
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
+        pF_t* internalRoundConstants,
+        pF_t* externalRoundConstants,
+        pF_t* matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -180,9 +180,9 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t * in,
         size_t nIn,
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
+        pF_t* internalRoundConstants,
+        pF_t* externalRoundConstants,
+        pF_t* matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock

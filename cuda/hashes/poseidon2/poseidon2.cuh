@@ -10,9 +10,9 @@ struct RoundConstants {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
 
-    pF_t(*internalRoundConstants);
-    pF_t(*externalRoundConstants);
-    pF_t(*matInternalDiagM1);
+    pF_t* internalRoundConstants;
+    pF_t* externalRoundConstants;
+    pF_t* matInternalDiagM1;
     pF_t montyInverse;
 };
 
@@ -203,22 +203,20 @@ class DynamicHasher: public Hasher<Params> {
   public:
     RoundConstants<Params> roundConstants;
 
-    void setInternalRoundConstants(pF_t (*internalRoundConstants
-    )[Params::ROUNDS_P]) {
-        roundConstants.internalRoundConstants = &(*internalRoundConstants)[0];
+    void setInternalRoundConstants(pF_t* internalRoundConstants) {
+        roundConstants.internalRoundConstants = internalRoundConstants;
     }
 
-    void setExternalRoundConstants(pF_t (*externalRoundConstants
-    )[Params::ROUNDS_F * Params::WIDTH]) {
-        roundConstants.externalRoundConstants = &(*externalRoundConstants)[0];
+    void setExternalRoundConstants(pF_t* externalRoundConstants) {
+        roundConstants.externalRoundConstants = externalRoundConstants;
     }
 
-    void setMatInternalDiagM1(pF_t (*matInternalDiagM1)[Params::WIDTH]) {
-        roundConstants.matInternalDiagM1 = &(*matInternalDiagM1)[0];
+    void setMatInternalDiagM1(pF_t* matInternalDiagM1) {
+        roundConstants.matInternalDiagM1 = matInternalDiagM1;
     }
 
     void setMontyInverse(pF_t montyInverse) {
-        roundConstants.montyInverse = &(*montyInverse)[0];
+        roundConstants.montyInverse = montyInverse;
     }
 
     __device__ void permute(F_t in[Params::WIDTH], F_t out[Params::WIDTH]) {
