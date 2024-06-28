@@ -117,7 +117,7 @@ class BabyBear {
         constants::EXTERNAL_ROUND_CONSTANTS;
     static constexpr pF_t* MAT_INTERNAL_DIAG_M1 =
         constants::MAT_INTERNAL_DIAG_M1;
-    static constexpr const F_t MONTY_INVERSE = constants::MONTY_INVERSE;
+    static constexpr pF_t MONTY_INVERSE = constants::MONTY_INVERSE;
 
     __device__ static void internalLinearLayer(F_t state[WIDTH], pF_t*, F_t) {
         matmulInternal(state);

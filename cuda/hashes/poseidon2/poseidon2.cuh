@@ -36,7 +36,8 @@ class Hasher {
     using pF_t = typename Params::pF_t;
 
   private:
-    __device__ static void addExtRc(F_t state[Params::WIDTH], pF_t* rc) {
+    __device__ static void
+    addExtRc(F_t state[Params::WIDTH], pF_t rc[Params::WIDTH]) {
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] += rc[i];
         }
@@ -49,15 +50,14 @@ class Hasher {
     }
 
   public:
-    // TODO: are we sacrificing infornation about the length of the params?
     // TODO: poseidon2 params should be passed around more cleanly
     __device__ static void permute(
         F_t in[Params::WIDTH],
         F_t out[Params::WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
@@ -94,10 +94,10 @@ class Hasher {
         F_t left[Params::DIGEST_WIDTH],
         F_t right[Params::DIGEST_WIDTH],
         F_t out[Params::DIGEST_WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
@@ -124,10 +124,10 @@ class Hasher {
         F_t* in,
         size_t nIn,
         F_t out[Params::DIGEST_WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
@@ -159,10 +159,10 @@ class Hasher {
         F_t* in,
         size_t nIn,
         HasherState<Params>* state,
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         for (int i = 0; i < nIn; i++) {
             state->data[state->index] = in[i];
@@ -185,10 +185,10 @@ class Hasher {
         Matrix<F_t>* in,
         int row_idx,
         HasherState<Params>* state,
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         if (in->row_major) {
             F_t* row = &in->values[in->width * row_idx];
@@ -219,10 +219,10 @@ class Hasher {
     __device__ static void finalize(
         HasherState<Params>* state,
         F_t out[Params::DIGEST_WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
-        F_t montyInverse
+        pF_t internalRoundConstants[Params::ROUNDS_P],
+        pF_t externalRoundConstants[Params::ROUNDS_F * Params::WIDTH],
+        pF_t matInternalDiagM1[Params::WIDTH],
+        pF_t montyInverse
     ) {
         if (state->index != 0) {
             permute(
@@ -249,7 +249,7 @@ class DynamicHasher: public Hasher<Params> {
     pF_t* internalRoundConstants;
     pF_t* externalRoundConstants;
     pF_t* matInternalDiagM1;
-    F_t montyInverse;
+    pF_t montyInverse;
 
   public:
     DynamicHasher() {
@@ -267,35 +267,35 @@ class DynamicHasher: public Hasher<Params> {
         cudaFree(matInternalDiagM1);
     }
 
-    void setInternalRoundConstants(F_t (*internalRC)[Params::ROUNDS_P]) {
+    void setInternalRoundConstants(pF_t (*internalRC)[Params::ROUNDS_P]) {
         cudaMemcpy(
             internalRoundConstants,
             internalRC,
-            Params::ROUNDS_P * sizeof(F_t),
+            Params::ROUNDS_P * sizeof(pF_t),
             cudaMemcpyHostToDevice
         );
     }
 
-    void setExternalRoundConstants(F_t (*externalRC
+    void setExternalRoundConstants(pF_t (*externalRC
     )[Params::ROUNDS_F * Params::WIDTH]) {
         cudaMemcpy(
             externalRoundConstants,
             externalRC,
-            Params::ROUNDS_F * Params::WIDTH * sizeof(F_t),
+            Params::ROUNDS_F * Params::WIDTH * sizeof(pF_t),
             cudaMemcpyHostToDevice
         );
     }
 
-    void setMatInternalDiagM1(F_t (*internalDiagM1)[Params::WIDTH]) {
+    void setMatInternalDiagM1(pF_t (*internalDiagM1)[Params::WIDTH]) {
         cudaMemcpy(
             matInternalDiagM1,
             internalDiagM1,
-            Params::WIDTH * sizeof(F_t),
+            Params::WIDTH * sizeof(pF_t),
             cudaMemcpyHostToDevice
         );
     }
 
-    void setMontyInverse(F_t montyInverse) {
+    void setMontyInverse(pF_t montyInverse) {
         this->montyInverse = montyInverse;
     }
 
