@@ -137,13 +137,14 @@ extern "C" namespace poseidon2_bb31_16_gpu {
 extern "C" namespace poseidon2_bn254_3_gpu {
     using HashParams = poseidon2_bn254_3::Bn254;
     using F_t = typename HashParams::F_t;
+    using pF_t = typename HashParams::pF_t;
 
     extern "C" void permute_bn254(
         F_t(*in)[HashParams::WIDTH],
         F_t(*out)[HashParams::WIDTH],
-        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
+        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -151,7 +152,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         poseidon2::DynamicHasher<HashParams> hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
-        hasher.setMatInternalDiagM1(diffusionMatrixM1);
+        hasher.setMatInternalDiagM1(matInternalDiagM1);
         poseidon2_bn254_kernels::permute<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, in, out, n);
     }
@@ -160,9 +161,9 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t(*left)[HashParams::DIGEST_WIDTH],
         F_t(*right)[HashParams::DIGEST_WIDTH],
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
+        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -170,7 +171,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         poseidon2::DynamicHasher<HashParams> hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
-        hasher.setMatInternalDiagM1(diffusionMatrixM1);
+        hasher.setMatInternalDiagM1(matInternalDiagM1);
         poseidon2_bn254_kernels::compress<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, left, right, out, n);
     }
@@ -179,9 +180,9 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t * in,
         size_t nIn,
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        F_t(*internalRoundConstants)[HashParams::ROUNDS_P],
-        F_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
-        F_t(*diffusionMatrixM1)[HashParams::WIDTH],
+        pF_t(*internalRoundConstants)[HashParams::ROUNDS_P],
+        pF_t(*externalRoundConstants)[HashParams::ROUNDS_F * HashParams::WIDTH],
+        pF_t(*matInternalDiagM1)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
@@ -189,7 +190,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         poseidon2::DynamicHasher<HashParams> hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
-        hasher.setMatInternalDiagM1(diffusionMatrixM1);
+        hasher.setMatInternalDiagM1(matInternalDiagM1);
         poseidon2_bn254_kernels::hash<HashParams>
             <<<nBlocks, nThreadsPerBlock>>>(hasher, in, nIn, out, n);
     }
