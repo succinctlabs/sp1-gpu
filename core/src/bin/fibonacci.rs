@@ -3,7 +3,7 @@ use std::env;
 use sp1_core::{
     runtime::Program,
     stark::{MachineRecord, RiscvAir, StarkGenericConfig},
-    utils::{BabyBearPoseidon2, SP1ProverOpts},
+    utils::{tests::FIBONACCI_ELF, BabyBearPoseidon2, SP1ProverOpts},
 };
 use tracing::info;
 
@@ -17,12 +17,8 @@ type SC = BabyBearPoseidon2;
 fn main() {
     let rust_log = env::var("RUST_LOG").unwrap_or("debug".into());
     env::set_var("RUST_LOG", rust_log);
-    env::set_var("SHARD_SIZE", "2097152");
 
-    const FIB_ELF: &[u8] =
-        include_bytes!("../../../../zkvm-perf/programs/fibonacci/elf/riscv32im-succinct-zkvm-elf");
-
-    let program = Program::from(FIB_ELF);
+    let program = Program::from(FIBONACCI_ELF);
 
     let config = SC::default();
     let machine = RiscvAir::machine(config);
