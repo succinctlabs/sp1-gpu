@@ -17,20 +17,56 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
-p3-field = { path = "../Plonky3/field" }
-p3-air = { path = "../Plonky3/air" }
-p3-baby-bear = { path = "../Plonky3/baby-bear" }
-p3-bn254-fr = { path = "../Plonky3/bn254-fr" }
-p3-poseidon2 = { path = "../Plonky3/poseidon2" }
-p3-symmetric = { path = "../Plonky3/symmetric" }
-p3-dft = { path = "../Plonky3/dft" }
-p3-matrix = { path = "../Plonky3/matrix" }
-p3-merkle-tree = { path = "../Plonky3/merkle-tree" }
-p3-commit = { path = "../Plonky3/commit" }
-p3-fri = { path = "../Plonky3/fri" }
-p3-challenger = { path = "../Plonky3/challenger" }
-p3-util = { path = "../Plonky3/util" }
-p3-interpolation = { path = "../Plonky3/interpolation" }
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-program = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-compiler = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-primitives = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-gnark-ffi = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 
-sp1-core = { path = "../sp1/core" }
-sp1-recursion-core = { path = "../sp1/recursion/core" }
+
+p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", features = [
+    "nightly-features",
+], rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-dft = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-keccak-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-blake3 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-bn254-fr = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+p3-interpolation = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
+
+# for local development
+# p3-field = { path = "../Plonky3/field" }
+# p3-air = { path = "../Plonky3/air" }
+# p3-baby-bear = { path = "../Plonky3/baby-bear" }
+# p3-bn254-fr = { path = "../Plonky3/bn254-fr" }
+# p3-poseidon2 = { path = "../Plonky3/poseidon2" }
+# p3-symmetric = { path = "../Plonky3/symmetric" }
+# p3-dft = { path = "../Plonky3/dft" }
+# p3-matrix = { path = "../Plonky3/matrix" }
+# p3-merkle-tree = { path = "../Plonky3/merkle-tree" }
+# p3-commit = { path = "../Plonky3/commit" }
+# p3-fri = { path = "../Plonky3/fri" }
+# p3-challenger = { path = "../Plonky3/challenger" }
+# p3-util = { path = "../Plonky3/util" }
+# p3-interpolation = { path = "../Plonky3/interpolation" }
+
+# sp1-core = { path = "../sp1/core" }
+# sp1-recursion-core = { path = "../sp1/recursion/core" }
+# sp1-recursion-program = { path = "../sp1/recursion/program" }
+# sp1-recursion-compiler = { path = "../sp1/recursion/compiler" }
+# sp1-primitives = { path = "../sp1/primitives" }
+# sp1-prover = { path = "../sp1/prover" }
+# sp1-recursion-gnark-ffi = { path = "../sp1/recursion/gnark-ffi" }
