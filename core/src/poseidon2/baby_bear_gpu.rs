@@ -43,9 +43,9 @@ pub mod poseidon2_baby_bear_16_kernels {
     }
 
     #[allow(unused_attributes)]
-    #[link_name = "merkle_tree_gpu"]
+    #[link_name = "merkle_tree_baby_bear_16_gpu"]
     extern "C" {
-        pub fn first_digest_layer(
+        pub fn first_digest_layer_baby_bear(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
             digests: *mut [BabyBear; DIGEST_WIDTH],
@@ -53,7 +53,7 @@ pub mod poseidon2_baby_bear_16_kernels {
             n_threads_per_block: usize,
         );
 
-        pub fn compress_and_inject(
+        pub fn compress_and_inject_baby_bear(
             prev_layer: *const [BabyBear; DIGEST_WIDTH],
             n_prev_layer: usize,
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
@@ -148,7 +148,7 @@ impl HasherBabyBearGPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        poseidon2_baby_bear_16_kernels::first_digest_layer(
+        poseidon2_baby_bear_16_kernels::first_digest_layer_baby_bear(
             tallest_matrices,
             n_tallest_matrices,
             digests,
@@ -168,7 +168,7 @@ impl HasherBabyBearGPU {
         n_blocks: usize,
         n_threads_per_block: usize,
     ) {
-        poseidon2_baby_bear_16_kernels::compress_and_inject(
+        poseidon2_baby_bear_16_kernels::compress_and_inject_baby_bear(
             prev_layer,
             n_prev_layer,
             matrices_to_inject,
