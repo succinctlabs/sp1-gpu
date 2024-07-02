@@ -97,7 +97,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut num_reduced = [0; 32];
 
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
-        // let (tx, rx) = mpsc::channel();
 
         // Interpolate cosets.
 
@@ -129,12 +128,21 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut matrices_for_openings = vec![];
         let mut ys_indices = vec![];
         let mut ys_index = 0;
+        let mut height_indices = [0usize; 32];
+        let mut reduced_leaves = vec![];
 
         let get_data_for_device_span = tracing::debug_span!("Get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
             mats.iter()
                 .zip(points.iter())
                 .for_each(|(mat, points_for_mat)| {
+                    let log_height = log2_strict_usize(mat.height);
+                    height_indices[log_height] = reduced_leaves.len();
+                    let reduced_leaf = ColMajorMatrixDevice::<F>::with_capacity(
+                        2 * <EF as AbstractExtensionField<F>>::D,
+                        mat.height / 2,
+                    );
+                    reduced_leaves.push(reduced_leaf);
                     // Use Barycentric interpolation to evaluate the matrix at the given point.
                     let coset_height = mat.height() >> pcs.fri_config().log_blowup;
                     let cols = mat.width();
@@ -275,13 +283,27 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             let compute_reduced_openings_span =
                 tracing::debug_span!("Compute reduced openings on device").entered();
             let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
+            let log_heights = matrices_for_openings
+                .iter()
+                .map(|mat| mat.height.ilog2() as usize)
+                .collect::<Vec<_>>()
+                .to_device();
             let matrices_for_openings = matrices_for_openings.to_device();
             let ys_indices = ys_indices.to_device();
+
+            let mut reduce_leaves_raw = reduced_leaves
+                .iter_mut()
+                .map(|mat| mat.view_mut())
+                .collect::<Vec<_>>()
+                .to_device();
+
+            let height_indices = height_indices.to_device();
 
             unsafe {
                 reduced_openings_device.set_max_len();
                 opening_gpu::compute_reduced_openings(
                     matrices_for_openings.as_ptr(),
+                    log_heights.as_ptr(),
                     global_max_height,
                     points_for_inv.as_ptr(),
                     num_points,
@@ -292,6 +314,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     ys_output_buffer.as_ptr(),
                     ys_indices.as_ptr(),
                     reduced_openings_device.as_mut_ptr(),
+                    reduce_leaves_raw.as_mut_ptr(),
+                    height_indices.as_ptr(),
                 );
             }
 
@@ -556,7 +580,7 @@ pub mod opening_gpu {
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
-    use crate::matrix::MatrixViewDevice;
+    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
 
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
@@ -594,6 +618,7 @@ pub mod opening_gpu {
         #[link_name = "computeReducedOpenings"]
         pub fn compute_reduced_openings(
             mats: *const MatrixViewDevice<F>,
+            log_heights: *const usize,
             max_height: usize,
             points: *const EF,
             num_points: usize,
@@ -604,6 +629,8 @@ pub mod opening_gpu {
             ys: *const EF,
             ys_indices: *const usize,
             reduced_openings: *mut EF,
+            reduced_openings_leaves: *mut MatrixViewMutDevice<F>,
+            height_indices: *const usize,
         );
 
         #[link_name = "ReduceSums"]

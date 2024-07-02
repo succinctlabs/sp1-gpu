@@ -116,6 +116,7 @@ __global__ void interpolateCosetsKernel(
 
 __global__ void reducedOpeningsKernel(
     Matrix<bb31_t>* mats,
+    size_t* logHeights,
     bb31_extension_t* points,
     size_t* invIndices,
     bb31_extension_t* invDenoms,
@@ -123,7 +124,9 @@ __global__ void reducedOpeningsKernel(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t* openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings
+    bb31_extension_t* reducedOpenings,
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t pointIdx = blockIdx.y * blockDim.y + threadIdx.y;
@@ -267,6 +270,7 @@ extern "C" void interpolateCosets(
 
 extern "C" void computeReducedOpenings(
     Matrix<bb31_t>* mats,
+    size_t* logHeights,
     size_t maxHeight,
     bb31_extension_t* points,
     size_t numPoints,
@@ -276,7 +280,9 @@ extern "C" void computeReducedOpenings(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t * openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings
+    bb31_extension_t* reducedOpenings,
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices
 ) {
     size_t numThreads = 1024;
     size_t numBlocksX = (maxHeight - 1) / numThreads + 1; 
@@ -286,6 +292,7 @@ extern "C" void computeReducedOpenings(
 
     opening_kernels::reducedOpeningsKernel<<<gridDim, blockDim>>>(
         mats,
+        logHeights,
         points,
         invIndices,
         invDenoms,
@@ -293,7 +300,9 @@ extern "C" void computeReducedOpenings(
         alphaPowOffsets,
         openedValues,
         openedValuesIndices,
-        reducedOpenings
+        reducedOpenings,
+        reducedLeaves,
+        heightIndices
     );
 }
 
