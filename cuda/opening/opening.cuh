@@ -153,38 +153,42 @@ __global__ void reducedOpeningsKernel(
 const size_t BLOCK_DIM = 256;
 const size_t COARSE_FACTOR = 1;
 
-__global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings, bb31_extension_t* reducedSums ) {
+const size_t MAX_LOG_HEIGHT = 32;
 
-    size_t ptIdx = blockIdx.y * blockDim.y + threadIdx.y;
-    size_t height = heights[ptIdx];
-    size_t invIdx = invIndices[ptIdx];
+__global__ void ReduceSumKernel(
+        size_t* logHeights, 
+        size_t* invIndices,
+        bb31_extension_t* reducedOpenings, 
+        Matrix<bb31_t>* reducedLeaves,
+        size_t * heightIndices , size_t numPoints) {
 
-    size_t segment = COARSE_FACTOR * 2 * blockDim.x * blockIdx.x;
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    size_t idx = segment + threadIdx.x;
-    size_t tid = threadIdx.x;
+    bb31_extension_t evenSums[MAX_LOG_HEIGHT];
+    bb31_extension_t oddSums[MAX_LOG_HEIGHT];
 
-     if (idx >= height) return;
-
-    __shared__ bb31_extension_t input_s[BLOCK_DIM];
-
-    bb31_extension_t sum = bb31_extension_t::zero();
-    for (size_t tile = 0; tile < COARSE_FACTOR * 2; tile++) {
-        // sum += reducedOpenings[invIdx + idx + tile * BLOCK_DIM];
+    for (size_t i = 0; i < MAX_LOG_HEIGHT; i++) {
+        evenSums[i] = bb31_extension_t::zero();
+        oddSums[i] = bb31_extension_t::zero();
     }
 
-    input_s[tid] = sum;
-
-    #pragma unroll
-    for (size_t stride = BLOCK_DIM / 2; stride > 0; stride /= 2) {
-        __syncthreads();
-        if (tid < stride) {
-            input_s[tid] += input_s[tid + stride];
-        }
+    for (size_t i =0; i< numPoints; i++) {
+        size_t logHeight = logHeights[i];
+        size_t invIdx = invIndices[i];
+        if ((2 * idx + 1) >= (1 << logHeight)) continue;
+        evenSums[logHeight] += reducedOpenings[invIdx + 2 * idx];
+        oddSums[logHeight]  += reducedOpenings[invIdx + 2 * idx + 1];
     }
 
-    if (tid == 0) {
-        reducedSums[ptIdx * gridDim.x + blockIdx.x] = input_s[0];
+    for (size_t h = 0; h < MAX_LOG_HEIGHT; h++) { 
+        size_t heightIdx = heightIndices[h];
+        Matrix<bb31_t> leafMatrix = reducedLeaves[heightIdx];
+
+        if (idx >= leafMatrix.height) continue;
+        for (size_t k = 0; k < bb31_extension_t::D; k++) {
+            leafMatrix.values[k * leafMatrix.height + idx] = evenSums[h].value[k];
+            leafMatrix.values[(k + bb31_extension_t::D) * leafMatrix.height + idx] = oddSums[h].value[k];
+      }
     }
 } 
 
@@ -313,24 +317,24 @@ extern "C" size_t numBlocksSums(size_t maxHeight) {
 }
 
 extern "C" void ReduceSums(
-    size_t* heights,
+    size_t* logHeights,
     size_t maxHeight,
-    size_t numPoints,
     size_t * invIndices,
     bb31_extension_t* reducedOpenings,
-    bb31_extension_t* reducedSums
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices,
+    size_t numPoints
 ) {
-    size_t numThreads = opening_kernels::BLOCK_DIM;
-    size_t numBlocksX = ((maxHeight - 1) / (numThreads * opening_kernels::COARSE_FACTOR * 2)) + 1; 
+    size_t numThreads = 512;
+    size_t numBlocks = ((maxHeight / 2 ) - 1) / numThreads + 1;
 
-    dim3 blockDim(numThreads);
-    dim3 gridDim(numBlocksX, numPoints);
-
-    opening_kernels::ReduceSumKernel<<<gridDim, blockDim>>>(
-        heights,
+    opening_kernels::ReduceSumKernel<<<numBlocks, numThreads>>>(
+        logHeights,
         invIndices,
         reducedOpenings,
-        reducedSums
+        reducedLeaves,
+        heightIndices,
+        numPoints
     );
 }
 

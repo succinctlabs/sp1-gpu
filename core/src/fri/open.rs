@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use p3_challenger::FieldChallenger;
@@ -23,8 +24,11 @@ use p3_fri::FriProof;
 use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
 use p3_matrix::dense::RowMajorMatrix;
+use p3_matrix::Matrix;
 use p3_symmetric::Hash;
 use p3_util::log2_ceil_usize;
+use p3_util::reverse_slice_index_bits;
+
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
 use sp1_core::stark::{OpeningProof, PcsProverData};
@@ -129,7 +133,15 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut ys_indices = vec![];
         let mut ys_index = 0;
         let mut height_indices = [0usize; 32];
+        let mut height_index_map = HashMap::new();
         let mut reduced_leaves = vec![];
+
+        let mut reduced_leaf =
+            ColMajorMatrixDevice::<F>::with_capacity(2 * <EF as AbstractExtensionField<F>>::D, 1);
+        unsafe {
+            reduced_leaf.set_max_width();
+        }
+        reduced_leaves.push(reduced_leaf);
 
         let get_data_for_device_span = tracing::debug_span!("Get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
@@ -137,12 +149,22 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 .zip(points.iter())
                 .for_each(|(mat, points_for_mat)| {
                     let log_height = log2_strict_usize(mat.height);
-                    height_indices[log_height] = reduced_leaves.len();
-                    let reduced_leaf = ColMajorMatrixDevice::<F>::with_capacity(
-                        2 * <EF as AbstractExtensionField<F>>::D,
-                        mat.height / 2,
-                    );
-                    reduced_leaves.push(reduced_leaf);
+                    height_index_map
+                        .entry(log_height)
+                        .or_insert_with_key(|log_height| {
+                            let idx = reduced_leaves.len();
+                            height_indices[*log_height] = idx;
+                            let mut reduced_leaf = ColMajorMatrixDevice::<F>::with_capacity(
+                                2 * <EF as AbstractExtensionField<F>>::D,
+                                1 << (log_height - 1),
+                            );
+                            unsafe {
+                                reduced_leaf.set_max_width();
+                            }
+                            reduced_leaves.push(reduced_leaf);
+
+                            idx
+                        });
                     // Use Barycentric interpolation to evaluate the matrix at the given point.
                     let coset_height = mat.height() >> pcs.fri_config().log_blowup;
                     let cols = mat.width();
@@ -285,7 +307,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
             let log_heights = matrices_for_openings
                 .iter()
-                .map(|mat| mat.height.ilog2() as usize)
+                .map(|mat| log2_strict_usize(mat.height))
                 .collect::<Vec<_>>()
                 .to_device();
             let matrices_for_openings = matrices_for_openings.to_device();
@@ -296,8 +318,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 .map(|mat| mat.view_mut())
                 .collect::<Vec<_>>()
                 .to_device();
-
-            let height_indices = height_indices.to_device();
 
             unsafe {
                 reduced_openings_device.set_max_len();
@@ -314,12 +334,24 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     ys_output_buffer.as_ptr(),
                     ys_indices.as_ptr(),
                     reduced_openings_device.as_mut_ptr(),
-                    reduce_leaves_raw.as_mut_ptr(),
-                    height_indices.as_ptr(),
                 );
             }
 
             compute_reduced_openings_span.exit();
+
+            let height_indices = height_indices.to_device();
+            println!("height_indices: {:?}", height_indices);
+            unsafe {
+                opening_gpu::reduce_sums(
+                    log_heights.as_ptr(),
+                    global_max_height,
+                    inv_indices_device.as_ptr(),
+                    reduced_openings_device.as_ptr(),
+                    reduce_leaves_raw.as_mut_ptr(),
+                    height_indices.as_ptr(),
+                    num_points,
+                );
+            }
 
             let copy_reduced_openings_span =
                 tracing::debug_span!("Copy reduced openings to host").entered();
@@ -372,8 +404,15 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         compute_reduce_openings_span.exit();
 
-        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof")
-            .in_scope(|| prove(pcs.fri_config(), &reduced_openings, challenger));
+        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof").in_scope(|| {
+            prove(
+                pcs.fri_config(),
+                &reduced_openings,
+                reduced_leaves,
+                height_index_map,
+                challenger,
+            )
+        });
 
         let query_openings_span = tracing::debug_span!("Compute query openings").entered();
         let query_openings = query_indices
@@ -448,12 +487,22 @@ fn open_batch(
 pub fn prove(
     config: &FriConfig<ChallengeMmcs>,
     input: &[Option<Vec<EF>>; 32],
+    input_leaves: Vec<ColMajorMatrixDevice<F>>,
+    height_index_map: HashMap<usize, usize>,
     challenger: &mut Challenger<SC>,
 ) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
     let log_max_height = input.iter().rposition(Option::is_some).unwrap();
 
-    let commit_phase_result = trace_span!("Commit phase")
-        .in_scope(|| commit_phase(config, input, log_max_height, challenger));
+    let commit_phase_result = trace_span!("Commit phase").in_scope(|| {
+        commit_phase(
+            config,
+            input,
+            input_leaves,
+            height_index_map,
+            log_max_height,
+            challenger,
+        )
+    });
 
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
@@ -480,13 +529,66 @@ pub fn prove(
     )
 }
 
+// pub fn fold_even_odd_mat<F: TwoAdicField>(poly: Vec<F>, beta: F) -> Vec<F> {
+//     // We use the fact that
+//     //     p_e(x^2) = (p(x) + p(-x)) / 2
+//     //     p_o(x^2) = (p(x) - p(-x)) / (2 x)
+//     // that is,
+//     //     p_e(g^(2i)) = (p(g^i) + p(g^(n/2 + i))) / 2
+//     //     p_o(g^(2i)) = (p(g^i) - p(g^(n/2 + i))) / (2 g^i)
+//     // so
+//     //     result(g^(2i)) = p_e(g^(2i)) + beta p_o(g^(2i))
+//     //                    = (1/2 + beta/2 g_inv^i) p(g^i)
+//     //                    + (1/2 - beta/2 g_inv^i) p(g^(n/2 + i))
+//     let m = RowMajorMatrix::new(poly, 2);
+//     let g_inv = F::two_adic_generator(log2_strict_usize(m.height()) + 1).inverse();
+//     let one_half = F::two().inverse();
+//     let half_beta = beta * one_half;
+
+//     // TODO: vectorize this (after we have packed extension fields)
+
+//     // beta/2 times successive powers of g_inv
+//     let mut powers = g_inv
+//         .shifted_powers(half_beta)
+//         .take(m.height())
+//         .collect_vec();
+//     reverse_slice_index_bits(&mut powers);
+
+//     m.rows()
+//         .zip(powers)
+//         .map(|(mut row, power)| {
+//             let (r0, r1) = row.next_tuple().unwrap();
+//             (one_half + power) * r0 + (one_half - power) * r1
+//         })
+//         .collect()
+// }
+
 pub fn commit_phase(
     config: &FriConfig<ChallengeMmcs>,
     input: &[Option<Vec<EF>>; 32],
+    input_leaves: Vec<ColMajorMatrixDevice<F>>,
+    height_indices: HashMap<usize, usize>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
 ) -> CommitPhaseResult {
     let mut current = input[log_max_height].as_ref().unwrap().clone();
+    let idx = height_indices[&log_max_height];
+    let current_device = input_leaves[idx].to_host();
+
+    let first_input = RowMajorMatrix::new(current.clone(), 2);
+    let first_input_flattened = first_input.flatten_to_base::<F>();
+
+    assert_eq!(first_input_flattened.height(), current_device.height());
+    assert_eq!(first_input_flattened.width(), current_device.width());
+
+    for (i, (exp, val)) in first_input_flattened
+        .values
+        .iter()
+        .zip(current_device.values.iter())
+        .enumerate()
+    {
+        assert_eq!(exp, val, "first input mismatch at index {}", i);
+    }
 
     let mut commits = vec![];
     let mut data = vec![];
@@ -494,6 +596,7 @@ pub fn commit_phase(
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
         let leaves = RowMajorMatrix::new(current.clone(), 2);
         let leaves_flattened = leaves.flatten_to_base();
+
         let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(
             leaves_flattened.to_device().to_column_major(),
         )
@@ -629,18 +732,17 @@ pub mod opening_gpu {
             ys: *const EF,
             ys_indices: *const usize,
             reduced_openings: *mut EF,
-            reduced_openings_leaves: *mut MatrixViewMutDevice<F>,
-            height_indices: *const usize,
         );
 
         #[link_name = "ReduceSums"]
         pub fn reduce_sums(
-            heights: *const usize,
+            log_heights: *const usize,
             max_height: usize,
-            num_points: usize,
             inv_indices: *const usize,
             reduced_openings: *const EF,
-            reduced_sums: *mut EF,
+            reduced_openings_leaves: *mut MatrixViewMutDevice<F>,
+            height_indices: *const usize,
+            num_points: usize,
         );
 
         #[link_name = "numBlocksSums"]
