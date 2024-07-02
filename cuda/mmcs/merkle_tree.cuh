@@ -88,7 +88,7 @@ namespace merkle_tree_kernels_baby_bear_16 {
 using namespace poseidon2;
 
 using HashParams = poseidon2_bb31_16::BabyBear;
-using Hasher_t = StaticHasher<HashParams>;
+using Hasher_t = BabyBearHasher<HashParams>;
 using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
@@ -130,8 +130,8 @@ namespace merkle_tree_kernels_bn254_3 {
 using namespace poseidon2;
 
 using HashParams = poseidon2_bn254_3::Bn254;
-using Hasher_t = DynamicHasher<HashParams>;
-using Matrix_t = Matrix<bn254_t>;
+using Hasher_t = Bn254Hasher<HashParams>;
+using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
     Hasher_t hasher,
@@ -214,7 +214,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
     using HashParams = poseidon2_bn254_3::Bn254;
     using F_t = typename HashParams::F_t;
     using pF_t = typename HashParams::pF_t;
-    using Matrix_t = Matrix<bn254_t>;
+    using Matrix_t = Matrix<bb31_t>;
 
     extern "C" void first_digest_layer_bn254(
         Matrix_t * tallestMatrices,
@@ -226,7 +226,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::DynamicHasher<HashParams> hasher;
+        poseidon2::Bn254Hasher<HashParams> hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -251,7 +251,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::DynamicHasher<HashParams> hasher;
+        poseidon2::Bn254Hasher<HashParams> hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);

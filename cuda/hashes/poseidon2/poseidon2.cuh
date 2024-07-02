@@ -2,6 +2,8 @@
 
 #include "../../matrix/matrix.cuh"
 #include "../../utils/vector.cuh"
+#include "poseidon2_bb31_16.cuh"
+#include "poseidon2_bn254_3.cuh"
 
 namespace poseidon2 {
 
@@ -159,26 +161,26 @@ class Hasher {
         }
     }
 
-    __device__ static void absorbRow(
-        Matrix<F_t>* in,
-        int row_idx,
-        HasherState_t* state,
-        RoundConstants_t roundConstants
-    ) {
-        if (in->row_major) {
-            F_t* row = &in->values[in->width * row_idx];
-            absorb(row, in->width, state, roundConstants);
-        } else {
-            for (int j = 0; j < in->width; j++) {
-                absorb(
-                    &in->values[j * in->height + row_idx],
-                    1,
-                    state,
-                    roundConstants
-                );
-            }
-        }
-    }
+    // __device__ static void absorbRow(
+    //     Matrix<F_t>* in,
+    //     int row_idx,
+    //     HasherState_t* state,
+    //     RoundConstants_t roundConstants
+    // ) {
+    //     if (in->row_major) {
+    //         F_t* row = &in->values[in->width * row_idx];
+    //         absorb(row, in->width, state, roundConstants);
+    //     } else {
+    //         for (int j = 0; j < in->width; j++) {
+    //             absorb(
+    //                 &in->values[j * in->height + row_idx],
+    //                 1,
+    //                 state,
+    //                 roundConstants
+    //             );
+    //         }
+    //     }
+    // }
 
     __device__ static void finalize(
         HasherState_t* state,
@@ -239,10 +241,10 @@ class DynamicHasher: public Hasher<Params> {
         Hasher_t::absorb(in, nIn, state, roundConstants);
     }
 
-    __device__ void
-    absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
-        Hasher_t::absorbRow(in, row_idx, state, roundConstants);
-    }
+    // __device__ void
+    // absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
+    //     Hasher_t::absorbRow(in, row_idx, state, roundConstants);
+    // }
 
     __device__ void
     finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
@@ -287,14 +289,39 @@ class StaticHasher: public Hasher<Params> {
         Hasher_t::absorb(in, nIn, state, roundConstants);
     }
 
-    __device__ static void
-    absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
-        Hasher_t::absorbRow(in, row_idx, state, roundConstants);
-    }
+    // __device__ static void
+    // absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
+    //     Hasher_t::absorbRow(in, row_idx, state, roundConstants);
+    // }
 
     __device__ static void
     finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
         Hasher_t::finalize(state, out, roundConstants);
+    }
+};
+
+template<typename Params>
+class Bn254Hasher: public DynamicHasher<Params> {
+  public:
+    __device__ void
+    absorbRow(Matrix<bb31_t>* in, int row_idx, HasherState<Params>* state) {
+        poseidon2_bn254_3::absorbRow<Bn254Hasher<Params>, HasherState<Params>>(
+            *this,
+            in,
+            row_idx,
+            state
+        );
+    }
+};
+
+template<typename Params>
+class BabyBearHasher: public StaticHasher<Params> {
+  public:
+    __device__ void
+    absorbRow(Matrix<bb31_t>* in, int row_idx, HasherState<Params>* state) {
+        poseidon2_bb31_16::absorbRow<
+            BabyBearHasher<Params>,
+            HasherState<Params>>(*this, in, row_idx, state);
     }
 };
 

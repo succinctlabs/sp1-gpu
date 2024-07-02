@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../fields/bb31_t.cuh"
 #include "../../fields/bn254_t.cuh"
 
 namespace poseidon2_bn254_3 {
@@ -43,5 +44,127 @@ class Bn254 {
         state[2] += sum;
     }
 };
+
+// TODO: rename, clean, organize
+
+// bn254_t::nbits / bb31_t::nbits
+const size_t ARRAY_SIZE = 8;
+
+__device__ void mul_u32_p(
+    uint32_t v,
+    const uint32_t p[ARRAY_SIZE],
+    uint32_t result[ARRAY_SIZE + 1]
+) {
+    uint64_t carry = 0;
+    for (int ii = 0; ii < ARRAY_SIZE; ++ii) {
+        uint64_t temp = (uint64_t)(v)*p[ii] + carry;
+        result[ii] = temp & 0xFFFFFFFF;
+        carry = temp >> 32;
+    }
+    result[ARRAY_SIZE] = (uint32_t)carry;
+}
+
+__device__ void mod_p(
+    uint32_t a[ARRAY_SIZE + 1],
+    const uint32_t b[ARRAY_SIZE],
+    uint32_t result[ARRAY_SIZE]
+) {
+    // Initialize result array to zero
+    for (int i = 0; i < ARRAY_SIZE; ++i) {
+        result[i] = 0;
+    }
+
+    // Copy the input array `a` to a temporary array to perform the operations
+    uint32_t temp[ARRAY_SIZE + 1];
+    for (int i = 0; i < ARRAY_SIZE + 1; ++i) {
+        temp[i] = a[i];
+    }
+
+    for (int i = 0; i <= ARRAY_SIZE; ++i) {
+        uint64_t carry = 0;
+        for (int j = 0; j < ARRAY_SIZE; ++j) {
+            uint64_t current = (carry << 32) | temp[j];
+            temp[j] = current / b[j];
+            carry = current % b[j];
+        }
+        result[i] = (uint32_t)carry;
+    }
+}
+
+__constant__ constexpr const uint32_t p[ARRAY_SIZE] = {
+    // P for Baby Bear
+    0x30644e72,
+    0xe131a029,
+    0xb85045b6,
+    0x8181585d,
+    0x2833e848,
+    0x79b97091,
+    0x43e1f593,
+    0xf0000001,
+};
+
+__constant__ constexpr const uint32_t one[ARRAY_SIZE] = {
+    // 1<<32 mod P
+    0x0e0a77c1,
+    0x9a07df2f,
+    0x666ea36f,
+    0x7879462e,
+    0x36fc7695,
+    0x9f60cd29,
+    0xac96341c,
+    0x4ffffffb,
+};
+
+static __device__ __constant__ __align__(16
+) const uint32_t ALT_BN128_1ls32[ARRAY_SIZE] = {
+    /* (1<<32)%P */
+    TO_CUDA_T(0x0000000010000000),
+    TO_CUDA_T(0x0000000000000000),
+    TO_CUDA_T(0x0000000000000000),
+    TO_CUDA_T(0x0000000000000000),
+};
+
+__device__ bn254_t reduceBabyBear(bb31_t* src, size_t n, size_t stride = 1) {
+    const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
+    bn254_t res;
+    // res.zero();
+    for (size_t ii = (n - 1) * stride; ii >= 0; ii -= stride) {
+        // TODO: plenty of room for optimization here
+        uint32_t canonical =
+            (0x38400000ULL * src[ii].val) % (uint64_t)bb31_t::MOD;
+        uint32_t product[ARRAY_SIZE + 1];
+        mul_u32_p(canonical, one, product);
+        mod_p(product, p, product);
+
+        res = res * po2 + bn254_t(product);
+    }
+    return res;
+}
+
+template<typename Hasher, typename HasherState>
+__device__ void
+absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
+    for (int j = 0; j < in->width; j += ARRAY_SIZE) {
+        size_t n;
+        if (j + ARRAY_SIZE <= in->width) {
+            n = ARRAY_SIZE;
+        } else {
+            n = in->width - j;
+        }
+
+        bb31_t* in_row;
+        size_t stride;
+        if (in->row_major) {
+            in_row = &in->values[in->width * row_idx + j];
+            stride = 1;
+        } else {
+            in_row = &in->values[j * in->height + row_idx];
+            stride = in->height;
+        }
+
+        bn254_t value = reduceBabyBear(in_row, n, stride);
+        hasher.absorb(&value, 1, state);
+    }
+}
 
 }  // namespace poseidon2_bn254_3
