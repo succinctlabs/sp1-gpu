@@ -1,0 +1,15 @@
+[package]
+name = "moongate-prover"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-prover = { workspace = true }
+sp1-core = { workspace = true }
+tracing = "0.1.40"
+
+moongate-core = { path = "../core" }
+
+
+[dev-dependencies]
+sp1-prover = { workspace = true, features = ["export-tests"] }

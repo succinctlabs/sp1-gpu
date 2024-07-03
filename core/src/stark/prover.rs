@@ -653,9 +653,6 @@ pub mod tests {
 
     use super::*;
 
-    pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
-        include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
-
     pub fn execute_core(program: Program) -> ExecutionRecord {
         let opts = SP1CoreOpts::default();
         let mut runtime = Runtime::new(program, opts);
@@ -669,15 +666,6 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    fn test_tendermint_benchmark() {
-        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
-
-        init_tracer();
         run_test::<StarkGpuProver<_, _>>(program).unwrap();
     }
 }

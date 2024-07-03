@@ -1,5 +1,5 @@
 [workspace]
-members = ["air", "core"]
+members = ["air", "core", "prover"]
 
 exclude = ["sppark/poc/ntt-cuda", "sppark/rust"]
 
