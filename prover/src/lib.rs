@@ -13,20 +13,13 @@ mod tests {
 
     use crate::{components::GpuProverComponents, SP1GpuProver};
 
-    pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
-        include_bytes!("../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf");
-
     #[test]
     fn test_e2e_fibonacci() {
         init_tracer();
         test_e2e_prover::<GpuProverComponents>().unwrap()
     }
 
-    #[test]
-    #[ignore]
-    fn test_core_tendermint() {
-        let elf = TENDERMINT_BENCHMARK_ELF;
-
+    fn test_core_elf(elf: &[u8]) {
         init_tracer();
 
         tracing::info!("Initialzing prover");
@@ -45,5 +38,22 @@ mod tests {
 
         tracing::info!("verify core");
         prover.verify(&core_proof.proof, &vk).unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_core_tendermint() {
+        const TENDERMINT_BENCHMARK_ELF: &[u8] = include_bytes!(
+            "../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf"
+        );
+        test_core_elf(TENDERMINT_BENCHMARK_ELF);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_core_reth() {
+        const RETH_ELF: &[u8] =
+            include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
+        test_core_elf(RETH_ELF);
     }
 }
