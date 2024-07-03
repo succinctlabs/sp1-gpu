@@ -649,6 +649,9 @@ pub mod tests {
         utils::{run_test, tests::FIBONACCI_ELF, SP1CoreOpts},
     };
 
+    pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
+        include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
+
     use crate::utils::init_tracer;
 
     use super::*;
@@ -663,6 +666,15 @@ pub mod tests {
     #[test]
     fn test_fibonacci_prove() {
         let program = Program::from(FIBONACCI_ELF);
+
+        init_tracer();
+        // Execute the program.
+        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+    }
+
+    #[test]
+    fn test_tendermint_benchmark_prove() {
+        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
         init_tracer();
         // Execute the program.
