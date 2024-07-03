@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};

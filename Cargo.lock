@@ -1017,9 +1017,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe739944a5406424e080edccb6add95685130b9f160d5407c639c7df0c5836b0"
+checksum = "152dd546e5bdac80844ce6befabb9af5784ce375cb6cea554aed99fe2d1fb169"
 dependencies = [
  "serde",
  "typenum",
@@ -1587,6 +1587,7 @@ version = "0.1.0"
 dependencies = [
  "air",
  "cc",
+ "hashbrown 0.14.5",
  "itertools 0.13.0",
  "lazy_static",
  "p3-air",
@@ -2645,9 +2646,9 @@ checksum = "976295e77ce332211c0d24d92c0e83e50f5c5f046d11082cea19f3df13a3562d"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.102.4"
+version = "0.102.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff448f7e92e913c4b7d4c6d8e4540a1724b319b4152b8aef6d4cf8339712b33e"
+checksum = "f9a6fccd794a42c2c105b513a2f62bc3fd8f3ba57a4593677ceb0bd035164d78"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -2960,7 +2961,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2971,7 +2972,7 @@ dependencies = [
  "curve25519-dalek",
  "elf",
  "elliptic-curve",
- "generic-array 1.0.0",
+ "generic-array 1.0.1",
  "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
@@ -3021,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3031,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3044,7 +3045,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3089,7 +3090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3112,7 +3113,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3137,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3171,7 +3172,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3181,7 +3182,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3206,7 +3207,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#6ff99f8da080e2e1dc545de014ffefc76e5fd964"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prover-trait#9a37b0c4ee5da0203d31a1c95dafef77cbc650f5"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
