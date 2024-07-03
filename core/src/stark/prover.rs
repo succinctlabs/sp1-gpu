@@ -216,8 +216,7 @@ where
         })?;
 
         info!(
-            "Shard {}: [{}]",
-            main_trace_data.index,
+            "Shard: [{}]",
             shard_chips
                 .iter()
                 .map(|c| c.name())
@@ -231,8 +230,7 @@ where
             let permutation_width = permutation_traces[i].width();
             let total_width = width + permutation_width;
             info!(
-                "Shard {:<5} Chip {:<12}: {:>8} = {}W x {}H",
-                main_trace_data.index,
+                "Shard ? Chip {:<12}: {:>8} = {}W x {}H",
                 chip.name(),
                 total_width * height,
                 total_width,
