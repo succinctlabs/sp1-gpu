@@ -13,3 +13,4 @@ moongate-core = { path = "../core" }
 
 [dev-dependencies]
 sp1-prover = { workspace = true, features = ["export-tests"] }
+sp1-core = { workspace = true, features = ["programs"] }

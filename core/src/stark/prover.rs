@@ -188,14 +188,13 @@ where
             .shard_chips_ordered(&chip_ordering)
             .collect::<Vec<_>>();
 
-        // Print some statistics.
+        // Compute some statistics.
         let mut total_lde_size = 0;
         let log_blowup = self.committer.log_blowup();
         for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
             let height = domain.size();
             let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
             total_lde_size += stats.lde_memory_size(log_blowup);
-            debug!("{}", stats);
         }
         debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
@@ -611,6 +610,22 @@ where
         &self,
         trace_data: &GpuMainTraceData<SC>,
     ) -> (Com<SC>, GpuProverData<SC>) {
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&trace_data.chip_ordering)
+            .collect::<Vec<_>>();
+
+        // Print some statistics.
+        let mut total_lde_size = 0;
+        let log_blowup = self.committer.log_blowup();
+        for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
+            let height = domain.size();
+            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+            total_lde_size += stats.lde_memory_size(log_blowup);
+            debug!("{}", stats);
+        }
+        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+
         let domains_and_traces = trace_data
             .domains
             .iter()
