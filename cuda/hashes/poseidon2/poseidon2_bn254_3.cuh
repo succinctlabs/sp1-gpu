@@ -118,25 +118,27 @@ __constant__ constexpr const uint32_t one[ARRAY_SIZE] = {
 static __device__ __constant__ __align__(16
 ) const uint32_t ALT_BN128_1ls32[ARRAY_SIZE] = {
     /* (1<<32)%P */
-    TO_CUDA_T(0x0000000010000000),
+    TO_CUDA_T(0x0000000100000000),
     TO_CUDA_T(0x0000000000000000),
     TO_CUDA_T(0x0000000000000000),
     TO_CUDA_T(0x0000000000000000),
 };
 
+__device__ bn254_t bb31_to_bn254(bb31_t in) {
+    // TODO: room for optimization here
+    uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
+    uint32_t product[ARRAY_SIZE + 1];
+    mul_u32_p(canonical, one, product);
+    mod_p(product, p, product);
+    return bn254_t(product);
+}
+
 __device__ bn254_t reduceBabyBear(bb31_t* src, size_t n, size_t stride = 1) {
     const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
     bn254_t res;
-    // res.zero();
-    for (size_t ii = (n - 1) * stride; ii >= 0; ii -= stride) {
-        // TODO: plenty of room for optimization here
-        uint32_t canonical =
-            (0x38400000ULL * src[ii].val) % (uint64_t)bb31_t::MOD;
-        uint32_t product[ARRAY_SIZE + 1];
-        mul_u32_p(canonical, one, product);
-        mod_p(product, p, product);
-
-        res = res * po2 + bn254_t(product);
+    res.zero();
+    for (size_t ii = (n - 1) * stride; ii < n * stride; ii -= stride) {
+        res = res * po2 + bb31_to_bn254(src[ii]);
     }
     return res;
 }
@@ -152,18 +154,24 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
             n = in->width - j;
         }
 
-        bb31_t* in_row;
-        size_t stride;
-        if (in->row_major) {
-            in_row = &in->values[in->width * row_idx + j];
-            stride = 1;
-        } else {
-            in_row = &in->values[j * in->height + row_idx];
-            stride = in->height;
-        }
+        // bb31_t* in_row;
+        // size_t stride;
+        // if (in->row_major) {
+        //     in_row = &in->values[in->width * row_idx + j];
+        //     stride = 1;
+        // } else {
+        //     in_row = &in->values[j * in->height + row_idx];
+        //     stride = in->height;
+        // }
 
-        bn254_t value = reduceBabyBear(in_row, n, stride);
+        // bn254_t value = reduceBabyBear(in_row, n, stride);
+        bn254_t value;
+        value.zero();
         hasher.absorb(&value, 1, state);
+    }
+
+    if (state->index != 0) {
+        hasher.permute(state->data, state->data);
     }
 }
 

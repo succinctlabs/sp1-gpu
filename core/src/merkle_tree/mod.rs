@@ -143,152 +143,321 @@ impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, 
 
 #[cfg(test)]
 mod tests {
-    use crate::device::memory::{ToDevice, ToHost};
-    use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
-    use crate::merkle_tree::FieldMerkleTreeGpu;
-    use crate::poseidon2::tests::baby_bear_tests::{
-        poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
-    };
-    use crate::{
-        device::buffer::DeviceBuffer,
-        poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
-        poseidon2::baby_bear_gpu::HasherBabyBearGPU,
-    };
+    pub mod baby_bear_tests {
+        use crate::device::memory::{ToDevice, ToHost};
+        use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
+        use crate::merkle_tree::FieldMerkleTreeGpu;
+        use crate::poseidon2::tests::baby_bear_tests::{
+            poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
+        };
+        use crate::{
+            device::buffer::DeviceBuffer,
+            poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+            poseidon2::baby_bear_gpu::HasherBabyBearGPU,
+        };
 
-    use p3_baby_bear::BabyBear;
-    use p3_merkle_tree::FieldMerkleTree;
+        use p3_baby_bear::BabyBear;
+        use p3_merkle_tree::FieldMerkleTree;
 
-    #[test]
-    fn test_first_digest_layer() {
-        let n = 1 << 16;
-        let hasher = poseidon2_baby_bear_16_hasher();
+        #[test]
+        fn test_first_digest_layer() {
+            let n = 1 << 16;
+            let hasher = poseidon2_baby_bear_16_hasher();
 
-        let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
-        let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-        let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
-        let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
-        let hasher_gpu = HasherBabyBearGPU::new();
-        unsafe {
-            digests.set_len(n);
-            hasher_gpu.first_digest_layer(
-                tallest_matrices.as_ptr(),
-                tallest_matrices.len(),
-                digests.as_mut_ptr(),
-                n / 32,
-                32,
-            );
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
+            let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
+            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
+            let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+            let hasher_gpu = HasherBabyBearGPU::new();
+            unsafe {
+                digests.set_len(n);
+                hasher_gpu.first_digest_layer(
+                    tallest_matrices.as_ptr(),
+                    tallest_matrices.len(),
+                    digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
+            let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+            let digests_device = digests.to_host();
+            for i in 0..n {
+                assert_eq!(digests_host[i], digests_device[i]);
+            }
         }
 
-        let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
-        let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+        #[test]
+        fn test_compress_and_inject() {
+            let n = 1 << 16;
+            let hasher = poseidon2_baby_bear_16_hasher();
+            let compressor = poseidon2_baby_bear_16_compressor();
 
-        let digests_device = digests.to_host();
-        for i in 0..n {
-            assert_eq!(digests_host[i], digests_device[i]);
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
+            let (matrix_host_2, matrix_device_2) =
+                RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
+
+            let tallest_matrices = vec![matrix_device_1.view()].to_device();
+            let mut first_layer_digests =
+                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+
+            let hasher_gpu = HasherBabyBearGPU::new();
+            unsafe {
+                first_layer_digests.set_len(n);
+                hasher_gpu.first_digest_layer(
+                    tallest_matrices.as_ptr(),
+                    tallest_matrices.len(),
+                    first_layer_digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let matrices_to_inject = vec![matrix_device_2.view()].to_device();
+            let mut next_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1);
+            unsafe {
+                next_digests.set_len(n / 2);
+                hasher_gpu.compress_and_inject(
+                    first_layer_digests.as_ptr(),
+                    first_layer_digests.len(),
+                    matrices_to_inject.as_ptr(),
+                    matrices_to_inject.len(),
+                    next_digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let tallest_matrices = vec![&matrix_host_1];
+            let first_layer_digests_host =
+                p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+            let first_layer_digests_device = first_layer_digests.to_host();
+            for i in 0..n {
+                assert_eq!(first_layer_digests_host[i], first_layer_digests_device[i]);
+            }
+
+            let matrices_to_inject = vec![&matrix_host_2];
+            let next_digests_host = p3_merkle_tree::compress_and_inject(
+                &first_layer_digests_host,
+                matrices_to_inject,
+                &hasher,
+                &compressor,
+            );
+
+            let next_digests_device = next_digests.to_host();
+            for i in 0..n / 2 {
+                assert_eq!(next_digests_host[i], next_digests_device[i]);
+            }
+        }
+
+        #[test]
+        fn test_commit_matrices() {
+            let n = 1 << 16;
+            let hasher = poseidon2_baby_bear_16_hasher();
+            let compressor = poseidon2_baby_bear_16_compressor();
+
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
+
+            let start = std::time::Instant::now();
+            let tallest_matrices = vec![matrix_device_1];
+            let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+            let root_device = tree_device.root();
+            println!("time: {:?}", start.elapsed().as_secs_f64());
+
+            let tallest_matrices = vec![matrix_host_1];
+            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+
+            assert_eq!(root_device, root_host);
+        }
+
+        #[test]
+        fn test_col_major_commit_matrices() {
+            let n = 1 << 16;
+            let hasher = poseidon2_baby_bear_16_hasher();
+            let compressor = poseidon2_baby_bear_16_compressor();
+
+            let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
+
+            let start = std::time::Instant::now();
+            let tallest_matrices = vec![matrix_device_1];
+            let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+            let root_device = tree_device.root();
+            println!("Device time: {:?}", start.elapsed());
+
+            let tallest_matrices = vec![matrix_host_1];
+            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+
+            assert_eq!(root_device, root_host);
         }
     }
+    pub mod bn254_tests {
+        use crate::device::memory::{ToDevice, ToHost};
+        use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
+        use crate::merkle_tree::FieldMerkleTreeGpu;
+        use crate::poseidon2::tests::bn254_tests::{
+            poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm,
+        };
+        use crate::{
+            device::buffer::DeviceBuffer,
+            poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
+            poseidon2::bn254_gpu::HasherBn254GPU,
+        };
+        use p3_baby_bear::BabyBear;
+        use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
+        // use p3_merkle_tree::FieldMerkleTree;
+        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_symmetric::MultiField32PaddingFreeSponge;
 
-    #[test]
-    fn test_compress_and_inject() {
-        let n = 1 << 16;
-        let hasher = poseidon2_baby_bear_16_hasher();
-        let compressor = poseidon2_baby_bear_16_compressor();
+        pub type OuterVal = BabyBear;
+        pub type OuterPerm =
+            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>;
+        pub type OuterHash = MultiField32PaddingFreeSponge<OuterVal, Bn254Fr, OuterPerm, 3, 16, 1>;
 
-        let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
-        let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
+        #[test]
+        fn test_first_digest_layer() {
+            let n = 1 << 16;
+            let perm = poseidon2_bn254_3_perm();
+            let hasher = OuterHash::new(perm).unwrap();
 
-        let tallest_matrices = vec![matrix_device_1.view()].to_device();
-        let mut first_layer_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+            // GPU implementation gets at least two things wrong:
+            // 1. Differs from CPU when the first tallest matrix has width not multiple of 8 (if there is a second tallest matrix)
+            // 2. Differs in reduce32 implementation
 
-        let hasher_gpu = HasherBabyBearGPU::new();
-        unsafe {
-            first_layer_digests.set_len(n);
-            hasher_gpu.first_digest_layer(
-                tallest_matrices.as_ptr(),
-                tallest_matrices.len(),
-                first_layer_digests.as_mut_ptr(),
-                n / 32,
-                32,
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
+            let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
+            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
+            // let tallest_matrices = v\ec![matrix_device_1.view()].to_device();
+            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+            let hasher_gpu = HasherBn254GPU::new();
+            unsafe {
+                digests.set_len(n);
+                hasher_gpu.first_digest_layer(
+                    tallest_matrices.as_ptr(),
+                    tallest_matrices.len(),
+                    digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
+            let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+            let digests_device = digests.to_host();
+            for i in 0..n {
+                assert_eq!(digests_host[i], digests_device[i]);
+            }
+        }
+
+        #[test]
+        fn test_compress_and_inject() {
+            let n = 1 << 16;
+            let perm = poseidon2_bn254_3_perm();
+            let hasher = OuterHash::new(perm).unwrap();
+            let compressor = poseidon2_bn254_3_compressor();
+
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
+            let (matrix_host_2, matrix_device_2) =
+                RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
+
+            let tallest_matrices = vec![matrix_device_1.view()].to_device();
+            let mut first_layer_digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+
+            let hasher_gpu = HasherBn254GPU::new();
+            unsafe {
+                first_layer_digests.set_len(n);
+                hasher_gpu.first_digest_layer(
+                    tallest_matrices.as_ptr(),
+                    tallest_matrices.len(),
+                    first_layer_digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let matrices_to_inject = vec![matrix_device_2.view()].to_device();
+            let mut next_digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n >> 1);
+            unsafe {
+                next_digests.set_len(n / 2);
+                hasher_gpu.compress_and_inject(
+                    first_layer_digests.as_ptr(),
+                    first_layer_digests.len(),
+                    matrices_to_inject.as_ptr(),
+                    matrices_to_inject.len(),
+                    next_digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let tallest_matrices = vec![&matrix_host_1];
+            let first_layer_digests_host =
+                p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+            let first_layer_digests_device = first_layer_digests.to_host();
+            for i in 0..n {
+                assert_eq!(first_layer_digests_host[i], first_layer_digests_device[i]);
+            }
+
+            let matrices_to_inject = vec![&matrix_host_2];
+            let next_digests_host = p3_merkle_tree::compress_and_inject(
+                &first_layer_digests_host,
+                matrices_to_inject,
+                &hasher,
+                &compressor,
             );
+
+            let next_digests_device = next_digests.to_host();
+            for i in 0..n / 2 {
+                assert_eq!(next_digests_host[i], next_digests_device[i]);
+            }
         }
 
-        let matrices_to_inject = vec![matrix_device_2.view()].to_device();
-        let mut next_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1);
-        unsafe {
-            next_digests.set_len(n / 2);
-            hasher_gpu.compress_and_inject(
-                first_layer_digests.as_ptr(),
-                first_layer_digests.len(),
-                matrices_to_inject.as_ptr(),
-                matrices_to_inject.len(),
-                next_digests.as_mut_ptr(),
-                n / 32,
-                32,
-            );
-        }
+        // #[test]
+        // fn test_commit_matrices() {
+        //     let n = 1 << 16;
+        //     let hasher = poseidon2_bn254_3_hasher();
+        //     let compressor = poseidon2_bn254_3_compressor();
 
-        let tallest_matrices = vec![&matrix_host_1];
-        let first_layer_digests_host =
-            p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+        //     let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<Bn254Fr>::dummy(600, n);
 
-        let first_layer_digests_device = first_layer_digests.to_host();
-        for i in 0..n {
-            assert_eq!(first_layer_digests_host[i], first_layer_digests_device[i]);
-        }
+        //     let start = std::time::Instant::now();
+        //     let tallest_matrices = vec![matrix_device_1];
+        //     let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+        //     let root_device = tree_device.root();
+        //     println!("time: {:?}", start.elapsed().as_secs_f64());
 
-        let matrices_to_inject = vec![&matrix_host_2];
-        let next_digests_host = p3_merkle_tree::compress_and_inject(
-            &first_layer_digests_host,
-            matrices_to_inject,
-            &hasher,
-            &compressor,
-        );
+        //     let tallest_matrices = vec![matrix_host_1];
+        //     let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+        //     let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
-        let next_digests_device = next_digests.to_host();
-        for i in 0..n / 2 {
-            assert_eq!(next_digests_host[i], next_digests_device[i]);
-        }
-    }
+        //     assert_eq!(root_device, root_host);
+        // }
 
-    #[test]
-    fn test_commit_matrices() {
-        let n = 1 << 16;
-        let hasher = poseidon2_baby_bear_16_hasher();
-        let compressor = poseidon2_baby_bear_16_compressor();
+        // #[test]
+        // fn test_col_major_commit_matrices() {
+        //     let n = 1 << 16;
+        //     let hasher = poseidon2_bn254_3_hasher();
+        //     let compressor = poseidon2_bn254_3_compressor();
 
-        let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
+        //     let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<Bn254Fr>::dummy(600, n);
 
-        let start = std::time::Instant::now();
-        let tallest_matrices = vec![matrix_device_1];
-        let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
-        let root_device = tree_device.root();
-        println!("time: {:?}", start.elapsed().as_secs_f64());
+        //     let start = std::time::Instant::now();
+        //     let tallest_matrices = vec![matrix_device_1];
+        //     let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+        //     let root_device = tree_device.root();
+        //     println!("Device time: {:?}", start.elapsed());
 
-        let tallest_matrices = vec![matrix_host_1];
-        let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-        let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+        //     let tallest_matrices = vec![matrix_host_1];
+        //     let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+        //     let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
-        assert_eq!(root_device, root_host);
-    }
-
-    #[test]
-    fn test_col_major_commit_matrices() {
-        let n = 1 << 16;
-        let hasher = poseidon2_baby_bear_16_hasher();
-        let compressor = poseidon2_baby_bear_16_compressor();
-
-        let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
-
-        let start = std::time::Instant::now();
-        let tallest_matrices = vec![matrix_device_1];
-        let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
-        let root_device = tree_device.root();
-        println!("Device time: {:?}", start.elapsed());
-
-        let tallest_matrices = vec![matrix_host_1];
-        let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-        let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
-
-        assert_eq!(root_device, root_host);
+        //     assert_eq!(root_device, root_host);
+        // }
     }
 }

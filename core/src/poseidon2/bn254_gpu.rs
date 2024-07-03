@@ -1,11 +1,13 @@
 use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::matrix::MatrixViewDevice;
+use p3_baby_bear::BabyBear;
 use p3_bn254_fr::Bn254Fr;
 use p3_field::AbstractField;
 
 pub mod poseidon2_bn254_3_kernels {
     use crate::matrix::MatrixViewDevice;
+    use p3_baby_bear::BabyBear;
     use p3_bn254_fr::Bn254Fr;
 
     pub const DIGEST_WIDTH: usize = 1;
@@ -58,9 +60,12 @@ pub mod poseidon2_bn254_3_kernels {
     #[link_name = "merkle_tree_bn254_16_gpu"]
     extern "C" {
         pub fn first_digest_layer_bn254(
-            tallest_matrices: *const MatrixViewDevice<Bn254Fr>,
+            tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
             digests: *mut [Bn254Fr; DIGEST_WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
@@ -68,9 +73,12 @@ pub mod poseidon2_bn254_3_kernels {
         pub fn compress_and_inject_bn254(
             prev_layer: *const [Bn254Fr; DIGEST_WIDTH],
             n_prev_layer: usize,
-            matrices_to_inject: *const MatrixViewDevice<Bn254Fr>,
+            matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [Bn254Fr; DIGEST_WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
@@ -193,7 +201,7 @@ impl HasherBn254GPU {
     /// # Safety
     pub unsafe fn first_digest_layer(
         &self,
-        tallest_matrices: *const MatrixViewDevice<Bn254Fr>,
+        tallest_matrices: *const MatrixViewDevice<BabyBear>,
         n_tallest_matrices: usize,
         digests: *mut [Bn254Fr; DIGEST_WIDTH],
         n_blocks: usize,
@@ -203,6 +211,9 @@ impl HasherBn254GPU {
             tallest_matrices,
             n_tallest_matrices,
             digests,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
             n_blocks,
             n_threads_per_block,
         );
@@ -213,7 +224,7 @@ impl HasherBn254GPU {
         &self,
         prev_layer: *const [Bn254Fr; DIGEST_WIDTH],
         n_prev_layer: usize,
-        matrices_to_inject: *const MatrixViewDevice<Bn254Fr>,
+        matrices_to_inject: *const MatrixViewDevice<BabyBear>,
         n_matrices_to_inject: usize,
         next_digests: *mut [Bn254Fr; DIGEST_WIDTH],
         n_blocks: usize,
@@ -225,6 +236,9 @@ impl HasherBn254GPU {
             matrices_to_inject,
             n_matrices_to_inject,
             next_digests,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
             n_blocks,
             n_threads_per_block,
         );

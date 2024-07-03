@@ -299,7 +299,7 @@ pub mod tests {
         use p3_poseidon2::Poseidon2;
         use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
         use p3_symmetric::Permutation;
-        use p3_symmetric::{CryptographicHasher, PaddingFreeSponge};
+        use p3_symmetric::{CryptographicHasher, PaddingFreeSponge, TruncatedPermutation};
         use rand::thread_rng;
         use rand::Rng;
 
@@ -337,15 +337,15 @@ pub mod tests {
             PaddingFreeSponge::new(perm)
         }
 
-        // pub fn poseidon2_bn254_3_compressor() -> TruncatedPermutation<
-        //     Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
-        //     2,
-        //     1,
-        //     3,
-        // > {
-        //     let perm = poseidon2_bn254_3_perm();
-        //     TruncatedPermutation::new(perm)
-        // }
+        pub fn poseidon2_bn254_3_compressor() -> TruncatedPermutation<
+            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
+            2,
+            1,
+            3,
+        > {
+            let perm = poseidon2_bn254_3_perm();
+            TruncatedPermutation::new(perm)
+        }
 
         #[test]
         fn test_permute_bn254_gpu() {
