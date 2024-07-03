@@ -8,7 +8,11 @@
 
 // TODO: template to the extent allowed by CUDA
 
-template<typename Hasher_t, typename HashParams, typename Matrix_t>
+template<
+    typename Hasher_t,
+    typename HasherState_t,
+    typename HashParams,
+    typename Matrix_t>
 __device__ void firstDigestLayer(
     Hasher_t hasher,
     Matrix_t* tallestMatrices,
@@ -20,7 +24,7 @@ __device__ void firstDigestLayer(
         return;
     }
 
-    poseidon2::HasherState<HashParams> state;
+    HasherState_t state;
 
     for (int i = 0; i < nTallestMatrices; i++) {
         hasher.absorbRow(&tallestMatrices[i], rowIdx, &state);
@@ -28,7 +32,11 @@ __device__ void firstDigestLayer(
     hasher.finalize(&state, digests[rowIdx]);
 }
 
-template<typename Hasher_t, typename HashParams, typename Matrix_t>
+template<
+    typename Hasher_t,
+    typename HasherState_t,
+    typename HashParams,
+    typename Matrix_t>
 __device__ void compressAndInject(
     Hasher_t hasher,
     typename HashParams::F_t (*prevLayer)[HashParams::DIGEST_WIDTH],
@@ -66,7 +74,7 @@ __device__ void compressAndInject(
 
     if (rowIdx < nextLen) {
         F_t tallestDigest[HashParams::DIGEST_WIDTH];
-        poseidon2::HasherState<HashParams> state;
+        HasherState_t state;
         for (int i = 0; i < nMatricesToInject; i++) {
             hasher.absorbRow(&matricesToInject[i], rowIdx, &state);
         }
@@ -89,6 +97,7 @@ using namespace poseidon2;
 
 using HashParams = poseidon2_bb31_16::BabyBear;
 using Hasher_t = BabyBearHasher<HashParams>;
+using HasherState_t = HasherState<HashParams>;
 using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
@@ -97,7 +106,7 @@ __global__ void firstDigestLayer(
     bb31_t (*digests)[HashParams::DIGEST_WIDTH]
 ) {
     Hasher_t hasher;
-    ::firstDigestLayer<Hasher_t, HashParams, Matrix_t>(
+    ::firstDigestLayer<Hasher_t, HasherState_t, HashParams, Matrix_t>(
         hasher,
         tallestMatrices,
         nTallestMatrices,
@@ -113,7 +122,7 @@ __global__ void compressAndInject(
     bb31_t (*nextDigests)[HashParams::DIGEST_WIDTH]
 ) {
     Hasher_t hasher;
-    ::compressAndInject<Hasher_t, HashParams, Matrix_t>(
+    ::compressAndInject<Hasher_t, HasherState_t, HashParams, Matrix_t>(
         hasher,
         prevLayer,
         nPrevLayer,
@@ -131,6 +140,7 @@ using namespace poseidon2;
 
 using HashParams = poseidon2_bn254_3::Bn254;
 using Hasher_t = Bn254Hasher<HashParams>;
+using HasherState_t = MultiFieldHasherState<HashParams, bb31_t, 8>;
 using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
@@ -139,7 +149,7 @@ __global__ void firstDigestLayer(
     size_t nTallestMatrices,
     bn254_t (*digests)[HashParams::DIGEST_WIDTH]
 ) {
-    ::firstDigestLayer<Hasher_t, HashParams, Matrix_t>(
+    ::firstDigestLayer<Hasher_t, HasherState_t, HashParams, Matrix_t>(
         hasher,
         tallestMatrices,
         nTallestMatrices,
@@ -155,7 +165,7 @@ __global__ void compressAndInject(
     size_t nMatricesToInject,
     bn254_t (*nextDigests)[HashParams::DIGEST_WIDTH]
 ) {
-    ::compressAndInject<Hasher_t, HashParams, Matrix_t>(
+    ::compressAndInject<Hasher_t, HasherState_t, HashParams, Matrix_t>(
         hasher,
         prevLayer,
         nPrevLayer,

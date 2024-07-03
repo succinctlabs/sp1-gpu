@@ -146,12 +146,22 @@ __device__ bn254_t reduceBabyBear(bb31_t* src, size_t n, size_t stride = 1) {
 template<typename Hasher, typename HasherState>
 __device__ void
 absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
-    for (int j = 0; j < in->width; j += ARRAY_SIZE) {
-        size_t n;
-        if (j + ARRAY_SIZE <= in->width) {
-            n = ARRAY_SIZE;
-        } else {
-            n = in->width - j;
+    if (state->overhangSize != 0) {
+        bn254_t value;
+        value.zero();
+        hasher.absorb(&value, 1, state);
+        // state->overhangSize = 0;
+    }
+
+    for (int j = ARRAY_SIZE - state->overhangSize; j < in->width;
+         j += ARRAY_SIZE) {
+        // TODO: cleaner!
+        if (j + ARRAY_SIZE > in->width) {
+            state->overhangSize = in->width - j;
+            for (int k = 0; k < state->overhangSize; k++) {
+                state->overhang[k] = in->values[j + k];
+            }
+            return;
         }
 
         // bb31_t* in_row;
@@ -164,15 +174,13 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
         //     stride = in->height;
         // }
 
-        // bn254_t value = reduceBabyBear(in_row, n, stride);
+        // bn254_t value = reduceBabyBear(in_row, n, stride); // TODO: pass state to handle overhang
         bn254_t value;
         value.zero();
         hasher.absorb(&value, 1, state);
     }
 
-    if (state->index != 0) {
-        hasher.permute(state->data, state->data);
-    }
+    state->overhangSize = 0;
 }
 
 }  // namespace poseidon2_bn254_3

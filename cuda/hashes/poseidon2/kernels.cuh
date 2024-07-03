@@ -15,7 +15,7 @@ __global__ void permute(
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams> hasher;
+    StaticHasher<HashParams, HasherState<HashParams>> hasher;
     hasher.permute(in[idx], out[idx]);
 }
 
@@ -30,7 +30,7 @@ __global__ void compress(
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams> hasher;
+    StaticHasher<HashParams, HasherState<HashParams>> hasher;
     hasher.compress(left[idx], right[idx], out[idx]);
 }
 
@@ -41,7 +41,7 @@ hash(bb31_t* in, int nIn, bb31_t (*out)[HashParams::DIGEST_WIDTH], int n) {
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams> hasher;
+    StaticHasher<HashParams, HasherState<HashParams>> hasher;
     hasher.hash(in + idx * nIn, nIn, out[idx]);
 }
 }  // namespace poseidon2_baby_bear_kernels
@@ -51,7 +51,7 @@ using namespace poseidon2;
 
 template<typename HashParams>
 __global__ void permute(
-    DynamicHasher<HashParams> hasher,
+    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
     bn254_t (*in)[HashParams::WIDTH],
     bn254_t (*out)[HashParams::WIDTH],
     size_t n
@@ -65,7 +65,7 @@ __global__ void permute(
 
 template<typename HashParams>
 __global__ void compress(
-    DynamicHasher<HashParams> hasher,
+    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
     bn254_t (*left)[HashParams::DIGEST_WIDTH],
     bn254_t (*right)[HashParams::DIGEST_WIDTH],
     bn254_t (*out)[HashParams::DIGEST_WIDTH],
@@ -80,7 +80,7 @@ __global__ void compress(
 
 template<typename HashParams>
 __global__ void hash(
-    DynamicHasher<HashParams> hasher,
+    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
     bn254_t* in,
     int nIn,
     bn254_t (*out)[HashParams::DIGEST_WIDTH],
@@ -135,21 +135,25 @@ extern "C" namespace poseidon2_baby_bear_16_gpu {
 }  // namespace poseidon2_baby_bear_16_gpu
 
 extern "C" namespace poseidon2_bn254_3_gpu {
+    using namespace poseidon2;
+
     using HashParams = poseidon2_bn254_3::Bn254;
+    using HasherState = MultiFieldHasherState<HashParams, bb31_t, 8>;
+    using Hasher = DynamicHasher<HashParams, HasherState>;
     using F_t = typename HashParams::F_t;
     using pF_t = typename HashParams::pF_t;
 
     extern "C" void permute_bn254(
         F_t(*in)[HashParams::WIDTH],
         F_t(*out)[HashParams::WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
+        pF_t * internalRoundConstants,
+        pF_t * externalRoundConstants,
+        pF_t * matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::DynamicHasher<HashParams> hasher;
+        Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -161,14 +165,14 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t(*left)[HashParams::DIGEST_WIDTH],
         F_t(*right)[HashParams::DIGEST_WIDTH],
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
+        pF_t * internalRoundConstants,
+        pF_t * externalRoundConstants,
+        pF_t * matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::DynamicHasher<HashParams> hasher;
+        Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -180,14 +184,14 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         F_t * in,
         size_t nIn,
         F_t(*out)[HashParams::DIGEST_WIDTH],
-        pF_t* internalRoundConstants,
-        pF_t* externalRoundConstants,
-        pF_t* matInternalDiagM1,
+        pF_t * internalRoundConstants,
+        pF_t * externalRoundConstants,
+        pF_t * matInternalDiagM1,
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::DynamicHasher<HashParams> hasher;
+        Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);

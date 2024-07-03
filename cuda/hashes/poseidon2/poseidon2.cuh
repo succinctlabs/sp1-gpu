@@ -32,11 +32,16 @@ struct HasherState {
     }
 };
 
-template<typename Params>
+template<typename Params, typename P_t, int R>
+struct MultiFieldHasherState: public HasherState<Params> {
+    P_t overhang[R];
+    size_t overhangSize;
+};
+
+template<typename Params, typename HasherState_t>
 class Hasher {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
-    using HasherState_t = HasherState<Params>;
     using RoundConstants_t = RoundConstants<Params>;
 
   private:
@@ -196,11 +201,11 @@ class Hasher {
     }
 };
 
-template<typename Params>
-class DynamicHasher: public Hasher<Params> {
+template<typename Params, typename HasherState_t>
+class DynamicHasher: public Hasher<Params, HasherState_t> {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
-    using Hasher_t = Hasher<Params>;
+    using Hasher_t = Hasher<Params, HasherState_t>;
 
   public:
     RoundConstants<Params> roundConstants;
@@ -237,25 +242,31 @@ class DynamicHasher: public Hasher<Params> {
         Hasher_t::hash(in, nIn, out, roundConstants);
     }
 
-    __device__ void absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
+    __device__ void absorb(F_t* in, size_t nIn, HasherState_t* state) {
         Hasher_t::absorb(in, nIn, state, roundConstants);
     }
 
-    // __device__ void
-    // absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
-    //     Hasher_t::absorbRow(in, row_idx, state, roundConstants);
-    // }
-
     __device__ void
-    finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
+    finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
+        // TODO: Make this cleaner
+        if (state->overhangSize != 0) {
+            // F_t value = poseidon2_bn254_3::reduceBabyBear(
+            //     state->overhang,
+            //     state->overhangSize,
+            //     1
+            // );
+            F_t value;
+            value.zero();
+            absorb(&value, 1, state);
+        }
         Hasher_t::finalize(state, out, roundConstants);
     }
 };
 
-template<typename Params>
-class StaticHasher: public Hasher<Params> {
+template<typename Params, typename HasherState_t>
+class StaticHasher: public Hasher<Params, HasherState_t> {
     using F_t = typename Params::F_t;
-    using Hasher_t = Hasher<Params>;
+    using Hasher_t = Hasher<Params, HasherState_t>;
     using RoundConstants_t = RoundConstants<Params>;
 
   public:
@@ -284,28 +295,28 @@ class StaticHasher: public Hasher<Params> {
         Hasher_t::hash(in, nIn, out, roundConstants);
     }
 
-    __device__ static void
-    absorb(F_t* in, size_t nIn, HasherState<Params>* state) {
+    __device__ static void absorb(F_t* in, size_t nIn, HasherState_t* state) {
         Hasher_t::absorb(in, nIn, state, roundConstants);
     }
 
-    // __device__ static void
-    // absorbRow(Matrix<F_t>* in, int row_idx, HasherState<Params>* state) {
-    //     Hasher_t::absorbRow(in, row_idx, state, roundConstants);
-    // }
-
     __device__ static void
-    finalize(HasherState<Params>* state, F_t out[Params::DIGEST_WIDTH]) {
+    finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
         Hasher_t::finalize(state, out, roundConstants);
     }
 };
 
 template<typename Params>
-class Bn254Hasher: public DynamicHasher<Params> {
+class Bn254Hasher:
+    public DynamicHasher<Params, MultiFieldHasherState<Params, bb31_t, 8>> {
   public:
-    __device__ void
-    absorbRow(Matrix<bb31_t>* in, int row_idx, HasherState<Params>* state) {
-        poseidon2_bn254_3::absorbRow<Bn254Hasher<Params>, HasherState<Params>>(
+    __device__ void absorbRow(
+        Matrix<bb31_t>* in,
+        int row_idx,
+        MultiFieldHasherState<Params, bb31_t, 8>* state
+    ) {
+        poseidon2_bn254_3::absorbRow<
+            Bn254Hasher<Params>,
+            MultiFieldHasherState<Params, bb31_t, 8>>(
             *this,
             in,
             row_idx,
@@ -315,7 +326,7 @@ class Bn254Hasher: public DynamicHasher<Params> {
 };
 
 template<typename Params>
-class BabyBearHasher: public StaticHasher<Params> {
+class BabyBearHasher: public StaticHasher<Params, HasherState<Params>> {
   public:
     __device__ void
     absorbRow(Matrix<bb31_t>* in, int row_idx, HasherState<Params>* state) {
