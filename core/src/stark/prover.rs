@@ -646,11 +646,16 @@ where
 pub mod tests {
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
-        utils::{run_test, tests::FIBONACCI_ELF, SP1CoreOpts},
+        utils::{
+            run_test,
+            tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
+            SP1CoreOpts,
+        },
     };
 
-    pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
-        include_bytes!("../../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
+    pub const TENDERMINT_BENCHMARK_ELF: &[u8] = include_bytes!(
+        "../../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf"
+    );
 
     use crate::utils::init_tracer;
 
@@ -673,6 +678,17 @@ pub mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn test_ssz_withdrawals_prove() {
+        let program = Program::from(SSZ_WITHDRAWALS_ELF);
+
+        init_tracer();
+        // Execute the program.
+        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+    }
+
+    #[test]
+    #[ignore]
     fn test_tendermint_benchmark_prove() {
         let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 

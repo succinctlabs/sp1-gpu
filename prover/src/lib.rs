@@ -14,7 +14,7 @@ mod tests {
     use crate::{components::GpuProverComponents, SP1GpuProver};
 
     pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
-        include_bytes!("../../tendermint_benchmark/elf/riscv32im-succinct-zkvm-elf");
+        include_bytes!("../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf");
 
     #[test]
     fn test_e2e_fibonacci() {
