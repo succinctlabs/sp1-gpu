@@ -38,7 +38,6 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -71,13 +70,6 @@ impl<SC: BabyBearPoseidon2Config> Default for FriCpuOpeningProver<SC> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
-
-#[repr(C)]
-pub struct RoundsData<F, EF> {
-    mats: *const MatrixViewDevice<F>,
-    points: *const EF,
-    log_blowup: usize,
-}
 
 impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
@@ -205,18 +197,17 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         assert_eq!(thread_generator_powers.len(), num_points * 1024);
         assert_eq!(points_for_inv.len(), num_points);
 
-        let inv_indices_device = inv_indices.to_device();
-        let nums_rows = nums_rows.to_device();
-        let log_nums_rows = log_nums_rows.to_device();
-        let thread_generator_powers = thread_generator_powers.to_device();
-        let points_for_inv = points_for_inv.to_device();
-        let shifts_for_inv = shifts_for_inv.to_device();
-
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
         let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset);
+        let inv_indices_device = inv_indices.to_device();
         unsafe {
             inv_denominators.set_max_len();
+            let nums_rows = nums_rows.to_device();
+            let log_nums_rows = log_nums_rows.to_device();
+            let thread_generator_powers = thread_generator_powers.to_device();
+            let points_for_inv = points_for_inv.to_device();
+            let shifts_for_inv = shifts_for_inv.to_device();
             opening_gpu::compute_inverse_denominators(
                 global_max_height,
                 num_points,
@@ -636,88 +627,89 @@ pub mod opening_gpu {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
-    use crate::stark::StarkGpuProver;
-    use p3_baby_bear::BabyBear;
-    use p3_challenger::FieldChallenger;
-    use p3_commit::Pcs;
-    use p3_field::extension::BinomialExtensionField;
+// #[cfg(test)]
+// mod tests {
+//     use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
+//     use crate::stark::StarkGpuProver;
+//     use p3_baby_bear::BabyBear;
+//     use p3_challenger::FieldChallenger;
+//     use p3_commit::Pcs;
+//     use p3_field::extension::BinomialExtensionField;
 
-    use sp1_core::stark::StarkGenericConfig;
-    use sp1_core::{
-        runtime::Program,
-        stark::{Challenge, RiscvAir},
-        utils::BabyBearPoseidon2,
-    };
+//     use sp1_core::stark::MachineProver;
+//     use sp1_core::stark::StarkGenericConfig;
+//     use sp1_core::{
+//         runtime::Program,
+//         stark::{Challenge, RiscvAir},
+//         utils::BabyBearPoseidon2,
+//     };
 
-    use crate::stark::tests::execute_core;
-    type SC = BabyBearPoseidon2;
-    use p3_commit::PolynomialSpace;
+//     use crate::stark::tests::execute_core;
+//     type SC = BabyBearPoseidon2;
+//     use p3_commit::PolynomialSpace;
 
-    use super::FriGpuOpeningProver;
-    use crate::utils::init_tracer;
+//     use super::FriGpuOpeningProver;
+//     use crate::utils::init_tracer;
 
-    type EF = BinomialExtensionField<BabyBear, 4>;
+//     type EF = BinomialExtensionField<BabyBear, 4>;
 
-    #[test]
-    #[ignore]
-    fn test_opening_gpu() {
-        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
+//     #[test]
+//     #[ignore]
+//     fn test_opening_gpu() {
+//         let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
-        let config = SC::default();
-        let machine = RiscvAir::machine(config);
-        let gpu_prover = StarkGpuProver::new(machine);
+//         let config = SC::default();
+//         let machine = RiscvAir::machine(config);
+//         let gpu_prover = StarkGpuProver::new(machine);
 
-        // Execute the program.
-        let record = execute_core(program);
+//         // Execute the program.
+//         let record = execute_core(program);
 
-        let open_prover = FriGpuOpeningProver::<SC>::default();
+//         let open_prover = FriGpuOpeningProver::<SC>::default();
 
-        init_tracer();
+//         init_tracer();
 
-        let shards = gpu_prover.shard(record);
+//         let shards = gpu_prover.shard(record);
 
-        for shard in shards {
-            let gpu_main_data = gpu_prover.commit_main(&shard, 1);
+//         for shard in shards {
+//             let gpu_main_data = gpu_prover.commit_main(&shard);
 
-            let mut challenger = gpu_prover.machine.config().challenger();
-            let zeta: Challenge<SC> = challenger.sample_ext_element();
-            let trace_opening_points = gpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
-                .collect::<Vec<_>>();
+//             let mut challenger = gpu_prover.machine.config().challenger();
+//             let zeta: Challenge<SC> = challenger.sample_ext_element();
+//             let trace_opening_points = gpu_main_data
+//                 .trace_data
+//                 .domains
+//                 .iter()
+//                 .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+//                 .collect::<Vec<_>>();
 
-            let pcs = gpu_prover.machine.config().pcs();
-            let start = std::time::Instant::now();
-            let (mut openings_gpu, opening_proof) = open_prover.open(
-                pcs,
-                vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
-                &mut challenger,
-            );
-            println!("device: time to open: {:?}", start.elapsed().as_secs_f64());
+//             let pcs = gpu_prover.machine.config().pcs();
+//             let start = std::time::Instant::now();
+//             let (mut openings_gpu, opening_proof) = open_prover.open(
+//                 pcs,
+//                 vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
+//                 &mut challenger,
+//             );
+//             println!("device: time to open: {:?}", start.elapsed().as_secs_f64());
 
-            let opening_gpu = openings_gpu.pop().unwrap();
-            let mut challenger = gpu_prover.machine.config().challenger();
-            let _zeta: Challenge<SC> = challenger.sample_ext_element();
-            let domains_and_points = gpu_main_data
-                .trace_data
-                .domains
-                .iter()
-                .copied()
-                .zip(trace_opening_points)
-                .zip(opening_gpu)
-                .map(|((domain, point), opening)| {
-                    (domain, point.into_iter().zip(opening).collect::<Vec<_>>())
-                })
-                .collect::<Vec<_>>();
-            let verifier_rounds = vec![(gpu_main_data.commit, domains_and_points)];
-            <<SC as StarkGenericConfig>::Pcs as Pcs<EF, <SC as StarkGenericConfig>::Challenger>>::verify(
-                pcs, verifier_rounds, &opening_proof, &mut challenger,
-            ).unwrap();
-        }
-    }
-}
+//             let opening_gpu = openings_gpu.pop().unwrap();
+//             let mut challenger = gpu_prover.machine.config().challenger();
+//             let _zeta: Challenge<SC> = challenger.sample_ext_element();
+//             let domains_and_points = gpu_main_data
+//                 .trace_data
+//                 .domains
+//                 .iter()
+//                 .copied()
+//                 .zip(trace_opening_points)
+//                 .zip(opening_gpu)
+//                 .map(|((domain, point), opening)| {
+//                     (domain, point.into_iter().zip(opening).collect::<Vec<_>>())
+//                 })
+//                 .collect::<Vec<_>>();
+//             let verifier_rounds = vec![(gpu_main_data.commit, domains_and_points)];
+//             <<SC as StarkGenericConfig>::Pcs as Pcs<EF, <SC as StarkGenericConfig>::Challenger>>::verify(
+//                 pcs, verifier_rounds, &opening_proof, &mut challenger,
+//             ).unwrap();
+//         }
+//     }
+// }

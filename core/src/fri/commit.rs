@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::thread;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
@@ -69,22 +68,13 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
     where
         Matrix: Send + Sync + Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
     {
-        let lde_evaluations = thread::scope(|s| {
-            let lde_evaluations = evaluations
-                .iter()
-                .map(|(domain, matrix)| {
-                    s.spawn(|| {
-                        let matrix = matrix.borrow();
-                        CudaSync::new(self.encode(*domain, matrix, true).unwrap()).unwrap()
-                    })
-                })
-                .collect::<Vec<_>>();
-
-            lde_evaluations
-                .into_iter()
-                .map(|lde| lde.join().unwrap())
-                .collect::<Vec<_>>()
-        });
+        let lde_evaluations = evaluations
+            .iter()
+            .map(|(domain, matrix)| {
+                let matrix = matrix.borrow();
+                CudaSync::new(self.encode(*domain, matrix, true).unwrap()).unwrap()
+            })
+            .collect::<Vec<_>>();
 
         let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
         let root_device = tree_device.root().into();

@@ -25,7 +25,6 @@ where
         &self,
         machine: &StarkMachine<SC, A>,
         shard: &A::Record,
-        index: usize,
     ) -> CpuMainTraceData<SC> {
         // Filter the chips based on what is used.
         let shard_chips = machine.shard_chips(shard).collect::<Vec<_>>();
@@ -60,7 +59,6 @@ where
             traces,
             domains,
             chip_ordering,
-            index,
             public_values: shard.public_values(),
         }
     }
