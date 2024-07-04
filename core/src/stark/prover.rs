@@ -114,7 +114,7 @@ where
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
-    A::Record: Sync,
+    A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
 {
     type MainData = GpuMainData<SC>;
     type ShardCommitData = CpuMainTraceData<SC>;

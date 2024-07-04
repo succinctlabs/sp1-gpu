@@ -9,38 +9,22 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 mod tests {
     use moongate_core::utils::init_tracer;
     use sp1_core::runtime::DEFERRED_SPLIT_THRESHOLD;
-    use sp1_core::{runtime::SP1Context, utils::SP1ProverOpts};
+    use sp1_core::utils::tests::FIBONACCI_ELF;
+    use sp1_prover::tests::test_e2e_prover;
     use sp1_prover::tests::Test;
-    use sp1_prover::{tests::test_e2e_prover, SP1Stdin};
 
-    use crate::{components::GpuProverComponents, SP1GpuProver};
+    use crate::components::GpuProverComponents;
 
     #[test]
     fn test_e2e_fibonacci() {
-        let elf = include_bytes!("../../../sp1/tests/fibonacci/elf/riscv32im-succinct-zkvm-elf");
+        let elf = FIBONACCI_ELF;
         init_tracer();
         test_e2e_prover::<GpuProverComponents>(elf, Test::Compress).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
         init_tracer();
-
-        tracing::info!("Initialzing prover");
-        let prover = SP1GpuProver::new();
-
-        let opts = SP1ProverOpts::default();
-        let context = SP1Context::default();
-
-        tracing::info!("setup elf");
-        let (pk, vk) = prover.setup(elf);
-
-        tracing::info!("prove core");
-        let stdin = SP1Stdin::new();
-        let core_proof = prover.prove_core(&pk, &stdin, opts, context).unwrap();
-        // let public_values = core_proof.public_values.clone();
-
-        tracing::info!("verify core");
-        prover.verify(&core_proof.proof, &vk).unwrap();
+        test_e2e_prover::<GpuProverComponents>(elf, Test::Core).unwrap()
     }
 
     #[test]
