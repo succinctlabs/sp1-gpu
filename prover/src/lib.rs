@@ -10,7 +10,10 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
     opts.core_opts.shard_size = 1 << 21;
+    opts.core_opts.shard_batch_size = 4;
     opts.core_opts.split_opts.keccak_split_threshold = 1 << 18;
+
+    opts.recursion_opts.shard_batch_size = 1;
 
     opts
 }
@@ -39,6 +42,11 @@ mod tests {
         init_tracer();
         let opts = gpu_prover_opts();
         test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Core).unwrap()
+    }
+
+    #[test]
+    fn test_core_fibonacci() {
+        test_core_elf(FIBONACCI_ELF);
     }
 
     #[test]
