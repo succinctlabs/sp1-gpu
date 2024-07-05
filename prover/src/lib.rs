@@ -11,7 +11,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
     opts.core_opts.shard_size = 1 << 21;
     opts.core_opts.shard_batch_size = 4;
-    opts.core_opts.split_opts.keccak_split_threshold = 1 << 18;
+    opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
 
     opts.recursion_opts.shard_batch_size = 1;
 
@@ -21,7 +21,6 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 #[cfg(test)]
 mod tests {
     use moongate_core::utils::init_tracer;
-    use sp1_core::runtime::DEFERRED_SPLIT_THRESHOLD;
     use sp1_core::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
     use sp1_prover::tests::Test;
@@ -63,7 +62,6 @@ mod tests {
     fn test_core_reth() {
         const RETH_ELF: &[u8] =
             include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
-        assert_eq!(DEFERRED_SPLIT_THRESHOLD, 1 << 19);
         test_core_elf(RETH_ELF);
     }
 }

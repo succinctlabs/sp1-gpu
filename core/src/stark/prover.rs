@@ -526,26 +526,18 @@ where
     fn commit_shards(
         &self,
         shards: &[A::Record],
-        opts: SP1CoreOpts,
+        _opts: SP1CoreOpts,
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let num_shards = shards.len();
 
         let (tx, rx) = std::sync::mpsc::channel();
-        let shard_batch_size = opts.shard_batch_size;
-        shards
-            .par_chunks(shard_batch_size)
-            .enumerate()
-            .for_each(|(i, shard_batch)| {
-                shard_batch.iter().enumerate().for_each(|(j, shard)| {
-                    let host_trace_data =
-                        tracing::debug_span!("Generate main traces").in_scope(|| {
-                            self.trace_generator
-                                .generate_main_traces(&self.machine, shard)
-                        });
-                    tx.send((i * shard_batch_size + j, host_trace_data))
-                        .unwrap();
-                })
+        shards.par_iter().enumerate().for_each(|(i, shard)| {
+            let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
+                self.trace_generator
+                    .generate_main_traces(&self.machine, shard)
             });
+            tx.send((i, host_trace_data)).unwrap();
+        });
         drop(tx);
 
         let mut commits = vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
