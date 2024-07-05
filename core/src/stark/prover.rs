@@ -1,4 +1,5 @@
 use hashbrown::HashMap;
+use rayon::prelude::*;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -395,12 +396,8 @@ where
         drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
-        let [
-            preprocessed_values,
-            main_values,
-            permutation_values,
-            mut quotient_values,
-        ] = openings.try_into().unwrap();
+        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+            openings.try_into().unwrap();
         assert!(main_values.len() == shard_chips.len());
         let preprocessed_opened_values = preprocessed_values
             .into_iter()
@@ -528,9 +525,35 @@ where
     fn commit_shards(
         &self,
         shards: &[A::Record],
-        _opts: SP1CoreOpts,
+        opts: SP1CoreOpts,
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let parent_span = tracing::debug_span!("commit to all shards");
+
+        // let num_shards = shards.len();
+
+        // let shard_batch_size = opts.shard_batch_size;
+
+        // let (tx, rx) = std::sync::mpsc::channel();
+        // shards.into_par_iter().enumerate().for_each(|(i, shard)| {
+        //     let host_trace_data = self
+        //         .trace_generator
+        //         .generate_main_traces(&self.machine, shard);
+        //     tx.send((i, host_trace_data)).unwrap();
+        // });
+        // drop(tx);
+
+        // let commits = vec![Com::default(); num_shards];
+        // for (i, trace_data) in rx.iter() {
+        //     let trace_data = trace_data.to_device();
+        //     let (commit, _) = timed_debug!(
+        //         "Committing main traces",
+        //         self.commit_main_traces(&trace_data)
+        //     );
+        //     drop(trace_data);
+        // }
+
+        // (commits, vec![])
+
         let commits = parent_span.in_scope(|| {
             shards
                 .iter()
@@ -552,6 +575,7 @@ where
                             "Committing main traces",
                             self.commit_main_traces(&trace_data)
                         );
+                        drop(trace_data);
                         commit
                     })
                 })
