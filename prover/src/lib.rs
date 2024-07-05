@@ -1,9 +1,18 @@
 use components::GpuProverComponents;
+use sp1_core::utils::SP1ProverOpts;
 use sp1_prover::SP1Prover;
 
 pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
+
+pub fn gpu_prover_opts() -> SP1ProverOpts {
+    let mut opts = SP1ProverOpts::default();
+
+    opts.core_opts.split_opts.keccak_split_threshold = 1 << 18;
+
+    opts
+}
 
 #[cfg(test)]
 mod tests {
@@ -14,17 +23,21 @@ mod tests {
     use sp1_prover::tests::Test;
 
     use crate::components::GpuProverComponents;
+    use crate::gpu_prover_opts;
 
     #[test]
     fn test_e2e_fibonacci() {
         let elf = FIBONACCI_ELF;
         init_tracer();
-        test_e2e_prover::<GpuProverComponents>(elf, Test::Compress).unwrap()
+
+        let opts = gpu_prover_opts();
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
         init_tracer();
-        test_e2e_prover::<GpuProverComponents>(elf, Test::Core).unwrap()
+        let opts = gpu_prover_opts();
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Core).unwrap()
     }
 
     #[test]

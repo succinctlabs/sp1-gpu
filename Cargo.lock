@@ -1017,9 +1017,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "152dd546e5bdac80844ce6befabb9af5784ce375cb6cea554aed99fe2d1fb169"
+checksum = "96512db27971c2c3eece70a1e106fbe6c87760234e31e8f7e5634912fe52794a"
 dependencies = [
  "serde",
  "typenum",
@@ -2693,9 +2693,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.1.1"
+version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76ad2bbb0ae5100a07b7a6f2ed7ab5fd0045551a4c507989b7a620046ea3efdc"
+checksum = "af947d0ca10a2f3e00c7ec1b515b7c83e5cb3fa62d4c11a64301d9eec54440e9"
 dependencies = [
  "sdd",
 ]
@@ -2961,7 +2961,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2972,7 +2972,7 @@ dependencies = [
  "curve25519-dalek",
  "elf",
  "elliptic-curve",
- "generic-array 1.0.1",
+ "generic-array 1.1.0",
  "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
@@ -3022,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3032,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3045,7 +3045,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3090,7 +3090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3113,7 +3113,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3138,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3172,7 +3172,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3182,7 +3182,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3207,7 +3207,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#9e6aeab4f416b7062b29d899ed15a1ca2b521a09"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/reth#cce2b39ff10c982a35026c6b5ab65e2e1caf8801"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3433,9 +3433,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.6.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c55115c6fbe2d2bef26eb09ad74bde02d8255476fc0c7b515ef09fbb35742d82"
+checksum = "ce6b6a2fb3a985e99cebfaefa9faa3024743da73304ca1c683a36429613d3d22"
 dependencies = [
  "tinyvec_macros",
 ]
