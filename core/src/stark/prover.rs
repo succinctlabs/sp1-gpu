@@ -395,8 +395,12 @@ where
         drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
-        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
-            openings.try_into().unwrap();
+        let [
+            preprocessed_values,
+            main_values,
+            permutation_values,
+            mut quotient_values,
+        ] = openings.try_into().unwrap();
         assert!(main_values.len() == shard_chips.len());
         let preprocessed_opened_values = preprocessed_values
             .into_iter()
@@ -485,13 +489,13 @@ where
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
-        let (shard_commits, trace_data) = self.commit_shards(&shards, opts);
+        let (shard_commits, _) = self.commit_shards(&shards, opts);
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {
             shard_commits
                 .into_iter()
-                .zip(shards)
+                .zip(shards.iter())
                 .for_each(|(commitment, shard)| {
                     challenger.observe(commitment);
                     challenger.observe_slice(
@@ -504,21 +508,12 @@ where
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
         let shard_proofs = parent_span.in_scope(|| {
-            trace_data
+            shards
                 .into_iter()
-                .map(|shard_trace_data| {
+                .map(|shard| {
                     tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
                         let data = debug_span!("commit shard").in_scope(|| {
-                            let trace_data = shard_trace_data.to_device();
-                            let (commit, prover_data) = timed_debug!(
-                                "Committing main traces",
-                                self.commit_main_traces(&trace_data)
-                            );
-                            GpuMainData {
-                                trace_data,
-                                commit,
-                                prover_data,
-                            }
+                            timed_debug!("Committing main traces", self.commit_main(&shard))
                         });
                         self.prove_shard(pk, data, &mut challenger.clone())
                     })
@@ -536,7 +531,7 @@ where
         _opts: SP1CoreOpts,
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let parent_span = tracing::debug_span!("commit to all shards");
-        parent_span.in_scope(|| {
+        let commits = parent_span.in_scope(|| {
             shards
                 .iter()
                 .map(|shard| {
@@ -557,11 +552,12 @@ where
                             "Committing main traces",
                             self.commit_main_traces(&trace_data)
                         );
-                        (commit, host_trace_data)
+                        commit
                     })
                 })
-                .unzip()
-        })
+                .collect::<Vec<_>>()
+        });
+        (commits, vec![])
     }
 }
 
