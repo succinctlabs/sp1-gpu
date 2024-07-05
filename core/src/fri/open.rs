@@ -610,6 +610,17 @@ pub fn commit_phase(
         current = fold_even_odd(current, beta);
 
         if let Some(v) = &input[log_folded_height] {
+            let leaves = RowMajorMatrix::new(v.clone(), 2);
+            let leaves_flattened = leaves.flatten_to_base::<F>();
+            let idx = height_indices[&log_folded_height];
+            let leaves_device = input_leaves[idx].to_host();
+            for (val, exp) in leaves_device
+                .values
+                .iter()
+                .zip(leaves_flattened.values.iter())
+            {
+                assert_eq!(exp, val);
+            }
             current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
         }
     }
