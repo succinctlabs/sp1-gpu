@@ -529,39 +529,45 @@ pub fn prove(
     )
 }
 
-// pub fn fold_even_odd_mat<F: TwoAdicField>(poly: Vec<F>, beta: F) -> Vec<F> {
-//     // We use the fact that
-//     //     p_e(x^2) = (p(x) + p(-x)) / 2
-//     //     p_o(x^2) = (p(x) - p(-x)) / (2 x)
-//     // that is,
-//     //     p_e(g^(2i)) = (p(g^i) + p(g^(n/2 + i))) / 2
-//     //     p_o(g^(2i)) = (p(g^i) - p(g^(n/2 + i))) / (2 g^i)
-//     // so
-//     //     result(g^(2i)) = p_e(g^(2i)) + beta p_o(g^(2i))
-//     //                    = (1/2 + beta/2 g_inv^i) p(g^i)
-//     //                    + (1/2 - beta/2 g_inv^i) p(g^(n/2 + i))
-//     let m = RowMajorMatrix::new(poly, 2);
-//     let g_inv = F::two_adic_generator(log2_strict_usize(m.height()) + 1).inverse();
-//     let one_half = F::two().inverse();
-//     let half_beta = beta * one_half;
+pub fn fold_even_odd_device(
+    evaluations: ColMajorMatrixDevice<F>,
+    beta: EF,
+) -> ColMajorMatrixDevice<F> {
+    let mut output =
+        ColMajorMatrixDevice::with_capacity(evaluations.height() / 2, evaluations.width());
 
-//     // TODO: vectorize this (after we have packed extension fields)
+    let g_inv = F::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
+    let one_half = F::two().inverse();
+    let half_beta = beta * one_half;
 
-//     // beta/2 times successive powers of g_inv
-//     let mut powers = g_inv
-//         .shifted_powers(half_beta)
-//         .take(m.height())
-//         .collect_vec();
-//     reverse_slice_index_bits(&mut powers);
+    let mut powers = shifted_powers(g_inv, half_beta, evaluations.height());
+    powers.bit_reverse_rows().unwrap();
 
-//     m.rows()
-//         .zip(powers)
-//         .map(|(mut row, power)| {
-//             let (r0, r1) = row.next_tuple().unwrap();
-//             (one_half + power) * r0 + (one_half - power) * r1
-//         })
-//         .collect()
-// }
+    output
+}
+
+pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
+    let mut output = ColMajorMatrixDevice::with_capacity(<EF as AbstractExtensionField<F>>::D, n);
+
+    let block_size = 256;
+    let grid_size = n.div_ceil(block_size);
+
+    let block_powers = g.powers().take(block_size).collect::<Vec<_>>().to_device();
+
+    unsafe {
+        output.set_max_width();
+        opening_gpu::shifted_powers_raw(
+            block_powers.as_ptr(),
+            shift,
+            output.view_mut(),
+            n,
+            block_size,
+            grid_size,
+        );
+    }
+
+    output
+}
 
 pub fn commit_phase(
     config: &FriConfig<ChallengeMmcs>,
@@ -702,6 +708,16 @@ pub mod opening_gpu {
     #[link_name = "opening_gpu"]
     #[allow(unused_attributes)]
     extern "C" {
+
+        #[link_name = "shiftedPowers"]
+        pub fn shifted_powers_raw(
+            block_powers: *const F,
+            shift: EF,
+            output: MatrixViewMutDevice<F>,
+            n: usize,
+            block_size: usize,
+            grid_size: usize,
+        );
 
         #[link_name = "computeInverseDenominators"]
         pub fn compute_inverse_denominators(

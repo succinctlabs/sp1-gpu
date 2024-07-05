@@ -21,6 +21,24 @@ namespace helpers {
 
 namespace opening_kernels {
 
+template<typename F, typename EF> __global__ void shiftedPowersKernel(
+    F* blockPowers, 
+    EF shift, 
+    Matrix<F> output, 
+    size_t n) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int blockPower = blockIdx.x * blockDim.x;
+
+    F blockGenerator = blockPowers[1]^blockPower; 
+
+    if (idx < n) {
+        EF outputElement =  EF(blockGenerator * blockPowers[threadIdx.x]) * shift; 
+        for (size_t k = 0; k < EF::D; k++) {
+            output.values[k * output.height + idx] = outputElement.value[k];
+        }
+    }
+}
+
 __global__ void computeInverseDenominatorsKernel(
     size_t* invRowIndices,
     size_t* numsRows,
@@ -212,6 +230,17 @@ __global__ void batchMultiplicativeInverse(
 }  // namespace opening_kernels
 
 namespace opening_gpu {
+
+
+extern "C" void shiftedPowers(
+    bb31_t* blockPowers, 
+    bb31_extension_t shift, 
+    Matrix<bb31_t> output, 
+    size_t n, 
+    size_t block_size, 
+    size_t grid_size) {
+    opening_kernels::shiftedPowersKernel<<<grid_size, block_size>>>(blockPowers, shift, output, n);
+}
 
 
 extern "C" void computeInverseDenominators(
