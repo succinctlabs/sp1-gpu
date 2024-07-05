@@ -36,6 +36,10 @@ template<typename Params, typename P_t, int R>
 struct MultiFieldHasherState: public HasherState<Params> {
     P_t overhang[R];
     size_t overhangSize;
+
+    __device__ MultiFieldHasherState() :
+        HasherState<Params>(),
+        overhangSize(0) {}
 };
 
 template<typename Params, typename HasherState_t>
@@ -64,6 +68,11 @@ class Hasher {
         F_t out[Params::WIDTH],
         RoundConstants_t roundConstants
     ) {
+        int threadId = threadIdx.x + blockDim.x * blockIdx.x;
+        if (threadId == 0) {
+            printf("GPU: permute\n");
+        }
+
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] = in[i];
@@ -249,14 +258,17 @@ class DynamicHasher: public Hasher<Params, HasherState_t> {
     __device__ void
     finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
         // TODO: Make this cleaner
-        if (state->overhangSize != 0) {
-            // F_t value = poseidon2_bn254_3::reduceBabyBear(
-            //     state->overhang,
-            //     state->overhangSize,
-            //     1
-            // );
-            F_t value;
-            value.zero();
+        if (state->overhangSize > 0) {
+            if (threadIdx.x + blockDim.x * blockIdx.x == 0)
+                printf("\nGPU: reduceBabyBear 3\n");
+            F_t value = poseidon2_bn254_3::reduceBabyBear(
+                state->overhang,
+                nullptr,
+                state->overhangSize,
+                0,
+                1,
+                0
+            );
             absorb(&value, 1, state);
         }
         Hasher_t::finalize(state, out, roundConstants);

@@ -133,54 +133,128 @@ __device__ bn254_t bb31_to_bn254(bb31_t in) {
     return bn254_t(product);
 }
 
-__device__ bn254_t reduceBabyBear(bb31_t* src, size_t n, size_t stride = 1) {
+__device__ bn254_t reduceBabyBear(
+    bb31_t* src1,
+    bb31_t* src2,
+    size_t n1,
+    size_t n2,
+    size_t stride1 = 1,
+    size_t stride2 = 1
+) {
+    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
+    if (threadId == 0) {
+        printf(
+            "GPU: reduceBabyBear %llu %llu %llu\n",
+            (uint64_t)n1,
+            (uint64_t)n2,
+            (uint64_t)(n1 + n2)
+        );
+    }
+
     const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
     bn254_t res;
     res.zero();
-    for (size_t ii = (n - 1) * stride; ii < n * stride; ii -= stride) {
-        res = res * po2 + bb31_to_bn254(src[ii]);
+    // return res;
+    for (size_t ii = (n2 - 1) * stride2; ii < n2 * stride2; ii -= stride2) {
+        // res = res * po2 + bb31_to_bn254(src2[ii]);
+        res += bn254_t::one();
+    }
+    for (size_t ii = (n1 - 1) * stride1; ii < n1 * stride1; ii -= stride1) {
+        // res = res * po2 + bb31_to_bn254(src1[ii]);
+        res += bn254_t::one();
     }
     return res;
 }
 
+// __device__ void cprow(
+//     Matrix<bb31_t>* src,
+//     bb31_t* dst,
+//     size_t rowIdx,
+//     size_t colIdx,
+//     size_t n
+// ) {
+//     if (src->row_major) {
+//         for (size_t i = 0; i < n; i++) {
+//             dst[i] = src->values[rowIdx * src->width + colIdx + i];
+//         }
+//     } else {
+//         for (size_t i = 0; i < n; i++) {
+//             dst[i] = src->values[(colIdx + i) * src->height + rowIdx];
+//         }
+//     }
+// }
+
 template<typename Hasher, typename HasherState>
 __device__ void
 absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
-    if (state->overhangSize != 0) {
-        bn254_t value;
-        value.zero();
-        hasher.absorb(&value, 1, state);
-        // state->overhangSize = 0;
+    if (threadIdx.x + blockDim.x * blockIdx.x == 0) {
+        printf("\nGPU: absorbRow %llu\n", (uint64_t)in->width);
+        printf("\nGPU: overhang size %llu\n", (uint64_t)state->overhangSize);
     }
 
-    for (int j = ARRAY_SIZE - state->overhangSize; j < in->width;
-         j += ARRAY_SIZE) {
-        // TODO: cleaner!
-        if (j + ARRAY_SIZE > in->width) {
-            state->overhangSize = in->width - j;
-            for (int k = 0; k < state->overhangSize; k++) {
-                state->overhang[k] = in->values[j + k];
+    bb31_t* row_ptr;
+    size_t stride;
+    if (in->row_major) {
+        row_ptr = &in->values[row_idx * in->width];
+        stride = 1;
+    } else {
+        row_ptr = &in->values[row_idx];
+        stride = in->height;
+    }
+
+    int colIdx = 0;
+
+    if (state->overhangSize > 0) {
+        if (state->overhangSize + in->width < ARRAY_SIZE) {
+            // Overhang + row is smaller than ARRAY_SIZE, copy row into overhang and return
+            for (size_t i = 0; i < in->width; i++) {
+                state->overhang[state->overhangSize + i] = row_ptr[i * stride];
             }
+            state->overhangSize += in->width;
             return;
+        } else {
+            // Overhang + row is larger or equal to ARRAY_SIZE, create bn254_t value from overhang and row
+            colIdx = ARRAY_SIZE - state->overhangSize;
+            if (threadIdx.x + blockDim.x * blockIdx.x == 0)
+                printf("\nGPU: reduceBabyBear 1\n");
+            bn254_t value = reduceBabyBear(
+                state->overhang,
+                row_ptr,
+                state->overhangSize,
+                colIdx,
+                1,
+                stride
+            );
+            state->overhangSize = 0;
+            hasher.absorb(&value, 1, state);
         }
-
-        // bb31_t* in_row;
-        // size_t stride;
-        // if (in->row_major) {
-        //     in_row = &in->values[in->width * row_idx + j];
-        //     stride = 1;
-        // } else {
-        //     in_row = &in->values[j * in->height + row_idx];
-        //     stride = in->height;
-        // }
-
-        // bn254_t value = reduceBabyBear(in_row, n, stride); // TODO: pass state to handle overhang
-        bn254_t value;
-        value.zero();
-        hasher.absorb(&value, 1, state);
     }
 
-    state->overhangSize = 0;
+    // TODO: cleaner! size_t vs int
+
+    while (colIdx + ARRAY_SIZE <= in->width) {
+        if (threadIdx.x + blockDim.x * blockIdx.x == 0)
+            printf("\nGPU: reduceBabyBear 2\n");
+        bn254_t value = reduceBabyBear(
+            row_ptr + colIdx * stride,
+            nullptr,
+            ARRAY_SIZE,
+            0,
+            stride,
+            0
+        );
+        hasher.absorb(&value, 1, state);
+        colIdx += ARRAY_SIZE;
+    }
+
+    if (colIdx < in->width) {
+        // Copy remaining row into overhang
+        for (size_t i = 0; i < in->width - colIdx; i++) {
+            state->overhang[state->overhangSize + i] =
+                row_ptr[(colIdx + i) * stride];
+        }
+        state->overhangSize = in->width - colIdx;
+    }
 }
 
 }  // namespace poseidon2_bn254_3

@@ -318,40 +318,72 @@ mod tests {
             Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>;
         pub type OuterHash = MultiField32PaddingFreeSponge<OuterVal, Bn254Fr, OuterPerm, 3, 16, 1>;
 
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+        use std::thread;
+        use std::time::Duration;
+
         #[test]
         fn test_first_digest_layer() {
-            let n = 1 << 16;
-            let perm = poseidon2_bn254_3_perm();
-            let hasher = OuterHash::new(perm).unwrap();
+            let mut rng = StdRng::seed_from_u64(42); // Seed the RNG for reproducibility, change seed as needed
 
-            // GPU implementation gets at least two things wrong:
-            // 1. Differs from CPU when the first tallest matrix has width not multiple of 8 (if there is a second tallest matrix)
-            // 2. Differs in reduce32 implementation
+            (0..16).for_each(|m| {
+                println!("m = {}", m);
 
-            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
-            let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
-            // let tallest_matrices = v\ec![matrix_device_1.view()].to_device();
-            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
-            let hasher_gpu = HasherBn254GPU::new();
-            unsafe {
-                digests.set_len(n);
-                hasher_gpu.first_digest_layer(
-                    tallest_matrices.as_ptr(),
-                    tallest_matrices.len(),
-                    digests.as_mut_ptr(),
-                    n / 32,
-                    32,
-                );
-            }
+                // let a: usize = 13;
+                // let b: usize = 4;
+                // let c: usize = 2;
+                let a: usize = rng.gen_range(8..=16);
+                let b: usize = rng.gen_range(4..8);
+                let c: usize = rng.gen_range(1..4);
 
-            let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
-            let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+                println!("a = {}, b = {}, c = {}", a, b, c);
 
-            let digests_device = digests.to_host();
-            for i in 0..n {
-                assert_eq!(digests_host[i], digests_device[i]);
-            }
+                let n = 1 << 0;
+                let perm = poseidon2_bn254_3_perm();
+                let hasher = OuterHash::new(perm).unwrap();
+
+                let (matrix_host_1, matrix_device_1) =
+                    RowMajorMatrixDevice::<BabyBear>::dummy(a, n);
+                let (matrix_host_2, matrix_device_2) =
+                    RowMajorMatrixDevice::<BabyBear>::dummy(b, n);
+                let (matrix_host_3, matrix_device_3) =
+                    RowMajorMatrixDevice::<BabyBear>::dummy(c, n);
+                let tallest_matrices = vec![
+                    matrix_device_1.view(),
+                    matrix_device_2.view(),
+                    matrix_device_3.view(),
+                ]
+                .to_device();
+
+                // let tallest_matrices = vec![matrix_device_1.view()].to_device();
+                let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+                let hasher_gpu = HasherBn254GPU::new();
+                unsafe {
+                    digests.set_len(n);
+                    hasher_gpu.first_digest_layer(
+                        tallest_matrices.as_ptr(),
+                        tallest_matrices.len(),
+                        digests.as_mut_ptr(),
+                        1,
+                        1,
+                    );
+                }
+
+                thread::sleep(Duration::from_secs(1));
+
+                let tallest_matrices = vec![&matrix_host_1, &matrix_host_2, &matrix_host_3];
+                // let tallest_matrices = vec![&matrix_host_1];
+                let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+                let digests_device = digests.to_host();
+                for i in 0..n {
+                    assert_eq!(digests_host[i], digests_device[i]);
+                    if digests_host[i] != digests_device[i] {
+                        return;
+                    }
+                }
+            });
         }
 
         #[test]
