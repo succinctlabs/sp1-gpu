@@ -39,6 +39,13 @@ template<typename F, typename EF> __global__ void shiftedPowersKernel(
     }
 }
 
+template<typename F, typename EF> __global__ void foldEvenOddKernel(
+    Matrix<F> evaluations,
+    EF beta
+) {
+
+}
+
 __global__ void computeInverseDenominatorsKernel(
     size_t* invRowIndices,
     size_t* numsRows,
