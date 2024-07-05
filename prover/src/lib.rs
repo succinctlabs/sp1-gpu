@@ -43,6 +43,12 @@ mod tests {
         test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Core).unwrap()
     }
 
+    fn test_compress_elf(elf: &[u8]) {
+        init_tracer();
+        let opts = gpu_prover_opts();
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
+    }
+
     #[test]
     fn test_core_fibonacci() {
         test_core_elf(FIBONACCI_ELF);
@@ -63,5 +69,13 @@ mod tests {
         const RETH_ELF: &[u8] =
             include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
         test_core_elf(RETH_ELF);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_compress_reth() {
+        const RETH_ELF: &[u8] =
+            include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
+        test_compress_elf(RETH_ELF);
     }
 }
