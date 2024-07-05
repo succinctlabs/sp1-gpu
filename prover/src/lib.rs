@@ -9,6 +9,7 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
+    opts.core_opts.shard_size = 1 << 21;
     opts.core_opts.split_opts.keccak_split_threshold = 1 << 18;
 
     opts
