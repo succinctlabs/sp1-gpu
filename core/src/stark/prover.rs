@@ -9,7 +9,6 @@ use itertools::Itertools;
 
 use tracing::debug;
 use tracing::debug_span;
-use tracing::Level;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::PolynomialSpace;
@@ -655,24 +654,6 @@ where
             .collect::<Vec<_>>();
 
         self.committer.commit(&domains_and_traces)
-    }
-
-    pub fn log_shard_statistics(&self, level: Level, trace_data: &CpuMainTraceData<SC>) {
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&trace_data.chip_ordering)
-            .collect::<Vec<_>>();
-
-        // Print some statistics.
-        let mut total_lde_size = 0;
-        let log_blowup = self.committer.log_blowup();
-        for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
-            let height = domain.size();
-            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-            total_lde_size += stats.lde_memory_size(log_blowup);
-            debug!("{}", stats);
-        }
-        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
     }
 }
 
