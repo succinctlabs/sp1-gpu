@@ -5,31 +5,20 @@ pub mod constants;
 pub mod tests {
     #[cfg(test)]
     pub mod baby_bear_tests {
-
         use crate::device::buffer::DeviceBuffer;
-        use crate::device::memory::ToDevice;
-        use crate::device::memory::ToHost;
-        use crate::poseidon2::constants::RC_16_30;
-        use p3_baby_bear::BabyBear;
-        use p3_baby_bear::DiffusionMatrixBabyBear;
-        use p3_field::AbstractField;
-        use p3_field::PrimeField32;
-        use p3_poseidon2::Poseidon2;
-        use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
-        use p3_symmetric::CryptographicHasher;
-        use p3_symmetric::PaddingFreeSponge;
-        use p3_symmetric::Permutation;
-        use p3_symmetric::TruncatedPermutation;
-        use rand::thread_rng;
-        use rand::Rng;
-
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::D_U64;
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::RATE;
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::ROUNDS_F;
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::ROUNDS_P;
-        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::WIDTH;
+        use crate::device::memory::{ToDevice, ToHost};
+        use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::{
+            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+        };
         use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
+        use crate::poseidon2::constants::RC_16_30;
+        use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
+        use p3_field::{AbstractField, PrimeField32};
+        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_symmetric::{
+            CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
+        };
+        use rand::{thread_rng, Rng};
 
         fn round_constants() -> (Vec<[BabyBear; 16]>, Vec<BabyBear>) {
             let mut round_constants = RC_16_30.to_vec();
@@ -292,25 +281,18 @@ pub mod tests {
     #[cfg(test)]
     pub mod bn254_tests {
         use crate::device::buffer::DeviceBuffer;
-        use crate::device::memory::ToDevice;
-        use crate::device::memory::ToHost;
+        use crate::device::memory::{ToDevice, ToHost};
+        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::{
+            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+        };
+        use crate::poseidon2::bn254_gpu::{poseidon2_bn254_3_constants, HasherBn254GPU};
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
         use p3_field::AbstractField;
-        use p3_poseidon2::Poseidon2;
-        use p3_poseidon2::Poseidon2ExternalMatrixGeneral;
-        use p3_symmetric::Permutation;
-        use p3_symmetric::{CryptographicHasher, PaddingFreeSponge, TruncatedPermutation};
-        use rand::thread_rng;
-        use rand::Rng;
-
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_constants;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::D_U64;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::RATE;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::ROUNDS_F;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::ROUNDS_P;
-        use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::WIDTH;
-        use crate::poseidon2::bn254_gpu::HasherBn254GPU;
+        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_symmetric::{
+            CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
+        };
+        use rand::{thread_rng, Rng};
 
         pub fn poseidon2_bn254_3_perm(
         ) -> Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>

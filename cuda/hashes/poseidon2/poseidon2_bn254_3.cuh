@@ -125,6 +125,7 @@ __device__ bn254_t bb31_to_bn254(bb31_t in) {
     int loops = 0;
 
     // At most 32 big multiplications
+    // TODO: possibly very sub-optimal
     while (qLeft <= qRight) {
         loops++;
         uint32_t qMiddle = qLeft + (qRight - qLeft) / 2;
