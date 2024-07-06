@@ -5,11 +5,14 @@ use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::RowMajorMatrixDevice;
-use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
 use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
+use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH as BN254_DIGEST_WIDTH;
+use crate::poseidon2::bn254_gpu::HasherBn254GPU;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
+use p3_bn254_fr::Bn254Fr;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
@@ -17,14 +20,13 @@ use std::cmp::Reverse;
 use std::marker::PhantomData;
 
 use crate::matrix::DeviceMatrix;
-
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
     pub leaves: Vec<M>,
     pub digest_layers: Vec<SyncBuffer<D>>,
     _marker: std::marker::PhantomData<F>,
 }
 
-impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M> {
+impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], M> {
     pub fn new(leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
             .iter()
@@ -66,7 +68,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
                 .to_device();
 
             let mut next_digests =
-                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(next_layer_len);
+                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(next_layer_len);
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
@@ -89,17 +91,87 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_W
         }
     }
 
-    pub fn root(&self) -> [BabyBear; DIGEST_WIDTH] {
+    pub fn root(&self) -> [BabyBear; BB31_DIGEST_WIDTH] {
         self.digest_layers.last().unwrap().to_host()[0]
     }
 }
 
-impl<F, M> ToHost for FieldMerkleTreeGpu<F, [F; DIGEST_WIDTH], M>
+impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [Bn254Fr; BN254_DIGEST_WIDTH], M> {
+    pub fn new(leaves: Vec<M>) -> Self {
+        let mut leaves_largest_first = leaves
+            .iter()
+            .map(|l| l.view())
+            .sorted_by_key(|l| Reverse(l.height))
+            .peekable();
+
+        let max_height = leaves_largest_first.peek().unwrap().height;
+        let tallest_matrices = leaves_largest_first
+            .peeking_take_while(|m| m.height == max_height)
+            .collect_vec()
+            .to_device();
+
+        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
+        let hasher = HasherBn254GPU::new();
+        unsafe {
+            first_digest_layer.set_len(max_height);
+            hasher.first_digest_layer(
+                tallest_matrices.as_ptr(),
+                tallest_matrices.len(),
+                first_digest_layer.as_mut_ptr(),
+                max_height / 32 + 1,
+                32,
+            );
+        }
+
+        let first_digest_layer = CudaSync::new(first_digest_layer).unwrap();
+        let mut digest_layers = vec![first_digest_layer];
+        loop {
+            let prev_layer = digest_layers.last().unwrap();
+            if prev_layer.len() == 1 {
+                break;
+            }
+            let next_layer_len = prev_layer.len() / 2;
+
+            let matrices_to_inject = leaves_largest_first
+                .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
+                .collect_vec()
+                .to_device();
+
+            let mut next_digests =
+                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(next_layer_len);
+            unsafe {
+                next_digests.set_len(next_layer_len);
+                hasher.compress_and_inject(
+                    prev_layer.as_ptr(),
+                    prev_layer.len(),
+                    matrices_to_inject.as_ptr(),
+                    matrices_to_inject.len(),
+                    next_digests.as_mut_ptr(),
+                    next_layer_len / 32 + 1,
+                    32,
+                );
+            }
+            digest_layers.push(CudaSync::new(next_digests).unwrap());
+        }
+
+        Self {
+            leaves,
+            digest_layers,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn root(&self) -> [Bn254Fr; BN254_DIGEST_WIDTH] {
+        self.digest_layers.last().unwrap().to_host()[0]
+    }
+}
+
+impl<F, M> ToHost for FieldMerkleTreeGpu<F, [F; BB31_DIGEST_WIDTH], M>
 where
     F: Field,
     M: Send + Sync + DeviceMatrix<F> + ToHost<HostType = RowMajorMatrix<F>>,
 {
-    type HostType = FieldMerkleTree<F, F, RowMajorMatrix<F>, DIGEST_WIDTH>;
+    type HostType = FieldMerkleTree<F, F, RowMajorMatrix<F>, BB31_DIGEST_WIDTH>;
 
     fn to_host(&self) -> Self::HostType {
         let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
@@ -113,10 +185,10 @@ where
     }
 }
 
-impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, DIGEST_WIDTH> {
+impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, BB31_DIGEST_WIDTH> {
     type DeviceType = FieldMerkleTreeGpu<
         BabyBear,
-        [BabyBear; DIGEST_WIDTH],
+        [BabyBear; BB31_DIGEST_WIDTH],
         CudaSync<ColMajorMatrixDevice<BabyBear>>,
     >;
 
@@ -156,8 +228,12 @@ mod tests {
             poseidon2::baby_bear_gpu::HasherBabyBearGPU,
         };
 
+        use crate::matrix::DeviceMatrix;
         use p3_baby_bear::BabyBear;
         use p3_merkle_tree::FieldMerkleTree;
+
+        pub type BabyBearFieldMerkleTreeGpu<M> =
+            FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M>;
 
         #[test]
         fn test_first_digest_layer() {
@@ -263,7 +339,7 @@ mod tests {
 
             let start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
             println!("time: {:?}", start.elapsed().as_secs_f64());
 
@@ -284,7 +360,7 @@ mod tests {
 
             let start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
             println!("Device time: {:?}", start.elapsed());
 
@@ -297,6 +373,7 @@ mod tests {
     }
     pub mod bn254_tests {
         use crate::device::memory::{ToDevice, ToHost};
+        use crate::matrix::DeviceMatrix;
         use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
         use crate::merkle_tree::FieldMerkleTreeGpu;
         use crate::poseidon2::tests::bn254_tests::{
@@ -309,7 +386,7 @@ mod tests {
         };
         use p3_baby_bear::BabyBear;
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
-        // use p3_merkle_tree::FieldMerkleTree;
+        use p3_merkle_tree::FieldMerkleTree;
         use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
         use p3_symmetric::MultiField32PaddingFreeSponge;
 
@@ -318,73 +395,8 @@ mod tests {
             Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>;
         pub type OuterHash = MultiField32PaddingFreeSponge<OuterVal, Bn254Fr, OuterPerm, 3, 16, 1>;
 
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
-        use std::thread;
-        use std::time::Duration;
-
-        #[test]
-        fn test_first_digest_layer() {
-            let mut rng = StdRng::seed_from_u64(42); // Seed the RNG for reproducibility, change seed as needed
-
-            (0..16).for_each(|m| {
-                println!("m = {}", m);
-
-                // let a: usize = 13;
-                // let b: usize = 4;
-                // let c: usize = 2;
-                let a: usize = rng.gen_range(8..=16);
-                let b: usize = rng.gen_range(4..8);
-                let c: usize = rng.gen_range(1..4);
-
-                println!("a = {}, b = {}, c = {}", a, b, c);
-
-                let n = 1 << 0;
-                let perm = poseidon2_bn254_3_perm();
-                let hasher = OuterHash::new(perm).unwrap();
-
-                let (matrix_host_1, matrix_device_1) =
-                    RowMajorMatrixDevice::<BabyBear>::dummy(a, n);
-                let (matrix_host_2, matrix_device_2) =
-                    RowMajorMatrixDevice::<BabyBear>::dummy(b, n);
-                let (matrix_host_3, matrix_device_3) =
-                    RowMajorMatrixDevice::<BabyBear>::dummy(c, n);
-                let tallest_matrices = vec![
-                    matrix_device_1.view(),
-                    matrix_device_2.view(),
-                    matrix_device_3.view(),
-                ]
-                .to_device();
-
-                // let tallest_matrices = vec![matrix_device_1.view()].to_device();
-                let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
-                let hasher_gpu = HasherBn254GPU::new();
-                unsafe {
-                    digests.set_len(n);
-                    hasher_gpu.first_digest_layer(
-                        tallest_matrices.as_ptr(),
-                        tallest_matrices.len(),
-                        digests.as_mut_ptr(),
-                        1,
-                        1,
-                    );
-                }
-
-                thread::sleep(Duration::from_secs(1));
-
-                let tallest_matrices = vec![&matrix_host_1, &matrix_host_2, &matrix_host_3];
-                // let tallest_matrices = vec![&matrix_host_1];
-                let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
-
-                let digests_device = digests.to_host();
-                for i in 0..n {
-                    assert_eq!(digests_host[i], digests_device[i]);
-                    if digests_host[i] != digests_device[i] {
-                        return;
-                    }
-                }
-            });
-        }
+        pub type Bn254FieldMerkleTreeGpu<M> =
+            FieldMerkleTreeGpu<BabyBear, [Bn254Fr; DIGEST_WIDTH], M>;
 
         #[test]
         fn test_compress_and_inject() {
@@ -450,46 +462,48 @@ mod tests {
             }
         }
 
-        // #[test]
-        // fn test_commit_matrices() {
-        //     let n = 1 << 16;
-        //     let hasher = poseidon2_bn254_3_hasher();
-        //     let compressor = poseidon2_bn254_3_compressor();
+        #[test]
+        fn test_commit_matrices() {
+            let n = 1 << 16;
+            let perm = poseidon2_bn254_3_perm();
+            let hasher = OuterHash::new(perm).unwrap();
+            let compressor = poseidon2_bn254_3_compressor();
 
-        //     let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<Bn254Fr>::dummy(600, n);
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-        //     let start = std::time::Instant::now();
-        //     let tallest_matrices = vec![matrix_device_1];
-        //     let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
-        //     let root_device = tree_device.root();
-        //     println!("time: {:?}", start.elapsed().as_secs_f64());
+            let start = std::time::Instant::now();
+            let tallest_matrices = vec![matrix_device_1];
+            let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
+            let root_device = tree_device.root();
+            println!("time: {:?}", start.elapsed().as_secs_f64());
 
-        //     let tallest_matrices = vec![matrix_host_1];
-        //     let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-        //     let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let tallest_matrices = vec![matrix_host_1];
+            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
-        //     assert_eq!(root_device, root_host);
-        // }
+            assert_eq!(root_device, root_host);
+        }
 
-        // #[test]
-        // fn test_col_major_commit_matrices() {
-        //     let n = 1 << 16;
-        //     let hasher = poseidon2_bn254_3_hasher();
-        //     let compressor = poseidon2_bn254_3_compressor();
+        #[test]
+        fn test_col_major_commit_matrices() {
+            let n = 1 << 16;
+            let perm = poseidon2_bn254_3_perm();
+            let hasher = OuterHash::new(perm).unwrap();
+            let compressor = poseidon2_bn254_3_compressor();
 
-        //     let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<Bn254Fr>::dummy(600, n);
+            let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-        //     let start = std::time::Instant::now();
-        //     let tallest_matrices = vec![matrix_device_1];
-        //     let tree_device = FieldMerkleTreeGpu::new(tallest_matrices);
-        //     let root_device = tree_device.root();
-        //     println!("Device time: {:?}", start.elapsed());
+            let start = std::time::Instant::now();
+            let tallest_matrices = vec![matrix_device_1];
+            let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
+            let root_device = tree_device.root();
+            println!("Device time: {:?}", start.elapsed());
 
-        //     let tallest_matrices = vec![matrix_host_1];
-        //     let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-        //     let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let tallest_matrices = vec![matrix_host_1];
+            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
-        //     assert_eq!(root_device, root_host);
-        // }
+            assert_eq!(root_device, root_host);
+        }
     }
 }

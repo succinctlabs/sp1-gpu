@@ -470,7 +470,11 @@ pub fn commit_phase(
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
         let leaves = RowMajorMatrix::new(current.clone(), 2);
         let leaves_flattened = leaves.flatten_to_base();
-        let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(
+        let tree = FieldMerkleTreeGpu::<
+            BabyBear,
+            [BabyBear; DIGEST_WIDTH],
+            CudaSync<ColMajorMatrixDevice<BabyBear>>,
+        >::new(vec![CudaSync::new(
             leaves_flattened.to_device().to_column_major(),
         )
         .unwrap()]);

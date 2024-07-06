@@ -76,7 +76,11 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
             })
             .collect::<Vec<_>>();
 
-        let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
+        let tree_device = FieldMerkleTreeGpu::<
+            BabyBear,
+            [BabyBear; DIGEST_WIDTH],
+            CudaSync<ColMajorMatrixDevice<BabyBear>>,
+        >::new(lde_evaluations);
         let root_device = tree_device.root().into();
 
         (root_device, tree_device)
