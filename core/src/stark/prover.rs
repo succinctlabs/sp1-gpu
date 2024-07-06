@@ -566,6 +566,7 @@ where
             drop(trace_data);
             commits[i] = commit;
         }
+        assert_eq!(commits.len(), num_shards);
 
         (commits, vec![])
 
