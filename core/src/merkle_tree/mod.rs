@@ -96,6 +96,8 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIG
     }
 }
 
+// This is a copy-paste of the above implementation, modified to use the BN254 hasher. Obviously,
+// this is not idiomatic and should be removed by e.g., creating a trait for GPU hashers.
 impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [Bn254Fr; BN254_DIGEST_WIDTH], M> {
     pub fn new(leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
@@ -111,7 +113,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [Bn254Fr; BN254_DIG
             .to_device();
 
         let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
-        let hasher = HasherBn254GPU::new();
+        let hasher: HasherBn254GPU = HasherBn254GPU::new();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -228,7 +230,6 @@ mod tests {
             poseidon2::baby_bear_gpu::HasherBabyBearGPU,
         };
 
-        use crate::matrix::DeviceMatrix;
         use p3_baby_bear::BabyBear;
         use p3_merkle_tree::FieldMerkleTree;
 
@@ -373,7 +374,6 @@ mod tests {
     }
     pub mod bn254_tests {
         use crate::device::memory::{ToDevice, ToHost};
-        use crate::matrix::DeviceMatrix;
         use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
         use crate::merkle_tree::FieldMerkleTreeGpu;
         use crate::poseidon2::tests::bn254_tests::{
@@ -384,6 +384,7 @@ mod tests {
             poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
             poseidon2::bn254_gpu::HasherBn254GPU,
         };
+
         use p3_baby_bear::BabyBear;
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
         use p3_merkle_tree::FieldMerkleTree;
@@ -471,15 +472,24 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let start = std::time::Instant::now();
+            let device_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            println!("time: {:?}", start.elapsed().as_secs_f64());
+            let device_elapsed = device_start.elapsed();
+            // println!("RowMajor Device time: {:?}", device_elapsed);
 
+            let cpu_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let cpu_elapsed = cpu_start.elapsed();
+            // println!("RowMajor CPU time: {:?}", cpu_elapsed);
+
+            // println!(
+            //     "RowMajor CPU/Device: {:?}",
+            //     cpu_elapsed.as_secs_f64() / device_elapsed.as_secs_f64()
+            // );
 
             assert_eq!(root_device, root_host);
         }
@@ -493,15 +503,24 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let start = std::time::Instant::now();
+            let device_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            println!("Device time: {:?}", start.elapsed());
+            let device_elapsed = device_start.elapsed();
+            // println!("ColMajor Device time: {:?}", device_elapsed);
 
+            let cpu_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let cpu_elapsed = cpu_start.elapsed();
+            // println!("ColMajor CPU time: {:?}", cpu_elapsed);
+
+            // println!(
+            //     "ColMajor CPU/Device: {:?}",
+            //     cpu_elapsed.as_secs_f64() / device_elapsed.as_secs_f64()
+            // );
 
             assert_eq!(root_device, root_host);
         }

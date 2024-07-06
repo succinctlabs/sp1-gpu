@@ -68,11 +68,6 @@ class Hasher {
         F_t out[Params::WIDTH],
         RoundConstants_t roundConstants
     ) {
-        int threadId = threadIdx.x + blockDim.x * blockIdx.x;
-        if (threadId == 0) {
-            printf("GPU: permute\n");
-        }
-
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
             state[i] = in[i];
@@ -259,8 +254,6 @@ class DynamicHasher: public Hasher<Params, HasherState_t> {
     finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
         // TODO: Make this cleaner
         if (state->overhangSize > 0) {
-            if (threadIdx.x + blockDim.x * blockIdx.x == 0)
-                printf("\nGPU: reduceBabyBear 3\n");
             F_t value = poseidon2_bn254_3::reduceBabyBear(
                 state->overhang,
                 nullptr,

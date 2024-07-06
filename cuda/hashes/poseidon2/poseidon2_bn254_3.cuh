@@ -77,17 +77,6 @@ static __device__ __constant__ __align__(16
     0x00000000,
 };
 
-__device__ void printArray(uint32_t* arr, size_t size) {
-    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
-    if (threadId != 0) {
-        return;
-    }
-    for (size_t i = 0; i < size; i++) {
-        printf("%lu ", arr[i]);
-    }
-    printf("\n");
-}
-
 template<int SIZE>
 __device__ void
 mul_u32_p(uint32_t v, const uint32_t p[SIZE], uint32_t result[SIZE + 1]) {
@@ -124,27 +113,9 @@ __device__ bool greater_than(const uint32_t* a, uint32_t* b) {
 }
 
 __device__ bn254_t bb31_to_bn254(bb31_t in) {
-    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
-    if (threadId == 0) {
-        printf("GPU: reduceBabyBear %lu\n", in.val);
-    }
-
-    if (threadId == 0) printf("1");
-
     uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
     uint32_t product[ARRAY_SIZE + 1] = {0};
     mul_u32_p<ARRAY_SIZE>(canonical, device::ALT_BN128_rone, product);
-
-    if (threadId == 0)
-        printf("1");
-
-    if (threadId == 0) {
-        printf("product: ");
-        printArray(product, ARRAY_SIZE + 1);
-    }
-
-    if (threadId == 0)
-        printf("1");
 
     uint32_t qLeft = 0;
     uint32_t qRight = 1 << 31;
@@ -152,9 +123,6 @@ __device__ bn254_t bb31_to_bn254(bb31_t in) {
     uint32_t p[ARRAY_SIZE + 1] = {0};
 
     int loops = 0;
-
-    if (threadId == 0)
-        printf("1");
 
     // At most 32 big multiplications
     while (qLeft <= qRight) {
@@ -170,27 +138,11 @@ __device__ bn254_t bb31_to_bn254(bb31_t in) {
         }
     }
 
-    if (threadId == 0)
-        printf("1");
-
-    if (threadId == 0) {
-        printf("loops %d\n", loops);
-        printf("quotient: %lu\n", qLeft);
-        printf("quotient: ");
-        printf("%lu\n", qLeft);
-    }
-
-    if (threadId == 0)
-        printf("1");
-
     substract<ARRAY_SIZE + 1>(product, p);
     uint32_t mod[ARRAY_SIZE];
     for (int i = 0; i < ARRAY_SIZE; i++) {
         mod[i] = product[i];
     }
-
-    // printf("mod: ");
-    // printArray(mod, ARRAY_SIZE);
 
     return bn254_t(mod);
 }
@@ -203,24 +155,13 @@ __device__ bn254_t reduceBabyBear(
     size_t stride1 = 1,
     size_t stride2 = 1
 ) {
-    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
-    if (threadId == 0) {
-        printf(
-            "GPU: reduceBabyBear %llu %llu %llu\n",
-            (uint64_t)n1,
-            (uint64_t)n2,
-            (uint64_t)(n1 + n2)
-        );
-    }
-
     const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
     bn254_t res;
     res.zero();
-    // return res;
+
     if (n2 > 0) {
         for (size_t ii = (n2 - 1) * stride2; true; ii -= stride2) {
             res = res * po2 + bb31_to_bn254(src2[ii]);
-            // res += bn254_t::one();
             if (ii < stride2)
                 break;  // Prevent underflow
         }
@@ -228,7 +169,6 @@ __device__ bn254_t reduceBabyBear(
     if (n1 > 0) {
         for (size_t ii = (n1 - 1) * stride1; true; ii -= stride1) {
             res = res * po2 + bb31_to_bn254(src1[ii]);
-            // res += bn254_t::one();
             if (ii < stride1)
                 break;  // Prevent underflow
         }
@@ -237,32 +177,9 @@ __device__ bn254_t reduceBabyBear(
     return res;
 }
 
-// __device__ void cprow(
-//     Matrix<bb31_t>* src,
-//     bb31_t* dst,
-//     size_t rowIdx,
-//     size_t colIdx,
-//     size_t n
-// ) {
-//     if (src->row_major) {
-//         for (size_t i = 0; i < n; i++) {
-//             dst[i] = src->values[rowIdx * src->width + colIdx + i];
-//         }
-//     } else {
-//         for (size_t i = 0; i < n; i++) {
-//             dst[i] = src->values[(colIdx + i) * src->height + rowIdx];
-//         }
-//     }
-// }
-
 template<typename Hasher, typename HasherState>
 __device__ void
 absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
-    if (threadIdx.x + blockDim.x * blockIdx.x == 0) {
-        printf("\nGPU: absorbRow %llu\n", (uint64_t)in->width);
-        printf("\nGPU: overhang size %llu\n", (uint64_t)state->overhangSize);
-    }
-
     bb31_t* row_ptr;
     size_t stride;
     if (in->row_major) {
@@ -286,8 +203,6 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
         } else {
             // Overhang + row is larger or equal to ARRAY_SIZE, create bn254_t value from overhang and row
             colIdx = ARRAY_SIZE - state->overhangSize;
-            if (threadIdx.x + blockDim.x * blockIdx.x == 0)
-                printf("\nGPU: reduceBabyBear 1\n");
             bn254_t value = reduceBabyBear(
                 state->overhang,
                 row_ptr,
@@ -304,8 +219,6 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
     // TODO: cleaner! size_t vs int
 
     while (colIdx + ARRAY_SIZE <= in->width) {
-        if (threadIdx.x + blockDim.x * blockIdx.x == 0)
-            printf("\nGPU: reduceBabyBear 2\n");
         bn254_t value = reduceBabyBear(
             row_ptr + colIdx * stride,
             nullptr,
