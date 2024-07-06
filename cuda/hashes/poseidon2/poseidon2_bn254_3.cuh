@@ -50,87 +50,149 @@ class Bn254 {
 // bn254_t::nbits / bb31_t::nbits
 const size_t ARRAY_SIZE = 8;
 
-__device__ void mul_u32_p(
-    uint32_t v,
-    const uint32_t p[ARRAY_SIZE],
-    uint32_t result[ARRAY_SIZE + 1]
-) {
+static __device__ __constant__ __align__(16
+) const uint32_t ALT_BN128_1ls32[ARRAY_SIZE] = {
+    /* (1<<32) % P_bn254 */
+    0x15b8b9da,
+    0x93e78865,
+    0xb05ea154,
+    0x16df2426,
+    0x302ab839,
+    0x1271b743,
+    0xec6c226e,
+    0x06bc037e
+};
+
+static __device__ __constant__ __align__(16
+) const uint32_t ALT_BN128_r[ARRAY_SIZE + 1] = {
+    /* (1<<256)%P_bn254 */
+    0xf0000001,
+    0x43e1f593,
+    0x79b97091,
+    0x2833e848,
+    0x8181585d,
+    0xb85045b6,
+    0xe131a029,
+    0x30644e72,
+    0x00000000,
+};
+
+__device__ void printArray(uint32_t* arr, size_t size) {
+    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
+    if (threadId != 0) {
+        return;
+    }
+    for (size_t i = 0; i < size; i++) {
+        printf("%lu ", arr[i]);
+    }
+    printf("\n");
+}
+
+template<int SIZE>
+__device__ void
+mul_u32_p(uint32_t v, const uint32_t p[SIZE], uint32_t result[SIZE + 1]) {
     uint64_t carry = 0;
-    for (int ii = 0; ii < ARRAY_SIZE; ++ii) {
+    for (int ii = 0; ii < SIZE; ++ii) {
         uint64_t temp = (uint64_t)(v)*p[ii] + carry;
         result[ii] = temp & 0xFFFFFFFF;
         carry = temp >> 32;
     }
-    result[ARRAY_SIZE] = (uint32_t)carry;
+    result[SIZE] = (uint32_t)carry;
 }
 
-__device__ void mod_p(
-    uint32_t a[ARRAY_SIZE + 1],
-    const uint32_t b[ARRAY_SIZE],
-    uint32_t result[ARRAY_SIZE]
-) {
-    // Initialize result array to zero
-    for (int i = 0; i < ARRAY_SIZE; ++i) {
-        result[i] = 0;
+template<int SIZE>
+__device__ void substract(uint32_t* a, const uint32_t* b) {
+    uint64_t borrow = 0;
+    for (int ii = 0; ii < SIZE; ++ii) {
+        uint64_t sub = (uint64_t)a[ii] - b[ii] - borrow;
+        a[ii] = (uint32_t)(sub & 0xFFFFFFFF);
+        borrow = (sub >> 32) & 1;
     }
+}
 
-    // Copy the input array `a` to a temporary array to perform the operations
-    uint32_t temp[ARRAY_SIZE + 1];
-    for (int i = 0; i < ARRAY_SIZE + 1; ++i) {
-        temp[i] = a[i];
-    }
-
-    for (int i = 0; i <= ARRAY_SIZE; ++i) {
-        uint64_t carry = 0;
-        for (int j = 0; j < ARRAY_SIZE; ++j) {
-            uint64_t current = (carry << 32) | temp[j];
-            temp[j] = current / b[j];
-            carry = current % b[j];
+template<int SIZE>
+__device__ bool greater_than(const uint32_t* a, uint32_t* b) {
+    for (int i = SIZE - 1; i >= 0; --i) {
+        if (a[i] > b[i]) {
+            return true;
         }
-        result[i] = (uint32_t)carry;
+        if (a[i] < b[i]) {
+            return false;
+        }
     }
+    return false;
 }
-
-__constant__ constexpr const uint32_t p[ARRAY_SIZE] = {
-    // P for Baby Bear
-    0x30644e72,
-    0xe131a029,
-    0xb85045b6,
-    0x8181585d,
-    0x2833e848,
-    0x79b97091,
-    0x43e1f593,
-    0xf0000001,
-};
-
-__constant__ constexpr const uint32_t one[ARRAY_SIZE] = {
-    // 1<<32 mod P
-    0x0e0a77c1,
-    0x9a07df2f,
-    0x666ea36f,
-    0x7879462e,
-    0x36fc7695,
-    0x9f60cd29,
-    0xac96341c,
-    0x4ffffffb,
-};
-
-static __device__ __constant__ __align__(16
-) const uint32_t ALT_BN128_1ls32[ARRAY_SIZE] = {
-    /* (1<<32)%P */
-    TO_CUDA_T(0x0000000100000000),
-    TO_CUDA_T(0x0000000000000000),
-    TO_CUDA_T(0x0000000000000000),
-    TO_CUDA_T(0x0000000000000000),
-};
 
 __device__ bn254_t bb31_to_bn254(bb31_t in) {
-    // TODO: room for optimization here
+    int threadId = threadIdx.x + blockDim.x * blockIdx.x;
+    if (threadId == 0) {
+        printf("GPU: reduceBabyBear %lu\n", in.val);
+    }
+
+    if (threadId == 0) printf("1");
+
     uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
-    uint32_t product[ARRAY_SIZE + 1];
-    mul_u32_p(canonical, one, product);
-    mod_p(product, p, product);
-    return bn254_t(product);
+    uint32_t product[ARRAY_SIZE + 1] = {0};
+    mul_u32_p<ARRAY_SIZE>(canonical, device::ALT_BN128_rone, product);
+
+    if (threadId == 0)
+        printf("1");
+
+    if (threadId == 0) {
+        printf("product: ");
+        printArray(product, ARRAY_SIZE + 1);
+    }
+
+    if (threadId == 0)
+        printf("1");
+
+    uint32_t qLeft = 0;
+    uint32_t qRight = 1 << 31;
+
+    uint32_t p[ARRAY_SIZE + 1] = {0};
+
+    int loops = 0;
+
+    if (threadId == 0)
+        printf("1");
+
+    // At most 32 big multiplications
+    while (qLeft <= qRight) {
+        loops++;
+        uint32_t qMiddle = qLeft + (qRight - qLeft) / 2;
+        mul_u32_p<ARRAY_SIZE>(qMiddle, device::ALT_BN128_r, p);
+        if (greater_than<ARRAY_SIZE + 1>(p, product)) {
+            qRight = qMiddle - 1;
+        } else {
+            if (qLeft == qMiddle)
+                break;
+            qLeft = qMiddle;
+        }
+    }
+
+    if (threadId == 0)
+        printf("1");
+
+    if (threadId == 0) {
+        printf("loops %d\n", loops);
+        printf("quotient: %lu\n", qLeft);
+        printf("quotient: ");
+        printf("%lu\n", qLeft);
+    }
+
+    if (threadId == 0)
+        printf("1");
+
+    substract<ARRAY_SIZE + 1>(product, p);
+    uint32_t mod[ARRAY_SIZE];
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        mod[i] = product[i];
+    }
+
+    // printf("mod: ");
+    // printArray(mod, ARRAY_SIZE);
+
+    return bn254_t(mod);
 }
 
 __device__ bn254_t reduceBabyBear(
@@ -155,14 +217,23 @@ __device__ bn254_t reduceBabyBear(
     bn254_t res;
     res.zero();
     // return res;
-    for (size_t ii = (n2 - 1) * stride2; ii < n2 * stride2; ii -= stride2) {
-        // res = res * po2 + bb31_to_bn254(src2[ii]);
-        res += bn254_t::one();
+    if (n2 > 0) {
+        for (size_t ii = (n2 - 1) * stride2; true; ii -= stride2) {
+            res = res * po2 + bb31_to_bn254(src2[ii]);
+            // res += bn254_t::one();
+            if (ii < stride2)
+                break;  // Prevent underflow
+        }
     }
-    for (size_t ii = (n1 - 1) * stride1; ii < n1 * stride1; ii -= stride1) {
-        // res = res * po2 + bb31_to_bn254(src1[ii]);
-        res += bn254_t::one();
+    if (n1 > 0) {
+        for (size_t ii = (n1 - 1) * stride1; true; ii -= stride1) {
+            res = res * po2 + bb31_to_bn254(src1[ii]);
+            // res += bn254_t::one();
+            if (ii < stride1)
+                break;  // Prevent underflow
+        }
     }
+
     return res;
 }
 
