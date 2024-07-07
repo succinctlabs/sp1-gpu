@@ -3,6 +3,9 @@
 #include "../../fields/bb31_t.cuh"
 #include "../../fields/bn254_t.cuh"
 
+// TODO: modify mont_t to take a pointer to a constant array as even instead of copying one into it
+// so that poseidon constants can be knwon compile time.
+
 namespace poseidon2_bn254_3 {
 
 namespace constants {
@@ -45,9 +48,6 @@ class Bn254 {
     }
 };
 
-// TODO: rename, clean, organize
-
-// bn254_t::nbits / bb31_t::nbits
 const size_t ARRAY_SIZE = 8;
 
 static __device__ __constant__ __align__(16
@@ -61,20 +61,6 @@ static __device__ __constant__ __align__(16
     0x1271b743,
     0xec6c226e,
     0x06bc037e
-};
-
-static __device__ __constant__ __align__(16
-) const uint32_t ALT_BN128_r[ARRAY_SIZE + 1] = {
-    /* (1<<256)%P_bn254 */
-    0xf0000001,
-    0x43e1f593,
-    0x79b97091,
-    0x2833e848,
-    0x8181585d,
-    0xb85045b6,
-    0xe131a029,
-    0x30644e72,
-    0x00000000,
 };
 
 template<int SIZE>
@@ -112,40 +98,36 @@ __device__ bool greater_than(const uint32_t* a, uint32_t* b) {
     return false;
 }
 
-__device__ bn254_t bb31_to_bn254(bb31_t in) {
-    uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
-    uint32_t product[ARRAY_SIZE + 1] = {0};
-    mul_u32_p<ARRAY_SIZE>(canonical, device::ALT_BN128_rone, product);
+// TODO: cleaner! size_t vs int, camel case vs snake case
 
-    uint32_t qLeft = 0;
-    uint32_t qRight = 1 << 31;
-
-    uint32_t p[ARRAY_SIZE + 1] = {0};
-
-    int loops = 0;
-
-    // At most 32 big multiplications
-    // TODO: possibly very sub-optimal
-    while (qLeft <= qRight) {
-        loops++;
-        uint32_t qMiddle = qLeft + (qRight - qLeft) / 2;
-        mul_u32_p<ARRAY_SIZE>(qMiddle, device::ALT_BN128_r, p);
-        if (greater_than<ARRAY_SIZE + 1>(p, product)) {
-            qRight = qMiddle - 1;
+template<int SIZE>
+__device__ void modulo_p(
+    uint32_t v[SIZE + 1],
+    const uint32_t p[SIZE],
+    uint32_t left,
+    uint32_t rigth
+) {
+    uint32_t prod[SIZE + 1] = {0};
+    while (left <= rigth) {
+        uint32_t mid = left + (rigth - left) / 2;
+        mul_u32_p<SIZE>(mid, p, prod);
+        if (greater_than<SIZE + 1>(prod, v)) {
+            rigth = mid - 1;
         } else {
-            if (qLeft == qMiddle)
+            if (left == mid)
                 break;
-            qLeft = qMiddle;
+            left = mid;
         }
     }
+    substract<SIZE + 1>(v, prod);
+}
 
-    substract<ARRAY_SIZE + 1>(product, p);
-    uint32_t mod[ARRAY_SIZE];
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-        mod[i] = product[i];
-    }
-
-    return bn254_t(mod);
+__device__ bn254_t bb31_to_bn254(bb31_t in) {
+    uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
+    uint32_t v[ARRAY_SIZE + 1] = {0};
+    mul_u32_p<ARRAY_SIZE>(canonical, device::ALT_BN128_rone, v);
+    modulo_p<ARRAY_SIZE>(v, device::ALT_BN128_r, 0x00000000u, 0x78000001u);
+    return bn254_t(v);
 }
 
 __device__ bn254_t reduceBabyBear(
@@ -164,14 +146,14 @@ __device__ bn254_t reduceBabyBear(
         for (size_t ii = (n2 - 1) * stride2; true; ii -= stride2) {
             res = res * po2 + bb31_to_bn254(src2[ii]);
             if (ii < stride2)
-                break;  // Prevent underflow
+                break;
         }
     }
     if (n1 > 0) {
         for (size_t ii = (n1 - 1) * stride1; true; ii -= stride1) {
             res = res * po2 + bb31_to_bn254(src1[ii]);
             if (ii < stride1)
-                break;  // Prevent underflow
+                break;
         }
     }
 
@@ -202,7 +184,7 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
             state->overhangSize += in->width;
             return;
         } else {
-            // Overhang + row is larger or equal to ARRAY_SIZE, create bn254_t value from overhang and row
+            // Overhang + row is larger or equal to ARRAY_SIZE, create bn254_t value from overhang and row and continue
             colIdx = ARRAY_SIZE - state->overhangSize;
             bn254_t value = reduceBabyBear(
                 state->overhang,
@@ -216,8 +198,6 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
             hasher.absorb(&value, 1, state);
         }
     }
-
-    // TODO: cleaner! size_t vs int
 
     while (colIdx + ARRAY_SIZE <= in->width) {
         bn254_t value = reduceBabyBear(
@@ -233,7 +213,7 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
     }
 
     if (colIdx < in->width) {
-        // Copy remaining row into overhang
+        // Copy remaining elements into overhang
         for (size_t i = 0; i < in->width - colIdx; i++) {
             state->overhang[state->overhangSize + i] =
                 row_ptr[(colIdx + i) * stride];

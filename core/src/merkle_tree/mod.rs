@@ -400,6 +400,37 @@ mod tests {
             FieldMerkleTreeGpu<BabyBear, [Bn254Fr; DIGEST_WIDTH], M>;
 
         #[test]
+        fn test_first_digest_layer() {
+            let n = 1 << 16;
+            let perm = poseidon2_bn254_3_perm();
+            let hasher = OuterHash::new(perm).unwrap();
+
+            let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
+            let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
+            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
+            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+            let hasher_gpu = HasherBn254GPU::new();
+            unsafe {
+                digests.set_len(n);
+                hasher_gpu.first_digest_layer(
+                    tallest_matrices.as_ptr(),
+                    tallest_matrices.len(),
+                    digests.as_mut_ptr(),
+                    n / 32,
+                    32,
+                );
+            }
+
+            let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
+            let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+
+            let digests_device = digests.to_host();
+            for i in 0..n {
+                assert_eq!(digests_host[i], digests_device[i]);
+            }
+        }
+
+        #[test]
         fn test_compress_and_inject() {
             let n = 1 << 16;
             let perm = poseidon2_bn254_3_perm();
