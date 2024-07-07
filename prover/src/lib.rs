@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn test_tendermint_benchmark() {
+    fn test_compress_tendermint() {
         const TENDERMINT_BENCHMARK_ELF: &[u8] = include_bytes!(
             "../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf"
         );
