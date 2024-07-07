@@ -569,36 +569,6 @@ where
         assert_eq!(commits.len(), num_shards);
 
         (commits, vec![])
-
-        // let parent_span = tracing::debug_span!("commit to all shards");
-        // let commits = parent_span.in_scope(|| {
-        //     shards
-        //         .iter()
-        //         .map(|shard| {
-        //             tracing::debug_span!(parent: &parent_span, "commit to shard").in_scope(|| {
-        //                 let time = std::time::Instant::now();
-        //                 let host_trace_data = self
-        //                     .trace_generator
-        //                     .generate_main_traces(&self.machine, shard);
-        //                 debug!("Time to generate main traces: {:?}", time.elapsed());
-        //                 // Copy main traces to the device.
-        //                 let time = CudaInstant::now().unwrap();
-        //                 let trace_data = host_trace_data.to_device();
-        //                 debug!(
-        //                     "Time to copy traces to device: {:?}",
-        //                     time.elapsed().unwrap()
-        //                 );
-        //                 let (commit, _) = timed_debug!(
-        //                     "Committing main traces",
-        //                     self.commit_main_traces(&trace_data)
-        //                 );
-        //                 drop(trace_data);
-        //                 commit
-        //             })
-        //         })
-        //         .collect::<Vec<_>>()
-        // });
-        // (commits, vec![])
     }
 }
 
