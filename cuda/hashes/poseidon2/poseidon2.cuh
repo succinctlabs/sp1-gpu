@@ -206,9 +206,6 @@ class StaticHasher: public Hasher<Params> {
     }
 };
 
-// TODO: type notation _t
-// TODO: pointers vs values
-
 template<typename Params, typename Hasher_t>
 struct HasherState {
     using F_t = typename Params::F_t;
@@ -222,7 +219,7 @@ struct HasherState {
         }
     }
 
-    __device__ void absorb(F_t* in, size_t nIn, Hasher_t hasher) {
+    __device__ void absorb(Hasher_t hasher, F_t* in, size_t nIn) {
         for (int i = 0; i < nIn; i++) {
             data[index] = in[i];
             index++;
@@ -273,7 +270,7 @@ struct MultiFieldHasherState: public HasherState<Params, Hasher_t> {
                 1,
                 0
             );
-            absorb(&value, 1, hasher);
+            absorb(hasher, &value, 1);
         }
         HasherState<Params, Hasher_t>::finalize(hasher, out);
     }

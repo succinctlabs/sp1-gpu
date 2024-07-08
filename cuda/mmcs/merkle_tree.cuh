@@ -7,9 +7,9 @@
 #include "../matrix/matrix.cuh"
 
 template<
+    typename HashParams,
     typename Hasher_t,
     typename HasherState_t,
-    typename HashParams,
     typename Matrix_t>
 __device__ void firstDigestLayer(
     Hasher_t hasher,
@@ -24,8 +24,6 @@ __device__ void firstDigestLayer(
 
     HasherState_t state;
 
-    // TODO: construct state with hasher?
-
     for (int i = 0; i < nTallestMatrices; i++) {
         state.absorbRow(hasher, &tallestMatrices[i], rowIdx);
     }
@@ -33,9 +31,9 @@ __device__ void firstDigestLayer(
 }
 
 template<
+    typename HashParams,
     typename Hasher_t,
     typename HasherState_t,
-    typename HashParams,
     typename Matrix_t>
 __device__ void compressAndInject(
     Hasher_t hasher,
@@ -89,10 +87,7 @@ __device__ void compressAndInject(
     }
 }
 
-// Templates don't work very well with CUDA, so we have to use explicitly typed kernels.
-
 namespace merkle_tree_kernels_baby_bear_16 {
-
 using namespace poseidon2;
 
 using HashParams = poseidon2_bb31_16::BabyBear;
@@ -106,7 +101,7 @@ __global__ void firstDigestLayer(
     bb31_t (*digests)[HashParams::DIGEST_WIDTH]
 ) {
     Hasher_t hasher;
-    ::firstDigestLayer<Hasher_t, HasherState_t, HashParams, Matrix_t>(
+    ::firstDigestLayer<HashParams, Hasher_t, HasherState_t, Matrix_t>(
         hasher,
         tallestMatrices,
         nTallestMatrices,
@@ -122,7 +117,7 @@ __global__ void compressAndInject(
     bb31_t (*nextDigests)[HashParams::DIGEST_WIDTH]
 ) {
     Hasher_t hasher;
-    ::compressAndInject<Hasher_t, HasherState_t, HashParams, Matrix_t>(
+    ::compressAndInject<HashParams, Hasher_t, HasherState_t, Matrix_t>(
         hasher,
         prevLayer,
         nPrevLayer,
@@ -135,7 +130,6 @@ __global__ void compressAndInject(
 }  // namespace merkle_tree_kernels_baby_bear_16
 
 namespace merkle_tree_kernels_bn254_3 {
-
 using namespace poseidon2;
 
 using HashParams = poseidon2_bn254_3::Bn254;
@@ -149,7 +143,7 @@ __global__ void firstDigestLayer(
     size_t nTallestMatrices,
     bn254_t (*digests)[HashParams::DIGEST_WIDTH]
 ) {
-    ::firstDigestLayer<Hasher_t, HasherState_t, HashParams, Matrix_t>(
+    ::firstDigestLayer<HashParams, Hasher_t, HasherState_t, Matrix_t>(
         hasher,
         tallestMatrices,
         nTallestMatrices,
@@ -165,7 +159,7 @@ __global__ void compressAndInject(
     size_t nMatricesToInject,
     bn254_t (*nextDigests)[HashParams::DIGEST_WIDTH]
 ) {
-    ::compressAndInject<Hasher_t, HasherState_t, HashParams, Matrix_t>(
+    ::compressAndInject<HashParams, Hasher_t, HasherState_t, Matrix_t>(
         hasher,
         prevLayer,
         nPrevLayer,

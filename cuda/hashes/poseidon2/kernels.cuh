@@ -144,7 +144,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     using namespace poseidon2;
 
     using HashParams = poseidon2_bn254_3::Bn254;
-    using Hasher = Bn254Hasher;
+    using Hasher_t = Bn254Hasher;
     using F_t = typename HashParams::F_t;
     using pF_t = typename HashParams::pF_t;
 
@@ -158,7 +158,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        Hasher hasher;
+        Hasher_t hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -181,7 +181,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        Hasher hasher;
+        Hasher_t hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -205,7 +205,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        Hasher hasher;
+        Hasher_t hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);

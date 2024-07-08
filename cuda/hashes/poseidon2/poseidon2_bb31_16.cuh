@@ -167,16 +167,20 @@ class BabyBear {
     }
 };
 
-template<typename Hasher, typename HasherState>
-__device__ void
-absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
+template<typename Hasher_t, typename HasherState_t>
+__device__ void absorbRow(
+    Hasher_t hasher,
+    Matrix<bb31_t>* in,
+    int rowIdx,
+    HasherState_t* state
+) {
     if (in->row_major) {
-        bb31_t* row = &in->values[in->width * row_idx];
-        (*state).absorb(row, in->width, hasher);
+        bb31_t* row = &in->values[in->width * rowIdx];
+        (*state).absorb(hasher, row, in->width);
     } else {
         for (int j = 0; j < in->width; j++) {
-            bb31_t* row = &in->values[j * in->height + row_idx];
-            (*state).absorb(row, 1, hasher);
+            bb31_t* row = &in->values[j * in->height + rowIdx];
+            (*state).absorb(hasher, row, 1);
         }
     }
 }

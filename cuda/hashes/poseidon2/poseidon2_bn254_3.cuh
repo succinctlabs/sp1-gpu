@@ -96,8 +96,6 @@ __device__ bool greaterThan(const uint32_t* a, uint32_t* b) {
     return false;
 }
 
-// TODO: cleaner! size_t vs int, camel case vs snake case
-
 template<int SIZE>
 __device__ void modulo_p(
     uint32_t v[SIZE + 1],
@@ -135,36 +133,34 @@ __device__ bn254_t bb31_to_bn254(bb31_t in) {
 __device__ bn254_t reduceBabyBear(
     bb31_t* src1,
     bb31_t* src2,
-    size_t n1,
-    size_t n2,
-    size_t stride1 = 1,
-    size_t stride2 = 1
+    int n1,
+    int n2,
+    int stride1 = 1,
+    int stride2 = 1
 ) {
     const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
     bn254_t res;
     res.zero();
-
     if (n2 > 0) {
-        for (size_t ii = (n2 - 1) * stride2; true; ii -= stride2) {
+        for (int ii = (n2 - 1) * stride2; ii >= 0; ii -= stride2) {
             res = res * po2 + bb31_to_bn254(src2[ii]);
-            if (ii < stride2)
-                break;
         }
     }
     if (n1 > 0) {
-        for (size_t ii = (n1 - 1) * stride1; true; ii -= stride1) {
+        for (int ii = (n1 - 1) * stride1; ii >= 0; ii -= stride1) {
             res = res * po2 + bb31_to_bn254(src1[ii]);
-            if (ii < stride1)
-                break;
         }
     }
-
     return res;
 }
 
-template<typename Hasher, typename HasherState>
-__device__ void
-absorbRow(Hasher hasher, Matrix<bb31_t>* in, int rowIdx, HasherState* state) {
+template<typename Hasher_t, typename HasherState_t>
+__device__ void absorbRow(
+    Hasher_t hasher,
+    Matrix<bb31_t>* in,
+    int rowIdx,
+    HasherState_t* state
+) {
     bb31_t* rowPtr;
     size_t stride;
     if (in->row_major) {
@@ -197,14 +193,14 @@ absorbRow(Hasher hasher, Matrix<bb31_t>* in, int rowIdx, HasherState* state) {
                 stride
             );
             state->overhangSize = 0;
-            (*state).absorb(&value, 1, hasher);
+            (*state).absorb(hasher, &value, 1);
         }
     }
 
     while (colIdx + N <= in->width) {
         bn254_t value =
             reduceBabyBear(rowPtr + colIdx * stride, nullptr, N, 0, stride, 0);
-        (*state).absorb(&value, 1, hasher);
+        (*state).absorb(hasher, &value, 1);
         colIdx += N;
     }
 
