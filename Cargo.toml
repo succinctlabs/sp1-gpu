@@ -17,8 +17,11 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
-sp1-core = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
+# sp1-core = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
+# sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
+
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/debug-compress" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/debug-compress" }
 
 
 p3-baby-bear = "0.1.2-succinct"
