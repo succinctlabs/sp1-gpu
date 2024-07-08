@@ -503,15 +503,15 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let device_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
+            let device_start = std::time::Instant::now();
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
             let device_elapsed = device_start.elapsed();
             // println!("RowMajor Device time: {:?}", device_elapsed);
 
-            let cpu_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_host_1];
+            let cpu_start = std::time::Instant::now();
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
             let cpu_elapsed = cpu_start.elapsed();
@@ -534,15 +534,15 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let device_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
+            let device_start = std::time::Instant::now();
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
             let device_elapsed = device_start.elapsed();
             // println!("ColMajor Device time: {:?}", device_elapsed);
 
-            let cpu_start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_host_1];
+            let cpu_start = std::time::Instant::now();
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
             let cpu_elapsed = cpu_start.elapsed();
