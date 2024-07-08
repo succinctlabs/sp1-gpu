@@ -3009,7 +3009,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3070,7 +3070,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3080,7 +3080,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3093,7 +3093,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3138,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3161,7 +3161,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3186,7 +3186,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3220,7 +3220,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3230,7 +3230,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3255,7 +3255,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#406020f4158de5762bae75c579f897fac0bc8951"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-compress#ce17aafa8278821b0529fd8d907f4e20544279ee"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
