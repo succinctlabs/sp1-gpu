@@ -172,11 +172,11 @@ __device__ void
 absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
     if (in->row_major) {
         bb31_t* row = &in->values[in->width * row_idx];
-        hasher.absorb(row, in->width, state);
+        (*state).absorb(row, in->width, hasher);
     } else {
         for (int j = 0; j < in->width; j++) {
             bb31_t* row = &in->values[j * in->height + row_idx];
-            hasher.absorb(row, 1, state);
+            (*state).absorb(row, 1, hasher);
         }
     }
 }

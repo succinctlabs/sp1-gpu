@@ -48,10 +48,8 @@ class Bn254 {
     }
 };
 
-const size_t ARRAY_SIZE = 8;
-
 static __device__ __constant__ __align__(16
-) const uint32_t ALT_BN128_1ls32[ARRAY_SIZE] = {
+) const uint32_t ALT_BN128_1ls32[8] = {
     /* (1<<32) % P_bn254 */
     0x15b8b9da,
     0x93e78865,
@@ -86,7 +84,7 @@ __device__ void substract(uint32_t* a, const uint32_t* b) {
 }
 
 template<int SIZE>
-__device__ bool greater_than(const uint32_t* a, uint32_t* b) {
+__device__ bool greaterThan(const uint32_t* a, uint32_t* b) {
     for (int i = SIZE - 1; i >= 0; --i) {
         if (a[i] > b[i]) {
             return true;
@@ -111,7 +109,7 @@ __device__ void modulo_p(
     while (left <= rigth) {
         uint32_t mid = left + (rigth - left) / 2;
         mul_u32_p<SIZE>(mid, p, prod);
-        if (greater_than<SIZE + 1>(prod, v)) {
+        if (greaterThan<SIZE + 1>(prod, v)) {
             rigth = mid - 1;
         } else {
             if (left == mid)
@@ -122,11 +120,15 @@ __device__ void modulo_p(
     substract<SIZE + 1>(v, prod);
 }
 
+const size_t N = 8;
+
 __device__ bn254_t bb31_to_bn254(bb31_t in) {
     uint32_t canonical = (0x38400000ULL * in.val) % (uint64_t)bb31_t::MOD;
-    uint32_t v[ARRAY_SIZE + 1] = {0};
-    mul_u32_p<ARRAY_SIZE>(canonical, device::ALT_BN128_rone, v);
-    modulo_p<ARRAY_SIZE>(v, device::ALT_BN128_r, 0x00000000u, 0x78000001u);
+    uint32_t v[N + 1] = {0};
+    mul_u32_p<N>(canonical, device::ALT_BN128_rone, v);
+    // NOTE: likely not the optimal modulo implementation
+    // Max 31 large (8 uint32) multiplications
+    modulo_p<N>(v, device::ALT_BN128_r, 0x00000000u, 0x78000001u);
     return bn254_t(v);
 }
 
@@ -162,61 +164,55 @@ __device__ bn254_t reduceBabyBear(
 
 template<typename Hasher, typename HasherState>
 __device__ void
-absorbRow(Hasher hasher, Matrix<bb31_t>* in, int row_idx, HasherState* state) {
-    bb31_t* row_ptr;
+absorbRow(Hasher hasher, Matrix<bb31_t>* in, int rowIdx, HasherState* state) {
+    bb31_t* rowPtr;
     size_t stride;
     if (in->row_major) {
-        row_ptr = &in->values[row_idx * in->width];
+        rowPtr = &in->values[rowIdx * in->width];
         stride = 1;
     } else {
-        row_ptr = &in->values[row_idx];
+        rowPtr = &in->values[rowIdx];
         stride = in->height;
     }
 
     int colIdx = 0;
 
     if (state->overhangSize > 0) {
-        if (state->overhangSize + in->width < ARRAY_SIZE) {
-            // Overhang + row is smaller than ARRAY_SIZE, copy row into overhang and return
+        if (state->overhangSize + in->width < N) {
+            // Overhang + row is smaller than N, copy row into overhang and return
             for (size_t i = 0; i < in->width; i++) {
-                state->overhang[state->overhangSize + i] = row_ptr[i * stride];
+                state->overhang[state->overhangSize + i] = rowPtr[i * stride];
             }
             state->overhangSize += in->width;
             return;
         } else {
-            // Overhang + row is larger or equal to ARRAY_SIZE, create bn254_t value from overhang and row and continue
-            colIdx = ARRAY_SIZE - state->overhangSize;
+            // Overhang + row is larger or equal to N, create bn254_t value from overhang and row and continue
+            colIdx = N - state->overhangSize;
             bn254_t value = reduceBabyBear(
                 state->overhang,
-                row_ptr,
+                rowPtr,
                 state->overhangSize,
                 colIdx,
                 1,
                 stride
             );
             state->overhangSize = 0;
-            hasher.absorb(&value, 1, state);
+            (*state).absorb(&value, 1, hasher);
         }
     }
 
-    while (colIdx + ARRAY_SIZE <= in->width) {
-        bn254_t value = reduceBabyBear(
-            row_ptr + colIdx * stride,
-            nullptr,
-            ARRAY_SIZE,
-            0,
-            stride,
-            0
-        );
-        hasher.absorb(&value, 1, state);
-        colIdx += ARRAY_SIZE;
+    while (colIdx + N <= in->width) {
+        bn254_t value =
+            reduceBabyBear(rowPtr + colIdx * stride, nullptr, N, 0, stride, 0);
+        (*state).absorb(&value, 1, hasher);
+        colIdx += N;
     }
 
     if (colIdx < in->width) {
         // Copy remaining elements into overhang
         for (size_t i = 0; i < in->width - colIdx; i++) {
             state->overhang[state->overhangSize + i] =
-                row_ptr[(colIdx + i) * stride];
+                rowPtr[(colIdx + i) * stride];
         }
         state->overhangSize = in->width - colIdx;
     }

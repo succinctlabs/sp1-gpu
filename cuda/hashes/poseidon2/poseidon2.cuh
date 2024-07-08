@@ -19,30 +19,6 @@ struct RoundConstants {
 };
 
 template<typename Params>
-struct HasherState {
-    using F_t = typename Params::F_t;
-
-    F_t data[Params::WIDTH];
-    size_t index;
-
-    __device__ HasherState() : index(0) {
-        for (int i = 0; i < Params::WIDTH; ++i) {
-            data[i].zero();
-        }
-    }
-};
-
-template<typename Params, typename P_t, int R>
-struct MultiFieldHasherState: public HasherState<Params> {
-    P_t overhang[R];
-    size_t overhangSize;
-
-    __device__ MultiFieldHasherState() :
-        HasherState<Params>(),
-        overhangSize(0) {}
-};
-
-template<typename Params, typename HasherState_t>
 class Hasher {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
@@ -153,63 +129,13 @@ class Hasher {
             out[i] = state[i];
         }
     }
-
-    __device__ static void absorb(
-        F_t* in,
-        size_t nIn,
-        HasherState_t* state,
-        RoundConstants_t roundConstants
-    ) {
-        for (int i = 0; i < nIn; i++) {
-            state->data[state->index] = in[i];
-            state->index++;
-            if (state->index == Params::RATE) {
-                permute(state->data, state->data, roundConstants);
-                state->index = 0;
-            }
-        }
-    }
-
-    // __device__ static void absorbRow(
-    //     Matrix<F_t>* in,
-    //     int row_idx,
-    //     HasherState_t* state,
-    //     RoundConstants_t roundConstants
-    // ) {
-    //     if (in->row_major) {
-    //         F_t* row = &in->values[in->width * row_idx];
-    //         absorb(row, in->width, state, roundConstants);
-    //     } else {
-    //         for (int j = 0; j < in->width; j++) {
-    //             absorb(
-    //                 &in->values[j * in->height + row_idx],
-    //                 1,
-    //                 state,
-    //                 roundConstants
-    //             );
-    //         }
-    //     }
-    // }
-
-    __device__ static void finalize(
-        HasherState_t* state,
-        F_t out[Params::DIGEST_WIDTH],
-        RoundConstants_t roundConstants
-    ) {
-        if (state->index != 0) {
-            permute(state->data, state->data, roundConstants);
-        }
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = state->data[i];
-        }
-    }
 };
 
-template<typename Params, typename HasherState_t>
-class DynamicHasher: public Hasher<Params, HasherState_t> {
+template<typename Params>
+class DynamicHasher: public Hasher<Params> {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
-    using Hasher_t = Hasher<Params, HasherState_t>;
+    using Hasher_t = Hasher<Params>;
 
   public:
     RoundConstants<Params> roundConstants;
@@ -245,33 +171,12 @@ class DynamicHasher: public Hasher<Params, HasherState_t> {
     __device__ void hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
         Hasher_t::hash(in, nIn, out, roundConstants);
     }
-
-    __device__ void absorb(F_t* in, size_t nIn, HasherState_t* state) {
-        Hasher_t::absorb(in, nIn, state, roundConstants);
-    }
-
-    __device__ void
-    finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
-        // TODO: Make this cleaner
-        if (state->overhangSize > 0) {
-            F_t value = poseidon2_bn254_3::reduceBabyBear(
-                state->overhang,
-                nullptr,
-                state->overhangSize,
-                0,
-                1,
-                0
-            );
-            absorb(&value, 1, state);
-        }
-        Hasher_t::finalize(state, out, roundConstants);
-    }
 };
 
-template<typename Params, typename HasherState_t>
-class StaticHasher: public Hasher<Params, HasherState_t> {
+template<typename Params>
+class StaticHasher: public Hasher<Params> {
     using F_t = typename Params::F_t;
-    using Hasher_t = Hasher<Params, HasherState_t>;
+    using Hasher_t = Hasher<Params>;
     using RoundConstants_t = RoundConstants<Params>;
 
   public:
@@ -299,45 +204,116 @@ class StaticHasher: public Hasher<Params, HasherState_t> {
     hash(F_t* in, size_t nIn, F_t out[Params::DIGEST_WIDTH]) {
         Hasher_t::hash(in, nIn, out, roundConstants);
     }
+};
 
-    __device__ static void absorb(F_t* in, size_t nIn, HasherState_t* state) {
-        Hasher_t::absorb(in, nIn, state, roundConstants);
+// TODO: type notation _t
+// TODO: pointers vs values
+
+template<typename Params, typename Hasher_t>
+struct HasherState {
+    using F_t = typename Params::F_t;
+
+    F_t data[Params::WIDTH];
+    size_t index;
+
+    __device__ HasherState() : index(0) {
+        for (int i = 0; i < Params::WIDTH; ++i) {
+            data[i].zero();
+        }
     }
 
-    __device__ static void
-    finalize(HasherState_t* state, F_t out[Params::DIGEST_WIDTH]) {
-        Hasher_t::finalize(state, out, roundConstants);
+    __device__ void absorb(F_t* in, size_t nIn, Hasher_t hasher) {
+        for (int i = 0; i < nIn; i++) {
+            data[index] = in[i];
+            index++;
+            if (index == Params::RATE) {
+                hasher.permute(data, data);
+                index = 0;
+            }
+        }
+    }
+
+    __device__ void finalize(Hasher_t hasher, F_t out[Params::DIGEST_WIDTH]) {
+        if (index != 0) {
+            hasher.permute(data, data);
+        }
+        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
+            out[i] = data[i];
+        }
     }
 };
 
-template<typename Params>
-class Bn254Hasher:
-    public DynamicHasher<Params, MultiFieldHasherState<Params, bb31_t, 8>> {
+template<typename Params, typename Hasher_t, typename P_t, int R>
+struct MultiFieldHasherState: public HasherState<Params, Hasher_t> {
+    using F_t = typename Params::F_t;
+
+    static_assert(
+        std::is_same<F_t, bn254_t>::value,
+        "MultiFieldHasherState only supports bb31 reduction to bn254"
+    );
+    static_assert(
+        std::is_same<P_t, bb31_t>::value,
+        "MultiFieldHasherState only supports bb31 reduction to bn254"
+    );
+
+    P_t overhang[R];
+    size_t overhangSize;
+
+    __device__ MultiFieldHasherState() :
+        HasherState<Params, Hasher_t>(),
+        overhangSize(0) {}
+
+    __device__ void finalize(Hasher_t hasher, F_t out[Params::DIGEST_WIDTH]) {
+        if (overhangSize > 0) {
+            F_t value = poseidon2_bn254_3::reduceBabyBear(
+                overhang,
+                nullptr,
+                overhangSize,
+                0,
+                1,
+                0
+            );
+            absorb(&value, 1, hasher);
+        }
+        HasherState<Params, Hasher_t>::finalize(hasher, out);
+    }
+};
+
+using BabyBearHasher = StaticHasher<poseidon2_bb31_16::BabyBear>;
+using Bn254Hasher = DynamicHasher<poseidon2_bn254_3::Bn254>;
+
+class BabyBearHasherState:
+    public HasherState<poseidon2_bb31_16::BabyBear, BabyBearHasher> {
   public:
-    __device__ void absorbRow(
-        Matrix<bb31_t>* in,
-        int row_idx,
-        MultiFieldHasherState<Params, bb31_t, 8>* state
-    ) {
-        poseidon2_bn254_3::absorbRow<
-            Bn254Hasher<Params>,
-            MultiFieldHasherState<Params, bb31_t, 8>>(
-            *this,
+    __device__ void
+    absorbRow(BabyBearHasher hasher, Matrix<bb31_t>* in, int rowIdx) {
+        poseidon2_bb31_16::absorbRow<
+            BabyBearHasher,
+            HasherState<poseidon2_bb31_16::BabyBear, BabyBearHasher>>(
+            hasher,
             in,
-            row_idx,
-            state
+            rowIdx,
+            this
         );
     }
 };
 
-template<typename Params>
-class BabyBearHasher: public StaticHasher<Params, HasherState<Params>> {
+class Bn254HasherState:
+    public MultiFieldHasherState<
+        poseidon2_bn254_3::Bn254,
+        Bn254Hasher,
+        bb31_t,
+        8> {
   public:
     __device__ void
-    absorbRow(Matrix<bb31_t>* in, int row_idx, HasherState<Params>* state) {
-        poseidon2_bb31_16::absorbRow<
-            BabyBearHasher<Params>,
-            HasherState<Params>>(*this, in, row_idx, state);
+    absorbRow(Bn254Hasher hasher, Matrix<bb31_t>* in, int rowIdx) {
+        poseidon2_bn254_3::absorbRow<
+            Bn254Hasher,
+            MultiFieldHasherState<
+                poseidon2_bn254_3::Bn254,
+                Bn254Hasher,
+                bb31_t,
+                8>>(hasher, in, rowIdx, this);
     }
 };
 

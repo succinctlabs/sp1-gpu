@@ -342,7 +342,7 @@ mod tests {
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            println!("time: {:?}", start.elapsed().as_secs_f64());
+            // println!("time: {:?}", start.elapsed().as_secs_f64());
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
@@ -363,7 +363,7 @@ mod tests {
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            println!("Device time: {:?}", start.elapsed());
+            // println!("Device time: {:?}", start.elapsed());
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);

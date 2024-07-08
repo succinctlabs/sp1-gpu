@@ -3,9 +3,8 @@
 #include "poseidon2_bn254_3.cuh"
 
 namespace poseidon2_baby_bear_kernels {
-using namespace poseidon2;
+using HashParams = poseidon2_bb31_16::BabyBear;
 
-template<typename HashParams>
 __global__ void permute(
     bb31_t (*in)[HashParams::WIDTH],
     bb31_t (*out)[HashParams::WIDTH],
@@ -15,11 +14,10 @@ __global__ void permute(
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams, HasherState<HashParams>> hasher;
+    poseidon2::BabyBearHasher hasher;
     hasher.permute(in[idx], out[idx]);
 }
 
-template<typename HashParams>
 __global__ void compress(
     bb31_t (*left)[HashParams::DIGEST_WIDTH],
     bb31_t (*right)[HashParams::DIGEST_WIDTH],
@@ -30,28 +28,27 @@ __global__ void compress(
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams, HasherState<HashParams>> hasher;
+    poseidon2::BabyBearHasher hasher;
     hasher.compress(left[idx], right[idx], out[idx]);
 }
 
-template<typename HashParams>
 __global__ void
 hash(bb31_t* in, int nIn, bb31_t (*out)[HashParams::DIGEST_WIDTH], int n) {
     size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (idx >= n) {
         return;
     }
-    StaticHasher<HashParams, HasherState<HashParams>> hasher;
+    poseidon2::BabyBearHasher hasher;
     hasher.hash(in + idx * nIn, nIn, out[idx]);
 }
+
 }  // namespace poseidon2_baby_bear_kernels
 
 namespace poseidon2_bn254_kernels {
-using namespace poseidon2;
+using HashParams = poseidon2_bn254_3::Bn254;
 
-template<typename HashParams>
 __global__ void permute(
-    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
+    poseidon2::Bn254Hasher hasher,
     bn254_t (*in)[HashParams::WIDTH],
     bn254_t (*out)[HashParams::WIDTH],
     size_t n
@@ -63,9 +60,8 @@ __global__ void permute(
     hasher.permute(in[idx], out[idx]);
 }
 
-template<typename HashParams>
 __global__ void compress(
-    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
+    poseidon2::Bn254Hasher hasher,
     bn254_t (*left)[HashParams::DIGEST_WIDTH],
     bn254_t (*right)[HashParams::DIGEST_WIDTH],
     bn254_t (*out)[HashParams::DIGEST_WIDTH],
@@ -78,9 +74,8 @@ __global__ void compress(
     hasher.compress(left[idx], right[idx], out[idx]);
 }
 
-template<typename HashParams>
 __global__ void hash(
-    DynamicHasher<HashParams, MultiFieldHasherState<HashParams, bb31_t, 8>> hasher,
+    poseidon2::Bn254Hasher hasher,
     bn254_t* in,
     int nIn,
     bn254_t (*out)[HashParams::DIGEST_WIDTH],
@@ -92,45 +87,56 @@ __global__ void hash(
     }
     hasher.hash(in + idx * nIn, nIn, out[idx]);
 }
+
 }  // namespace poseidon2_bn254_kernels
 
 extern "C" namespace poseidon2_baby_bear_16_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear;
-    using F_t = typename HashParams::F_t;
 
     extern "C" void permute_baby_bear(
-        F_t(*in)[HashParams::WIDTH],
-        F_t(*out)[HashParams::WIDTH],
+        bb31_t(*in)[HashParams::WIDTH],
+        bb31_t(*out)[HashParams::WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_baby_bear_kernels::permute<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(in, out, n);
+        poseidon2_baby_bear_kernels::permute<<<nBlocks, nThreadsPerBlock>>>(
+            in,
+            out,
+            n
+        );
     }
 
     extern "C" void compress_baby_bear(
-        F_t(*left)[HashParams::DIGEST_WIDTH],
-        F_t(*right)[HashParams::DIGEST_WIDTH],
-        F_t(*out)[HashParams::DIGEST_WIDTH],
+        bb31_t(*left)[HashParams::DIGEST_WIDTH],
+        bb31_t(*right)[HashParams::DIGEST_WIDTH],
+        bb31_t(*out)[HashParams::DIGEST_WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_baby_bear_kernels::compress<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(left, right, out, n);
+        poseidon2_baby_bear_kernels::compress<<<nBlocks, nThreadsPerBlock>>>(
+            left,
+            right,
+            out,
+            n
+        );
     }
 
     extern "C" void hash_baby_bear(
-        F_t * in,
+        bb31_t * in,
         size_t nIn,
-        F_t(*out)[HashParams::DIGEST_WIDTH],
+        bb31_t(*out)[HashParams::DIGEST_WIDTH],
         size_t n,
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2_baby_bear_kernels::hash<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(in, nIn, out, n);
+        poseidon2_baby_bear_kernels::hash<<<nBlocks, nThreadsPerBlock>>>(
+            in,
+            nIn,
+            out,
+            n
+        );
     }
 }  // namespace poseidon2_baby_bear_16_gpu
 
@@ -138,8 +144,7 @@ extern "C" namespace poseidon2_bn254_3_gpu {
     using namespace poseidon2;
 
     using HashParams = poseidon2_bn254_3::Bn254;
-    using HasherState = MultiFieldHasherState<HashParams, bb31_t, 8>;
-    using Hasher = DynamicHasher<HashParams, HasherState>;
+    using Hasher = Bn254Hasher;
     using F_t = typename HashParams::F_t;
     using pF_t = typename HashParams::pF_t;
 
@@ -157,8 +162,12 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
-        poseidon2_bn254_kernels::permute<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(hasher, in, out, n);
+        poseidon2_bn254_kernels::permute<<<nBlocks, nThreadsPerBlock>>>(
+            hasher,
+            in,
+            out,
+            n
+        );
     }
 
     extern "C" void compress_bn254(
@@ -176,8 +185,13 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
-        poseidon2_bn254_kernels::compress<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(hasher, left, right, out, n);
+        poseidon2_bn254_kernels::compress<<<nBlocks, nThreadsPerBlock>>>(
+            hasher,
+            left,
+            right,
+            out,
+            n
+        );
     }
 
     extern "C" void hash_bn254(
@@ -195,7 +209,12 @@ extern "C" namespace poseidon2_bn254_3_gpu {
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
-        poseidon2_bn254_kernels::hash<HashParams>
-            <<<nBlocks, nThreadsPerBlock>>>(hasher, in, nIn, out, n);
+        poseidon2_bn254_kernels::hash<<<nBlocks, nThreadsPerBlock>>>(
+            hasher,
+            in,
+            nIn,
+            out,
+            n
+        );
     }
 }  // namespace poseidon2_bn254_3_gpu

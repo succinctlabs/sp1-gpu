@@ -6,8 +6,6 @@
 #include "../hashes/poseidon2/kernels.cuh"
 #include "../matrix/matrix.cuh"
 
-// TODO: template to the extent allowed by CUDA
-
 template<
     typename Hasher_t,
     typename HasherState_t,
@@ -26,10 +24,12 @@ __device__ void firstDigestLayer(
 
     HasherState_t state;
 
+    // TODO: construct state with hasher?
+
     for (int i = 0; i < nTallestMatrices; i++) {
-        hasher.absorbRow(&tallestMatrices[i], rowIdx, &state);
+        state.absorbRow(hasher, &tallestMatrices[i], rowIdx);
     }
-    hasher.finalize(&state, digests[rowIdx]);
+    state.finalize(hasher, digests[rowIdx]);
 }
 
 template<
@@ -76,9 +76,9 @@ __device__ void compressAndInject(
         F_t tallestDigest[HashParams::DIGEST_WIDTH];
         HasherState_t state;
         for (int i = 0; i < nMatricesToInject; i++) {
-            hasher.absorbRow(&matricesToInject[i], rowIdx, &state);
+            state.absorbRow(hasher, &matricesToInject[i], rowIdx);
         }
-        hasher.finalize(&state, tallestDigest);
+        state.finalize(hasher, tallestDigest);
         hasher.compress(digest, tallestDigest, nextDigests[rowIdx]);
     } else {
         hasher.compress(
@@ -96,8 +96,8 @@ namespace merkle_tree_kernels_baby_bear_16 {
 using namespace poseidon2;
 
 using HashParams = poseidon2_bb31_16::BabyBear;
-using Hasher_t = BabyBearHasher<HashParams>;
-using HasherState_t = HasherState<HashParams>;
+using Hasher_t = BabyBearHasher;
+using HasherState_t = BabyBearHasherState;
 using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
@@ -139,8 +139,8 @@ namespace merkle_tree_kernels_bn254_3 {
 using namespace poseidon2;
 
 using HashParams = poseidon2_bn254_3::Bn254;
-using Hasher_t = Bn254Hasher<HashParams>;
-using HasherState_t = MultiFieldHasherState<HashParams, bb31_t, 8>;
+using Hasher_t = Bn254Hasher;
+using HasherState_t = Bn254HasherState;
 using Matrix_t = Matrix<bb31_t>;
 
 __global__ void firstDigestLayer(
@@ -236,7 +236,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::Bn254Hasher<HashParams> hasher;
+        poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
@@ -261,7 +261,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        poseidon2::Bn254Hasher<HashParams> hasher;
+        poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
