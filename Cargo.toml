@@ -17,8 +17,8 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
-sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "critical-06-26" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "critical-06-26" }
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", rev = "36c62dc262542ac94ee71b4ca80a33d0dc3eaf06" }
 
 
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }
