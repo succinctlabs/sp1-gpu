@@ -3019,7 +3019,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3080,7 +3080,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3090,7 +3090,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3103,7 +3103,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3148,7 +3148,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3171,7 +3171,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3196,7 +3196,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3230,7 +3230,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3240,7 +3240,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3265,7 +3265,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#72bdb6bd1e16763d11335b4736a7d53edb62eeec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-2#9f364340155da62fc17365d5f555491526ffe3cc"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
