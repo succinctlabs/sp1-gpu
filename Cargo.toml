@@ -17,8 +17,8 @@ debug = true
 debug-assertions = true
 
 [workspace.dependencies]
-sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/critical-sharding-tweaks" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/critical-sharding-tweaks" }
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/serde-fix" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/serde-fix" }
 
 
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git", rev = "cab1182070a2dfb238fd1020e6113c5e36636f2f" }

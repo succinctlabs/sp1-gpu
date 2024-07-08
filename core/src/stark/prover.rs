@@ -140,9 +140,10 @@ where
 
     fn commit_main(&self, shard: &A::Record) -> GpuMainData<SC> {
         let time = std::time::Instant::now();
-        let host_trace_data = self
-            .trace_generator
-            .generate_main_traces(&self.machine, shard);
+        let host_trace_data = info_span!("generate_main_traces").in_scope(|| {
+            self.trace_generator
+                .generate_main_traces(&self.machine, shard)
+        });
         debug!("Time to generate main traces: {:?}", time.elapsed());
 
         // Copy main traces to the device.
@@ -504,12 +505,12 @@ where
         pk: &StarkProvingKey<SC>,
         shards: Vec<A::Record>,
         challenger: &mut SC::Challenger,
-        opts: SP1CoreOpts,
+        _opts: <A::Record as MachineRecord>::Config,
     ) -> Result<MachineProof<SC>, CudaError> {
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
-        let (shard_commits, trace_data) = self.commit_shards(&shards, opts);
+        let (shard_commits, trace_data) = self.commit_shards(&shards, SP1CoreOpts::default());
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {

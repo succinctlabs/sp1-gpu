@@ -2961,7 +2961,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3022,7 +3022,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3032,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3045,7 +3045,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3090,7 +3090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3113,7 +3113,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3138,7 +3138,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3172,7 +3172,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3182,7 +3182,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3207,7 +3207,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/critical-sharding-tweaks#ba6adeeeed4d198bf4a7a6fe9a236fb7e185e86f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/serde-fix#619a3829f7abb8b98e4545421f55d758b1335078"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
