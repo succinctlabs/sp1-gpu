@@ -1,4 +1,6 @@
 use hashbrown::HashMap;
+use p3_field::AbstractField;
+use rayon::prelude::*;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -114,7 +116,7 @@ where
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
-    A::Record: Sync,
+    A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
 {
     type MainData = GpuMainData<SC>;
     type ShardCommitData = CpuMainTraceData<SC>;
@@ -505,18 +507,18 @@ where
         pk: &StarkProvingKey<SC>,
         shards: Vec<A::Record>,
         challenger: &mut SC::Challenger,
-        _opts: <A::Record as MachineRecord>::Config,
+        opts: SP1CoreOpts,
     ) -> Result<MachineProof<SC>, CudaError> {
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
         // Generate and commit the traces for each segment.
-        let (shard_commits, trace_data) = self.commit_shards(&shards, SP1CoreOpts::default());
+        let (shard_commits, _) = self.commit_shards(&shards, opts);
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {
             shard_commits
                 .into_iter()
-                .zip(shards)
+                .zip(shards.iter())
                 .for_each(|(commitment, shard)| {
                     challenger.observe(commitment);
                     challenger.observe_slice(
@@ -529,21 +531,12 @@ where
         // identical global challenges across the segments.
         let parent_span = tracing::debug_span!("prove shards");
         let shard_proofs = parent_span.in_scope(|| {
-            trace_data
+            shards
                 .into_iter()
-                .map(|shard_trace_data| {
+                .map(|shard| {
                     tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
                         let data = debug_span!("commit shard").in_scope(|| {
-                            let trace_data = shard_trace_data.to_device();
-                            let (commit, prover_data) = timed_debug!(
-                                "Committing main traces",
-                                self.commit_main_traces(&trace_data)
-                            );
-                            GpuMainData {
-                                trace_data,
-                                commit,
-                                prover_data,
-                            }
+                            timed_debug!("Committing main traces", self.commit_main(&shard))
                         });
                         self.prove_shard(pk, data, &mut challenger.clone())
                     })
@@ -560,33 +553,47 @@ where
         shards: &[A::Record],
         _opts: SP1CoreOpts,
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-        let parent_span = tracing::debug_span!("commit to all shards");
-        parent_span.in_scope(|| {
-            shards
-                .iter()
-                .map(|shard| {
-                    tracing::debug_span!(parent: &parent_span, "commit to shard").in_scope(|| {
-                        let time = std::time::Instant::now();
-                        let host_trace_data = self
-                            .trace_generator
-                            .generate_main_traces(&self.machine, shard);
-                        debug!("Time to generate main traces: {:?}", time.elapsed());
-                        // Copy main traces to the device.
-                        let time = CudaInstant::now().unwrap();
-                        let trace_data = host_trace_data.to_device();
-                        debug!(
-                            "Time to copy traces to device: {:?}",
-                            time.elapsed().unwrap()
-                        );
-                        let (commit, _) = timed_debug!(
-                            "Committing main traces",
-                            self.commit_main_traces(&trace_data)
-                        );
-                        (commit, host_trace_data)
-                    })
-                })
-                .unzip()
-        })
+        let num_shards = shards.len();
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        shards.par_iter().enumerate().for_each(|(i, shard)| {
+            let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
+                self.trace_generator
+                    .generate_main_traces(&self.machine, shard)
+            });
+            tx.send((i, host_trace_data)).unwrap();
+        });
+        drop(tx);
+
+        let mut commits = vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
+        for (i, trace_data) in rx.iter() {
+            // Print some statistics.
+            let shard_chips = self
+                .machine
+                .shard_chips_ordered(&trace_data.chip_ordering)
+                .collect::<Vec<_>>();
+
+            // Print some statistics.
+            let mut total_lde_size = 0;
+            let log_blowup = self.committer.log_blowup();
+            for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
+                let height = domain.size();
+                let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+                total_lde_size += stats.lde_memory_size(log_blowup);
+                debug!("{}", stats);
+            }
+            debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+            let trace_data = trace_data.to_device();
+            let (commit, _) = timed_debug!(
+                "Committing main traces",
+                self.commit_main_traces(&trace_data)
+            );
+            drop(trace_data);
+            commits[i] = commit;
+        }
+        assert_eq!(commits.len(), num_shards);
+
+        (commits, vec![])
     }
 }
 
@@ -635,22 +642,6 @@ where
         &self,
         trace_data: &GpuMainTraceData<SC>,
     ) -> (Com<SC>, GpuProverData<SC>) {
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&trace_data.chip_ordering)
-            .collect::<Vec<_>>();
-
-        // Print some statistics.
-        let mut total_lde_size = 0;
-        let log_blowup = self.committer.log_blowup();
-        for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
-            let height = domain.size();
-            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-            total_lde_size += stats.lde_memory_size(log_blowup);
-            debug!("{}", stats);
-        }
-        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-
         let domains_and_traces = trace_data
             .domains
             .iter()
