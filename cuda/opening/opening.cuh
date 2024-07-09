@@ -41,8 +41,16 @@ template<typename F, typename EF> __global__ void shiftedPowersKernel(
 
 template<typename F, typename EF> __global__ void foldEvenOddKernel(
     Matrix<F> evaluations,
-    EF beta
+    Matrix<F> output,
+    F oneHalf,
+    EF* powers
 ) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    EF r0, r1;
+    for (size_t k = 0 ; k < EF::D; k++) {
+        r0.vallue[k] = evaluations.values[k * evaluations.height + idx];
+    }
 
 }
 
