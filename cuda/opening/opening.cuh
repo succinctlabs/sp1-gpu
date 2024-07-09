@@ -42,14 +42,34 @@ template<typename F, typename EF> __global__ void shiftedPowersKernel(
 template<typename F, typename EF> __global__ void foldEvenOddKernel(
     Matrix<F> evaluations,
     Matrix<F> output,
-    F oneHalf,
-    EF* powers
+    Matrix<F> powers,
+    F oneHalf
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    EF r0, r1;
+    size_t evenIdx = 2 * idx;
+    size_t oddIdx = 2 * idx + 1;
+
+    if (idx >= output.height) return;
+
+    EF r0Even, r0Odd, r1Even, r1Odd, evenPower, oddPower;
     for (size_t k = 0 ; k < EF::D; k++) {
-        r0.vallue[k] = evaluations.values[k * evaluations.height + idx];
+        r0Even.value[k] = evaluations.values[k * evaluations.height + evenIdx];
+        r1Even.value[k] = evaluations.values[(k + EF::D) * evaluations.height + evenIdx];
+
+        r0Odd.value[k] = evaluations.values[k * evaluations.height + oddIdx];
+        r1Odd.value[k] = evaluations.values[(k + EF::D) * evaluations.height + oddIdx];
+
+        evenPower.value[k] = powers.values[k * powers.height + evenIdx];
+        oddPower.value[k] = powers.values[k * powers.height + oddIdx];
+    }
+
+    EF evenValue = (oneHalf + evenPower) * r0Even + (oneHalf - evenPower) * r1Even;
+    EF oddValue = (oneHalf + oddPower) * r0Odd + (oneHalf - oddPower) * r1Odd;
+
+    for (size_t k = 0 ; k < EF::D; k++) {
+        output.values[k * output.height + idx] = evenValue.value[k];
+        output.values[(k + EF::D) * output.height + idx] = oddValue.value[k];
     }
 
 }
@@ -401,4 +421,22 @@ extern "C" void batchMultiplicativeInverse(
         numElements
     );
 }
+
+extern "C" void foldEvenOdd(
+    Matrix<bb31_t> evaluations,
+    Matrix<bb31_t> output,
+    Matrix<bb31_t> powers,
+    bb31_t oneHalf
+) {
+    size_t numThreads = 1024;
+    size_t numBlocks = (output.height - 1) / numThreads + 1;
+
+    opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads>>>(
+        evaluations,
+        output,
+        powers,
+        oneHalf
+    );
+}
+
 }  // namespace opening_gpu

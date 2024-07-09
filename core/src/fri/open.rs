@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -17,7 +18,7 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
-use p3_fri::fold_even_odd;
+use p3_fri::fold_even_odd as fold_even_odd_host;
 use p3_fri::CommitPhaseProofStep;
 use p3_fri::FriConfig;
 use p3_fri::FriProof;
@@ -42,6 +43,7 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
+use crate::matrix::DeviceMatrix;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -404,15 +406,18 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         compute_reduce_openings_span.exit();
 
-        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof").in_scope(|| {
-            prove(
-                pcs.fri_config(),
-                &reduced_openings,
-                reduced_leaves,
-                height_index_map,
-                challenger,
-            )
-        });
+        let inverse_index_map: BTreeMap<_, _> =
+            height_index_map.iter().map(|(k, v)| (*v, *k)).collect();
+
+        let leaves: BTreeMap<_, _> = reduced_leaves
+            .into_iter()
+            .enumerate()
+            .skip(1)
+            .map(|(i, m)| (inverse_index_map[&i], m))
+            .collect();
+
+        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof")
+            .in_scope(|| prove(pcs.fri_config(), &reduced_openings, leaves, challenger));
 
         let query_openings_span = tracing::debug_span!("Compute query openings").entered();
         let query_openings = query_indices
@@ -487,22 +492,13 @@ fn open_batch(
 pub fn prove(
     config: &FriConfig<ChallengeMmcs>,
     input: &[Option<Vec<EF>>; 32],
-    input_leaves: Vec<ColMajorMatrixDevice<F>>,
-    height_index_map: HashMap<usize, usize>,
+    input_leaves: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     challenger: &mut Challenger<SC>,
 ) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
     let log_max_height = input.iter().rposition(Option::is_some).unwrap();
 
-    let commit_phase_result = trace_span!("Commit phase").in_scope(|| {
-        commit_phase(
-            config,
-            input,
-            input_leaves,
-            height_index_map,
-            log_max_height,
-            challenger,
-        )
-    });
+    let commit_phase_result = trace_span!("Commit phase")
+        .in_scope(|| commit_phase(config, input, input_leaves, log_max_height, challenger));
 
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
@@ -529,10 +525,7 @@ pub fn prove(
     )
 }
 
-pub fn fold_even_odd_device(
-    evaluations: ColMajorMatrixDevice<F>,
-    beta: EF,
-) -> ColMajorMatrixDevice<F> {
+pub fn fold_even_odd(evaluations: ColMajorMatrixDevice<F>, beta: EF) -> ColMajorMatrixDevice<F> {
     let mut output =
         ColMajorMatrixDevice::with_capacity(evaluations.height() / 2, evaluations.width());
 
@@ -542,6 +535,16 @@ pub fn fold_even_odd_device(
 
     let mut powers = shifted_powers(g_inv, half_beta, evaluations.height());
     powers.bit_reverse_rows().unwrap();
+
+    unsafe {
+        output.set_max_width();
+        opening_gpu::fold_even_odd_raw(
+            evaluations.view(),
+            output.view_mut(),
+            powers.view(),
+            BabyBear::two().inverse(),
+        );
+    }
 
     output
 }
@@ -572,14 +575,15 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
 pub fn commit_phase(
     config: &FriConfig<ChallengeMmcs>,
     input: &[Option<Vec<EF>>; 32],
-    input_leaves: Vec<ColMajorMatrixDevice<F>>,
-    height_indices: HashMap<usize, usize>,
+    mut input_leaves: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
 ) -> CommitPhaseResult {
     let mut current = input[log_max_height].as_ref().unwrap().clone();
-    let idx = height_indices[&log_max_height];
-    let current_device = input_leaves[idx].to_host();
+
+    let mut leaves_device = input_leaves.remove(&log_max_height).unwrap();
+
+    let current_device = leaves_device.to_host();
 
     let first_input = RowMajorMatrix::new(current.clone(), 2);
     let first_input_flattened = first_input.flatten_to_base::<F>();
@@ -613,13 +617,12 @@ pub fn commit_phase(
         data.push(tree);
 
         let beta: EF = challenger.sample();
-        current = fold_even_odd(current, beta);
+        current = fold_even_odd_host(current, beta);
 
         if let Some(v) = &input[log_folded_height] {
             let leaves = RowMajorMatrix::new(v.clone(), 2);
             let leaves_flattened = leaves.flatten_to_base::<F>();
-            let idx = height_indices[&log_folded_height];
-            let leaves_device = input_leaves[idx].to_host();
+            let leaves_device = input_leaves[&log_folded_height].to_host();
             for (val, exp) in leaves_device
                 .values
                 .iter()
@@ -780,6 +783,14 @@ pub mod opening_gpu {
 
         #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
+
+        #[link_name = "foldEvenOdd"]
+        pub fn fold_even_odd_raw(
+            evaluations: MatrixViewDevice<F>,
+            output: MatrixViewMutDevice<F>,
+            powers: MatrixViewDevice<F>,
+            one_half: F,
+        );
     }
 }
 
