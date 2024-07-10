@@ -1624,6 +1624,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "moongate-perf"
+version = "0.1.0"
+
+[[package]]
 name = "moongate-prover"
 version = "0.1.0"
 dependencies = [
