@@ -233,7 +233,7 @@ where
             let permutation_width = permutation_traces[i].width();
             let total_width = width + permutation_width;
             info!(
-                "Shard ? Chip {:<12}: {:>8} = {}W x {}H",
+                "Chip {:<12}: {:>8} = {}W x {}H",
                 chip.name(),
                 total_width * height,
                 total_width,
