@@ -28,6 +28,9 @@ mod tests {
     use crate::components::GpuProverComponents;
     use crate::gpu_prover_opts;
 
+    const TENDERMINT_BENCHMARK_ELF: &[u8] =
+        include_bytes!("../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf");
+
     #[test]
     fn test_e2e_fibonacci() {
         let elf = FIBONACCI_ELF;
@@ -57,10 +60,13 @@ mod tests {
     #[test]
     #[ignore]
     fn test_compress_tendermint() {
-        const TENDERMINT_BENCHMARK_ELF: &[u8] = include_bytes!(
-            "../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf"
-        );
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_core_tendermint() {
+        test_core_elf(TENDERMINT_BENCHMARK_ELF);
     }
 
     #[test]

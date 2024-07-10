@@ -21,6 +21,71 @@ namespace helpers {
 
 namespace opening_kernels {
 
+template<typename F, typename EF> __global__ void shiftedPowersKernel(
+    F* blockPowers, 
+    EF shift, 
+    Matrix<F> output, 
+    size_t n) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    uint32_t blockPower = blockIdx.x * blockDim.x;
+
+    F blockGenerator = blockPowers[1]^blockPower; 
+
+    if (idx >= n) return;
+
+    EF outputElement =  EF(blockGenerator * blockPowers[threadIdx.x]) * shift; 
+    for (size_t k = 0; k < EF::D; k++) {
+        output.values[k * output.height + idx] = outputElement.value[k];
+    }
+}
+
+template<typename F, typename EF> __global__ void foldEvenOddKernel(
+    Matrix<F> evaluations,
+    Matrix<F> inputLeaves,
+    Matrix<F> output,
+    Matrix<F> powers,
+    F oneHalf,
+    bool inputExists
+) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    size_t evenIdx = 2 * idx;
+    size_t oddIdx = 2 * idx + 1;
+
+    if (idx >= output.height) return;
+
+    EF r0Even, r0Odd, r1Even, r1Odd, evenPower, oddPower;
+    for (size_t k = 0 ; k < EF::D; k++) {
+        r0Even.value[k] = evaluations.values[k * evaluations.height + evenIdx];
+        r1Even.value[k] = evaluations.values[(k + EF::D) * evaluations.height + evenIdx];
+
+        r0Odd.value[k] = evaluations.values[k * evaluations.height + oddIdx];
+        r1Odd.value[k] = evaluations.values[(k + EF::D) * evaluations.height + oddIdx];
+
+        evenPower.value[k] = powers.values[k * powers.height + evenIdx];
+        oddPower.value[k] = powers.values[k * powers.height + oddIdx];
+    }
+
+    EF evenValue = (oneHalf + evenPower) * r0Even + (oneHalf - evenPower) * r1Even;
+    EF oddValue = (oneHalf + oddPower) * r0Odd + (oneHalf - oddPower) * r1Odd;
+
+    for (size_t k = 0 ; k < EF::D; k++) {
+
+        F outEven = evenValue.value[k];
+        F outOdd = oddValue.value[k];
+
+        if (inputExists) {
+            outEven = outEven + inputLeaves.values[k * inputLeaves.height + idx];
+            outOdd = outOdd + inputLeaves.values[(k + EF::D) * inputLeaves.height + idx];
+        }
+
+        output.values[k * output.height + idx] = outEven;
+        output.values[(k + EF::D) * output.height + idx] = outOdd;
+
+    }
+
+}
+
 __global__ void computeInverseDenominatorsKernel(
     size_t* invRowIndices,
     size_t* numsRows,
@@ -116,6 +181,7 @@ __global__ void interpolateCosetsKernel(
 
 __global__ void reducedOpeningsKernel(
     Matrix<bb31_t>* mats,
+    size_t* logHeights,
     bb31_extension_t* points,
     size_t* invIndices,
     bb31_extension_t* invDenoms,
@@ -123,7 +189,9 @@ __global__ void reducedOpeningsKernel(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t* openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings
+    bb31_extension_t* reducedOpenings,
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t pointIdx = blockIdx.y * blockDim.y + threadIdx.y;
@@ -150,38 +218,42 @@ __global__ void reducedOpeningsKernel(
 const size_t BLOCK_DIM = 256;
 const size_t COARSE_FACTOR = 1;
 
-__global__ void ReduceSumKernel(size_t * heights, size_t* invIndices, bb31_extension_t* reducedOpenings, bb31_extension_t* reducedSums ) {
+const size_t MAX_LOG_HEIGHT = 32;
 
-    size_t ptIdx = blockIdx.y * blockDim.y + threadIdx.y;
-    size_t height = heights[ptIdx];
-    size_t invIdx = invIndices[ptIdx];
+__global__ void ReduceSumKernel(
+        size_t* logHeights, 
+        size_t* invIndices,
+        bb31_extension_t* reducedOpenings, 
+        Matrix<bb31_t>* reducedLeaves,
+        size_t * heightIndices , size_t numPoints) {
 
-    size_t segment = COARSE_FACTOR * 2 * blockDim.x * blockIdx.x;
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    size_t idx = segment + threadIdx.x;
-    size_t tid = threadIdx.x;
+    bb31_extension_t evenSums[MAX_LOG_HEIGHT];
+    bb31_extension_t oddSums[MAX_LOG_HEIGHT];
 
-     if (idx >= height) return;
-
-    __shared__ bb31_extension_t input_s[BLOCK_DIM];
-
-    bb31_extension_t sum = bb31_extension_t::zero();
-    for (size_t tile = 0; tile < COARSE_FACTOR * 2; tile++) {
-        // sum += reducedOpenings[invIdx + idx + tile * BLOCK_DIM];
+    for (size_t i = 0; i < MAX_LOG_HEIGHT; i++) {
+        evenSums[i] = bb31_extension_t::zero();
+        oddSums[i] = bb31_extension_t::zero();
     }
 
-    input_s[tid] = sum;
-
-    #pragma unroll
-    for (size_t stride = BLOCK_DIM / 2; stride > 0; stride /= 2) {
-        __syncthreads();
-        if (tid < stride) {
-            input_s[tid] += input_s[tid + stride];
-        }
+    for (size_t i =0; i< numPoints; i++) {
+        size_t logHeight = logHeights[i];
+        size_t invIdx = invIndices[i];
+        if ((2 * idx + 1) >= (1 << logHeight)) continue;
+        evenSums[logHeight] += reducedOpenings[invIdx + 2 * idx];
+        oddSums[logHeight]  += reducedOpenings[invIdx + 2 * idx + 1];
     }
 
-    if (tid == 0) {
-        reducedSums[ptIdx * gridDim.x + blockIdx.x] = input_s[0];
+    for (size_t h = 0; h < MAX_LOG_HEIGHT; h++) { 
+        size_t heightIdx = heightIndices[h];
+        Matrix<bb31_t> leafMatrix = reducedLeaves[heightIdx];
+
+        if (idx >= leafMatrix.height) continue;
+        for (size_t k = 0; k < bb31_extension_t::D; k++) {
+            leafMatrix.values[k * leafMatrix.height + idx] = evenSums[h].value[k];
+            leafMatrix.values[(k + bb31_extension_t::D) * leafMatrix.height + idx] = oddSums[h].value[k];
+      }
     }
 } 
 
@@ -205,6 +277,17 @@ __global__ void batchMultiplicativeInverse(
 }  // namespace opening_kernels
 
 namespace opening_gpu {
+
+
+extern "C" void shiftedPowers(
+    bb31_t* blockPowers, 
+    bb31_extension_t shift, 
+    Matrix<bb31_t> output, 
+    size_t n, 
+    size_t numTheads,
+    size_t numBlocks) {
+    opening_kernels::shiftedPowersKernel<<<numBlocks, numTheads>>>(blockPowers, shift, output, n);
+}
 
 
 extern "C" void computeInverseDenominators(
@@ -267,6 +350,7 @@ extern "C" void interpolateCosets(
 
 extern "C" void computeReducedOpenings(
     Matrix<bb31_t>* mats,
+    size_t* logHeights,
     size_t maxHeight,
     bb31_extension_t* points,
     size_t numPoints,
@@ -276,7 +360,9 @@ extern "C" void computeReducedOpenings(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t * openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings
+    bb31_extension_t* reducedOpenings,
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices
 ) {
     size_t numThreads = 1024;
     size_t numBlocksX = (maxHeight - 1) / numThreads + 1; 
@@ -286,6 +372,7 @@ extern "C" void computeReducedOpenings(
 
     opening_kernels::reducedOpeningsKernel<<<gridDim, blockDim>>>(
         mats,
+        logHeights,
         points,
         invIndices,
         invDenoms,
@@ -293,7 +380,9 @@ extern "C" void computeReducedOpenings(
         alphaPowOffsets,
         openedValues,
         openedValuesIndices,
-        reducedOpenings
+        reducedOpenings,
+        reducedLeaves,
+        heightIndices
     );
 }
 
@@ -304,24 +393,24 @@ extern "C" size_t numBlocksSums(size_t maxHeight) {
 }
 
 extern "C" void ReduceSums(
-    size_t* heights,
+    size_t* logHeights,
     size_t maxHeight,
-    size_t numPoints,
     size_t * invIndices,
     bb31_extension_t* reducedOpenings,
-    bb31_extension_t* reducedSums
+    Matrix<bb31_t>* reducedLeaves,
+    size_t * heightIndices,
+    size_t numPoints
 ) {
-    size_t numThreads = opening_kernels::BLOCK_DIM;
-    size_t numBlocksX = ((maxHeight - 1) / (numThreads * opening_kernels::COARSE_FACTOR * 2)) + 1; 
+    size_t numThreads = 512;
+    size_t numBlocks = ((maxHeight / 2 ) - 1) / numThreads + 1;
 
-    dim3 blockDim(numThreads);
-    dim3 gridDim(numBlocksX, numPoints);
-
-    opening_kernels::ReduceSumKernel<<<gridDim, blockDim>>>(
-        heights,
+    opening_kernels::ReduceSumKernel<<<numBlocks, numThreads>>>(
+        logHeights,
         invIndices,
         reducedOpenings,
-        reducedSums
+        reducedLeaves,
+        heightIndices,
+        numPoints
     );
 }
 
@@ -344,4 +433,26 @@ extern "C" void batchMultiplicativeInverse(
         numElements
     );
 }
+
+extern "C" void foldEvenOdd(
+    Matrix<bb31_t> evaluations,
+    Matrix<bb31_t> inputLeaves,
+    Matrix<bb31_t> output,
+    Matrix<bb31_t> powers,
+    bb31_t oneHalf,
+    bool inputExists
+) {
+    size_t numThreads = 1024;
+    size_t numBlocks = (output.height - 1) / numThreads + 1;
+
+    opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads>>>(
+        evaluations,
+        inputLeaves,
+        output,
+        powers,
+        oneHalf,
+        inputExists
+    );
+}
+
 }  // namespace opening_gpu
