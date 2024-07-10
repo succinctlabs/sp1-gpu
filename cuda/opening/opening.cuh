@@ -27,23 +27,25 @@ template<typename F, typename EF> __global__ void shiftedPowersKernel(
     Matrix<F> output, 
     size_t n) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int blockPower = blockIdx.x * blockDim.x;
+    uint32_t blockPower = blockIdx.x * blockDim.x;
 
     F blockGenerator = blockPowers[1]^blockPower; 
 
-    if (idx < n) {
-        EF outputElement =  EF(blockGenerator * blockPowers[threadIdx.x]) * shift; 
-        for (size_t k = 0; k < EF::D; k++) {
-            output.values[k * output.height + idx] = outputElement.value[k];
-        }
+    if (idx >= n) return;
+
+    EF outputElement =  EF(blockGenerator * blockPowers[threadIdx.x]) * shift; 
+    for (size_t k = 0; k < EF::D; k++) {
+        output.values[k * output.height + idx] = outputElement.value[k];
     }
 }
 
 template<typename F, typename EF> __global__ void foldEvenOddKernel(
     Matrix<F> evaluations,
+    Matrix<F> inputLeaves,
     Matrix<F> output,
     Matrix<F> powers,
-    F oneHalf
+    F oneHalf,
+    bool inputExists
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -68,8 +70,18 @@ template<typename F, typename EF> __global__ void foldEvenOddKernel(
     EF oddValue = (oneHalf + oddPower) * r0Odd + (oneHalf - oddPower) * r1Odd;
 
     for (size_t k = 0 ; k < EF::D; k++) {
-        output.values[k * output.height + idx] = evenValue.value[k];
-        output.values[(k + EF::D) * output.height + idx] = oddValue.value[k];
+
+        F outEven = evenValue.value[k];
+        F outOdd = oddValue.value[k];
+
+        if (inputExists) {
+            outEven = outEven + inputLeaves.values[k * inputLeaves.height + idx];
+            outOdd = outOdd + inputLeaves.values[(k + EF::D) * inputLeaves.height + idx];
+        }
+
+        output.values[k * output.height + idx] = outEven;
+        output.values[(k + EF::D) * output.height + idx] = outOdd;
+
     }
 
 }
@@ -272,9 +284,9 @@ extern "C" void shiftedPowers(
     bb31_extension_t shift, 
     Matrix<bb31_t> output, 
     size_t n, 
-    size_t block_size, 
-    size_t grid_size) {
-    opening_kernels::shiftedPowersKernel<<<grid_size, block_size>>>(blockPowers, shift, output, n);
+    size_t numTheads,
+    size_t numBlocks) {
+    opening_kernels::shiftedPowersKernel<<<numBlocks, numTheads>>>(blockPowers, shift, output, n);
 }
 
 
@@ -424,18 +436,22 @@ extern "C" void batchMultiplicativeInverse(
 
 extern "C" void foldEvenOdd(
     Matrix<bb31_t> evaluations,
+    Matrix<bb31_t> inputLeaves,
     Matrix<bb31_t> output,
     Matrix<bb31_t> powers,
-    bb31_t oneHalf
+    bb31_t oneHalf,
+    bool inputExists
 ) {
     size_t numThreads = 1024;
     size_t numBlocks = (output.height - 1) / numThreads + 1;
 
     opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads>>>(
         evaluations,
+        inputLeaves,
         output,
         powers,
-        oneHalf
+        oneHalf,
+        inputExists
     );
 }
 

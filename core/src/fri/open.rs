@@ -44,6 +44,7 @@ use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::DeviceMatrix;
+use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
 use crate::stark::BabyBearPoseidon2Config;
@@ -342,7 +343,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             compute_reduced_openings_span.exit();
 
             let height_indices = height_indices.to_device();
-            println!("height_indices: {:?}", height_indices);
             unsafe {
                 opening_gpu::reduce_sums(
                     log_heights.as_ptr(),
@@ -525,9 +525,13 @@ pub fn prove(
     )
 }
 
-pub fn fold_even_odd(evaluations: ColMajorMatrixDevice<F>, beta: EF) -> ColMajorMatrixDevice<F> {
+pub fn fold_even_odd(
+    evaluations: ColMajorMatrixDevice<F>,
+    input_leaves: Option<ColMajorMatrixDevice<F>>,
+    beta: EF,
+) -> ColMajorMatrixDevice<F> {
     let mut output =
-        ColMajorMatrixDevice::with_capacity(evaluations.height() / 2, evaluations.width());
+        ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2);
 
     let g_inv = F::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
     let one_half = F::two().inverse();
@@ -537,12 +541,18 @@ pub fn fold_even_odd(evaluations: ColMajorMatrixDevice<F>, beta: EF) -> ColMajor
     powers.bit_reverse_rows().unwrap();
 
     unsafe {
+        let input_view = input_leaves
+            .as_ref()
+            .map(|leaves| leaves.view())
+            .unwrap_or(MatrixViewDevice::null(false));
         output.set_max_width();
         opening_gpu::fold_even_odd_raw(
             evaluations.view(),
+            input_view,
             output.view_mut(),
             powers.view(),
             BabyBear::two().inverse(),
+            input_leaves.is_some(),
         );
     }
 
@@ -552,10 +562,12 @@ pub fn fold_even_odd(evaluations: ColMajorMatrixDevice<F>, beta: EF) -> ColMajor
 pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
     let mut output = ColMajorMatrixDevice::with_capacity(<EF as AbstractExtensionField<F>>::D, n);
 
-    let block_size = 256;
-    let grid_size = n.div_ceil(block_size);
+    let num_threads = 256;
+    let num_blocks = n.div_ceil(num_threads);
 
-    let block_powers = g.powers().take(block_size).collect::<Vec<_>>().to_device();
+    assert!(num_blocks > 0);
+
+    let block_powers = g.powers().take(num_threads).collect::<Vec<_>>().to_device();
 
     unsafe {
         output.set_max_width();
@@ -564,8 +576,8 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
             shift,
             output.view_mut(),
             n,
-            block_size,
-            grid_size,
+            num_threads,
+            num_blocks,
         );
     }
 
@@ -583,34 +595,31 @@ pub fn commit_phase(
 
     let mut leaves_device = input_leaves.remove(&log_max_height).unwrap();
 
-    let current_device = leaves_device.to_host();
-
-    let first_input = RowMajorMatrix::new(current.clone(), 2);
-    let first_input_flattened = first_input.flatten_to_base::<F>();
-
-    assert_eq!(first_input_flattened.height(), current_device.height());
-    assert_eq!(first_input_flattened.width(), current_device.width());
-
-    for (i, (exp, val)) in first_input_flattened
-        .values
-        .iter()
-        .zip(current_device.values.iter())
-        .enumerate()
-    {
-        assert_eq!(exp, val, "first input mismatch at index {}", i);
-    }
-
     let mut commits = vec![];
     let mut data = vec![];
 
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
         let leaves = RowMajorMatrix::new(current.clone(), 2);
-        let leaves_flattened = leaves.flatten_to_base();
+        let leaves_flattened = leaves.flatten_to_base::<F>();
+
+        let current_device = leaves_device.to_host();
+
+        for (i, (exp, val)) in leaves_flattened
+            .values
+            .iter()
+            .zip(current_device.values.iter())
+            .enumerate()
+        {
+            assert_eq!(exp, val, "first input mismatch at index {}", i);
+        }
 
         let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(
             leaves_flattened.to_device().to_column_major(),
         )
         .unwrap()]);
+
+        // let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(leaves_device).unwrap()]);
+
         let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
         commits.push(commit);
@@ -619,17 +628,10 @@ pub fn commit_phase(
         let beta: EF = challenger.sample();
         current = fold_even_odd_host(current, beta);
 
+        let injected_input = input_leaves.remove(&log_folded_height);
+        leaves_device = fold_even_odd(leaves_device, injected_input, beta);
+
         if let Some(v) = &input[log_folded_height] {
-            let leaves = RowMajorMatrix::new(v.clone(), 2);
-            let leaves_flattened = leaves.flatten_to_base::<F>();
-            let leaves_device = input_leaves[&log_folded_height].to_host();
-            for (val, exp) in leaves_device
-                .values
-                .iter()
-                .zip(leaves_flattened.values.iter())
-            {
-                assert_eq!(exp, val);
-            }
             current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
         }
     }
@@ -718,8 +720,8 @@ pub mod opening_gpu {
             shift: EF,
             output: MatrixViewMutDevice<F>,
             n: usize,
-            block_size: usize,
-            grid_size: usize,
+            num_threads: usize,
+            num_blocks: usize,
         );
 
         #[link_name = "computeInverseDenominators"]
@@ -787,9 +789,11 @@ pub mod opening_gpu {
         #[link_name = "foldEvenOdd"]
         pub fn fold_even_odd_raw(
             evaluations: MatrixViewDevice<F>,
+            input_leaves: MatrixViewDevice<F>,
             output: MatrixViewMutDevice<F>,
             powers: MatrixViewDevice<F>,
             one_half: F,
+            input_exists: bool,
         );
     }
 }
