@@ -102,7 +102,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         // Interpolate cosets.
 
-        let interpolate_cosets_span = tracing::debug_span!("Interpolate cosets").entered();
+        let interpolate_cosets_span = tracing::trace_span!("Interpolate cosets").entered();
 
         // Values for coset interpolation.
         let shift = InnerVal::generator();
@@ -141,7 +141,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         }
         reduced_leaves.push(reduced_leaf);
 
-        let get_data_for_device_span = tracing::debug_span!("Get data for device").entered();
+        let get_data_for_device_span = tracing::trace_span!("Get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
             mats.iter()
                 .zip(points.iter())
@@ -288,20 +288,20 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         interpolate_cosets_span.exit();
 
-        let ys_out_host_span = tracing::debug_span!("ys_out_host").entered();
+        let ys_out_host_span = tracing::trace_span!("ys_out_host").entered();
         let ys_output = ys_output_buffer.to_host();
         ys_out_host_span.exit();
 
         assert_eq!(ys_output.len(), total_polys);
 
-        let compute_openings_span = tracing::debug_span!("Compute opened values").entered();
+        let compute_openings_span = tracing::trace_span!("Compute opened values").entered();
         let mut point_index = 0;
         let all_opened_values = {
             let mut reduced_openings_device = DeviceBuffer::<EF>::with_capacity(inv_offset);
 
             // Compute openings fused.
             let compute_reduced_openings_span =
-                tracing::debug_span!("Compute reduced openings on device").entered();
+                tracing::trace_span!("Compute reduced openings on device").entered();
             let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
             let log_heights = matrices_for_openings
                 .iter()
@@ -350,7 +350,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 );
             }
 
-            let copy_values_span = tracing::debug_span!("Copy opened values to host").entered();
+            let copy_values_span = tracing::trace_span!("Copy opened values to host").entered();
             let mut index = 0;
             let all_opened_values = mats_and_points
                 .into_iter()
@@ -389,10 +389,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .map(|(i, m)| (inverse_index_map[&i], m))
             .collect();
 
-        let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof")
+        let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
-        let query_openings_span = tracing::debug_span!("Compute query openings").entered();
+        let query_openings_span = tracing::trace_span!("Compute query openings").entered();
         let query_openings = query_indices
             .into_iter()
             .map(|index| {
