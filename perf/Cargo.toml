@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+sp1-prover = { workspace = true }
+sp1-core = { workspace = true }
+
+moongate-prover = { path = "../prover" }
