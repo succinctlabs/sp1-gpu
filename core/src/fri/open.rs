@@ -100,7 +100,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
 
-        let mut reduced_openings: [Option<Vec<SC::Challenge>>; 32] = core::array::from_fn(|_| None);
         let mut num_reduced = [0; 32];
 
         let compute_reduce_openings_span = trace_span!("Compute reduced openings").entered();
@@ -355,11 +354,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 );
             }
 
-            let copy_reduced_openings_span =
-                tracing::debug_span!("Copy reduced openings to host").entered();
-            let reduced_opening_host = reduced_openings_device.to_host();
-            copy_reduced_openings_span.exit();
-
             let copy_values_span = tracing::debug_span!("Copy opened values to host").entered();
             let mut index = 0;
             let all_opened_values = mats_and_points
@@ -368,29 +362,12 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     mats.into_iter()
                         .zip(points)
                         .map(|(mat, points_for_mat)| {
-                            let log_height = log2_strict_usize(mat.height);
-
                             let opened_values_for_mat = points_for_mat
                                 .iter()
                                 .map(|_| {
                                     let ys_host = ys_output[index..index + mat.width()].to_vec();
                                     index += mat.width();
-
-                                    let inv_index = inv_indices[point_index];
                                     point_index += 1;
-
-                                    let reduced_opening_for_log_height =
-                                        &reduced_opening_host[inv_index..inv_index + mat.height()];
-
-                                    let openings_at_height = reduced_openings[log_height]
-                                        .get_or_insert_with(|| {
-                                            vec![SC::Challenge::zero(); 1 << log_height]
-                                        });
-                                    for (i, x) in reduced_opening_for_log_height.iter().enumerate()
-                                    {
-                                        openings_at_height[i] += *x;
-                                    }
-
                                     ys_host
                                 })
                                 .collect::<Vec<_>>();
@@ -417,7 +394,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .collect();
 
         let (fri_proof, query_indices) = tracing::debug_span!("Fri Proof")
-            .in_scope(|| prove(pcs.fri_config(), &reduced_openings, leaves, challenger));
+            .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::debug_span!("Compute query openings").entered();
         let query_openings = query_indices
@@ -491,14 +468,13 @@ fn open_batch(
 
 pub fn prove(
     config: &FriConfig<ChallengeMmcs>,
-    input: &[Option<Vec<EF>>; 32],
-    input_leaves: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+    input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     challenger: &mut Challenger<SC>,
 ) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
-    let log_max_height = input.iter().rposition(Option::is_some).unwrap();
+    let log_max_height = input.keys().max().copied().unwrap();
 
     let commit_phase_result = trace_span!("Commit phase")
-        .in_scope(|| commit_phase(config, input, input_leaves, log_max_height, challenger));
+        .in_scope(|| commit_phase(config, input, log_max_height, challenger));
 
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
@@ -586,63 +562,37 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
 
 pub fn commit_phase(
     config: &FriConfig<ChallengeMmcs>,
-    input: &[Option<Vec<EF>>; 32],
-    mut input_leaves: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+    mut input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
 ) -> CommitPhaseResult {
-    let mut current = input[log_max_height].as_ref().unwrap().clone();
-
-    let mut leaves_device = input_leaves.remove(&log_max_height).unwrap();
+    let mut leaves = input.remove(&log_max_height).unwrap();
 
     let mut commits = vec![];
     let mut data = vec![];
 
     for log_folded_height in (config.log_blowup..log_max_height).rev() {
-        let leaves = RowMajorMatrix::new(current.clone(), 2);
-        let leaves_flattened = leaves.flatten_to_base::<F>();
-
-        let current_device = leaves_device.to_host();
-
-        for (i, (exp, val)) in leaves_flattened
-            .values
-            .iter()
-            .zip(current_device.values.iter())
-            .enumerate()
-        {
-            assert_eq!(exp, val, "first input mismatch at index {}", i);
-        }
-
-        let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(
-            leaves_flattened.to_device().to_column_major(),
-        )
-        .unwrap()]);
-
-        let temp = core::mem::replace(&mut leaves_device, ColMajorMatrixDevice::null());
+        let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
         let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(temp).unwrap()]);
         let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
 
         let beta: EF = challenger.sample();
-        current = fold_even_odd_host(current, beta);
 
-        let injected_input = input_leaves.remove(&log_folded_height);
-        leaves_device = fold_even_odd(&tree.leaves[0], injected_input, beta);
-
-        if let Some(v) = &input[log_folded_height] {
-            current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
-        }
+        let injected_input = input.remove(&log_folded_height);
+        leaves = fold_even_odd(&tree.leaves[0], injected_input, beta);
 
         commits.push(commit);
         data.push(tree);
     }
 
     // We should be left with `blowup` evaluations of a constant polynomial.
-    assert_eq!(current.len(), config.blowup());
-    let final_poly = current[0];
-    for x in current {
-        assert_eq!(x, final_poly);
-    }
+    let leaves = leaves.to_host();
+    assert_eq!(
+        leaves.values.len(),
+        config.blowup() * <EF as AbstractExtensionField<F>>::D
+    );
+    let final_poly = EF::from_base_slice(&leaves.values[0..<EF as AbstractExtensionField<F>>::D]);
     challenger.observe_ext_element(final_poly);
 
     CommitPhaseResult {
