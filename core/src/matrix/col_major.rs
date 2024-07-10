@@ -23,6 +23,13 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         Self { values, height }
     }
 
+    pub fn null() -> Self {
+        Self {
+            values: DeviceBuffer::with_capacity(0),
+            height: 0,
+        }
+    }
+
     pub fn with_capacity(width: usize, height: usize) -> Self {
         let buffer = DeviceBuffer::with_capacity(width * height);
         Self::new(buffer, height)
