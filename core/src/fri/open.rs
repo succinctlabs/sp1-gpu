@@ -526,7 +526,7 @@ pub fn prove(
 }
 
 pub fn fold_even_odd(
-    evaluations: ColMajorMatrixDevice<F>,
+    evaluations: &ColMajorMatrixDevice<F>,
     input_leaves: Option<ColMajorMatrixDevice<F>>,
     beta: EF,
 ) -> ColMajorMatrixDevice<F> {
@@ -618,22 +618,23 @@ pub fn commit_phase(
         )
         .unwrap()]);
 
-        // let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(leaves_device).unwrap()]);
-
+        let temp = core::mem::replace(&mut leaves_device, ColMajorMatrixDevice::null());
+        let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(temp).unwrap()]);
         let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
-        commits.push(commit);
-        data.push(tree);
 
         let beta: EF = challenger.sample();
         current = fold_even_odd_host(current, beta);
 
         let injected_input = input_leaves.remove(&log_folded_height);
-        leaves_device = fold_even_odd(leaves_device, injected_input, beta);
+        leaves_device = fold_even_odd(&tree.leaves[0], injected_input, beta);
 
         if let Some(v) = &input[log_folded_height] {
             current.iter_mut().zip_eq(v).for_each(|(c, v)| *c += *v);
         }
+
+        commits.push(commit);
+        data.push(tree);
     }
 
     // We should be left with `blowup` evaluations of a constant polynomial.
