@@ -18,17 +18,13 @@ use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
-use p3_fri::fold_even_odd as fold_even_odd_host;
 use p3_fri::CommitPhaseProofStep;
 use p3_fri::FriConfig;
 use p3_fri::FriProof;
 use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::Matrix;
 use p3_symmetric::Hash;
 use p3_util::log2_ceil_usize;
-use p3_util::reverse_slice_index_bits;
 
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
@@ -748,90 +744,3 @@ pub mod opening_gpu {
         );
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use crate::stark::tests::TENDERMINT_BENCHMARK_ELF;
-//     use crate::stark::StarkGpuProver;
-//     use p3_baby_bear::BabyBear;
-//     use p3_challenger::FieldChallenger;
-//     use p3_commit::Pcs;
-//     use p3_field::extension::BinomialExtensionField;
-
-//     use sp1_core::stark::MachineProver;
-//     use sp1_core::stark::StarkGenericConfig;
-//     use sp1_core::{
-//         runtime::Program,
-//         stark::{Challenge, RiscvAir},
-//         utils::BabyBearPoseidon2,
-//     };
-
-//     use crate::stark::tests::execute_core;
-//     type SC = BabyBearPoseidon2;
-//     use p3_commit::PolynomialSpace;
-
-//     use super::FriGpuOpeningProver;
-//     use crate::utils::init_tracer;
-
-//     type EF = BinomialExtensionField<BabyBear, 4>;
-
-//     #[test]
-//     #[ignore]
-//     fn test_opening_gpu() {
-//         let program = Program::from(TENDERMINT_BENCHMARK_ELF);
-
-//         let config = SC::default();
-//         let machine = RiscvAir::machine(config);
-//         let gpu_prover = StarkGpuProver::new(machine);
-
-//         // Execute the program.
-//         let record = execute_core(program);
-
-//         let open_prover = FriGpuOpeningProver::<SC>::default();
-
-//         init_tracer();
-
-//         let shards = gpu_prover.shard(record);
-
-//         for shard in shards {
-//             let gpu_main_data = gpu_prover.commit_main(&shard);
-
-//             let mut challenger = gpu_prover.machine.config().challenger();
-//             let zeta: Challenge<SC> = challenger.sample_ext_element();
-//             let trace_opening_points = gpu_main_data
-//                 .trace_data
-//                 .domains
-//                 .iter()
-//                 .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
-//                 .collect::<Vec<_>>();
-
-//             let pcs = gpu_prover.machine.config().pcs();
-//             let start = std::time::Instant::now();
-//             let (mut openings_gpu, opening_proof) = open_prover.open(
-//                 pcs,
-//                 vec![(&gpu_main_data.prover_data, trace_opening_points.clone())],
-//                 &mut challenger,
-//             );
-//             println!("device: time to open: {:?}", start.elapsed().as_secs_f64());
-
-//             let opening_gpu = openings_gpu.pop().unwrap();
-//             let mut challenger = gpu_prover.machine.config().challenger();
-//             let _zeta: Challenge<SC> = challenger.sample_ext_element();
-//             let domains_and_points = gpu_main_data
-//                 .trace_data
-//                 .domains
-//                 .iter()
-//                 .copied()
-//                 .zip(trace_opening_points)
-//                 .zip(opening_gpu)
-//                 .map(|((domain, point), opening)| {
-//                     (domain, point.into_iter().zip(opening).collect::<Vec<_>>())
-//                 })
-//                 .collect::<Vec<_>>();
-//             let verifier_rounds = vec![(gpu_main_data.commit, domains_and_points)];
-//             <<SC as StarkGenericConfig>::Pcs as Pcs<EF, <SC as StarkGenericConfig>::Challenger>>::verify(
-//                 pcs, verifier_rounds, &opening_proof, &mut challenger,
-//             ).unwrap();
-//         }
-//     }
-// }
