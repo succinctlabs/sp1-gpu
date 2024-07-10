@@ -7,8 +7,8 @@ use p3_challenger::{CanObserve, FieldChallenger};
 
 use itertools::Itertools;
 
-use tracing::debug;
-use tracing::debug_span;
+use tracing::{debug, info};
+use tracing::{debug_span, info_span};
 
 use p3_baby_bear::BabyBear;
 use p3_commit::PolynomialSpace;
@@ -142,10 +142,12 @@ where
 
     fn commit_main(&self, shard: &A::Record) -> GpuMainData<SC> {
         let time = std::time::Instant::now();
-        let host_trace_data = self
-            .trace_generator
-            .generate_main_traces(&self.machine, shard);
+        let host_trace_data = info_span!("generate_main_traces").in_scope(|| {
+            self.trace_generator
+                .generate_main_traces(&self.machine, shard)
+        });
         debug!("Time to generate main traces: {:?}", time.elapsed());
+
         // Copy main traces to the device.
         let time = CudaInstant::now().unwrap();
         let trace_data = host_trace_data.to_device();
@@ -198,7 +200,7 @@ where
             let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
             total_lde_size += stats.lde_memory_size(log_blowup);
         }
-        debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+        info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
         let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
 
@@ -215,6 +217,29 @@ where
         let permutation_traces = debug_span!("Generate permutation traces").in_scope(|| {
             self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
         })?;
+
+        info!(
+            "Shard: [{}]",
+            shard_chips
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
+        for (i, chip) in shard_chips.iter().enumerate() {
+            let width = traces[i].width();
+            let height = traces[i].height();
+            let permutation_width = permutation_traces[i].width();
+            let total_width = width + permutation_width;
+            info!(
+                "Chip {:<12}: {:>8} = {}W x {}H",
+                chip.name(),
+                total_width * height,
+                total_width,
+                height,
+            );
+        }
 
         // Commit to the permutation traces.
         let span = debug_span!("Commit to permutation traces").entered();
@@ -258,7 +283,7 @@ where
         // Compute quotient values.
 
         // Compute values
-        let quotient_values_span = debug_span!("Compute shard quotient values");
+        let quotient_values_span = info_span!("Compute shard quotient values");
         let guard = quotient_values_span.enter();
 
         let quotient_values = shard_chips
