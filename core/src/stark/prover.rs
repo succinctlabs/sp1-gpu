@@ -556,7 +556,7 @@ where
         let num_shards = shards.len();
 
         std::thread::scope(|s| {
-            let (tx, rx) = std::sync::mpsc::channel();
+            let (tx, rx) = std::sync::mpsc::channel::<(usize, CpuMainTraceData<SC>)>();
 
             let commits_handle = s.spawn(move || {
                 let mut commits =
