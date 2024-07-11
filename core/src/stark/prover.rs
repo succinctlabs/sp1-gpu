@@ -555,45 +555,54 @@ where
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
         let num_shards = shards.len();
 
-        let (tx, rx) = std::sync::mpsc::channel();
-        shards.par_iter().enumerate().for_each(|(i, shard)| {
-            let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
-                self.trace_generator
-                    .generate_main_traces(&self.machine, shard)
+        std::thread::scope(|s| {
+            let (tx, rx) = std::sync::mpsc::channel();
+
+            let commits_handle = s.spawn(move || {
+                let mut commits =
+                    vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
+                for (i, trace_data) in rx.iter() {
+                    // Print some statistics.
+                    let shard_chips = self
+                        .machine
+                        .shard_chips_ordered(&trace_data.chip_ordering)
+                        .collect::<Vec<_>>();
+
+                    // Print some statistics.
+                    let mut total_lde_size = 0;
+                    let log_blowup = self.committer.log_blowup();
+                    for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
+                        let height = domain.size();
+                        let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+                        total_lde_size += stats.lde_memory_size(log_blowup);
+                        debug!("{}", stats);
+                    }
+                    debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+                    let trace_data = trace_data.to_device();
+                    let (commit, _) = timed_debug!(
+                        "Committing main traces",
+                        self.commit_main_traces(&trace_data)
+                    );
+                    drop(trace_data);
+                    commits[i] = commit;
+                }
+                commits
             });
-            tx.send((i, host_trace_data)).unwrap();
-        });
-        drop(tx);
 
-        let mut commits = vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
-        for (i, trace_data) in rx.iter() {
-            // Print some statistics.
-            let shard_chips = self
-                .machine
-                .shard_chips_ordered(&trace_data.chip_ordering)
-                .collect::<Vec<_>>();
+            shards.par_iter().enumerate().for_each(|(i, shard)| {
+                let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
+                    self.trace_generator
+                        .generate_main_traces(&self.machine, shard)
+                });
+                tx.send((i, host_trace_data)).unwrap();
+            });
+            drop(tx);
 
-            // Print some statistics.
-            let mut total_lde_size = 0;
-            let log_blowup = self.committer.log_blowup();
-            for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
-                let height = domain.size();
-                let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-                total_lde_size += stats.lde_memory_size(log_blowup);
-                debug!("{}", stats);
-            }
-            debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-            let trace_data = trace_data.to_device();
-            let (commit, _) = timed_debug!(
-                "Committing main traces",
-                self.commit_main_traces(&trace_data)
-            );
-            drop(trace_data);
-            commits[i] = commit;
-        }
-        assert_eq!(commits.len(), num_shards);
+            let commits = commits_handle.join().unwrap();
+            assert_eq!(commits.len(), num_shards);
 
-        (commits, vec![])
+            (commits, vec![])
+        })
     }
 }
 
