@@ -2450,8 +2450,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2511,8 +2511,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2521,8 +2521,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -2534,8 +2534,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2569,8 +2569,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -2592,8 +2592,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -2617,8 +2617,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -2651,8 +2651,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2661,8 +2661,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2686,8 +2686,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-program"
-version = "0.0.0-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#621ac0422f2f561306758224e64d774ca68e63fb"
+version = "0.0.1-test"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#83fe3f8d6d3f7e986dcc6aeb7191c4746bfd6b1b"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
