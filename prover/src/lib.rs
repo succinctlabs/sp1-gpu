@@ -12,6 +12,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     opts.core_opts.shard_size = 1 << 21;
     opts.core_opts.shard_batch_size = 4;
     opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
+    opts.core_opts.shard_chunking_multiplier = 4;
 
     opts.recursion_opts.shard_chunking_multiplier = 8;
 
