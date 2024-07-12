@@ -11,18 +11,19 @@ template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n) {
     else {
        size_t block_dim = 512;
        size_t num_blocks = ceil(n / (float)block_dim);
-       T * scan_values;
+       T * scanValues;
        unsigned int * BlockCounter;
        unsigned int * flags;
        size_t flag_size = sizeof(unsigned int) * (num_blocks + 1);
-       CUDA_OK(cudaMalloc(&scan_values, sizeof(T) * (num_blocks + 1)));
-       CUDA_OK(cudaMemset(scan_values, 0, sizeof(T)));
+       CUDA_OK(cudaMalloc(&scanValues, sizeof(T) * (num_blocks + 1)));
+       CUDA_OK(cudaMemset(scanValues, 0, sizeof(T)));
        CUDA_OK(cudaMalloc(&BlockCounter, sizeof(unsigned int)));
        CUDA_OK(cudaMemset(BlockCounter, 0, sizeof(unsigned int)));
        CUDA_OK(cudaMalloc(&flags, flag_size));
        CUDA_OK(cudaMemset(flags, 0, flag_size));
        CUDA_OK(cudaMemset(flags, 1, sizeof(unsigned int)));
-       scan_kernels::Scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scan_values, BlockCounter, flags);
+       scan_kernels::Scan<<<num_blocks, block_dim>>>(d_out, d_in, n, scanValues, BlockCounter, flags);
+       CUDA_OK(cudaFree(scanValues));
        CUDA_OK(cudaFree(BlockCounter));
        CUDA_OK(cudaFree(flags));
     }
