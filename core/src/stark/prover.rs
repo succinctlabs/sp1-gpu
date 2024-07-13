@@ -1,5 +1,4 @@
 use hashbrown::HashMap;
-use p3_field::AbstractField;
 use rayon::prelude::*;
 
 use p3_air::Air;
@@ -19,6 +18,7 @@ use sp1_core::stark::AirOpenedValues;
 
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
+use sp1_core::stark::DebugConstraintBuilder;
 use sp1_core::stark::MachineProof;
 use sp1_core::stark::MachineProver;
 use sp1_core::stark::ShardCommitment;
@@ -502,33 +502,65 @@ where
         })
     }
 
-    fn prove_shards(
+    /// Prove the execution record is valid.
+    ///
+    /// Given a proving key `pk` and a matching execution record `record`, this function generates
+    /// a STARK proof that the execution record is valid.
+    fn prove(
         &self,
         pk: &StarkProvingKey<SC>,
-        shards: Vec<A::Record>,
+        mut records: Vec<A::Record>,
         challenger: &mut SC::Challenger,
-        opts: SP1CoreOpts,
-    ) -> Result<MachineProof<SC>, CudaError> {
+        opts: <A::Record as MachineRecord>::Config,
+    ) -> Result<MachineProof<SC>, Self::Error>
+    where
+        A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
+    {
+        let chips = self.machine().chips();
+        records.iter_mut().for_each(|record| {
+            chips.iter().for_each(|chip| {
+                let mut output = A::Record::default();
+                chip.generate_dependencies(record, &mut output);
+                record.append(&mut output);
+            });
+            record.register_nonces(&opts);
+        });
+
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
-        // Generate and commit the traces for each segment.
-        let (shard_commits, _) = self.commit_shards(&shards, opts);
+        // Save the public values for each shard.
+        let public_values = records
+            .iter()
+            .map(|record| record.public_values::<SC::Val>()[0..self.num_pv_elts()].to_vec())
+            .collect::<Vec<_>>();
+
+        // Generate and commit the traces for each shard.
+        let (shard_commits, shard_data) = self.commit_shards(records, opts);
 
         // Observe the challenges for each segment.
         tracing::debug_span!("observing all challenges").in_scope(|| {
             shard_commits
                 .into_iter()
-                .zip(shards.iter())
-                .for_each(|(commitment, shard)| {
+                .zip(public_values)
+                .for_each(|(commitment, pub_values)| {
                     challenger.observe(commitment);
-                    challenger.observe_slice(
-                        &shard.public_values::<SC::Val>()[0..self.machine.num_pv_elts()],
-                    );
+                    challenger.observe_slice(&pub_values);
                 });
         });
 
-        // Generate a proof for each segment. Note that we clone the challenger so we can observe
-        // identical global challenges across the segments.
+        let shard_proofs = tracing::info_span!("prove_shards")
+            .in_scope(|| self.prove_shards(pk, shard_data, challenger, opts))?;
+
+        Ok(MachineProof { shard_proofs })
+    }
+
+    fn prove_records(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        shards: Vec<A::Record>,
+        challenger: &mut SC::Challenger,
+        _opts: SP1CoreOpts,
+    ) -> Result<Vec<ShardProof<SC>>, CudaError> {
         let parent_span = tracing::debug_span!("prove shards");
         let shard_proofs = parent_span.in_scope(|| {
             shards
@@ -544,65 +576,82 @@ where
                 .collect::<Result<Vec<_>, CudaError>>()
         })?;
 
-        Ok(MachineProof { shard_proofs })
+        Ok(shard_proofs)
+    }
+
+    fn prove_shards(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        data: Vec<Self::ShardCommitData>,
+        challenger: &mut SC::Challenger,
+        _opts: SP1CoreOpts,
+    ) -> Result<Vec<ShardProof<SC>>, CudaError> {
+        let parent_span = tracing::debug_span!("prove shards");
+        let shard_proofs = parent_span.in_scope(|| {
+            data.into_iter()
+                .map(|trace_data| {
+                    tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
+                        let trace_data = trace_data.to_device();
+                        let (commit, prover_data) = self.commit_main_traces(&trace_data);
+                        let main_data = GpuMainData {
+                            trace_data,
+                            commit,
+                            prover_data,
+                        };
+                        self.prove_shard(pk, main_data, &mut challenger.clone())
+                    })
+                })
+                .collect::<Result<Vec<_>, CudaError>>()
+        })?;
+
+        Ok(shard_proofs)
     }
 
     /// Generates shard commitments and returns the commitments and traces.
     fn commit_shards(
         &self,
-        shards: &[A::Record],
+        shards: Vec<A::Record>,
         _opts: SP1CoreOpts,
     ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-        let num_shards = shards.len();
+        let gen_trace_span = tracing::debug_span!("Generate main traces").entered();
+        let trace_data = shards
+            .par_iter()
+            .map(|shard| {
+                self.trace_generator
+                    .generate_main_traces(&self.machine, shard)
+            })
+            .collect::<Vec<_>>();
+        gen_trace_span.exit();
 
-        std::thread::scope(|s| {
-            let (tx, rx) = std::sync::mpsc::channel::<(usize, CpuMainTraceData<SC>)>();
+        let commits = trace_data
+            .iter()
+            .map(|data| {
+                // Print some statistics.
+                let shard_chips = self
+                    .machine
+                    .shard_chips_ordered(&data.chip_ordering)
+                    .collect::<Vec<_>>();
 
-            let commits_handle = s.spawn(move || {
-                let mut commits =
-                    vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
-                for (i, trace_data) in rx.iter() {
-                    // Print some statistics.
-                    let shard_chips = self
-                        .machine
-                        .shard_chips_ordered(&trace_data.chip_ordering)
-                        .collect::<Vec<_>>();
-
-                    // Print some statistics.
-                    let mut total_lde_size = 0;
-                    let log_blowup = self.committer.log_blowup();
-                    for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
-                        let height = domain.size();
-                        let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-                        total_lde_size += stats.lde_memory_size(log_blowup);
-                        debug!("{}", stats);
-                    }
-                    debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-                    let trace_data = trace_data.to_device();
-                    let (commit, _) = timed_debug!(
-                        "Committing main traces",
-                        self.commit_main_traces(&trace_data)
-                    );
-                    drop(trace_data);
-                    commits[i] = commit;
+                // Print some statistics.
+                let mut total_lde_size = 0;
+                let log_blowup = self.committer.log_blowup();
+                for (chip, domain) in shard_chips.iter().zip(data.domains.iter()) {
+                    let height = domain.size();
+                    let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+                    total_lde_size += stats.lde_memory_size(log_blowup);
+                    debug!("{}", stats);
                 }
-                commits
-            });
+                debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+                let trace_data = data.to_device();
+                let (commit, _) = timed_debug!(
+                    "Committing main traces",
+                    self.commit_main_traces(&trace_data)
+                );
+                commit
+            })
+            .collect::<Vec<_>>();
 
-            shards.par_iter().enumerate().for_each(|(i, shard)| {
-                let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
-                    self.trace_generator
-                        .generate_main_traces(&self.machine, shard)
-                });
-                tx.send((i, host_trace_data)).unwrap();
-            });
-            drop(tx);
-
-            let commits = commits_handle.join().unwrap();
-            assert_eq!(commits.len(), num_shards);
-
-            (commits, vec![])
-        })
+        (commits, trace_data)
     }
 }
 
