@@ -148,29 +148,23 @@ where
         });
         debug!("Time to generate main traces: {:?}", time.elapsed());
 
-        crate::runtime::scope(|s| {
-            s.spawn(|| {
-                // Copy main traces to the device.
-                let time = CudaInstant::now().unwrap();
-                let trace_data = host_trace_data.to_device();
-                debug!(
-                    "Time to copy traces to device: {:?}",
-                    time.elapsed().unwrap()
-                );
-                // let time = CudaInstant::now().unwrap();
-                let (commit, prover_data) = timed_debug!(
-                    "Committing main traces",
-                    self.commit_main_traces(&trace_data)
-                );
-                GpuMainData {
-                    trace_data,
-                    commit,
-                    prover_data,
-                }
-            })
-            .sync_join()
-            .unwrap()
-        })
+        // Copy main traces to the device.
+        let time = CudaInstant::now().unwrap();
+        let trace_data = host_trace_data.to_device();
+        debug!(
+            "Time to copy traces to device: {:?}",
+            time.elapsed().unwrap()
+        );
+        // let time = CudaInstant::now().unwrap();
+        let (commit, prover_data) = timed_debug!(
+            "Committing main traces",
+            self.commit_main_traces(&trace_data)
+        );
+        GpuMainData {
+            trace_data,
+            commit,
+            prover_data,
+        }
     }
 
     fn prove_shard(
@@ -573,14 +567,31 @@ where
                 shards
                     .into_par_iter()
                     .map(|shard| {
-                        tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
-                            let data = debug_span!("commit shard").in_scope(|| {
-                                timed_debug!("Committing main traces", self.commit_main(&shard))
-                            });
-                            s.spawn(|| self.prove_shard(pk, data, &mut challenger.clone()))
+                        let mut challenger = challenger.clone();
+                        tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(
+                            move || {
+                                let trace_data = debug_span!("commit shard").in_scope(|| {
+                                    timed_debug!(
+                                        "Committing main traces",
+                                        self.trace_generator
+                                            .generate_main_traces(&self.machine, &shard)
+                                    )
+                                });
+                                s.spawn(move || {
+                                    let trace_data = trace_data.to_device();
+                                    let (commit, prover_data) =
+                                        self.commit_main_traces(&trace_data);
+                                    let main_data = GpuMainData {
+                                        trace_data,
+                                        commit,
+                                        prover_data,
+                                    };
+                                    self.prove_shard(pk, main_data, &mut challenger)
+                                })
                                 .sync_join()
                                 .unwrap()
-                        })
+                            },
+                        )
                     })
                     .collect::<Result<Vec<_>, CudaError>>()
             })?;
