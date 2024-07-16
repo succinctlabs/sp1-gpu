@@ -172,11 +172,7 @@ where
         scope(move |s| {
             s.spawn(move || {
                 let trace_data = trace_data.to_device();
-                // let time = CudaInstant::now().unwrap();
-                let (commit, prover_data) = timed_debug!(
-                    "Committing main traces",
-                    self.commit_main_traces(&trace_data)
-                );
+                let (commit, prover_data) = self.commit_main_traces(&trace_data);
                 let main_data = GpuMainData {
                     trace_data,
                     commit,
@@ -221,7 +217,23 @@ where
         scope(|s| {
             let shard_data: Vec<_> = records
                 .iter()
-                .map(|record| s.spawn(|| self.commit_main(record)).sync_join().unwrap())
+                .map(|record| {
+                    s.spawn(|| {
+                        let host_trace_data = info_span!("generate_main_traces").in_scope(|| {
+                            self.trace_generator
+                                .generate_main_traces(&self.machine, record)
+                        });
+
+                        // Copy main traces to the device.
+                        let trace_data = host_trace_data.to_device();
+                        // let time = CudaInstant::now().unwrap();
+                        let (commit, prover_data) = self.commit_main_traces(&trace_data);
+
+                        (commit, host_trace_data)
+                    })
+                    .sync_join()
+                    .unwrap()
+                })
                 .collect();
 
             // Observe the challenges for each segment.
@@ -229,8 +241,8 @@ where
                 shard_data
                     .iter()
                     .zip(records.iter())
-                    .for_each(|(shard_data, record)| {
-                        challenger.observe(shard_data.commit);
+                    .for_each(|((commit, _), record)| {
+                        challenger.observe(*commit);
                         challenger.observe_slice(
                             &record.public_values::<SC::Val>()[0..self.num_pv_elts()],
                         );
@@ -239,10 +251,20 @@ where
 
             let shard_proofs = shard_data
                 .into_iter()
-                .map(|data| {
-                    s.spawn(|| self.prove_shard(pk, data, &mut challenger.clone()))
-                        .sync_join()
-                        .unwrap()
+                .map(|(_, host_trace_data)| {
+                    let mut challenger = challenger.clone();
+                    s.spawn(move || {
+                        let trace_data = host_trace_data.to_device();
+                        let (commit, prover_data) = self.commit_main_traces(&trace_data);
+                        let main_data = GpuMainData {
+                            trace_data,
+                            commit,
+                            prover_data,
+                        };
+                        self.prove_shard(pk, main_data, &mut challenger)
+                    })
+                    .sync_join()
+                    .unwrap()
                 })
                 .collect::<Result<Vec<_>, CudaError>>()?;
 
