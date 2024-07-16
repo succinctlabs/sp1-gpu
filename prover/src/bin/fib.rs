@@ -1,5 +1,5 @@
-use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use moongate_core::utils::init_tracer;
+use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use sp1_core::{runtime::SP1Context, utils::tests::FIBONACCI_ELF};
 use sp1_prover::{SP1Prover, SP1Stdin};
