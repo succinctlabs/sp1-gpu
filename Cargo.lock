@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.5.2"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d08263faac5cde2a4d52b513dadb80846023aade56fcd8fc99ba73ba8050e92"
+checksum = "e9ec96fe9a81b5e365f9db71fe00edc4fe4ca2cc7dcb7861f0603012a7caa210"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -393,9 +393,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
-version = "1.1.2"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47de7e88bbbd467951ae7f5a6f34f70d1b4d9cfce53d5fd70f74ebe118b3db56"
+checksum = "324c74f2155653c90b04f25b2a47a8a631360cb908f92a772695f430c7e31052"
 
 [[package]]
 name = "cexpr"
@@ -2098,9 +2098,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c82cf8cff14456045f55ec4241383baeff27af886adb72ffb2162f99911de0fd"
+checksum = "2a908a6e00f1fdd0dfd9c0eb08ce85126f6d8bbda50017e74bc4a4b7d4a926a4"
 dependencies = [
  "bitflags",
 ]
@@ -2253,9 +2253,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.1.2"
+version = "2.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af947d0ca10a2f3e00c7ec1b515b7c83e5cb3fa62d4c11a64301d9eec54440e9"
+checksum = "a4465c22496331e20eb047ff46e7366455bc01c0c02015c4a376de0b2cd3a1af"
 dependencies = [
  "sdd",
 ]
@@ -2268,9 +2268,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sdd"
-version = "0.2.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b84345e4c9bd703274a082fb80caaa99b7612be48dfaa1dd9266577ec412309d"
+checksum = "1e806d6633ef141556fef75e345275e35652e9c045bbbc21e6ecfce3e9aa2638"
 
 [[package]]
 name = "sec1"
@@ -2325,9 +2325,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.8.3"
+version = "3.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e73139bc5ec2d45e6c5fd85be5a46949c1c39a4c18e56915f5eb4c12f975e377"
+checksum = "69cecfa94848272156ea67b2b1a53f20fc7bc638c4a46d2f8abde08f05f4b857"
 dependencies = [
  "base64",
  "chrono",
@@ -2343,9 +2343,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.8.3"
+version = "3.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b80d3d6b56b64335c0180e5ffde23b3c5e08c14c585b51a15bd0e95393f46703"
+checksum = "a8fee4991ef4f274617a51ad4af30519438dacb2f56ac773b08a1922ff743350"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2458,7 +2458,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2519,7 +2519,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2529,7 +2529,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -2542,7 +2542,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2578,7 +2578,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -2601,7 +2601,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -2626,7 +2626,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -2661,7 +2661,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2671,7 +2671,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2696,7 +2696,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.0.2-test"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#30c38faeba503be8d5ead75a243c52dde9a1f645"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/prove-utilization#deba05b516ee36950f034ebb67b2b73b85937821"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
