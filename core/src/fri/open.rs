@@ -389,6 +389,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .map(|(i, m)| (inverse_index_map[&i], m))
             .collect();
 
+        // START SECTION
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
@@ -421,6 +422,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 query_openings,
             },
         )
+        // END SECTION
     }
 }
 
@@ -435,6 +437,45 @@ fn open_batch(
     let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
     let log_max_height = log2_ceil_usize(max_height);
 
+    let widths: Vec<usize> = prover_data.leaves.iter().map(|m| m.width()).collect();
+    let total_width: usize = widths.iter().sum();
+    let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(total_width);
+    let max_width: usize = *widths.iter().max().unwrap();
+
+    let matrix_num = prover_data.leaves.len();
+    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrix_num);
+    let mut width_offsets: Vec<usize> = Vec::with_capacity(matrix_num);
+    
+    let mut current_offset = 0;
+    prover_data.leaves.iter().for_each(|matrix| {
+        matrix_views.push(matrix.view());
+        width_offsets.push(current_offset);
+        current_offset += matrix.width();
+    });
+
+    let matrix_views_device = matrix_views.to_device();
+    let width_offsets_device = width_offsets.to_device();
+    unsafe {
+        total_output_device.set_len(total_width);
+        opening_gpu::total_fetch_row(
+            matrix_views_device.as_ptr(),
+            width_offsets_device.as_ptr(),
+            matrix_num,
+            index,
+            log_max_height,
+            max_width,
+            total_output_device.as_mut_ptr(),
+        );
+    }
+    let total_output_host = total_output_device.to_host();
+
+    // Split the total_output_host into chunks corresponding to each matrix width - Use offsets for slicing
+    let openings: Vec<Vec<F>> = width_offsets.iter().enumerate().map(|(i, &offset)| {
+        let width = widths[i];
+        total_output_host[offset..offset + width].to_vec()
+    }).collect();
+
+/*
     let openings = prover_data
         .leaves
         .iter()
@@ -442,6 +483,15 @@ fn open_batch(
             let log2_height = log2_ceil_usize(matrix.height());
             let bits_reduced = log_max_height - log2_height;
             let reduced_index = index >> bits_reduced;
+            println!(
+                "matrix.height(): {}, log2_height: {}, bits_reduced: {}, index: {}, reduced_index: {}, matrix.width(): {}",
+                matrix.height(),
+                log2_height,
+                bits_reduced,
+                index,
+                reduced_index,
+                matrix.width()
+            );
             let mut output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(matrix.width());
             unsafe {
                 output_device.set_len(matrix.width());
@@ -451,6 +501,11 @@ fn open_batch(
         })
         .collect_vec();
 
+    println!("openings has {} elements.", openings.len());
+    for i in 0..openings.len() {
+        println!("vec {} has {} elements", i, openings[i].len());
+    }
+*/
     let proof = (0..log_max_height)
         .map(|i| {
             let start = (index >> i) ^ 1;
@@ -730,6 +785,17 @@ pub mod opening_gpu {
         #[link_name = "fetchRow"]
         pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
 
+        #[link_name = "fetchRowTotal"]
+        pub fn total_fetch_row(
+            matrix_ptr: *const MatrixViewDevice<F>, 
+            width_offsets: *const usize,
+            matrix_num: usize, 
+            index: usize, 
+            log_max_height: usize,
+            max_width: usize,
+            output: *mut F);
+
+        
         #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
 

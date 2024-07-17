@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <ntt/ntt.cuh>
 #include <cstdint>
+// #include <cmath>
 
 #include "../fields/bb31_extension_t.cuh"
 #include "../utils/exception.cuh"
@@ -268,7 +269,32 @@ __global__ void fetchRowParallel(Matrix<bb31_t> matrix, size_t index, bb31_t* ou
      if (idx >= matrix.width) {
         return;
      }
-     output[idx] = matrix.values[idx * matrix.height + index];   
+     output[idx] = matrix.values[idx * matrix.height + index];
+}
+
+__device__ size_t log2_ceil_usize(size_t x) {
+    float log2_val = __log2f(static_cast<float>(x));
+    return static_cast<size_t>(ceilf(log2_val));
+}
+
+__global__ void fetchRowTotal(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t index,
+    size_t log_max_height,
+    bb31_t* output
+) {
+    Matrix<bb31_t> matrix = matrix_ptr[blockIdx.y];
+    output += width_offsets[blockIdx.y];
+
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= matrix.width) {
+        return;
+    }
+
+    size_t log2_height = log2_ceil_usize(matrix.height);
+    size_t reduced_index = index >> (log_max_height - log2_height);
+    output[idx] = matrix.values[idx * matrix.height + reduced_index];
 }
 
 __global__ void batchMultiplicativeInverse(
@@ -433,6 +459,27 @@ extern "C" void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
     size_t gridDim = (matrix.width - 1) / blockDim + 1;
     opening_kernels::fetchRowParallel<<<gridDim, blockDim>>>(matrix, index, output);
 #endif
+}
+
+extern "C" void fetchRowTotal(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t matrix_num, 
+    size_t index, 
+    size_t log_max_height,
+    size_t max_width,
+    bb31_t* output
+) {
+    size_t blockDim = std::min(max_width, MAX_THREADS);
+    size_t numBlocksX = (max_width - 1) / blockDim + 1;
+    dim3 gridDim(numBlocksX, matrix_num);
+
+    opening_kernels::fetchRowTotal<<<gridDim, blockDim>>>(
+        matrix_ptr, 
+        width_offsets,
+        index, 
+        log_max_height, 
+        output);
 }
 
 extern "C" void batchMultiplicativeInverse(
