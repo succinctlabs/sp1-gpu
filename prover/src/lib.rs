@@ -12,8 +12,11 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     opts.core_opts.shard_size = 1 << 21;
     opts.core_opts.shard_batch_size = 4;
     opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
+    opts.core_opts.commit_stream_capacity = 16;
+    opts.core_opts.prove_stream_capacity = 4;
 
-    opts.recursion_opts.shard_batch_size = 1;
+    opts.recursion_opts.commit_stream_capacity = 8;
+    opts.recursion_opts.prove_stream_capacity = 8;
 
     opts
 }
@@ -29,7 +32,9 @@ mod tests {
     use crate::gpu_prover_opts;
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
-        include_bytes!("../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf");
+        include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
+
+    const RETH_ELF: &[u8] = include_bytes!("../../perf/programs/reth/riscv32im-succinct-zkvm-elf");
 
     #[test]
     fn test_e2e_fibonacci() {
@@ -72,16 +77,12 @@ mod tests {
     #[test]
     #[ignore]
     fn test_core_reth() {
-        const RETH_ELF: &[u8] =
-            include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
         test_core_elf(RETH_ELF);
     }
 
     #[test]
     #[ignore]
     fn test_compress_reth() {
-        const RETH_ELF: &[u8] =
-            include_bytes!("../../../zkvm-perf/programs/reth-sp1/elf/riscv32im-succinct-zkvm-elf");
         test_compress_elf(RETH_ELF);
     }
 }

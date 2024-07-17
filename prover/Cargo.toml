@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sp1-prover = { workspace = true }
-sp1-core = { workspace = true }
+sp1-core = { workspace = true, features = ["programs"] }
 tracing = "0.1.40"
 
 moongate-core = { path = "../core" }

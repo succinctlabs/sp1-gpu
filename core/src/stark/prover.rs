@@ -1,13 +1,11 @@
 use hashbrown::HashMap;
-use p3_field::AbstractField;
-use rayon::prelude::*;
 
 use p3_air::Air;
 use p3_challenger::{CanObserve, FieldChallenger};
 
 use itertools::Itertools;
 
-use tracing::{debug, info};
+use tracing::info;
 use tracing::{debug_span, info_span};
 
 use p3_baby_bear::BabyBear;
@@ -19,6 +17,7 @@ use sp1_core::stark::AirOpenedValues;
 
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
+use sp1_core::stark::DebugConstraintBuilder;
 use sp1_core::stark::MachineProof;
 use sp1_core::stark::MachineProver;
 use sp1_core::stark::ShardCommitment;
@@ -37,6 +36,7 @@ use air::P3EvalFolder;
 use tracing::trace_span;
 
 use crate::fri::FriGpuOpeningProver;
+use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::timed_debug;
@@ -118,9 +118,6 @@ where
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
 {
-    type MainData = GpuMainData<SC>;
-    type ShardCommitData = CpuMainTraceData<SC>;
-
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -140,39 +137,203 @@ where
         &self.machine
     }
 
-    fn commit_main(&self, shard: &A::Record) -> GpuMainData<SC> {
-        let time = std::time::Instant::now();
+    fn commit(&self, shard: &A::Record) -> Com<SC> {
         let host_trace_data = info_span!("generate_main_traces").in_scope(|| {
             self.trace_generator
                 .generate_main_traces(&self.machine, shard)
         });
-        debug!("Time to generate main traces: {:?}", time.elapsed());
 
-        // Copy main traces to the device.
-        let time = CudaInstant::now().unwrap();
-        let trace_data = host_trace_data.to_device();
-        debug!(
-            "Time to copy traces to device: {:?}",
-            time.elapsed().unwrap()
-        );
-        // let time = CudaInstant::now().unwrap();
-        let (commit, prover_data) = timed_debug!(
-            "Committing main traces",
-            self.commit_main_traces(&trace_data)
-        );
-        GpuMainData {
-            trace_data,
-            commit,
-            prover_data,
-        }
+        scope(|s| {
+            s.spawn(|| {
+                let trace_data = host_trace_data.to_device();
+                // let time = CudaInstant::now().unwrap();
+                let (commit, _) = timed_debug!(
+                    "Committing main traces",
+                    self.commit_main_traces(&trace_data)
+                );
+
+                commit
+            })
+            .sync_join()
+            .unwrap()
+        })
+    }
+
+    fn commit_and_open(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        record: A::Record,
+        challenger: &mut <SC as StarkGenericConfig>::Challenger,
+    ) -> Result<ShardProof<SC>, Self::Error> {
+        let trace_data = self
+            .trace_generator
+            .generate_main_traces(&self.machine, &record);
+
+        scope(move |s| {
+            s.spawn(move || {
+                let trace_data = trace_data.to_device();
+                let (commit, prover_data) = self.commit_main_traces(&trace_data);
+                let main_data = GpuMainData {
+                    trace_data,
+                    commit,
+                    prover_data,
+                };
+                self.prove_shard(pk, main_data, challenger)
+            })
+            .sync_join()
+            .unwrap()
+        })
+    }
+
+    /// Prove the execution record is valid.
+    ///
+    /// Given a proving key `pk` and a matching execution record `record`, this function generates
+    /// a STARK proof that the execution record is valid.
+    fn prove(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        mut records: Vec<A::Record>,
+        challenger: &mut SC::Challenger,
+        opts: <A::Record as MachineRecord>::Config,
+    ) -> Result<MachineProof<SC>, Self::Error>
+    where
+        A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
+    {
+        let chips = self.machine().chips();
+        records.iter_mut().for_each(|record| {
+            chips.iter().for_each(|chip| {
+                let mut output = A::Record::default();
+                chip.generate_dependencies(record, &mut output);
+                record.append(&mut output);
+            });
+            record.register_nonces(&opts);
+        });
+
+        // Observe the preprocessed commitment.
+        pk.observe_into(challenger);
+
+        // Generate and commit the traces for each shard.
+
+        scope(|s| {
+            let shard_data: Vec<_> = records
+                .iter()
+                .map(|record| {
+                    s.spawn(|| {
+                        let host_trace_data = info_span!("generate_main_traces").in_scope(|| {
+                            self.trace_generator
+                                .generate_main_traces(&self.machine, record)
+                        });
+
+                        // Copy main traces to the device.
+                        let trace_data = host_trace_data.to_device();
+                        // let time = CudaInstant::now().unwrap();
+                        let (commit, _) = self.commit_main_traces(&trace_data);
+
+                        (commit, host_trace_data)
+                    })
+                    .sync_join()
+                    .unwrap()
+                })
+                .collect();
+
+            // Observe the challenges for each segment.
+            tracing::debug_span!("observing all challenges").in_scope(|| {
+                shard_data
+                    .iter()
+                    .zip(records.iter())
+                    .for_each(|((commit, _), record)| {
+                        challenger.observe(*commit);
+                        challenger.observe_slice(
+                            &record.public_values::<SC::Val>()[0..self.num_pv_elts()],
+                        );
+                    });
+            });
+
+            let shard_proofs = shard_data
+                .into_iter()
+                .map(|(_, host_trace_data)| {
+                    let mut challenger = challenger.clone();
+                    s.spawn(move || {
+                        let trace_data = host_trace_data.to_device();
+                        let (commit, prover_data) = self.commit_main_traces(&trace_data);
+                        let main_data = GpuMainData {
+                            trace_data,
+                            commit,
+                            prover_data,
+                        };
+                        self.prove_shard(pk, main_data, &mut challenger)
+                    })
+                    .sync_join()
+                    .unwrap()
+                })
+                .collect::<Result<Vec<_>, CudaError>>()?;
+
+            Ok(MachineProof { shard_proofs })
+        })
+    }
+}
+
+impl<SC, A> StarkGpuProver<SC, A>
+where
+    SC: BabyBearPoseidon2Config,
+    A: for<'a> Air<P3EvalFolder<'a>>
+        + for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + MachineAir<BabyBear>,
+    A::Record: Sync,
+{
+    pub fn pcs(&self) -> &SC::Pcs {
+        self.machine.config().pcs()
+    }
+
+    pub fn generate_permutation_traces(
+        &self,
+        pk: &StarkProvingKey<SC>,
+        chips: &[&Chip<SC::Val, A>],
+        main_traces: &[GpuMatrix<SC::Val>],
+        random_elements: &[SC::Challenge],
+    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
+        chips
+            .iter()
+            .zip(main_traces.iter())
+            .map(|(chip, main_trace)| {
+                let preprocessed_trace = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| pk.traces[index].to_device().to_column_major());
+
+                let flatenned_trace = self
+                    .permutation_trace_generator
+                    .generate_flattened_permutation_trace(
+                        chip,
+                        preprocessed_trace.as_ref(),
+                        main_trace,
+                        random_elements,
+                    )?;
+                CudaSync::new(flatenned_trace)
+            })
+            .collect::<Result<Vec<_>, CudaError>>()
+    }
+
+    pub fn commit_main_traces(
+        &self,
+        trace_data: &GpuMainTraceData<SC>,
+    ) -> (Com<SC>, GpuProverData<SC>) {
+        let domains_and_traces = trace_data
+            .domains
+            .iter()
+            .copied()
+            .zip(trace_data.traces.iter())
+            .collect::<Vec<_>>();
+
+        self.committer.commit(&domains_and_traces)
     }
 
     fn prove_shard(
         &self,
         pk: &StarkProvingKey<SC>,
-        shard_data: Self::MainData,
+        shard_data: GpuMainData<SC>,
         challenger: &mut SC::Challenger,
-    ) -> Result<ShardProof<SC>, Self::Error> {
+    ) -> Result<ShardProof<SC>, CudaError> {
         let GpuMainData {
             trace_data: main_trace_data,
             commit: main_commit,
@@ -502,155 +663,80 @@ where
         })
     }
 
-    fn prove_shards(
-        &self,
-        pk: &StarkProvingKey<SC>,
-        shards: Vec<A::Record>,
-        challenger: &mut SC::Challenger,
-        opts: SP1CoreOpts,
-    ) -> Result<MachineProof<SC>, CudaError> {
-        // Observe the preprocessed commitment.
-        pk.observe_into(challenger);
-        // Generate and commit the traces for each segment.
-        let (shard_commits, _) = self.commit_shards(&shards, opts);
+    // fn prove_shards(
+    //     &self,
+    //     pk: &StarkProvingKey<SC>,
+    //     data: Vec<CpuMainTraceData<SC>>,
+    //     challenger: &mut SC::Challenger,
+    //     _opts: SP1CoreOpts,
+    // ) -> Result<Vec<ShardProof<SC>>, CudaError> {
+    //     let parent_span = tracing::debug_span!("prove shards");
+    //     let shard_proofs = parent_span.in_scope(|| {
+    //         data.into_iter()
+    //             .map(|trace_data| {
+    //                 tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
+    //                     let trace_data = trace_data.to_device();
+    //                     let (commit, prover_data) = self.commit_main_traces(&trace_data);
+    //                     let main_data = GpuMainData {
+    //                         trace_data,
+    //                         commit,
+    //                         prover_data,
+    //                     };
+    //                     self.prove_shard(pk, main_data, &mut challenger.clone())
+    //                 })
+    //             })
+    //             .collect::<Result<Vec<_>, CudaError>>()
+    //     })?;
 
-        // Observe the challenges for each segment.
-        tracing::debug_span!("observing all challenges").in_scope(|| {
-            shard_commits
-                .into_iter()
-                .zip(shards.iter())
-                .for_each(|(commitment, shard)| {
-                    challenger.observe(commitment);
-                    challenger.observe_slice(
-                        &shard.public_values::<SC::Val>()[0..self.machine.num_pv_elts()],
-                    );
-                });
-        });
+    //     Ok(shard_proofs)
+    // }
 
-        // Generate a proof for each segment. Note that we clone the challenger so we can observe
-        // identical global challenges across the segments.
-        let parent_span = tracing::debug_span!("prove shards");
-        let shard_proofs = parent_span.in_scope(|| {
-            shards
-                .into_iter()
-                .map(|shard| {
-                    tracing::debug_span!(parent: &parent_span, "prove shard").in_scope(|| {
-                        let data = debug_span!("commit shard").in_scope(|| {
-                            timed_debug!("Committing main traces", self.commit_main(&shard))
-                        });
-                        self.prove_shard(pk, data, &mut challenger.clone())
-                    })
-                })
-                .collect::<Result<Vec<_>, CudaError>>()
-        })?;
+    // /// Generates shard commitments and returns the commitments and traces.
+    // fn commit_shards(
+    //     &self,
+    //     shards: Vec<A::Record>,
+    //     _opts: SP1CoreOpts,
+    // ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
+    //     let gen_trace_span = tracing::debug_span!("Generate main traces").entered();
+    //     let trace_data = shards
+    //         .par_iter()
+    //         .map(|shard| {
+    //             self.trace_generator
+    //                 .generate_main_traces(&self.machine, shard)
+    //         })
+    //         .collect::<Vec<_>>();
+    //     gen_trace_span.exit();
 
-        Ok(MachineProof { shard_proofs })
-    }
+    //     let commits = trace_data
+    //         .iter()
+    //         .map(|data| {
+    //             // Print some statistics.
+    //             let shard_chips = self
+    //                 .machine
+    //                 .shard_chips_ordered(&data.chip_ordering)
+    //                 .collect::<Vec<_>>();
 
-    /// Generates shard commitments and returns the commitments and traces.
-    fn commit_shards(
-        &self,
-        shards: &[A::Record],
-        _opts: SP1CoreOpts,
-    ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-        let num_shards = shards.len();
+    //             // Print some statistics.
+    //             let mut total_lde_size = 0;
+    //             let log_blowup = self.committer.log_blowup();
+    //             for (chip, domain) in shard_chips.iter().zip(data.domains.iter()) {
+    //                 let height = domain.size();
+    //                 let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+    //                 total_lde_size += stats.lde_memory_size(log_blowup);
+    //                 debug!("{}", stats);
+    //             }
+    //             debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+    //             let trace_data = data.to_device();
+    //             let (commit, _) = timed_debug!(
+    //                 "Committing main traces",
+    //                 self.commit_main_traces(&trace_data)
+    //             );
+    //             commit
+    //         })
+    //         .collect::<Vec<_>>();
 
-        let (tx, rx) = std::sync::mpsc::channel();
-        shards.par_iter().enumerate().for_each(|(i, shard)| {
-            let host_trace_data = tracing::debug_span!("Generate main traces").in_scope(|| {
-                self.trace_generator
-                    .generate_main_traces(&self.machine, shard)
-            });
-            tx.send((i, host_trace_data)).unwrap();
-        });
-        drop(tx);
-
-        let mut commits = vec![Com::<SC>::from([BabyBear::zero(); DIGEST_WIDTH]); num_shards];
-        for (i, trace_data) in rx.iter() {
-            // Print some statistics.
-            let shard_chips = self
-                .machine
-                .shard_chips_ordered(&trace_data.chip_ordering)
-                .collect::<Vec<_>>();
-
-            // Print some statistics.
-            let mut total_lde_size = 0;
-            let log_blowup = self.committer.log_blowup();
-            for (chip, domain) in shard_chips.iter().zip(trace_data.domains.iter()) {
-                let height = domain.size();
-                let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-                total_lde_size += stats.lde_memory_size(log_blowup);
-                debug!("{}", stats);
-            }
-            debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-            let trace_data = trace_data.to_device();
-            let (commit, _) = timed_debug!(
-                "Committing main traces",
-                self.commit_main_traces(&trace_data)
-            );
-            drop(trace_data);
-            commits[i] = commit;
-        }
-        assert_eq!(commits.len(), num_shards);
-
-        (commits, vec![])
-    }
-}
-
-impl<SC, A> StarkGpuProver<SC, A>
-where
-    SC: BabyBearPoseidon2Config,
-    A: for<'a> Air<P3EvalFolder<'a>>
-        + for<'a> Air<ProverConstraintFolder<'a, SC>>
-        + MachineAir<BabyBear>,
-    A::Record: Sync,
-{
-    pub fn pcs(&self) -> &SC::Pcs {
-        self.machine.config().pcs()
-    }
-
-    pub fn generate_permutation_traces(
-        &self,
-        pk: &StarkProvingKey<SC>,
-        chips: &[&Chip<SC::Val, A>],
-        main_traces: &[GpuMatrix<SC::Val>],
-        random_elements: &[SC::Challenge],
-    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        chips
-            .iter()
-            .zip(main_traces.iter())
-            .map(|(chip, main_trace)| {
-                let preprocessed_trace = pk
-                    .chip_ordering
-                    .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().to_column_major());
-
-                let flatenned_trace = self
-                    .permutation_trace_generator
-                    .generate_flattened_permutation_trace(
-                        chip,
-                        preprocessed_trace.as_ref(),
-                        main_trace,
-                        random_elements,
-                    )?;
-                CudaSync::new(flatenned_trace)
-            })
-            .collect::<Result<Vec<_>, CudaError>>()
-    }
-
-    pub fn commit_main_traces(
-        &self,
-        trace_data: &GpuMainTraceData<SC>,
-    ) -> (Com<SC>, GpuProverData<SC>) {
-        let domains_and_traces = trace_data
-            .domains
-            .iter()
-            .copied()
-            .zip(trace_data.traces.iter())
-            .collect::<Vec<_>>();
-
-        self.committer.commit(&domains_and_traces)
-    }
+    //     (commits, trace_data)
+    // }
 }
 
 impl<SC> ToDevice for CpuMainTraceData<SC>
@@ -684,10 +770,6 @@ pub mod tests {
         },
     };
 
-    pub const TENDERMINT_BENCHMARK_ELF: &[u8] = include_bytes!(
-        "../../../../sp1/tests/tendermint-benchmark/elf/riscv32im-succinct-zkvm-elf"
-    );
-
     use crate::utils::init_tracer;
 
     use super::*;
@@ -712,16 +794,6 @@ pub mod tests {
     #[ignore]
     fn test_ssz_withdrawals_prove() {
         let program = Program::from(SSZ_WITHDRAWALS_ELF);
-
-        init_tracer();
-        // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    fn test_tendermint_benchmark_prove() {
-        let program = Program::from(TENDERMINT_BENCHMARK_ELF);
 
         init_tracer();
         // Execute the program.
