@@ -440,16 +440,16 @@ fn open_batch(
     let widths: Vec<usize> = prover_data.leaves.iter().map(|m| m.width()).collect();
     let total_width: usize = widths.iter().sum();
     let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(total_width);
-    let max_width: usize = *widths.iter().max().unwrap();
 
-    let matrix_num = prover_data.leaves.len();
-    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrix_num);
-    let mut width_offsets: Vec<usize> = Vec::with_capacity(matrix_num);
+    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_width);
+    let mut width_offsets: Vec<usize> = Vec::with_capacity(total_width);
+    let mut width_offsets_uniq: Vec<usize> = Vec::with_capacity(prover_data.leaves.len());
     
     let mut current_offset = 0;
     prover_data.leaves.iter().for_each(|matrix| {
-        matrix_views.push(matrix.view());
-        width_offsets.push(current_offset);
+        matrix_views.extend(std::iter::repeat(matrix.view()).take(matrix.width()));
+        width_offsets.extend(std::iter::repeat(current_offset).take(matrix.width()));
+        width_offsets_uniq.push(current_offset);
         current_offset += matrix.width();
     });
 
@@ -460,17 +460,16 @@ fn open_batch(
         opening_gpu::total_fetch_row(
             matrix_views_device.as_ptr(),
             width_offsets_device.as_ptr(),
-            matrix_num,
+            total_width,
             index,
             log_max_height,
-            max_width,
-            total_output_device.as_mut_ptr(),
+            total_output_device.as_mut_ptr()
         );
     }
     let total_output_host = total_output_device.to_host();
 
     // Split the total_output_host into chunks corresponding to each matrix width - Use offsets for slicing
-    let openings: Vec<Vec<F>> = width_offsets.iter().enumerate().map(|(i, &offset)| {
+    let openings: Vec<Vec<F>> = width_offsets_uniq.iter().enumerate().map(|(i, &offset)| {
         let width = widths[i];
         total_output_host[offset..offset + width].to_vec()
     }).collect();
@@ -787,15 +786,13 @@ pub mod opening_gpu {
 
         #[link_name = "fetchRowTotal"]
         pub fn total_fetch_row(
-            matrix_ptr: *const MatrixViewDevice<F>, 
+            matrix_ptr: *const MatrixViewDevice<F>,
             width_offsets: *const usize,
-            matrix_num: usize, 
+            total_width: usize,
             index: usize, 
             log_max_height: usize,
-            max_width: usize,
             output: *mut F);
 
-        
         #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
 
