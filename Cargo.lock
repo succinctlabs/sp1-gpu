@@ -1598,6 +1598,7 @@ dependencies = [
 name = "moongate-perf"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "csv",
  "moongate-core",
  "moongate-prover",
