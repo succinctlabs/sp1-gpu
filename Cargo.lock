@@ -2694,9 +2694,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sdd"
-version = "1.6.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eb0dde0ccd15e337a3cf738a9a38115c6d8e74795d074e73973dad3d229a897"
+checksum = "85f05a494052771fc5bd0619742363b5e24e5ad72ab3111ec2e27925b8edc5f3"
 
 [[package]]
 name = "sec1"
@@ -2903,11 +2903,7 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2968,11 +2964,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2982,11 +2974,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -2999,11 +2987,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "anyhow",
  "bincode",
@@ -3039,11 +3023,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3066,11 +3046,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3095,11 +3071,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3134,11 +3106,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3148,11 +3116,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "anyhow",
  "bincode",
@@ -3177,11 +3141,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "0.0.2-test"
-<<<<<<< HEAD
 source = "git+https://github.com/succinctlabs/sp1.git?branch=john/batch-size-3-v2#cd03e90bbf106fdc506190bbc36c621649d228e5"
-=======
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#6e92b1b1fb9a0969df1c50fcdea55ef408aa1315"
->>>>>>> origin/main
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
