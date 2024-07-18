@@ -276,10 +276,9 @@ __device__ size_t log2_ceil_usize(size_t x) {
     return static_cast<size_t>(ceilf(log2_val));
 }
 
-
-
 __global__ void fetchRowTotal(
     Matrix<bb31_t> *matrix_ptr,
+    size_t *matrix_idxs,
     size_t *width_offsets,
     size_t total_width,
     size_t index,
@@ -290,10 +289,11 @@ __global__ void fetchRowTotal(
     if (idx >= total_width) {
         return;
     }
-    Matrix<bb31_t> matrix = matrix_ptr[idx];
+    size_t matrix_idx = matrix_idxs[idx];
+    Matrix<bb31_t> matrix = matrix_ptr[matrix_idx];
     size_t log2_height = log2_ceil_usize(matrix.height);
     size_t reduced_index = index >> (log_max_height - log2_height);
-    output[idx] = matrix.values[(idx - width_offsets[idx]) * matrix.height + reduced_index];
+    output[idx] = matrix.values[(idx - width_offsets[matrix_idx]) * matrix.height + reduced_index];
 }
 
 __global__ void batchMultiplicativeInverse(
@@ -460,10 +460,9 @@ extern "C" void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
 #endif
 }
 
-
-
 extern "C" void fetchRowTotal(
     Matrix<bb31_t> *matrix_ptr,
+    size_t *matrix_idxs,
     size_t *width_offsets,
     size_t total_width, 
     size_t index, 
@@ -475,6 +474,7 @@ extern "C" void fetchRowTotal(
 
     opening_kernels::fetchRowTotal<<<gridDim, blockDim>>>(
         matrix_ptr,
+        matrix_idxs,
         width_offsets,
         total_width,
         index, 

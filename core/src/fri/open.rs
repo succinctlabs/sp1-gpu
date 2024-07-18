@@ -389,7 +389,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .map(|(i, m)| (inverse_index_map[&i], m))
             .collect();
 
-        // START SECTION
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
@@ -422,7 +421,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                 query_openings,
             },
         )
-        // END SECTION
     }
 }
 
@@ -441,24 +439,27 @@ fn open_batch(
     let total_width: usize = widths.iter().sum();
     let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(total_width);
 
-    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_width);
-    let mut width_offsets: Vec<usize> = Vec::with_capacity(total_width);
-    let mut width_offsets_uniq: Vec<usize> = Vec::with_capacity(prover_data.leaves.len());
+    let matrix_num = prover_data.leaves.len();
+    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrix_num);
+    let mut matrix_idxs: Vec<usize> = Vec::with_capacity(total_width);
+    let mut width_offsets: Vec<usize> = Vec::with_capacity(matrix_num);
     
     let mut current_offset = 0;
-    prover_data.leaves.iter().for_each(|matrix| {
-        matrix_views.extend(std::iter::repeat(matrix.view()).take(matrix.width()));
-        width_offsets.extend(std::iter::repeat(current_offset).take(matrix.width()));
-        width_offsets_uniq.push(current_offset);
+    prover_data.leaves.iter().enumerate().for_each(|(i, matrix)| {
+        matrix_views.push(matrix.view());
+        matrix_idxs.extend(std::iter::repeat(i).take(matrix.width()));
+        width_offsets.push(current_offset);
         current_offset += matrix.width();
     });
 
     let matrix_views_device = matrix_views.to_device();
+    let matrix_idxs_device = matrix_idxs.to_device();
     let width_offsets_device = width_offsets.to_device();
     unsafe {
         total_output_device.set_len(total_width);
         opening_gpu::total_fetch_row(
             matrix_views_device.as_ptr(),
+            matrix_idxs_device.as_ptr(),
             width_offsets_device.as_ptr(),
             total_width,
             index,
@@ -469,42 +470,11 @@ fn open_batch(
     let total_output_host = total_output_device.to_host();
 
     // Split the total_output_host into chunks corresponding to each matrix width - Use offsets for slicing
-    let openings: Vec<Vec<F>> = width_offsets_uniq.iter().enumerate().map(|(i, &offset)| {
+    let openings: Vec<Vec<F>> = width_offsets.iter().enumerate().map(|(i, &offset)| {
         let width = widths[i];
         total_output_host[offset..offset + width].to_vec()
     }).collect();
 
-/*
-    let openings = prover_data
-        .leaves
-        .iter()
-        .map(|matrix| {
-            let log2_height = log2_ceil_usize(matrix.height());
-            let bits_reduced = log_max_height - log2_height;
-            let reduced_index = index >> bits_reduced;
-            println!(
-                "matrix.height(): {}, log2_height: {}, bits_reduced: {}, index: {}, reduced_index: {}, matrix.width(): {}",
-                matrix.height(),
-                log2_height,
-                bits_reduced,
-                index,
-                reduced_index,
-                matrix.width()
-            );
-            let mut output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(matrix.width());
-            unsafe {
-                output_device.set_len(matrix.width());
-                opening_gpu::fetch_row(matrix.view(), reduced_index, output_device.as_mut_ptr());
-            }
-            output_device.to_host()
-        })
-        .collect_vec();
-
-    println!("openings has {} elements.", openings.len());
-    for i in 0..openings.len() {
-        println!("vec {} has {} elements", i, openings[i].len());
-    }
-*/
     let proof = (0..log_max_height)
         .map(|i| {
             let start = (index >> i) ^ 1;
@@ -787,6 +757,7 @@ pub mod opening_gpu {
         #[link_name = "fetchRowTotal"]
         pub fn total_fetch_row(
             matrix_ptr: *const MatrixViewDevice<F>,
+            matrix_idxs: *const usize,
             width_offsets: *const usize,
             total_width: usize,
             index: usize, 
