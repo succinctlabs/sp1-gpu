@@ -424,6 +424,16 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     }
 }
 
+/// 1. For each matrix in prover_data.leaves this function prepares
+/// * vector of matrix widths and it's offsets in output vec 
+///     offset[i] = sum(widths[j]), j = 0..i
+/// * vector of matrix views and corresponding indexes 
+///     matrix_idxs[thread_idx] = matrix idx
+///
+/// 2. Calculate sum of all widths to allocate proper output buffer (total_width)
+/// 3. Run kernel that take all matrices into one output buffer
+/// 4. Split output vector into Vec<Vec<>> using offsets
+/// 5. Copy proof to host (not changed) 
 fn open_batch(
     index: usize,
     prover_data: &FieldMerkleTreeGpu<
@@ -435,6 +445,7 @@ fn open_batch(
     let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
     let log_max_height = log2_ceil_usize(max_height);
 
+    // Calculate and allocate all vectors
     let widths: Vec<usize> = prover_data.leaves.iter().map(|m| m.width()).collect();
     let total_width: usize = widths.iter().sum();
     let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(total_width);
@@ -452,6 +463,7 @@ fn open_batch(
         current_offset += matrix.width();
     });
 
+    // Run kernel for all matrices
     let matrix_views_device = matrix_views.to_device();
     let matrix_idxs_device = matrix_idxs.to_device();
     let width_offsets_device = width_offsets.to_device();
@@ -469,7 +481,7 @@ fn open_batch(
     }
     let total_output_host = total_output_device.to_host();
 
-    // Split the total_output_host into chunks corresponding to each matrix width - Use offsets for slicing
+    // Split the total_output_host into chunks corresponding to each matrix width (Use offsets for slicing)
     let openings: Vec<Vec<F>> = width_offsets.iter().enumerate().map(|(i, &offset)| {
         let width = widths[i];
         total_output_host[offset..offset + width].to_vec()
