@@ -393,9 +393,10 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::trace_span!("Compute query openings").entered();
-        let query_openings = query_indices
+/*
+        let query_openings_data = query_indices
             .into_iter()
-            .map(|index| {
+            .map(|index|) {
                 rounds
                     .iter()
                     .map(|(data, _)| {
@@ -410,8 +411,110 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         }
                     })
                     .collect::<Vec<_>>()
+            }
+*/
+        
+        let matrices_per_rounds: usize = rounds.iter().map(|(data, _)| data.leaves.len()).sum();
+        let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrices_per_rounds);
+        let mut width_offsets: Vec<usize> = Vec::with_capacity(matrices_per_rounds+1);
+        let mut log2_max_heights: Vec<usize> = Vec::with_capacity(rounds.len());
+        let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(rounds.len());
+        let mut total_width = 0;
+        let mut data_matrix_offset = 0;
+        let mut max_width = 0;
+        rounds.iter().for_each(|(data, _)| {
+            let mut max_height = 0;           
+            data_matrix_offsets.push(data_matrix_offset);
+            data_matrix_offset += data.leaves.len();
+
+            data.leaves.iter().for_each(|matrix| {
+                matrix_views.push(matrix.view());
+                width_offsets.push(total_width);
+                let matrix_width = matrix.width();
+                total_width += matrix_width;
+                max_width = std::cmp::max(max_width, matrix_width);
+                max_height = std::cmp::max(max_height, matrix.height());
+            });
+            log2_max_heights.push(log2_ceil_usize(max_height));
+        });
+        width_offsets.push(total_width);
+        assert_eq!(data_matrix_offset, matrices_per_rounds);
+
+        let matrix_views_device = matrix_views.to_device();
+        let width_offsets_device = width_offsets.to_device();
+        let query_indices_device = query_indices.to_device();
+        
+        let query_indices_num = query_indices.len();
+        let output_capacity = total_width * query_indices_num;
+        let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(output_capacity);
+        unsafe {
+            total_output_device.set_len(output_capacity);
+            opening_gpu::calculate_openings(
+                matrix_views_device.as_ptr(),
+                width_offsets_device.as_ptr(),
+                query_indices_device.as_ptr(),
+                matrices_per_rounds,
+                total_width,
+                max_width,
+                query_indices_num,
+                log_global_max_height,
+                total_output_device.as_mut_ptr()
+            );
+        }
+        let total_output_host = total_output_device.to_host();
+
+        let query_openings = query_indices.into_iter().enumerate().map(|(index_i, index)| {
+            let index_offset = index_i * total_width;
+            rounds.iter().enumerate().map(|(data_i,(data, _))| {
+                let data_offset = data_matrix_offsets[data_i];
+                let openings: Vec<Vec<F>> = data.leaves.iter().enumerate().map(|(matrix_i, _)| {
+                    let start = index_offset + width_offsets[data_offset + matrix_i];
+                    let end	  = index_offset + width_offsets[data_offset + matrix_i + 1];
+                    total_output_host[start..end].to_vec()
+                }).collect();
+
+                let log_max_height = log2_max_heights[data_i];
+                let data_index = index >> (log_global_max_height - log_max_height);
+                let proof = (0..log_max_height)
+                    .map(|i| {
+                        let start = (data_index >> i) ^ 1;
+                        let end = start + 1;
+                        data.digest_layers[i][start..end].to_host()[0]
+                    }).collect();
+                BatchOpening::<SC::Val, InnerValMmcs> {
+                    opened_values: openings,
+                    opening_proof: proof,
+                }
+            }).collect::<Vec<_>>()
+        }).collect::<Vec<_>>();
+
+        
+/*
+        println!("rounds has data num = {}", rounds.len());
+        println!("rounds data lens = {:?}", rounds.iter().map(|(data, _)| data.leaves.len()).collect::<Vec<_>>());
+        println!("total matricex num = {}", rounds.iter().map(|(data, _)| data.leaves.len()).sum::<usize>());
+        let query_openings = query_indices
+            .into_iter()
+            .map(|index| {
+                rounds
+                    .iter()
+                    .map(|(data, _)| {
+                        // println!("data leaves num = {}", data.leaves.len());
+                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
+                        let log_max_height = log2_ceil_usize(max_height);
+                        let bits_reduced = log_global_max_height - log_max_height;
+                        let reduced_index = index >> bits_reduced;
+                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
+                        println!("opened_values = {:?}", opened_values);
+                        BatchOpening::<SC::Val, InnerValMmcs> {
+                            opened_values,
+                            opening_proof,
+                        }
+                    })
+                    .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+*/
         query_openings_span.exit();
 
         (
@@ -773,6 +876,18 @@ pub mod opening_gpu {
             width_offsets: *const usize,
             total_width: usize,
             index: usize, 
+            log_max_height: usize,
+            output: *mut F);
+        
+        #[link_name = "calculateOpenings"]
+        pub fn calculate_openings(
+            matrix_ptr: *const MatrixViewDevice<F>,
+            width_offsets: *const usize,
+            query_indices: *const usize,
+            total_matrices: usize,
+            total_width: usize,
+            max_width: usize,
+            total_indices: usize, 
             log_max_height: usize,
             output: *mut F);
 

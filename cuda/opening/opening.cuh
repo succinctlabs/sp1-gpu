@@ -296,6 +296,33 @@ __global__ void fetchRowTotal(
     output[idx] = matrix.values[(idx - width_offsets[matrix_idx]) * matrix.height + reduced_index];
 }
 
+__global__ void calculateOpenings(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t *query_indices,
+    size_t total_matrices,
+    size_t total_width, 
+    size_t total_indices,
+    size_t log_max_height,
+    bb31_t* output
+) {
+    size_t index_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index_idx >= total_indices) { return; }
+    size_t index = query_indices[index_idx];
+    output += index_idx * total_width;
+
+    size_t matrix_idx = blockIdx.y * blockDim.y + threadIdx.y;
+    if (matrix_idx >= total_matrices) { return; }
+    Matrix<bb31_t> matrix = matrix_ptr[matrix_idx];
+    size_t log_height = log2_ceil_usize(matrix.height);
+    size_t reduced_index = index >> (log_max_height - log_height);
+    output += width_offsets[matrix_idx];
+
+    size_t value_idx = blockIdx.z * blockDim.z + threadIdx.z;
+    if (value_idx >= matrix.width) { return; }
+    output[value_idx] = matrix.values[value_idx * matrix.height + reduced_index];
+}
+
 __global__ void batchMultiplicativeInverse(
     bb31_extension_t* input,
     bb31_extension_t* output,
@@ -481,6 +508,40 @@ extern "C" void fetchRowTotal(
         log_max_height, 
         output);
 }
+
+extern "C" void calculateOpenings(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t *query_indices,
+    size_t total_matrices,
+    size_t total_width, 
+    size_t max_width,
+    size_t total_indices,
+    size_t log_max_height,
+    bb31_t* output
+) {
+    dim3 blockDim(
+        std::min(total_indices,  static_cast<size_t>(64)),
+        std::min(total_matrices, static_cast<size_t>(4)),
+        std::min(max_width,      static_cast<size_t>(4))
+    );
+    dim3 gridDim(
+        (total_indices  - 1) / blockDim.x + 1,
+        (total_matrices - 1) / blockDim.y + 1,
+        (max_width      - 1) / blockDim.z + 1
+    );
+
+    opening_kernels::calculateOpenings<<<gridDim, blockDim>>>(
+        matrix_ptr,
+        width_offsets,
+        query_indices,
+        total_matrices,
+        total_width,
+        total_indices,
+        log_max_height,
+        output
+    );
+}       
 
 extern "C" void batchMultiplicativeInverse(
     bb31_extension_t* input,
