@@ -521,8 +521,8 @@ extern "C" void calculateOpenings(
     bb31_t* output
 ) {
     dim3 blockDim(
-        std::min(total_indices,  static_cast<size_t>(64)),
-        std::min(total_matrices, static_cast<size_t>(4)),
+        std::min(total_indices,  static_cast<size_t>(32)),
+        std::min(total_matrices, static_cast<size_t>(8)),
         std::min(max_width,      static_cast<size_t>(4))
     );
     dim3 gridDim(

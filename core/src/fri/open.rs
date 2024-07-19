@@ -6,6 +6,7 @@ use p3_challenger::FieldChallenger;
 use p3_field::two_adic_coset_zerofier;
 use p3_field::Field;
 use tracing::trace_span;
+use tracing::info_span;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -392,7 +393,8 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
-        let query_openings_span = tracing::trace_span!("Compute query openings").entered();
+        // let query_openings_span = tracing::trace_span!("Compute query openings").entered();
+        let query_openings_span = tracing::info_span!("Compute query openings").entered();
 /*
         let query_openings_data = query_indices
             .into_iter()
