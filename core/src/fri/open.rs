@@ -6,7 +6,6 @@ use p3_challenger::FieldChallenger;
 use p3_field::two_adic_coset_zerofier;
 use p3_field::Field;
 use tracing::trace_span;
-use tracing::info_span;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -393,28 +392,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
-        // let query_openings_span = tracing::trace_span!("Compute query openings").entered();
-        let query_openings_span = tracing::info_span!("Compute query openings").entered();
-/*
-        let query_openings_data = query_indices
-            .into_iter()
-            .map(|index|) {
-                rounds
-                    .iter()
-                    .map(|(data, _)| {
-                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
-                        let log_max_height = log2_ceil_usize(max_height);
-                        let bits_reduced = log_global_max_height - log_max_height;
-                        let reduced_index = index >> bits_reduced;
-                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        BatchOpening::<SC::Val, InnerValMmcs> {
-                            opened_values,
-                            opening_proof,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            }
-*/
+        let query_openings_span = tracing::trace_span!("Compute query openings").entered();
         
         let matrices_per_rounds: usize = rounds.iter().map(|(data, _)| data.leaves.len()).sum();
         let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrices_per_rounds);
@@ -490,33 +468,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>();
 
-        
-/*
-        println!("rounds has data num = {}", rounds.len());
-        println!("rounds data lens = {:?}", rounds.iter().map(|(data, _)| data.leaves.len()).collect::<Vec<_>>());
-        println!("total matricex num = {}", rounds.iter().map(|(data, _)| data.leaves.len()).sum::<usize>());
-        let query_openings = query_indices
-            .into_iter()
-            .map(|index| {
-                rounds
-                    .iter()
-                    .map(|(data, _)| {
-                        // println!("data leaves num = {}", data.leaves.len());
-                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
-                        let log_max_height = log2_ceil_usize(max_height);
-                        let bits_reduced = log_global_max_height - log_max_height;
-                        let reduced_index = index >> bits_reduced;
-                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        println!("opened_values = {:?}", opened_values);
-                        BatchOpening::<SC::Val, InnerValMmcs> {
-                            opened_values,
-                            opening_proof,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-*/
         query_openings_span.exit();
 
         (
@@ -529,16 +480,6 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     }
 }
 
-/// 1. For each matrix in prover_data.leaves this function prepares
-/// * vector of matrix widths and it's offsets in output vec 
-///     offset[i] = sum(widths[j]), j = 0..i
-/// * vector of matrix views and corresponding indexes 
-///     matrix_idxs[thread_idx] = matrix idx
-///
-/// 2. Calculate sum of all widths to allocate proper output buffer (total_width)
-/// 3. Run kernel that take all matrices into one output buffer
-/// 4. Split output vector into Vec<Vec<>> using offsets
-/// 5. Copy proof to host (not changed) 
 fn open_batch(
     index: usize,
     prover_data: &FieldMerkleTreeGpu<
@@ -547,6 +488,16 @@ fn open_batch(
         CudaSync<ColMajorMatrixDevice<BabyBear>>,
     >,
 ) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
+    // 1. For each matrix in prover_data.leaves this function prepares
+    // * vector of matrix widths and it's offsets in output vec 
+    //     offset[i] = sum(widths[j]), j = 0..i
+    // * vector of matrix views and corresponding indexes 
+    //     matrix_idxs[thread_idx] = matrix idx
+    //
+    // 2. Calculate sum of all widths to allocate proper output buffer (total_width)
+    // 3. Run kernel that take all matrices into one output buffer
+    // 4. Split output vector into Vec<Vec<>> using offsets
+    // 5. Copy proof to host (not changed) 
     let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
     let log_max_height = log2_ceil_usize(max_height);
 

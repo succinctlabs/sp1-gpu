@@ -308,18 +308,21 @@ __global__ void calculateOpenings(
 ) {
     size_t index_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (index_idx >= total_indices) { return; }
-    size_t index = query_indices[index_idx];
-    output += index_idx * total_width;
-
+    
     size_t matrix_idx = blockIdx.y * blockDim.y + threadIdx.y;
     if (matrix_idx >= total_matrices) { return; }
     Matrix<bb31_t> matrix = matrix_ptr[matrix_idx];
+    
+    size_t value_idx = blockIdx.z * blockDim.z + threadIdx.z;
+    if (value_idx >= matrix.width) { return; }
+    
+    size_t index = query_indices[index_idx];
+    output += index_idx * total_width;
+
     size_t log_height = log2_ceil_usize(matrix.height);
     size_t reduced_index = index >> (log_max_height - log_height);
     output += width_offsets[matrix_idx];
 
-    size_t value_idx = blockIdx.z * blockDim.z + threadIdx.z;
-    if (value_idx >= matrix.width) { return; }
     output[value_idx] = matrix.values[value_idx * matrix.height + reduced_index];
 }
 
@@ -523,7 +526,7 @@ extern "C" void calculateOpenings(
     dim3 blockDim(
         std::min(total_indices,  static_cast<size_t>(32)),
         std::min(total_matrices, static_cast<size_t>(8)),
-        std::min(max_width,      static_cast<size_t>(4))
+        std::min(max_width,      static_cast<size_t>(4)) 
     );
     dim3 gridDim(
         (total_indices  - 1) / blockDim.x + 1,
