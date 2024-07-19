@@ -578,12 +578,8 @@ where
         drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
-        let [
-            preprocessed_values,
-            main_values,
-            permutation_values,
-            mut quotient_values,
-        ] = openings.try_into().unwrap();
+        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+            openings.try_into().unwrap();
         assert!(main_values.len() == shard_chips.len());
         let preprocessed_opened_values = preprocessed_values
             .into_iter()
@@ -661,81 +657,6 @@ where
             public_values,
         })
     }
-
-    // fn prove_shards(
-    //     &self,
-    //     pk: &StarkProvingKey<SC>,
-    //     data: Vec<CpuMainTraceData<SC>>,
-    //     challenger: &mut SC::Challenger,
-    //     _opts: SP1CoreOpts,
-    // ) -> Result<Vec<ShardProof<SC>>, CudaError> {
-    //     let parent_span = tracing::info_span!("prove shards");
-    //     let shard_proofs = parent_span.in_scope(|| {
-    //         data.into_iter()
-    //             .map(|trace_data| {
-    //                 tracing::info_span!(parent: &parent_span, "prove shard").in_scope(|| {
-    //                     let trace_data = trace_data.to_device();
-    //                     let (commit, prover_data) = self.commit_main_traces(&trace_data);
-    //                     let main_data = GpuMainData {
-    //                         trace_data,
-    //                         commit,
-    //                         prover_data,
-    //                     };
-    //                     self.prove_shard(pk, main_data, &mut challenger.clone())
-    //                 })
-    //             })
-    //             .collect::<Result<Vec<_>, CudaError>>()
-    //     })?;
-
-    //     Ok(shard_proofs)
-    // }
-
-    // /// Generates shard commitments and returns the commitments and traces.
-    // fn commit_shards(
-    //     &self,
-    //     shards: Vec<A::Record>,
-    //     _opts: SP1CoreOpts,
-    // ) -> (Vec<Com<SC>>, Vec<CpuMainTraceData<SC>>) {
-    //     let gen_trace_span = tracing::info_span!("Generate main traces").entered();
-    //     let trace_data = shards
-    //         .par_iter()
-    //         .map(|shard| {
-    //             self.trace_generator
-    //                 .generate_main_traces(&self.machine, shard)
-    //         })
-    //         .collect::<Vec<_>>();
-    //     gen_trace_span.exit();
-
-    //     let commits = trace_data
-    //         .iter()
-    //         .map(|data| {
-    //             // Print some statistics.
-    //             let shard_chips = self
-    //                 .machine
-    //                 .shard_chips_ordered(&data.chip_ordering)
-    //                 .collect::<Vec<_>>();
-
-    //             // Print some statistics.
-    //             let mut total_lde_size = 0;
-    //             let log_blowup = self.committer.log_blowup();
-    //             for (chip, domain) in shard_chips.iter().zip(data.domains.iter()) {
-    //                 let height = domain.size();
-    //                 let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-    //                 total_lde_size += stats.lde_memory_size(log_blowup);
-    //                 debug!("{}", stats);
-    //             }
-    //             debug!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-    //             let trace_data = data.to_device();
-    //             let (commit, _) = timed_debug!(
-    //                 "Committing main traces",
-    //                 self.commit_main_traces(&trace_data)
-    //             );
-    //             commit
-    //         })
-    //         .collect::<Vec<_>>();
-
-    //     (commits, trace_data)
-    // }
 }
 
 impl<SC> ToDevice for CpuMainTraceData<SC>
