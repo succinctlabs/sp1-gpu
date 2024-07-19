@@ -438,7 +438,6 @@ where
                 })
             })
             .collect::<Vec<_>>();
-
         // Delete the ldes of the permutation prover data.
         if recompute_ldes {
             perm_prover_data.leaves.clear();
@@ -452,56 +451,19 @@ where
         // Compute quotient values.
 
         // Compute values
-
         let quotient_values = tracing::debug_span!("quotient").in_scope(|| {
-            let span = tracing::Span::current();
-            shard_chips
-                .iter()
-                .zip(traces.iter())
-                .zip(perm_domains_and_traces.iter())
-                .enumerate()
-                .map(|(i, ((chip, trace), (perm_domain, perm_trace)))| {
-                    let _span = span.enter();
-                    tracing::debug_span!("chip", chip = chip.name()).in_scope(|| {
-                        let cumulative_sums = cumulative_sums.as_slice();
-                        let public_values = public_values.as_slice();
-                        let permutation_challenges = permutation_challenges.as_slice();
-
-                        let trace_domain = perm_domain;
-                        let main_lde = tracing::debug_span!("main lde").in_scope(|| {
-                            self.committer.encode(*trace_domain, trace, false).unwrap()
-                        });
-                        let permutation_lde = tracing::debug_span!("perm lde").in_scope(|| {
-                            self.committer
-                                .encode(*perm_domain, perm_trace, false)
-                                .unwrap()
-                        });
-
-                        let preprocessed_index = pk.chip_ordering.get(&chip.name()).copied();
-                        let preprocessed_lde = preprocessed_index
-                            .map(|idx| pk.data.leaves[idx].to_device().to_column_major());
-
-                        let cumulative_sum = cumulative_sums[i];
-
-                        tracing::debug_span!("generate quotient values").in_scope(|| {
-                            self.quotient_generator
-                                .generate_quotient_values(
-                                    chip,
-                                    *trace_domain,
-                                    preprocessed_lde,
-                                    main_lde,
-                                    permutation_lde,
-                                    permutation_challenges,
-                                    folding_challenge,
-                                    public_values,
-                                    cumulative_sum,
-                                )
-                                .unwrap()
-                        })
-                    })
-                })
-                .collect::<Vec<_>>()
-        });
+            self.quotient_generator.generate_quotient_values(
+                &self.committer,
+                &shard_chips,
+                pk,
+                &traces,
+                &perm_domains_and_traces,
+                &permutation_challenges,
+                folding_challenge,
+                &public_values,
+                &cumulative_sums,
+            )
+        })?;
 
         // Commit to the quotient values
         let quotient_domains_and_chunks = quotient_values

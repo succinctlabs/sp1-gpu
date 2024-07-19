@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
-use p3_field::Field;
+use p3_field::{AbstractField, Field};
 use p3_symmetric::Hash;
 
 use crate::device::error::CudaError;
@@ -48,6 +48,28 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
                 shift,
                 bit_reversed,
             )?;
+
+            Ok(lde_mat)
+        }
+    }
+
+    pub fn get_evaluations_on_domain(
+        &self,
+        src_domain: TwoAdicMultiplicativeCoset<BabyBear>,
+        dst_domain: TwoAdicMultiplicativeCoset<BabyBear>,
+        matrix: &ColMajorMatrixDevice<BabyBear>,
+    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        // Domain assertions for the current usage. The code is supposed to work regardless but we
+        // keep them here for now since other usages are untested.
+        debug_assert!(src_domain.shift.is_one());
+        debug_assert_eq!(dst_domain.shift, BabyBear::generator());
+
+        let shift = dst_domain.shift * BabyBear::generator().inverse() * src_domain.shift.inverse();
+        let log_blowup = dst_domain.log_n - src_domain.log_n;
+        unsafe {
+            let mut lde_mat = matrix.embed_as_blowup(self.log_blowup)?;
+            self.dft
+                .coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
 
             Ok(lde_mat)
         }
