@@ -170,8 +170,6 @@ __global__ void computeValues(Operation *evalProgram,
         for (size_t k = 0; k < bb31_extension_t::D; k++) {
             quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
         }
-
-    // quotientValues[quotientIdx] = folder.accumulator * invZeroifier;
 }
 }  // namespace quotient_kernels
 
