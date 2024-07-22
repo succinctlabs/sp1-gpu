@@ -427,6 +427,13 @@ fn query_open_batch(
     log_global_max_height: usize,
     is_answering: bool,
 ) -> Vec<Vec<(Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>)>> {
+    // Function runs 1 kernel for all query indices and all matrices
+    // 
+    // 1st step: collect relevant data and calculate offsets based on matrix.width
+    // 2nd step: run kernel that returns one output buffer full of data:
+    //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
+    // 3rd step: slice buffer to proper structure
+    // Last step: calculate proofs for each data
     let total_matrices: usize = prover_datas.iter().map(|data| data.leaves.len()).sum();
     let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_matrices);
     let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices+1);

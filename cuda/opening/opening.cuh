@@ -455,6 +455,10 @@ extern "C" void calculateOpenings(
     bool is_answering,
     bb31_t* output
 ) {
+    // The idea of balancing thread count in blockDim based on 
+    // min and max possible amount of indices, matrices and width
+    // The efficient way of managing it: skipping blocks rather then
+    // threads inside a block (because of WARP parallelism)
     dim3 blockDim(
         std::min(total_indices,  static_cast<size_t>(32)),
         std::min(total_matrices, static_cast<size_t>(8)),
