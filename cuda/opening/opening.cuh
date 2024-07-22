@@ -201,7 +201,6 @@ __global__ void reducedOpeningsKernel(
     if (idx >= numRows) return;
 
     size_t invIdx = invIndices[pointIdx];
-    bb31_extension_t point = points[pointIdx];
     bb31_extension_t alphaPowOffset = alphaPowOffsets[pointIdx];
     size_t openValuesIdx = openedValuesIndices[pointIdx];
 
@@ -257,10 +256,39 @@ __global__ void ReduceSumKernel(
     }
 } 
 
-__global__ void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
-    for (size_t i = 0; i < matrix.width; i++) {
-        output[i] = matrix.values[i * matrix.height + index];
-    }
+__device__ size_t log2_ceil_usize(size_t x) {
+    float log2_val = __log2f(static_cast<float>(x));
+    return static_cast<size_t>(ceilf(log2_val));
+}
+
+__global__ void calculateOpenings(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t *query_indices,
+    size_t total_matrices,
+    size_t total_width, 
+    size_t total_indices,
+    size_t log_max_height,
+    bool is_answering,
+    bb31_t* output
+) {
+    size_t index_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index_idx >= total_indices) { return; }
+    
+    size_t matrix_idx = blockIdx.y * blockDim.y + threadIdx.y;
+    if (matrix_idx >= total_matrices) { return; }
+    Matrix<bb31_t> matrix = matrix_ptr[matrix_idx];
+    
+    size_t value_idx = blockIdx.z * blockDim.z + threadIdx.z;
+    if (value_idx >= matrix.width) { return; }
+    
+    size_t index = query_indices[index_idx];
+    output += index_idx * total_width + width_offsets[matrix_idx];
+
+    size_t bits_reduced = (is_answering) ?
+        (matrix_idx + 1) : 
+        (log_max_height - log2_ceil_usize(matrix.height));
+    output[value_idx] = matrix.values[value_idx * matrix.height + (index >> bits_reduced)];
 }
 
 __global__ void batchMultiplicativeInverse(
@@ -278,6 +306,7 @@ __global__ void batchMultiplicativeInverse(
 
 namespace opening_gpu {
 
+constexpr size_t MAX_THREADS = 1024;
 
 extern "C" void shiftedPowers(
     bb31_t* blockPowers, 
@@ -301,10 +330,10 @@ extern "C" void computeInverseDenominators(
     bb31_extension_t* points,
     bb31_extension_t* invDenoms
 ) {
-    size_t numThreads = 1024;
+    size_t numThreads = MAX_THREADS;
     size_t numBlocksX = (maxRows - 1) / numThreads + 1; 
 
-    dim3 blockDim(1024);
+    dim3 blockDim(numThreads);
     dim3 gridDim(numBlocksX, numPoints);
 
     opening_kernels::computeInverseDenominatorsKernel<<<gridDim, blockDim>>>(
@@ -364,10 +393,10 @@ extern "C" void computeReducedOpenings(
     Matrix<bb31_t>* reducedLeaves,
     size_t * heightIndices
 ) {
-    size_t numThreads = 1024;
+    size_t numThreads = MAX_THREADS;
     size_t numBlocksX = (maxHeight - 1) / numThreads + 1; 
 
-    dim3 blockDim(1024);
+    dim3 blockDim(numThreads);
     dim3 gridDim(numBlocksX, numPoints);
 
     opening_kernels::reducedOpeningsKernel<<<gridDim, blockDim>>>(
@@ -414,18 +443,52 @@ extern "C" void ReduceSums(
     );
 }
 
-extern "C" void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
-    dim3 gridDim(1);
-    dim3 blockDim(1);
-    opening_kernels::fetchRow<<<gridDim, blockDim>>>(matrix, index, output);
-}
+extern "C" void calculateOpenings(
+    Matrix<bb31_t> *matrix_ptr,
+    size_t *width_offsets,
+    size_t *query_indices,
+    size_t total_matrices,
+    size_t total_width, 
+    size_t max_width,
+    size_t total_indices,
+    size_t log_max_height,
+    bool is_answering,
+    bb31_t* output
+) {
+    // The idea of balancing thread count in blockDim based on 
+    // min and max possible amount of indices, matrices and width
+    // The efficient way of managing it: skipping blocks rather then
+    // threads inside a block (because of WARP parallelism)
+    dim3 blockDim(
+        std::min(total_indices,  static_cast<size_t>(32)),
+        std::min(total_matrices, static_cast<size_t>(8)),
+        std::min(max_width,      static_cast<size_t>(4)) 
+    );
+    dim3 gridDim(
+        (total_indices  - 1) / blockDim.x + 1,
+        (total_matrices - 1) / blockDim.y + 1,
+        (max_width      - 1) / blockDim.z + 1
+    );
+
+    opening_kernels::calculateOpenings<<<gridDim, blockDim>>>(
+        matrix_ptr,
+        width_offsets,
+        query_indices,
+        total_matrices,
+        total_width,
+        total_indices,
+        log_max_height,
+        is_answering,
+        output
+    );
+}       
 
 extern "C" void batchMultiplicativeInverse(
     bb31_extension_t* input,
     bb31_extension_t* output,
     size_t numElements
 ) {
-    size_t numThreads = 1024;
+    size_t numThreads = MAX_THREADS;
     size_t numBlocks = numElements / numThreads + 1;
     opening_kernels::batchMultiplicativeInverse<<<numBlocks, numThreads>>>(
         input,
@@ -442,7 +505,7 @@ extern "C" void foldEvenOdd(
     bb31_t oneHalf,
     bool inputExists
 ) {
-    size_t numThreads = 1024;
+    size_t numThreads = MAX_THREADS;
     size_t numBlocks = (output.height - 1) / numThreads + 1;
 
     opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads>>>(
