@@ -304,6 +304,7 @@ __global__ void calculateOpenings(
     size_t total_width, 
     size_t total_indices,
     size_t log_max_height,
+    bool is_answering,
     bb31_t* output
 ) {
     size_t index_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -319,11 +320,12 @@ __global__ void calculateOpenings(
     size_t index = query_indices[index_idx];
     output += index_idx * total_width;
 
-    size_t log_height = log2_ceil_usize(matrix.height);
-    size_t reduced_index = index >> (log_max_height - log_height);
+    size_t bits_reduced = (is_answering) ?
+        (matrix_idx + 1) : 
+        (log_max_height - log2_ceil_usize(matrix.height));
     output += width_offsets[matrix_idx];
 
-    output[value_idx] = matrix.values[value_idx * matrix.height + reduced_index];
+    output[value_idx] = matrix.values[value_idx * matrix.height + (index >> bits_reduced)];
 }
 
 __global__ void batchMultiplicativeInverse(
@@ -521,6 +523,7 @@ extern "C" void calculateOpenings(
     size_t max_width,
     size_t total_indices,
     size_t log_max_height,
+    bool is_answering,
     bb31_t* output
 ) {
     dim3 blockDim(
@@ -542,6 +545,7 @@ extern "C" void calculateOpenings(
         total_width,
         total_indices,
         log_max_height,
+        is_answering,
         output
     );
 }       
