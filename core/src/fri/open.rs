@@ -393,77 +393,17 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::trace_span!("Compute query openings").entered();
-        
-        let matrices_per_rounds: usize = rounds.iter().map(|(data, _)| data.leaves.len()).sum();
-        let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrices_per_rounds);
-        let mut width_offsets: Vec<usize> = Vec::with_capacity(matrices_per_rounds+1);
-        let mut log2_max_heights: Vec<usize> = Vec::with_capacity(rounds.len());
-        let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(rounds.len());
-        let mut total_width = 0;
-        let mut data_matrix_offset = 0;
-        let mut max_width = 0;
-        rounds.iter().for_each(|(data, _)| {
-            let mut max_height = 0;           
-            data_matrix_offsets.push(data_matrix_offset);
-            data_matrix_offset += data.leaves.len();
 
-            data.leaves.iter().for_each(|matrix| {
-                matrix_views.push(matrix.view());
-                width_offsets.push(total_width);
-                let matrix_width = matrix.width();
-                total_width += matrix_width;
-                max_width = std::cmp::max(max_width, matrix_width);
-                max_height = std::cmp::max(max_height, matrix.height());
-            });
-            log2_max_heights.push(log2_ceil_usize(max_height));
-        });
-        width_offsets.push(total_width);
-        assert_eq!(data_matrix_offset, matrices_per_rounds);
-
-        let matrix_views_device = matrix_views.to_device();
-        let width_offsets_device = width_offsets.to_device();
-        let query_indices_device = query_indices.to_device();
-        
-        let query_indices_num = query_indices.len();
-        let output_capacity = total_width * query_indices_num;
-        let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(output_capacity);
-        unsafe {
-            total_output_device.set_len(output_capacity);
-            opening_gpu::calculate_openings(
-                matrix_views_device.as_ptr(),
-                width_offsets_device.as_ptr(),
-                query_indices_device.as_ptr(),
-                matrices_per_rounds,
-                total_width,
-                max_width,
-                query_indices_num,
-                log_global_max_height,
-                total_output_device.as_mut_ptr()
-            );
-        }
-        let total_output_host = total_output_device.to_host();
-
-        let query_openings = query_indices.into_iter().enumerate().map(|(index_i, index)| {
-            let index_offset = index_i * total_width;
-            rounds.iter().enumerate().map(|(data_i,(data, _))| {
-                let data_offset = data_matrix_offsets[data_i];
-                let openings: Vec<Vec<F>> = data.leaves.iter().enumerate().map(|(matrix_i, _)| {
-                    let start = index_offset + width_offsets[data_offset + matrix_i];
-                    let end	  = index_offset + width_offsets[data_offset + matrix_i + 1];
-                    total_output_host[start..end].to_vec()
-                }).collect();
-
-                let log_max_height = log2_max_heights[data_i];
-                let data_index = index >> (log_global_max_height - log_max_height);
-                let proof = (0..log_max_height)
-                    .map(|i| {
-                        let start = (data_index >> i) ^ 1;
-                        let end = start + 1;
-                        data.digest_layers[i][start..end].to_host()[0]
-                    }).collect();
+        let query_openings_data = query_open_batch(
+            query_indices, 
+            rounds.iter().map(|(data, _)| *data).collect(),
+            log_global_max_height
+        );
+        let query_openings = query_openings_data.into_iter().map(|per_query| {
+            per_query.iter().map(|(openings, proof)| {
                 BatchOpening::<SC::Val, InnerValMmcs> {
-                    opened_values: openings,
-                    opening_proof: proof,
+                    opened_values: openings.to_vec(),
+                    opening_proof: proof.to_vec(),
                 }
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>();
@@ -478,6 +418,84 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             },
         )
     }
+}
+
+fn query_open_batch(
+    query_indices: Vec<usize>,
+    prover_datas: Vec<&GpuProverData<SC>>,
+    log_global_max_height: usize,
+) -> Vec<Vec<(Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>)>> {
+    let total_matrices: usize = prover_datas.iter().map(|data| data.leaves.len()).sum();
+    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_matrices);
+    let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices+1);
+    let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_datas.len());
+    let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_datas.len());
+    let mut total_width = 0;
+    let mut data_matrix_offset = 0;
+    let mut max_width = 0;
+    prover_datas.iter().for_each(|data| {
+        let mut max_height = 0;           
+        data_matrix_offsets.push(data_matrix_offset);
+        data_matrix_offset += data.leaves.len();
+
+        data.leaves.iter().for_each(|matrix| {
+            matrix_views.push(matrix.view());
+            width_offsets.push(total_width);
+            let matrix_width = matrix.width();
+            total_width += matrix_width;
+            max_width = std::cmp::max(max_width, matrix_width);
+            max_height = std::cmp::max(max_height, matrix.height());
+        });
+        log2_max_heights.push(log2_ceil_usize(max_height));
+    });
+    width_offsets.push(total_width);
+    assert_eq!(data_matrix_offset, total_matrices);
+
+    let matrix_views_device = matrix_views.to_device();
+    let width_offsets_device = width_offsets.to_device();
+    let query_indices_device = query_indices.to_device();
+    
+    let total_query_indices = query_indices.len();
+    let output_capacity = total_width * total_query_indices;
+    let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(output_capacity);
+    unsafe {
+        total_output_device.set_len(output_capacity);
+        opening_gpu::calculate_openings(
+            matrix_views_device.as_ptr(),
+            width_offsets_device.as_ptr(),
+            query_indices_device.as_ptr(),
+            total_matrices,
+            total_width,
+            max_width,
+            total_query_indices,
+            log_global_max_height,
+            total_output_device.as_mut_ptr()
+        );
+    }
+    let total_output_host = total_output_device.to_host();
+
+    query_indices.into_iter().enumerate().map(|(index_i, index)| {
+        let index_offset = index_i * total_width;
+        prover_datas.iter().enumerate().map(|(data_i, data)| {
+            let data_offset = data_matrix_offsets[data_i];
+            let openings: Vec<Vec<F>> = data.leaves.iter().enumerate().map(|(matrix_i, _)| {
+                let start = index_offset + width_offsets[data_offset + matrix_i];
+                let end	  = index_offset + width_offsets[data_offset + matrix_i + 1];
+                total_output_host[start..end].to_vec()
+            }).collect();
+
+            let log_max_height = log2_max_heights[data_i];
+            let data_index = index >> (log_global_max_height - log_max_height);
+            let proof = (0..log_max_height)
+                .map(|i| {
+                    let start = (data_index >> i) ^ 1;
+                    let end = start + 1;
+                    data.digest_layers[i][start..end].to_host()[0]
+                }).collect();
+
+            (openings, proof)
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>()
 }
 
 fn open_batch(
@@ -695,6 +713,8 @@ pub struct CommitPhaseResult {
     data: Vec<FieldMerkleTreeGpu<F, [F; DIGEST_WIDTH], CudaSync<ColMajorMatrixDevice<BabyBear>>>>,
     final_poly: EF,
 }
+
+
 
 #[allow(clippy::type_complexity)]
 pub fn answer_query(
