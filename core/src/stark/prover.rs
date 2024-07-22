@@ -14,6 +14,8 @@ use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::DebugConstraintBuilder;
@@ -30,6 +32,7 @@ use sp1_core::{
         StarkMachine, StarkProvingKey, Val,
     },
 };
+use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
@@ -133,11 +136,47 @@ where
         &self.machine
     }
 
-    fn commit(&self, shard: &A::Record) -> Com<SC> {
-        let host_trace_data = tracing::debug_span!("generate main traces").in_scope(|| {
-            self.trace_generator
-                .generate_main_traces(&self.machine, shard)
-        });
+    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+        let shard_chips = self.machine.shard_chips(record).collect::<Vec<_>>();
+
+        shard_chips
+            .par_iter()
+            .map(|chip| {
+                let trace = chip.generate_trace(record, &mut A::Record::default());
+                (chip.name(), trace)
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn commit(
+        &self,
+        shard: &A::Record,
+        mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+    ) -> Com<SC> {
+        let host_trace_data = {
+            // Order the chips and traces by trace size (biggest first), and get the ordering map.
+            named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+            // Get the chip ordering.
+            let chip_ordering = named_traces
+                .iter()
+                .enumerate()
+                .map(|(i, (name, _))| (name.to_owned(), i))
+                .collect();
+
+            let config = self.machine.config();
+            let (domains, traces): (Vec<_>, Vec<_>) = named_traces
+                .into_iter()
+                .map(|(_, trace)| (natural_domain_for_degree(config, trace.height()), trace))
+                .unzip();
+
+            MainTraceData {
+                traces,
+                domains,
+                chip_ordering,
+                public_values: shard.public_values(),
+            }
+        };
 
         let span = tracing::Span::current();
         scope(|s| {
@@ -160,12 +199,33 @@ where
         &self,
         pk: &StarkProvingKey<SC>,
         record: A::Record,
+        mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
         challenger: &mut <SC as StarkGenericConfig>::Challenger,
     ) -> Result<ShardProof<SC>, Self::Error> {
-        let trace_data = tracing::debug_span!("generate main traces").in_scope(|| {
-            self.trace_generator
-                .generate_main_traces(&self.machine, &record)
-        });
+        let trace_data = {
+            // Order the chips and traces by trace size (biggest first), and get the ordering map.
+            named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+            // Get the chip ordering.
+            let chip_ordering = named_traces
+                .iter()
+                .enumerate()
+                .map(|(i, (name, _))| (name.to_owned(), i))
+                .collect();
+
+            let config = self.machine.config();
+            let (domains, traces): (Vec<_>, Vec<_>) = named_traces
+                .into_iter()
+                .map(|(_, trace)| (natural_domain_for_degree(config, trace.height()), trace))
+                .unzip();
+
+            MainTraceData {
+                traces,
+                domains,
+                chip_ordering,
+                public_values: record.public_values(),
+            }
+        };
 
         let span = tracing::Span::current();
         scope(move |s| {

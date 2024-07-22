@@ -10,7 +10,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
     opts.core_opts.shard_size = 1 << 21;
-    opts.core_opts.shard_batch_size = 4;
+    opts.core_opts.shard_batch_size = 1;
     opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
     opts.core_opts.commit_stream_capacity = 16;
     opts.core_opts.prove_stream_capacity = 4;
