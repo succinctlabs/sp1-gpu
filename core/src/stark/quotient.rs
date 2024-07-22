@@ -110,6 +110,8 @@ where
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError> {
         let mut results = Vec::with_capacity(chips.len());
 
+        let permutation_challenges_device = permutation_challenges.to_device();
+        let public_values_device = public_values.to_device();
         for (i, chip) in chips.iter().enumerate() {
             // Get the evaluations on the quotient domain.
             let evaluations_span =
@@ -148,8 +150,7 @@ where
 
             // Move data to device and get generator powers.
             let generator_powers_span = trace_span!("Get generator powers").entered();
-            let permutation_challenges_device = permutation_challenges.to_device();
-            let public_values_device = public_values.to_device();
+
             let trace_domain_device = trace_domain.to_device();
             let quotient_domain_device = quotient_domain.to_device();
             let operations = self.get_eval_program(chip);
