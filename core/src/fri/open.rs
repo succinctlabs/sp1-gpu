@@ -396,15 +396,15 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         let query_openings_data = query_open_batch(
             &query_indices, 
-            rounds.iter().map(|(data, _)| *data).collect(),
+            &rounds.iter().map(|(data, _)| *data).collect::<Vec<_>>(),
             log_global_max_height,
             false
         );
         let query_openings = query_openings_data.into_iter().map(|per_query| {
-            per_query.iter().map(|(openings, proof)| {
+            per_query.into_iter().map(|(openings, proof)| {
                 BatchOpening::<SC::Val, InnerValMmcs> {
-                    opened_values: openings.to_vec(),
-                    opening_proof: proof.to_vec(),
+                    opened_values: openings,
+                    opening_proof: proof,
                 }
             }).collect::<Vec<_>>()
         }).collect::<Vec<_>>();
@@ -423,7 +423,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
 fn query_open_batch(
     query_indices: &[usize],
-    prover_datas: Vec<&GpuProverData<SC>>,
+    prover_datas: &[&GpuProverData<SC>],
     log_global_max_height: usize,
     is_answering: bool,
 ) -> Vec<Vec<(Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>)>> {
@@ -527,16 +527,16 @@ pub fn prove(
 
     let query_proofs_data = query_open_batch(
         &query_indices, 
-        commit_phase_result.data.iter().map(|commit| commit as &GpuProverData<SC>).collect(),
+        &commit_phase_result.data.iter().map(|commit| commit as &GpuProverData<SC>).collect::<Vec<_>>(),
         log_max_height,
         true
     );
-    let query_proofs = query_proofs_data.iter().enumerate().map(|(q, per_query)| {
-        let commit_phase_openings = per_query.iter().enumerate().map(|(i, (openings, proof))| {
+    let query_proofs = query_proofs_data.into_iter().enumerate().map(|(q, per_query)| {
+        let commit_phase_openings = per_query.into_iter().enumerate().map(|(i, (openings, proof))| {
             let index_i = query_indices[q] >> i;
             let index_i_sibling = index_i ^ 1;
 
-            let (mut opened_rows, opening_proof) = (openings.clone(), proof.clone());
+            let (mut opened_rows, opening_proof) = (openings, proof);
             assert_eq!(opened_rows.len(), 1);
 
             let opened_row = opened_rows.pop().unwrap();
