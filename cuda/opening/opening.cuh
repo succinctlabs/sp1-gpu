@@ -256,44 +256,9 @@ __global__ void ReduceSumKernel(
     }
 } 
 
-__global__ void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
-    for (size_t i = 0; i < matrix.width; i++) {
-        output[i] = matrix.values[i * matrix.height + index];
-    }
-}
-
-__global__ void fetchRowParallel(Matrix<bb31_t> matrix, size_t index, bb31_t* output) 
-{
-     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-     if (idx >= matrix.width) {
-        return;
-     }
-     output[idx] = matrix.values[idx * matrix.height + index];
-}
-
 __device__ size_t log2_ceil_usize(size_t x) {
     float log2_val = __log2f(static_cast<float>(x));
     return static_cast<size_t>(ceilf(log2_val));
-}
-
-__global__ void fetchRowTotal(
-    Matrix<bb31_t> *matrix_ptr,
-    size_t *matrix_idxs,
-    size_t *width_offsets,
-    size_t total_width,
-    size_t index,
-    size_t log_max_height,
-    bb31_t* output
-) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= total_width) {
-        return;
-    }
-    size_t matrix_idx = matrix_idxs[idx];
-    Matrix<bb31_t> matrix = matrix_ptr[matrix_idx];
-    size_t log2_height = log2_ceil_usize(matrix.height);
-    size_t reduced_index = index >> (log_max_height - log2_height);
-    output[idx] = matrix.values[(idx - width_offsets[matrix_idx]) * matrix.height + reduced_index];
 }
 
 __global__ void calculateOpenings(
@@ -318,13 +283,11 @@ __global__ void calculateOpenings(
     if (value_idx >= matrix.width) { return; }
     
     size_t index = query_indices[index_idx];
-    output += index_idx * total_width;
+    output += index_idx * total_width + width_offsets[matrix_idx];
 
     size_t bits_reduced = (is_answering) ?
         (matrix_idx + 1) : 
         (log_max_height - log2_ceil_usize(matrix.height));
-    output += width_offsets[matrix_idx];
-
     output[value_idx] = matrix.values[value_idx * matrix.height + (index >> bits_reduced)];
 }
 
@@ -478,40 +441,6 @@ extern "C" void ReduceSums(
         heightIndices,
         numPoints
     );
-}
-
-extern "C" void fetchRow(Matrix<bb31_t> matrix, size_t index, bb31_t* output) {
-#if 0
-    dim3 gridDim(1);
-    dim3 blockDim(1);
-    opening_kernels::fetchRow<<<gridDim, blockDim>>>(matrix, index, output);
-#else
-    size_t blockDim = std::min(matrix.width, MAX_THREADS);
-    size_t gridDim = (matrix.width - 1) / blockDim + 1;
-    opening_kernels::fetchRowParallel<<<gridDim, blockDim>>>(matrix, index, output);
-#endif
-}
-
-extern "C" void fetchRowTotal(
-    Matrix<bb31_t> *matrix_ptr,
-    size_t *matrix_idxs,
-    size_t *width_offsets,
-    size_t total_width, 
-    size_t index, 
-    size_t log_max_height,
-    bb31_t* output
-) {
-    size_t blockDim = std::min(total_width, MAX_THREADS);
-    size_t gridDim = (total_width - 1) / blockDim + 1;
-
-    opening_kernels::fetchRowTotal<<<gridDim, blockDim>>>(
-        matrix_ptr,
-        matrix_idxs,
-        width_offsets,
-        total_width,
-        index, 
-        log_max_height, 
-        output);
 }
 
 extern "C" void calculateOpenings(

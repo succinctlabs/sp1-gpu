@@ -506,80 +506,6 @@ fn query_open_batch(
     }).collect::<Vec<_>>()
 }
 
-fn open_batch(
-    index: usize,
-    prover_data: &FieldMerkleTreeGpu<
-        BabyBear,
-        [BabyBear; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >,
-) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
-    // 1. For each matrix in prover_data.leaves this function prepares
-    // * vector of matrix widths and it's offsets in output vec 
-    //     offset[i] = sum(widths[j]), j = 0..i
-    // * vector of matrix views and corresponding indexes 
-    //     matrix_idxs[thread_idx] = matrix idx
-    //
-    // 2. Calculate sum of all widths to allocate proper output buffer (total_width)
-    // 3. Run kernel that take all matrices into one output buffer
-    // 4. Split output vector into Vec<Vec<>> using offsets
-    // 5. Copy proof to host (not changed) 
-    let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
-    let log_max_height = log2_ceil_usize(max_height);
-
-    // Calculate and allocate all vectors
-    let widths: Vec<usize> = prover_data.leaves.iter().map(|m| m.width()).collect();
-    let total_width: usize = widths.iter().sum();
-    let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(total_width);
-
-    let matrix_num = prover_data.leaves.len();
-    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(matrix_num);
-    let mut matrix_idxs: Vec<usize> = Vec::with_capacity(total_width);
-    let mut width_offsets: Vec<usize> = Vec::with_capacity(matrix_num);
-    
-    let mut current_offset = 0;
-    prover_data.leaves.iter().enumerate().for_each(|(i, matrix)| {
-        matrix_views.push(matrix.view());
-        matrix_idxs.extend(std::iter::repeat(i).take(matrix.width()));
-        width_offsets.push(current_offset);
-        current_offset += matrix.width();
-    });
-
-    // Run kernel for all matrices
-    let matrix_views_device = matrix_views.to_device();
-    let matrix_idxs_device = matrix_idxs.to_device();
-    let width_offsets_device = width_offsets.to_device();
-    unsafe {
-        total_output_device.set_len(total_width);
-        opening_gpu::total_fetch_row(
-            matrix_views_device.as_ptr(),
-            matrix_idxs_device.as_ptr(),
-            width_offsets_device.as_ptr(),
-            total_width,
-            index,
-            log_max_height,
-            total_output_device.as_mut_ptr()
-        );
-    }
-    let total_output_host = total_output_device.to_host();
-
-    // Split the total_output_host into chunks corresponding to each matrix width (Use offsets for slicing)
-    let openings: Vec<Vec<F>> = width_offsets.iter().enumerate().map(|(i, &offset)| {
-        let width = widths[i];
-        total_output_host[offset..offset + width].to_vec()
-    }).collect();
-
-    let proof = (0..log_max_height)
-        .map(|i| {
-            let start = (index >> i) ^ 1;
-            let end = start + 1;
-            prover_data.digest_layers[i][start..end].to_host()[0]
-        })
-        .collect();
-
-    (openings, proof)
-}
-
 pub fn prove(
     config: &FriConfig<ChallengeMmcs>,
     input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
@@ -598,12 +524,7 @@ pub fn prove(
         .collect();
 
     let query_proofs_span = trace_span!("Compute query proofs").entered();
-/*
-    let query_proofs = query_indices
-        .iter()
-        .map(|&index| answer_query(&commit_phase_result.data, index))
-        .collect::<Vec<_>>();
-*/
+
     let query_proofs_data = query_open_batch(
         &query_indices, 
         commit_phase_result.data.iter().map(|commit| commit as &GpuProverData<SC>).collect(),
@@ -756,44 +677,6 @@ pub struct CommitPhaseResult {
     final_poly: EF,
 }
 
-#[allow(clippy::type_complexity)]
-pub fn answer_query(
-    commit_phase_commits: &[FieldMerkleTreeGpu<
-        F,
-        [F; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >],
-    index: usize,
-) -> QueryProof<EF, ChallengeMmcs> {
-    let commit_phase_openings = commit_phase_commits
-        .iter()
-        .enumerate()
-        .map(|(i, commit)| {
-            let index_i = index >> i;
-            let index_i_sibling = index_i ^ 1;
-            let index_pair = index_i >> 1;
-
-            let (mut opened_rows, opening_proof) = open_batch(index_pair, commit);
-            assert_eq!(opened_rows.len(), 1);
-            let opened_row = opened_rows.pop().unwrap();
-            let opened_row_ext = (0..opened_row.len() / 4)
-                .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
-                .collect::<Vec<_>>();
-            assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
-            let sibling_value = opened_row_ext[index_i_sibling % 2];
-
-            CommitPhaseProofStep {
-                sibling_value,
-                opening_proof,
-            }
-        })
-        .collect();
-
-    QueryProof {
-        commit_phase_openings,
-    }
-}
-
 impl<SC> Default for FriGpuOpeningProver<SC> {
     fn default() -> Self {
         Self(PhantomData)
@@ -878,20 +761,7 @@ pub mod opening_gpu {
 
         #[link_name = "numBlocksSums"]
         pub fn num_block_sums(max_height: usize) -> usize;
-
-        #[link_name = "fetchRow"]
-        pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
-
-        #[link_name = "fetchRowTotal"]
-        pub fn total_fetch_row(
-            matrix_ptr: *const MatrixViewDevice<F>,
-            matrix_idxs: *const usize,
-            width_offsets: *const usize,
-            total_width: usize,
-            index: usize, 
-            log_max_height: usize,
-            output: *mut F);
-        
+    
         #[link_name = "calculateOpenings"]
         pub fn calculate_openings(
             matrix_ptr: *const MatrixViewDevice<F>,
