@@ -393,25 +393,14 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::trace_span!("Compute query openings").entered();
-        let query_openings = query_indices
-            .into_iter()
-            .map(|index| {
-                rounds
-                    .iter()
-                    .map(|(data, _)| {
-                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
-                        let log_max_height = log2_ceil_usize(max_height);
-                        let bits_reduced = log_global_max_height - log_max_height;
-                        let reduced_index = index >> bits_reduced;
-                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        BatchOpening::<SC::Val, InnerValMmcs> {
-                            opened_values,
-                            opening_proof,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+
+        let query_openings = query_open_batch(
+            &query_indices,
+            &rounds.iter().map(|(data, _)| *data).collect::<Vec<_>>(),
+            log_global_max_height,
+            false,
+        );
+
         query_openings_span.exit();
 
         (
@@ -424,42 +413,113 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     }
 }
 
-fn open_batch(
-    index: usize,
-    prover_data: &FieldMerkleTreeGpu<
-        BabyBear,
-        [BabyBear; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >,
-) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
-    let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
-    let log_max_height = log2_ceil_usize(max_height);
+fn query_open_batch(
+    query_indices: &[usize],
+    prover_data_slice: &[&GpuProverData<SC>],
+    log_global_max_height: usize,
+    is_answering: bool,
+) -> Vec<Vec<BatchOpening<BabyBear, InnerValMmcs>>> {
+    // Function runs one kernel for all query indices and all matrices.
+    //
+    // 1. Collect relevant data and calculate offsets based on matrix.width.
+    // 2. Run kernel that returns one output buffer full of data:
+    //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
+    // 3. Slice buffer to proper structure.
+    // 4. Calculate proofs for each data.
+    let total_matrices: usize = prover_data_slice.iter().map(|data| data.leaves.len()).sum();
+    let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_matrices);
+    let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
+    let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+    let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+    let mut total_width = 0;
+    let mut data_matrix_offset = 0;
+    let mut max_width = 0;
+    prover_data_slice.iter().for_each(|data| {
+        let mut max_height = 0;
+        data_matrix_offsets.push(data_matrix_offset);
+        data_matrix_offset += data.leaves.len();
 
-    let openings = prover_data
-        .leaves
+        data.leaves.iter().for_each(|matrix| {
+            matrix_views.push(matrix.view());
+            width_offsets.push(total_width);
+            let matrix_width = matrix.width();
+            total_width += matrix_width;
+            max_width = std::cmp::max(max_width, matrix_width);
+            max_height = std::cmp::max(max_height, matrix.height());
+        });
+        log2_max_heights.push(log2_ceil_usize(max_height));
+    });
+    width_offsets.push(total_width);
+    assert_eq!(data_matrix_offset, total_matrices);
+
+    let matrix_views_device = matrix_views.to_device();
+    let width_offsets_device = width_offsets.to_device();
+    let query_indices_device = query_indices.to_vec().to_device();
+
+    let total_query_indices = query_indices_device.len();
+    let output_capacity = total_width * total_query_indices;
+    let mut total_output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(output_capacity);
+    unsafe {
+        total_output_device.set_len(output_capacity);
+        opening_gpu::calculate_openings(
+            matrix_views_device.as_ptr(),
+            width_offsets_device.as_ptr(),
+            query_indices_device.as_ptr(),
+            total_matrices,
+            total_width,
+            max_width,
+            total_query_indices,
+            log_global_max_height,
+            is_answering,
+            total_output_device.as_mut_ptr(),
+        );
+    }
+    let total_output_host = total_output_device.to_host();
+
+    query_indices
         .iter()
-        .map(|matrix| {
-            let log2_height = log2_ceil_usize(matrix.height());
-            let bits_reduced = log_max_height - log2_height;
-            let reduced_index = index >> bits_reduced;
-            let mut output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(matrix.width());
-            unsafe {
-                output_device.set_len(matrix.width());
-                opening_gpu::fetch_row(matrix.view(), reduced_index, output_device.as_mut_ptr());
-            }
-            output_device.to_host()
-        })
-        .collect_vec();
+        .enumerate()
+        .map(|(index_i, &index)| {
+            let index_offset = index_i * total_width;
+            prover_data_slice
+                .iter()
+                .enumerate()
+                .map(|(data_i, data)| {
+                    let data_offset = data_matrix_offsets[data_i];
+                    let openings: Vec<Vec<F>> = data
+                        .leaves
+                        .iter()
+                        .enumerate()
+                        .map(|(matrix_i, _)| {
+                            let start = index_offset + width_offsets[data_offset + matrix_i];
+                            let end = index_offset + width_offsets[data_offset + matrix_i + 1];
+                            total_output_host[start..end].to_vec()
+                        })
+                        .collect();
 
-    let proof = (0..log_max_height)
-        .map(|i| {
-            let start = (index >> i) ^ 1;
-            let end = start + 1;
-            prover_data.digest_layers[i][start..end].to_host()[0]
-        })
-        .collect();
+                    let log_max_height = log2_max_heights[data_i];
+                    let bits_reduced = if is_answering {
+                        data_i + 1
+                    } else {
+                        log_global_max_height - log_max_height
+                    };
+                    let data_index = index >> bits_reduced;
+                    let proof = (0..log_max_height)
+                        .map(|i| {
+                            let start = (data_index >> i) ^ 1;
+                            let end = start + 1;
+                            data.digest_layers[i][start..end].to_host()[0]
+                        })
+                        .collect();
 
-    (openings, proof)
+                    BatchOpening::<BabyBear, InnerValMmcs> {
+                        opened_values: openings,
+                        opening_proof: proof,
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
 }
 
 pub fn prove(
@@ -480,10 +540,55 @@ pub fn prove(
         .collect();
 
     let query_proofs_span = trace_span!("Compute query proofs").entered();
-    let query_proofs = query_indices
-        .iter()
-        .map(|&index| answer_query(&commit_phase_result.data, index))
+
+    let query_proofs_data = query_open_batch(
+        &query_indices,
+        &commit_phase_result
+            .data
+            .iter()
+            .map(|commit| commit as &GpuProverData<SC>)
+            .collect::<Vec<_>>(),
+        log_max_height,
+        true,
+    );
+    let query_proofs = query_proofs_data
+        .into_iter()
+        .enumerate()
+        .map(|(q, per_query)| {
+            let commit_phase_openings = per_query
+                .into_iter()
+                .enumerate()
+                .map(|(i, batch_opening)| {
+                    let BatchOpening {
+                        opened_values,
+                        opening_proof,
+                    } = batch_opening;
+                    let index_i = query_indices[q] >> i;
+                    let index_i_sibling = index_i ^ 1;
+
+                    let (mut opened_rows, opening_proof) = (opened_values, opening_proof);
+                    assert_eq!(opened_rows.len(), 1);
+
+                    let opened_row = opened_rows.pop().unwrap();
+                    let opened_row_ext = (0..opened_row.len() / 4)
+                        .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
+                        .collect::<Vec<_>>();
+                    assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
+                    let sibling_value = opened_row_ext[index_i_sibling % 2];
+
+                    CommitPhaseProofStep {
+                        sibling_value,
+                        opening_proof,
+                    }
+                })
+                .collect();
+
+            QueryProof {
+                commit_phase_openings,
+            }
+        })
         .collect::<Vec<_>>();
+
     query_proofs_span.exit();
 
     (
@@ -604,44 +709,6 @@ pub struct CommitPhaseResult {
     final_poly: EF,
 }
 
-#[allow(clippy::type_complexity)]
-pub fn answer_query(
-    commit_phase_commits: &[FieldMerkleTreeGpu<
-        F,
-        [F; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >],
-    index: usize,
-) -> QueryProof<EF, ChallengeMmcs> {
-    let commit_phase_openings = commit_phase_commits
-        .iter()
-        .enumerate()
-        .map(|(i, commit)| {
-            let index_i = index >> i;
-            let index_i_sibling = index_i ^ 1;
-            let index_pair = index_i >> 1;
-
-            let (mut opened_rows, opening_proof) = open_batch(index_pair, commit);
-            assert_eq!(opened_rows.len(), 1);
-            let opened_row = opened_rows.pop().unwrap();
-            let opened_row_ext = (0..opened_row.len() / 4)
-                .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
-                .collect::<Vec<_>>();
-            assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
-            let sibling_value = opened_row_ext[index_i_sibling % 2];
-
-            CommitPhaseProofStep {
-                sibling_value,
-                opening_proof,
-            }
-        })
-        .collect();
-
-    QueryProof {
-        commit_phase_openings,
-    }
-}
-
 impl<SC> Default for FriGpuOpeningProver<SC> {
     fn default() -> Self {
         Self(PhantomData)
@@ -727,8 +794,19 @@ pub mod opening_gpu {
         #[link_name = "numBlocksSums"]
         pub fn num_block_sums(max_height: usize) -> usize;
 
-        #[link_name = "fetchRow"]
-        pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
+        #[link_name = "calculateOpenings"]
+        pub fn calculate_openings(
+            matrix_ptr: *const MatrixViewDevice<F>,
+            width_offsets: *const usize,
+            query_indices: *const usize,
+            total_matrices: usize,
+            total_width: usize,
+            max_width: usize,
+            total_indices: usize,
+            log_max_height: usize,
+            is_answering: bool,
+            output: *mut F,
+        );
 
         #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
