@@ -7,7 +7,7 @@
 #include "../matrix/matrix.cuh"
 
 namespace quotient_kernels {
-template <typename Val, typename Challenge>
+template <typename Val, typename Challenge, size_t MEMORY_SIZE>
 __global__ void computeValues(Operation *evalProgram,
                               size_t evalProgramLen, Challenge cumulativeSum,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
@@ -63,8 +63,8 @@ __global__ void computeValues(Operation *evalProgram,
     folder.quotientSize = quotientSize;
     folder.nextStep = nextStep;
 
-    Challenge expr[64];
-    for (size_t i = 0; i < 64; i++) {
+    Challenge expr[MEMORY_SIZE];
+    for (size_t i = 0; i < MEMORY_SIZE; i++) {
         expr[i] = Challenge::zero();
     }
     for (size_t i = 0; i < evalProgramLen; i++) {
@@ -175,22 +175,72 @@ __global__ void computeValues(Operation *evalProgram,
 
 namespace quotient_gpu {
 extern "C" void computeValues(
-    Operation *evalProgram, size_t evalProgramLen,
+    Operation *evalProgram, 
+    size_t evalProgramLen,
+    size_t memorySize,
     bb31_extension_t cumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
     Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
     Matrix<bb31_t> mainTraceOnQuotientDomain,
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
-    bb31_extension_t *permChallenges, bb31_extension_t alpha,
-    bb31_t *publicValues, bb31_t traceDomainGenerator, bb31_t* generatorPowers,
-    Matrix<bb31_t> quotientValues, size_t numBlocks,
+    bb31_extension_t *permChallenges, 
+    bb31_extension_t alpha,
+    bb31_t *publicValues, 
+    bb31_t traceDomainGenerator, 
+    bb31_t* generatorPowers,
+    Matrix<bb31_t> quotientValues, 
+    size_t numBlocks,
     size_t numThreadsPerBlock) {
-
-    quotient_kernels::computeValues<<<numBlocks, numThreadsPerBlock>>>(  
+    if (memorySize <= 32) {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); 
-  }
+    }
+    else if (memorySize <= 64)
+    {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+    }
+    else if (memorySize <= 128)
+    {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+    }
+    else if (memorySize <= 256)
+    {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+    }
+    else if (memorySize <= 512)
+    {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+    }
+    else if (memorySize <= 1024)
+    {
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock>>>(  
+            evalProgram, evalProgramLen, cumulativeSum,        
+            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
+            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
+            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+    }
+    else {
+        assert(false);   
+    }
+    }
 }  // namespace quotient_gpu

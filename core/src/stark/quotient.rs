@@ -50,7 +50,7 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceQuotientValuesGenerator<SC, A> {
-    eval_programs: HashMap<String, Vec<Operation>>,
+    eval_programs: HashMap<String, (Vec<Operation>, usize)>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -72,8 +72,8 @@ where
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut eval_programs = HashMap::new();
         for chip in machine.chips() {
-            let (operations, _) = air::codegen_cuda_eval(chip);
-            eval_programs.insert(chip.name().to_owned(), operations);
+            let (operations, max) = air::codegen_cuda_eval(chip);
+            eval_programs.insert(chip.name().to_owned(), (operations, max));
         }
         Self {
             eval_programs,
@@ -81,7 +81,7 @@ where
         }
     }
 
-    pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &[Operation] {
+    pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &(Vec<Operation>, usize) {
         self.eval_programs.get(&chip.name()).unwrap()
     }
 
@@ -153,7 +153,7 @@ where
 
             let trace_domain_device = trace_domain.to_device();
             let quotient_domain_device = quotient_domain.to_device();
-            let operations = self.get_eval_program(chip);
+            let (operations, memory_size) = self.get_eval_program(chip);
             let operations_device = operations.to_device();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
@@ -176,6 +176,7 @@ where
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
+                    *memory_size,
                     cumulative_sums[i],
                     trace_domain_device,
                     quotient_domain_device,
@@ -545,6 +546,7 @@ mod tests {
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
+                    expr_ctr,
                     cumulative_sum,
                     trace_domain_device,
                     quotient_domain_device,
