@@ -46,6 +46,7 @@ pub(super) mod quotient_gpu {
         pub fn compute_values(
             eval_program: *const Operation,
             eval_program_len: usize,
+            memory_size: usize,
             cumulative_sum: BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
