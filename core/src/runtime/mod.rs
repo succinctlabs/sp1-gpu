@@ -37,7 +37,11 @@ fn init_device(capacity: usize) -> SyncSender<TaskRef> {
 
     std::thread::spawn(move || {
         for task in receiver.iter() {
-            unsafe { task.execute() };
+            // Catch panics
+            let result = std::panic::catch_unwind(|| unsafe { task.execute() });
+            if let Err(err) = result {
+                tracing::error!("Device Task panicked: {:?}", err);
+            }
         }
     });
 
