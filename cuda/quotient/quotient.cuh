@@ -63,8 +63,8 @@ __global__ void computeValues(Operation *evalProgram,
     folder.quotientSize = quotientSize;
     folder.nextStep = nextStep;
 
-    Challenge expr[512];
-    for (size_t i = 0; i < 512; i++) {
+    Challenge expr[64];
+    for (size_t i = 0; i < 64; i++) {
         expr[i] = Challenge::zero();
     }
     for (size_t i = 0; i < evalProgramLen; i++) {
