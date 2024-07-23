@@ -20,8 +20,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
         tallest_matrices: *const MatrixViewDevice<BabyBear>,
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        max_height: usize,
     ) {
         poseidon2_bn254_3_kernels::first_digest_layer_bn254(
             tallest_matrices,
@@ -30,8 +29,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
             self.internal_rounds_constats_device.as_slice().as_ptr(),
             self.external_rounds_constats_device.as_slice().as_ptr(),
             self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n_blocks,
-            n_threads_per_block,
+            max_height,
         )
     }
 
@@ -42,8 +40,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
         matrices_to_inject: *const MatrixViewDevice<BabyBear>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        layer_len: usize,
     ) {
         poseidon2_bn254_3_kernels::compress_and_inject_bn254(
             prev_layer,
@@ -54,8 +51,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
             self.internal_rounds_constats_device.as_slice().as_ptr(),
             self.external_rounds_constats_device.as_slice().as_ptr(),
             self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n_blocks,
-            n_threads_per_block,
+            layer_len,
         );
     }
 }
@@ -206,8 +202,7 @@ pub mod poseidon2_bn254_3_kernels {
             internal_round_constants: *const Bn254Fr,
             external_round_constants: *const [Bn254Fr; WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
-            n_blocks: usize,
-            n_threads_per_block: usize,
+            max_height: usize,
         );
 
         pub fn compress_and_inject_bn254(
@@ -219,8 +214,7 @@ pub mod poseidon2_bn254_3_kernels {
             internal_round_constants: *const Bn254Fr,
             external_round_constants: *const [Bn254Fr; WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
-            n_blocks: usize,
-            n_threads_per_block: usize,
+            max_height: usize,
         );
     }
 }

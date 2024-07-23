@@ -15,15 +15,13 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
         tallest_matrices: *const MatrixViewDevice<BabyBear>,
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        max_height: usize,
     ) {
         poseidon2_baby_bear_16_kernels::first_digest_layer_baby_bear(
             tallest_matrices,
             n_tallest_matrices,
             digests,
-            n_blocks,
-            n_threads_per_block,
+            max_height,
         )
     }
 
@@ -34,8 +32,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
         matrices_to_inject: *const MatrixViewDevice<BabyBear>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        max_height: usize,
     ) {
         poseidon2_baby_bear_16_kernels::compress_and_inject_baby_bear(
             prev_layer,
@@ -43,8 +40,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
             matrices_to_inject,
             n_matrices_to_inject,
             next_digests,
-            n_blocks,
-            n_threads_per_block,
+            max_height,
         );
     }
 }
@@ -167,8 +163,7 @@ pub mod poseidon2_baby_bear_16_kernels {
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
             digests: *mut [BabyBear; DIGEST_WIDTH],
-            n_blocks: usize,
-            n_threads_per_block: usize,
+            max_height: usize,
         );
 
         pub fn compress_and_inject_baby_bear(
@@ -177,8 +172,7 @@ pub mod poseidon2_baby_bear_16_kernels {
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [BabyBear; DIGEST_WIDTH],
-            n_blocks: usize,
-            n_threads_per_block: usize,
+            layer_len: usize,
         );
     }
 }

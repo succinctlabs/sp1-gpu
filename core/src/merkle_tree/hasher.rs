@@ -13,8 +13,7 @@ pub trait FieldMerkleTreeHasher<F: Field> {
         tallest_matrices: *const MatrixViewDevice<F>,
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        max_height: usize,
     );
 
     /// # Safety
@@ -27,7 +26,6 @@ pub trait FieldMerkleTreeHasher<F: Field> {
         matrices_to_inject: *const MatrixViewDevice<F>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
-        n_blocks: usize,
-        n_threads_per_block: usize,
+        layer_len: usize,
     );
 }

@@ -46,8 +46,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                 tallest_matrices.as_ptr(),
                 tallest_matrices.len(),
                 first_digest_layer.as_mut_ptr(),
-                max_height / 32 + 1,
-                32,
+                max_height,
             );
         }
 
@@ -74,8 +73,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
-                    next_layer_len / 32 + 1,
-                    32,
+                    next_layer_len,
                 );
             }
             digest_layers.push(next_digests);
@@ -182,8 +180,7 @@ mod tests {
                     tallest_matrices.as_ptr(),
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
@@ -217,8 +214,7 @@ mod tests {
                     tallest_matrices.as_ptr(),
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
@@ -233,8 +229,7 @@ mod tests {
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
@@ -346,8 +341,7 @@ mod tests {
                     tallest_matrices.as_ptr(),
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
@@ -382,8 +376,7 @@ mod tests {
                     tallest_matrices.as_ptr(),
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
@@ -398,8 +391,7 @@ mod tests {
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
-                    n / 32,
-                    32,
+                    n,
                 );
             }
 
