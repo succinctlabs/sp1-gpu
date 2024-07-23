@@ -9,17 +9,18 @@
 namespace quotient_kernels {
 template <typename Val, typename Challenge, size_t MEMORY_SIZE>
 __global__ void computeValues(Operation *evalProgram,
-                              size_t evalProgramLen, Challenge cumulativeSum,
+                              size_t evalProgramLen, 
+                              Challenge cumulativeSum,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
                               Matrix<Val> preprocessedTraceOnQuotientDomain,
                               Matrix<Val> mainTraceOnQuotientDomain,
                               Matrix<Val> permutationTraceOnQuotientDomain,
-                              Challenge *permChallenges, Challenge alpha,
+                              Challenge *permChallenges, 
+                              Challenge alpha,
                               Val *publicValues,
                               Val traceDomainGenerator,
                               Val* generatorPowers,
-                            //   LagrangeSelectors<Val> selectors,
                               Matrix<Val> quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
