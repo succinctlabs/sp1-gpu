@@ -423,26 +423,26 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
 fn query_open_batch(
     query_indices: &[usize],
-    prover_datas: &[&GpuProverData<SC>],
+    prover_data_slice: &[&GpuProverData<SC>],
     log_global_max_height: usize,
     is_answering: bool,
 ) -> Vec<Vec<(Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>)>> {
-    // Function runs 1 kernel for all query indices and all matrices
+    // Function runs one kernel for all query indices and all matrices.
     // 
-    // 1st step: collect relevant data and calculate offsets based on matrix.width
-    // 2nd step: run kernel that returns one output buffer full of data:
+    // 1. Collect relevant data and calculate offsets based on matrix.width.
+    // 2. Run kernel that returns one output buffer full of data:
     //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
-    // 3rd step: slice buffer to proper structure
-    // Last step: calculate proofs for each data
-    let total_matrices: usize = prover_datas.iter().map(|data| data.leaves.len()).sum();
+    // 3. Slice buffer to proper structure.
+    // 4. Calculate proofs for each data.
+    let total_matrices: usize = prover_data_slice.iter().map(|data| data.leaves.len()).sum();
     let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_matrices);
     let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices+1);
-    let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_datas.len());
-    let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_datas.len());
+    let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+    let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
     let mut total_width = 0;
     let mut data_matrix_offset = 0;
     let mut max_width = 0;
-    prover_datas.iter().for_each(|data| {
+    prover_data_slice.iter().for_each(|data| {
         let mut max_height = 0;           
         data_matrix_offsets.push(data_matrix_offset);
         data_matrix_offset += data.leaves.len();
@@ -486,7 +486,7 @@ fn query_open_batch(
 
     query_indices.iter().enumerate().map(|(index_i, &index)| {
         let index_offset = index_i * total_width;
-        prover_datas.iter().enumerate().map(|(data_i, data)| {
+        prover_data_slice.iter().enumerate().map(|(data_i, data)| {
             let data_offset = data_matrix_offsets[data_i];
             let openings: Vec<Vec<F>> = data.leaves.iter().enumerate().map(|(matrix_i, _)| {
                 let start = index_offset + width_offsets[data_offset + matrix_i];
