@@ -38,11 +38,13 @@ use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
+use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::DeviceMatrix;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
+use crate::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
 use crate::stark::BabyBearPoseidon2Config;
 use crate::stark::GpuProverData;
 
@@ -78,6 +80,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
     pub fn open(
         &self,
+        committer: &TwoAdicFriCommitter<F, DeviceHasherBabyBear>,
         pcs: &SC::Pcs,
         rounds: Vec<(&GpuProverData<SC>, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
@@ -390,7 +393,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .collect();
 
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
-            .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
+            .in_scope(|| prove(committer, pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::trace_span!("Compute query openings").entered();
 
@@ -523,14 +526,16 @@ fn query_open_batch(
 }
 
 pub fn prove(
+    committer: &TwoAdicFriCommitter<F, DeviceHasherBabyBear>,
     config: &FriConfig<ChallengeMmcs>,
     input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     challenger: &mut Challenger<SC>,
 ) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
     let log_max_height = input.keys().max().copied().unwrap();
 
+    debug_assert_eq!(committer.log_blowup, config.log_blowup);
     let commit_phase_result = trace_span!("Commit phase")
-        .in_scope(|| commit_phase(config, input, log_max_height, challenger));
+        .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
@@ -662,7 +667,7 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
 }
 
 pub fn commit_phase(
-    config: &FriConfig<ChallengeMmcs>,
+    committer: &TwoAdicFriCommitter<F, DeviceHasherBabyBear>,
     mut input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
@@ -672,11 +677,10 @@ pub fn commit_phase(
     let mut commits = vec![];
     let mut data = vec![];
 
-    for log_folded_height in (config.log_blowup..log_max_height).rev() {
+    for log_folded_height in (committer.log_blowup..log_max_height).rev() {
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
-        let tree = FieldMerkleTreeGpu::<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], _>::new(vec![
-            CudaSync::new(temp).unwrap(),
-        ]);
+        let tree = committer.mmcs_commit(vec![CudaSync::new(temp).unwrap()]);
+        // ]);
         let commit: Hash<F, F, BB31_DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
 
@@ -693,7 +697,7 @@ pub fn commit_phase(
     let leaves = leaves.to_host();
     assert_eq!(
         leaves.values.len(),
-        config.blowup() * <EF as AbstractExtensionField<F>>::D
+        (1 << committer.log_blowup) * <EF as AbstractExtensionField<F>>::D
     );
     let final_poly = EF::from_base_slice(&leaves.values[0..<EF as AbstractExtensionField<F>>::D]);
     challenger.observe_ext_element(final_poly);

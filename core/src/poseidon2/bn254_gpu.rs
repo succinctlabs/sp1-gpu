@@ -1,9 +1,149 @@
 use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::matrix::MatrixViewDevice;
+use crate::merkle_tree::FieldMerkleTreeHasher;
 use p3_baby_bear::BabyBear;
 use p3_bn254_fr::Bn254Fr;
 use p3_field::AbstractField;
+
+pub struct DeviceHasherBn254 {
+    internal_rounds_constats_device: DeviceBuffer<Bn254Fr>,
+    external_rounds_constats_device: DeviceBuffer<[Bn254Fr; WIDTH]>,
+    diffusion_matrix_m1_device: DeviceBuffer<Bn254Fr>,
+}
+
+impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
+    type Digest = [Bn254Fr; DIGEST_WIDTH];
+
+    unsafe fn first_digest_layer(
+        &self,
+        tallest_matrices: *const MatrixViewDevice<BabyBear>,
+        n_tallest_matrices: usize,
+        digests: *mut Self::Digest,
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_bn254_3_kernels::first_digest_layer_bn254(
+            tallest_matrices,
+            n_tallest_matrices,
+            digests,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n_blocks,
+            n_threads_per_block,
+        )
+    }
+
+    unsafe fn compress_and_inject(
+        &self,
+        prev_layer: *const Self::Digest,
+        n_prev_layer: usize,
+        matrices_to_inject: *const MatrixViewDevice<BabyBear>,
+        n_matrices_to_inject: usize,
+        next_digests: *mut Self::Digest,
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_bn254_3_kernels::compress_and_inject_bn254(
+            prev_layer,
+            n_prev_layer,
+            matrices_to_inject,
+            n_matrices_to_inject,
+            next_digests,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+}
+
+impl Default for DeviceHasherBn254 {
+    fn default() -> Self {
+        DeviceHasherBn254::new()
+    }
+}
+
+impl DeviceHasherBn254 {
+    pub fn new() -> Self {
+        let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
+            poseidon2_bn254_3_constants();
+        Self {
+            internal_rounds_constats_device: internal_rounds_constats.to_device(),
+            external_rounds_constats_device: external_rounds_constats.to_device(),
+            diffusion_matrix_m1_device: diffusion_matrix_m1.to_device(),
+        }
+    }
+
+    /// # Safety
+    pub unsafe fn permute(
+        self,
+        input: *const [Bn254Fr; WIDTH],
+        output: *mut [Bn254Fr; WIDTH],
+        n: usize,
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_bn254_3_kernels::permute_bn254(
+            input,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+
+    /// # Safety
+    pub unsafe fn compress(
+        &self,
+        left: *const [Bn254Fr; DIGEST_WIDTH],
+        right: *const [Bn254Fr; DIGEST_WIDTH],
+        output: *mut [Bn254Fr; DIGEST_WIDTH],
+        n: usize,
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_bn254_3_kernels::compress_bn254(
+            left,
+            right,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+
+    /// # Safety
+    pub unsafe fn hash(
+        &self,
+        input: *const Bn254Fr,
+        n_input: usize,
+        output: *mut [Bn254Fr; DIGEST_WIDTH],
+        n: usize,
+        n_blocks: usize,
+        n_threads_per_block: usize,
+    ) {
+        poseidon2_bn254_3_kernels::hash_bn254(
+            input,
+            n_input,
+            output,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+            n,
+            n_blocks,
+            n_threads_per_block,
+        );
+    }
+}
 
 pub mod poseidon2_bn254_3_kernels {
     use crate::matrix::MatrixViewDevice;
@@ -106,141 +246,4 @@ pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Ve
         external_round_constants,
         diffusion_matrix_m1,
     )
-}
-
-pub struct HasherBn254GPU {
-    internal_rounds_constats_device: DeviceBuffer<Bn254Fr>,
-    external_rounds_constats_device: DeviceBuffer<[Bn254Fr; WIDTH]>,
-    diffusion_matrix_m1_device: DeviceBuffer<Bn254Fr>,
-}
-
-impl Default for HasherBn254GPU {
-    fn default() -> Self {
-        HasherBn254GPU::new()
-    }
-}
-
-impl HasherBn254GPU {
-    pub fn new() -> Self {
-        let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
-            poseidon2_bn254_3_constants();
-        Self {
-            internal_rounds_constats_device: internal_rounds_constats.to_device(),
-            external_rounds_constats_device: external_rounds_constats.to_device(),
-            diffusion_matrix_m1_device: diffusion_matrix_m1.to_device(),
-        }
-    }
-
-    /// # Safety
-    pub unsafe fn permute(
-        self,
-        input: *const [Bn254Fr; WIDTH],
-        output: *mut [Bn254Fr; WIDTH],
-        n: usize,
-        n_blocks: usize,
-        n_threads_per_block: usize,
-    ) {
-        poseidon2_bn254_3_kernels::permute_bn254(
-            input,
-            output,
-            self.internal_rounds_constats_device.as_slice().as_ptr(),
-            self.external_rounds_constats_device.as_slice().as_ptr(),
-            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n,
-            n_blocks,
-            n_threads_per_block,
-        );
-    }
-
-    /// # Safety
-    pub unsafe fn compress(
-        &self,
-        left: *const [Bn254Fr; DIGEST_WIDTH],
-        right: *const [Bn254Fr; DIGEST_WIDTH],
-        output: *mut [Bn254Fr; DIGEST_WIDTH],
-        n: usize,
-        n_blocks: usize,
-        n_threads_per_block: usize,
-    ) {
-        poseidon2_bn254_3_kernels::compress_bn254(
-            left,
-            right,
-            output,
-            self.internal_rounds_constats_device.as_slice().as_ptr(),
-            self.external_rounds_constats_device.as_slice().as_ptr(),
-            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n,
-            n_blocks,
-            n_threads_per_block,
-        );
-    }
-
-    /// # Safety
-    pub unsafe fn hash(
-        &self,
-        input: *const Bn254Fr,
-        n_input: usize,
-        output: *mut [Bn254Fr; DIGEST_WIDTH],
-        n: usize,
-        n_blocks: usize,
-        n_threads_per_block: usize,
-    ) {
-        poseidon2_bn254_3_kernels::hash_bn254(
-            input,
-            n_input,
-            output,
-            self.internal_rounds_constats_device.as_slice().as_ptr(),
-            self.external_rounds_constats_device.as_slice().as_ptr(),
-            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n,
-            n_blocks,
-            n_threads_per_block,
-        );
-    }
-
-    /// # Safety
-    pub unsafe fn first_digest_layer(
-        &self,
-        tallest_matrices: *const MatrixViewDevice<BabyBear>,
-        n_tallest_matrices: usize,
-        digests: *mut [Bn254Fr; DIGEST_WIDTH],
-        n_blocks: usize,
-        n_threads_per_block: usize,
-    ) {
-        poseidon2_bn254_3_kernels::first_digest_layer_bn254(
-            tallest_matrices,
-            n_tallest_matrices,
-            digests,
-            self.internal_rounds_constats_device.as_slice().as_ptr(),
-            self.external_rounds_constats_device.as_slice().as_ptr(),
-            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n_blocks,
-            n_threads_per_block,
-        );
-    }
-
-    /// # Safety
-    pub unsafe fn compress_and_inject(
-        &self,
-        prev_layer: *const [Bn254Fr; DIGEST_WIDTH],
-        n_prev_layer: usize,
-        matrices_to_inject: *const MatrixViewDevice<BabyBear>,
-        n_matrices_to_inject: usize,
-        next_digests: *mut [Bn254Fr; DIGEST_WIDTH],
-        n_blocks: usize,
-        n_threads_per_block: usize,
-    ) {
-        poseidon2_bn254_3_kernels::compress_and_inject_bn254(
-            prev_layer,
-            n_prev_layer,
-            matrices_to_inject,
-            n_matrices_to_inject,
-            next_digests,
-            self.internal_rounds_constats_device.as_slice().as_ptr(),
-            self.external_rounds_constats_device.as_slice().as_ptr(),
-            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
-            n_blocks,
-            n_threads_per_block,
-        );
-    }
 }

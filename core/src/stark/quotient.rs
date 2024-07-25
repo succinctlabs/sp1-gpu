@@ -30,6 +30,7 @@ use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
+use crate::merkle_tree::FieldMerkleTreeHasher;
 use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 use crate::stark::ffi::quotient_gpu;
 
@@ -96,9 +97,9 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn generate_quotient_values(
+    pub fn generate_quotient_values<H>(
         &self,
-        committer: &TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+        committer: &TwoAdicFriCommitter<SC::Val, H>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
         main_traces: &[CudaSync<ColMajorMatrixDevice<SC::Val>>],
@@ -107,7 +108,10 @@ where
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
         cumulative_sums: &[SC::Challenge],
-    ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError> {
+    ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
+    where
+        H: FieldMerkleTreeHasher<SC::Val, Digest = [SC::Val; DIGEST_WIDTH]>,
+    {
         let mut results = Vec::with_capacity(chips.len());
 
         let permutation_challenges_device = permutation_challenges.to_device();

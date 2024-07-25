@@ -4,30 +4,28 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::RowMajorMatrixDevice;
 use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
-use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
-use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH as BN254_DIGEST_WIDTH;
-use crate::poseidon2::bn254_gpu::HasherBn254GPU;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
-use p3_bn254_fr::Bn254Fr;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
 use std::cmp::Reverse;
 use std::marker::PhantomData;
 
+mod hasher;
+pub use hasher::*;
+
 use crate::matrix::DeviceMatrix;
-pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = RowMajorMatrixDevice<F>> {
+pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMatrixDevice<F>> {
     pub leaves: Vec<M>,
     pub digest_layers: Vec<SyncBuffer<D>>,
     _marker: std::marker::PhantomData<F>,
 }
 
-impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], M> {
-    pub fn new(leaves: Vec<M>) -> Self {
+impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
+    pub fn new(hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>, leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| l.view())
@@ -41,7 +39,6 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIG
             .to_device();
 
         let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
-        let hasher = HasherBabyBearGPU::new();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -67,8 +64,7 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIG
                 .collect_vec()
                 .to_device();
 
-            let mut next_digests =
-                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(next_layer_len);
+            let mut next_digests = DeviceBuffer::<D>::with_capacity(next_layer_len);
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
@@ -91,89 +87,18 @@ impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIG
         }
     }
 
-    pub fn root(&self) -> [BabyBear; BB31_DIGEST_WIDTH] {
+    pub fn root(&self) -> D {
         self.digest_layers.last().unwrap().to_host()[0]
     }
 }
 
-// This is a copy-paste of the above implementation, modified to use the BN254 hasher. Obviously,
-// this is not idiomatic and should be removed by e.g., creating a trait for GPU hashers.
-impl<M: DeviceMatrix<BabyBear>> FieldMerkleTreeGpu<BabyBear, [Bn254Fr; BN254_DIGEST_WIDTH], M> {
-    pub fn new(leaves: Vec<M>) -> Self {
-        let mut leaves_largest_first = leaves
-            .iter()
-            .map(|l| l.view())
-            .sorted_by_key(|l| Reverse(l.height))
-            .peekable();
-
-        let max_height = leaves_largest_first.peek().unwrap().height;
-        let tallest_matrices = leaves_largest_first
-            .peeking_take_while(|m| m.height == max_height)
-            .collect_vec()
-            .to_device();
-
-        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
-        let hasher: HasherBn254GPU = HasherBn254GPU::new();
-        unsafe {
-            first_digest_layer.set_len(max_height);
-            hasher.first_digest_layer(
-                tallest_matrices.as_ptr(),
-                tallest_matrices.len(),
-                first_digest_layer.as_mut_ptr(),
-                max_height / 32 + 1,
-                32,
-            );
-        }
-
-        let first_digest_layer = CudaSync::new(first_digest_layer).unwrap();
-        let mut digest_layers = vec![first_digest_layer];
-        loop {
-            let prev_layer = digest_layers.last().unwrap();
-            if prev_layer.len() == 1 {
-                break;
-            }
-            let next_layer_len = prev_layer.len() / 2;
-
-            let matrices_to_inject = leaves_largest_first
-                .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
-                .collect_vec()
-                .to_device();
-
-            let mut next_digests =
-                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(next_layer_len);
-            unsafe {
-                next_digests.set_len(next_layer_len);
-                hasher.compress_and_inject(
-                    prev_layer.as_ptr(),
-                    prev_layer.len(),
-                    matrices_to_inject.as_ptr(),
-                    matrices_to_inject.len(),
-                    next_digests.as_mut_ptr(),
-                    next_layer_len / 32 + 1,
-                    32,
-                );
-            }
-            digest_layers.push(CudaSync::new(next_digests).unwrap());
-        }
-
-        Self {
-            leaves,
-            digest_layers,
-            _marker: std::marker::PhantomData,
-        }
-    }
-
-    pub fn root(&self) -> [Bn254Fr; BN254_DIGEST_WIDTH] {
-        self.digest_layers.last().unwrap().to_host()[0]
-    }
-}
-
-impl<F, M> ToHost for FieldMerkleTreeGpu<F, [F; BB31_DIGEST_WIDTH], M>
+impl<F, W, M, const DIGEST_ELEMS: usize> ToHost for FieldMerkleTreeGpu<F, [W; DIGEST_ELEMS], M>
 where
     F: Field,
+    W: Copy,
     M: Send + Sync + DeviceMatrix<F> + ToHost<HostType = RowMajorMatrix<F>>,
 {
-    type HostType = FieldMerkleTree<F, F, RowMajorMatrix<F>, BB31_DIGEST_WIDTH>;
+    type HostType = FieldMerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>;
 
     fn to_host(&self) -> Self::HostType {
         let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
@@ -220,14 +145,14 @@ mod tests {
     pub mod baby_bear_tests {
         use crate::device::memory::{ToDevice, ToHost};
         use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
-        use crate::merkle_tree::FieldMerkleTreeGpu;
+        use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
         use crate::poseidon2::tests::baby_bear_tests::{
             poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
         };
         use crate::{
             device::buffer::DeviceBuffer,
             poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
-            poseidon2::baby_bear_gpu::HasherBabyBearGPU,
+            poseidon2::baby_bear_gpu::DeviceHasherBabyBear,
         };
 
         use p3_baby_bear::BabyBear;
@@ -245,7 +170,7 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
             let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
-            let hasher_gpu = HasherBabyBearGPU::new();
+            let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
                 digests.set_len(n);
                 hasher_gpu.first_digest_layer(
@@ -280,7 +205,7 @@ mod tests {
             let mut first_layer_digests =
                 DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
 
-            let hasher_gpu = HasherBabyBearGPU::new();
+            let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
                 first_layer_digests.set_len(n);
                 hasher_gpu.first_digest_layer(
@@ -339,7 +264,8 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
+            let device_hasher = DeviceHasherBabyBear::default();
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -358,7 +284,8 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
+            let device_hasher = DeviceHasherBabyBear::default();
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -371,14 +298,14 @@ mod tests {
     pub mod bn254_tests {
         use crate::device::memory::{ToDevice, ToHost};
         use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
-        use crate::merkle_tree::FieldMerkleTreeGpu;
+        use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
         use crate::poseidon2::tests::bn254_tests::{
             poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm,
         };
         use crate::{
             device::buffer::DeviceBuffer,
             poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
-            poseidon2::bn254_gpu::HasherBn254GPU,
+            poseidon2::bn254_gpu::DeviceHasherBn254,
         };
 
         use p3_baby_bear::BabyBear;
@@ -405,7 +332,7 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
             let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
-            let hasher_gpu = HasherBn254GPU::new();
+            let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
                 digests.set_len(n);
                 hasher_gpu.first_digest_layer(
@@ -440,7 +367,7 @@ mod tests {
             let tallest_matrices = vec![matrix_device_1.view()].to_device();
             let mut first_layer_digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
 
-            let hasher_gpu = HasherBn254GPU::new();
+            let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
                 first_layer_digests.set_len(n);
                 hasher_gpu.first_digest_layer(
@@ -500,7 +427,8 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
+            let device_hasher = DeviceHasherBn254::default();
+            let tree_device = Bn254FieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -520,7 +448,8 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
+            let device_hasher = DeviceHasherBn254::default();
+            let tree_device = Bn254FieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];

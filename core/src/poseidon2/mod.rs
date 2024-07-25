@@ -10,7 +10,7 @@ pub mod tests {
         use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
         };
-        use crate::poseidon2::baby_bear_gpu::HasherBabyBearGPU;
+        use crate::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
         use crate::poseidon2::constants::RC_16_30;
         use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
         use p3_field::{AbstractField, PrimeField32};
@@ -147,7 +147,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBabyBearGPU::new();
+            let hasher = DeviceHasherBabyBear::new();
             unsafe {
                 output_device.set_len(n * DIGEST_WIDTH);
                 hasher.permute(
@@ -206,7 +206,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBabyBearGPU::new();
+            let hasher = DeviceHasherBabyBear::new();
             unsafe {
                 hasher.compress(
                     left_device.as_ptr(),
@@ -258,7 +258,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBabyBearGPU::new();
+            let hasher = DeviceHasherBabyBear::new();
             unsafe {
                 hasher.hash(
                     input_device.as_slice().as_ptr(),
@@ -285,7 +285,7 @@ pub mod tests {
         use crate::poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
         };
-        use crate::poseidon2::bn254_gpu::{poseidon2_bn254_3_constants, HasherBn254GPU};
+        use crate::poseidon2::bn254_gpu::{poseidon2_bn254_3_constants, DeviceHasherBn254};
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
         use p3_field::AbstractField;
         use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
@@ -358,7 +358,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBn254GPU::new();
+            let hasher = DeviceHasherBn254::new();
             unsafe {
                 output_device.set_len(n * DIGEST_WIDTH);
                 hasher.permute(
@@ -417,7 +417,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBn254GPU::new();
+            let hasher = DeviceHasherBn254::new();
             unsafe {
                 hasher.compress(
                     left_device.as_ptr(),
@@ -468,7 +468,7 @@ pub mod tests {
             }
 
             // Execute the kernel.
-            let hasher = HasherBn254GPU::new();
+            let hasher = DeviceHasherBn254::new();
             unsafe {
                 hasher.hash(
                     input_device.as_slice().as_ptr(),
