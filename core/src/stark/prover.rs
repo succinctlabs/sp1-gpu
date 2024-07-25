@@ -498,43 +498,31 @@ where
         pk.observe_into(challenger);
 
         // Generate and commit the traces for each shard.
-        let span = tracing::Span::current();
-        scope(|s| {
-            let shard_data: Vec<_> = records
-                .into_iter()
-                .map(|record| {
-                    s.spawn(|| {
-                        let _span = span.enter();
-                        let traces = self.generate_traces(&record);
-                        self.commit(record, traces)
-                    })
-                    .sync_join()
-                    .unwrap()
-                })
-                .collect();
+        let shard_data: Vec<_> = records
+            .into_iter()
+            .map(|record| {
+                let traces = self.generate_traces(&record);
+                self.commit(record, traces)
+            })
+            .collect();
 
-            // Observe the challenges for each segment.
-            shard_data.iter().for_each(|data| {
-                challenger.observe(data.main_commit);
-                challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
-            });
+        // Observe the challenges for each segment.
+        shard_data.iter().for_each(|data| {
+            challenger.observe(data.main_commit);
+            challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
+        });
 
-            let shard_proofs = shard_data
-                .into_iter()
-                .map(|data| {
-                    let mut challenger = challenger.clone();
-                    let span = tracing::Span::current();
-                    s.spawn(move || {
-                        let _span = span.enter();
-                        self.open(pk, data, &mut challenger)
-                    })
-                    .sync_join()
-                    .unwrap()
-                })
-                .collect::<Result<Vec<_>, CudaError>>()?;
+        let shard_proofs = shard_data
+            .into_iter()
+            .map(|data| {
+                let mut challenger = challenger.clone();
+                let span = tracing::Span::current();
+                let _span = span.enter();
+                self.open(pk, data, &mut challenger)
+            })
+            .collect::<Result<Vec<_>, CudaError>>()?;
 
-            Ok(MachineProof { shard_proofs })
-        })
+        Ok(MachineProof { shard_proofs })
     }
 }
 

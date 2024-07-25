@@ -13,6 +13,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
     opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 4;
+    opts.recursion_opts.shard_batch_size = 1;
     opts
 }
 

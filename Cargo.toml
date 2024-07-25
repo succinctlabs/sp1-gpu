@@ -18,10 +18,10 @@ debug-assertions = true
 
 [workspace.dependencies]
 # sp1
-# sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/batch-size-3-v2" }
-# sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/batch-size-3-v2" }
-sp1-core = { path = "../sp1/core" }
-sp1-prover = { path = "../sp1/prover"}
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+# sp1-core = { path = "../sp1/core" }
+# sp1-prover = { path = "../sp1/prover"}
 
 # p3
 p3-baby-bear = "0.1.3-succinct"
