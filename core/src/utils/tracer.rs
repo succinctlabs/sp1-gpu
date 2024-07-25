@@ -23,25 +23,14 @@ pub fn init_tracer() {
             .add_directive("p3_challenger=off".parse().unwrap())
             .add_directive("p3_merkle_tree=off".parse().unwrap());
 
-        // if the TRACER_TYPE environment variable is set, use it to determine which logger to configure
-        // (tracing_forest or tracing_subscriber)
-        // otherwise, default to 'flat'
-        let logger_type = std::env::var("TRACER_TYPE").unwrap_or_else(|_| "flat".to_string());
-        match logger_type.as_str() {
-            "flat" => {
-                tracing_subscriber::fmt::Subscriber::builder()
-                    .compact()
-                    .with_file(false)
-                    .with_target(false)
-                    .with_thread_names(false)
-                    .with_env_filter(env_filter)
-                    .finish()
-                    .with(TimeLayer)
-                    .init();
-            }
-            _ => {
-                panic!("Invalid logger type: {}", logger_type);
-            }
-        }
+        tracing_subscriber::fmt::Subscriber::builder()
+            .compact()
+            .with_file(false)
+            .with_target(false)
+            .with_thread_names(false)
+            .with_env_filter(env_filter)
+            .finish()
+            .with(TimeLayer)
+            .init();
     });
 }
