@@ -29,10 +29,9 @@ impl CudaStream {
         unsafe { ffi::cuda_event_record(event.0, self.0) }.to_result()
     }
 
-    pub fn elasped(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
+    pub fn elapsed(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
         let end = CudaEvent::new()?;
         self.record(&end)?;
-        self.wait_event(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
         unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0 .0, end.0) }.to_result()?;
@@ -188,7 +187,7 @@ mod tests {
         let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len());
         let time = stream.now().unwrap();
         buffer.extend_from_host_slice(&data);
-        let elapsed = stream.elasped(&time).unwrap();
+        let elapsed = stream.elapsed(&time).unwrap();
         println!("{:?}", elapsed);
         stream.synchronize().unwrap();
     }
@@ -199,8 +198,7 @@ mod tests {
 
         // Get a big buffer and measure the time it takes to copy it.
         let data = vec![0u32; 1 << 22];
-        let start = CudaEvent::new().unwrap();
-        stream.record(&start).unwrap();
+        let time = stream.now().unwrap();
         unsafe {
             let buf = stream.cuda_malloc_async::<u32>(data.len()).unwrap();
             stream
@@ -209,9 +207,8 @@ mod tests {
             stream.cuda_free_async(buf).unwrap();
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();
-            stream.synchronize().unwrap();
-            let time = stream.elapsed_time(&start, &end).unwrap();
-            println!("{:?}", time);
+            let elapsed = stream.elapsed(&time).unwrap();
+            println!("{:?}", elapsed);
         }
     }
 }

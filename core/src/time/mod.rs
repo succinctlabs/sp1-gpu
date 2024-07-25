@@ -23,7 +23,6 @@ impl CudaInstant {
         let stream = CudaStream::default();
         let end = CudaEvent::new()?;
         stream.record(&end)?;
-        stream.wait_event(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
         unsafe { ffi::cuda_event_elapsed_time(&mut ms, self.0 .0, end.0) }.to_result()?;
