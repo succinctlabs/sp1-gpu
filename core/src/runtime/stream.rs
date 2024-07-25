@@ -40,12 +40,6 @@ impl CudaStream {
         Ok(Duration::from_secs_f64(s))
     }
 
-    pub fn elapsed_time(&self, start: &CudaEvent, end: &CudaEvent) -> Result<Duration, CudaError> {
-        let mut ms: f32 = 0.0;
-        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0, end.0) }.to_result()?;
-        Ok(Duration::from_secs_f32(ms * 1e-3))
-    }
-
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
         unsafe { ffi::cuda_stream_wait_event(self.0, event.0) }.to_result()
     }
