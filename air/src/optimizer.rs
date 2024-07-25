@@ -89,8 +89,5 @@ pub fn optimize(operations: Vec<Operation>) -> (Vec<Operation>, usize) {
         }
     }
 
-    // println!("operations: {:#?}", optimized_operations);
-    // println!("optimized_operations: {:#?}", optimized_operations);
-    // println!("max: {:?}", allocator.max);
     (optimized_operations, allocator.max)
 }
