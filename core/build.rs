@@ -56,5 +56,9 @@ fn main() {
         nvcc.define("FEATURE_BABY_BEAR", None);
 
         nvcc.file("bindings/api.cu").compile("moongate_cuda");
+
+        println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
+        println!("cargo:rustc-link-lib=dylib=nvtx3-c");
+        println!("cargo:rustc-link-lib=dylib=dl");
     }
 }

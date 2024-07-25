@@ -6,6 +6,8 @@ use tracing_subscriber::EnvFilter;
 
 use crate::time::TimeLayer;
 
+use super::NvtxLayer;
+
 static INIT: Once = Once::new();
 
 /// Initializes the tracing subscriber.

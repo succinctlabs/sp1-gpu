@@ -1,6 +1,9 @@
+mod nvtx;
 mod stats;
 mod tracer;
 
+#[allow(unused_imports)]
+pub use nvtx::*;
 use sp1_core::{
     runtime::{ExecutionRecord, Program, Runtime},
     utils::SP1CoreOpts,
