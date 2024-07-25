@@ -206,9 +206,7 @@ mod tests {
             stream
                 .cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len())
                 .unwrap();
-            stream.synchronize().unwrap();
             stream.cuda_free_async(buf).unwrap();
-            stream.synchronize().unwrap();
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();
             stream.synchronize().unwrap();
