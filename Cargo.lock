@@ -1775,9 +1775,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.1"
+version = "0.36.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "081b846d1d56ddfc18fdf1a922e4f6e07a11768ea1b92dec44e42b72712ccfce"
+checksum = "3f203fa8daa7bb185f760ae12bd8e097f63d17041dcdcaf675ac54cdf863170e"
 dependencies = [
  "memchr",
 ]
@@ -2680,9 +2680,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.1.4"
+version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4465c22496331e20eb047ff46e7366455bc01c0c02015c4a376de0b2cd3a1af"
+checksum = "1fadf67e3cf23f8b11a6c8c48a16cb2437381503615acd91094ec7b4686a5a53"
 dependencies = [
  "sdd",
 ]
@@ -2903,8 +2903,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2951,6 +2951,7 @@ dependencies = [
  "snowbridge-amcl",
  "sp1-derive",
  "sp1-primitives",
+ "static_assertions",
  "strum",
  "strum_macros",
  "tempfile",
@@ -2964,8 +2965,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2974,8 +2975,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -2987,8 +2988,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3023,8 +3024,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3046,8 +3047,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3071,8 +3072,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3106,8 +3107,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3116,8 +3117,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3141,8 +3142,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-program"
-version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=main#dd032eb23949828d244d1ad1f1569aa78155837c"
+version = "1.0.0-rc.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#b249447ab348423cb0e92733c85b163a44604d9b"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
