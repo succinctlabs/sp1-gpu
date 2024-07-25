@@ -12,3 +12,5 @@ pub mod runtime;
 pub mod stark;
 pub mod time;
 pub mod utils;
+
+pub use runtime::spawn::spawn;

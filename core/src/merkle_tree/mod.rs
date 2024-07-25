@@ -338,11 +338,9 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            // println!("time: {:?}", start.elapsed().as_secs_f64());
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
@@ -359,11 +357,9 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
-            let start = std::time::Instant::now();
             let tallest_matrices = vec![matrix_device_1];
             let tree_device = BabyBearFieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            // println!("Device time: {:?}", start.elapsed());
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
@@ -504,23 +500,12 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let device_start = std::time::Instant::now();
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            let device_elapsed = device_start.elapsed();
-            // println!("RowMajor Device time: {:?}", device_elapsed);
 
             let tallest_matrices = vec![matrix_host_1];
-            let cpu_start = std::time::Instant::now();
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
-            let cpu_elapsed = cpu_start.elapsed();
-            // println!("RowMajor CPU time: {:?}", cpu_elapsed);
-
-            // println!(
-            //     "RowMajor CPU/Device: {:?}",
-            //     cpu_elapsed.as_secs_f64() / device_elapsed.as_secs_f64()
-            // );
 
             assert_eq!(root_device, root_host);
         }
@@ -535,23 +520,12 @@ mod tests {
             let (matrix_host_1, matrix_device_1) = ColMajorMatrixDevice::<BabyBear>::dummy(600, n);
 
             let tallest_matrices = vec![matrix_device_1];
-            let device_start = std::time::Instant::now();
             let tree_device = Bn254FieldMerkleTreeGpu::new(tallest_matrices);
             let root_device = tree_device.root();
-            let device_elapsed = device_start.elapsed();
-            // println!("ColMajor Device time: {:?}", device_elapsed);
 
             let tallest_matrices = vec![matrix_host_1];
-            let cpu_start = std::time::Instant::now();
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
-            let cpu_elapsed = cpu_start.elapsed();
-            // println!("ColMajor CPU time: {:?}", cpu_elapsed);
-
-            // println!(
-            //     "ColMajor CPU/Device: {:?}",
-            //     cpu_elapsed.as_secs_f64() / device_elapsed.as_secs_f64()
-            // );
 
             assert_eq!(root_device, root_host);
         }
