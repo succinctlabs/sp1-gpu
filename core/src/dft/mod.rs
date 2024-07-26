@@ -219,7 +219,7 @@ mod tests {
             let d = 1 << log_d;
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
-            let mut d_values = DeviceBuffer::with_capacity(d);
+            let mut d_values = DeviceBuffer::with_capacity(d).unwrap();
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
@@ -254,7 +254,7 @@ mod tests {
             let d = 1 << log_d;
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
-            let mut d_values = values.clone().to_device();
+            let mut d_values = values.clone().to_device().unwrap();
 
             let time = Instant::now();
             unsafe { dft.idft_device(&mut d_values[..], log_d) }.unwrap();
@@ -289,7 +289,7 @@ mod tests {
             let d = 1 << log_d;
             let ext_d = d << log_blowup;
 
-            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d);
+            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d).unwrap();
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
@@ -331,7 +331,10 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h.to_device().to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h
+                .to_device()
+                .unwrap()
+                .to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();
@@ -372,7 +375,10 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h.to_device().to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h
+                .to_device()
+                .unwrap()
+                .to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();

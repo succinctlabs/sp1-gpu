@@ -1,3 +1,4 @@
+use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
@@ -34,9 +35,10 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
             .collect_vec()
-            .to_device();
+            .to_device()
+            .unwrap();
 
-        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height);
+        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height).unwrap();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -59,9 +61,10 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             let matrices_to_inject = leaves_largest_first
                 .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
                 .collect_vec()
-                .to_device();
+                .to_device()
+                .unwrap();
 
-            let mut next_digests = DeviceBuffer::<D>::with_capacity(next_layer_len);
+            let mut next_digests = DeviceBuffer::<D>::with_capacity(next_layer_len).unwrap();
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
@@ -113,24 +116,24 @@ impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, 
     type DeviceType =
         FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>;
 
-    fn to_device(&self) -> Self::DeviceType {
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
         let leaves_device = self
             .leaves
             .iter()
-            .map(|l| l.to_device().to_column_major())
-            .collect::<Vec<_>>();
+            .map(|l| Ok(l.to_device()?.to_column_major()))
+            .collect::<Result<Vec<_>, CudaError>>()?;
 
         let digest_layers_device = self
             .digest_layers
             .iter()
             .map(|l| l.to_device())
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, CudaError>>()?;
 
-        FieldMerkleTreeGpu {
+        Ok(FieldMerkleTreeGpu {
             leaves: leaves_device,
             digest_layers: digest_layers_device,
             _marker: PhantomData,
-        }
+        })
     }
 }
 
@@ -162,8 +165,10 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
-            let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()]
+                .to_device()
+                .unwrap();
+            let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
                 digests.set_len(n);
@@ -195,9 +200,9 @@ mod tests {
             let (matrix_host_2, matrix_device_2) =
                 RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
 
-            let tallest_matrices = vec![matrix_device_1.view()].to_device();
+            let tallest_matrices = vec![matrix_device_1.view()].to_device().unwrap();
             let mut first_layer_digests =
-                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n);
+                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n).unwrap();
 
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
@@ -211,8 +216,9 @@ mod tests {
                 );
             }
 
-            let matrices_to_inject = vec![matrix_device_2.view()].to_device();
-            let mut next_digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1);
+            let matrices_to_inject = vec![matrix_device_2.view()].to_device().unwrap();
+            let mut next_digests =
+                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
             unsafe {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(
@@ -323,8 +329,10 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()].to_device();
-            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()]
+                .to_device()
+                .unwrap();
+            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
                 digests.set_len(n);
@@ -357,8 +365,9 @@ mod tests {
             let (matrix_host_2, matrix_device_2) =
                 RowMajorMatrixDevice::<BabyBear>::dummy(4, n >> 1);
 
-            let tallest_matrices = vec![matrix_device_1.view()].to_device();
-            let mut first_layer_digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n);
+            let tallest_matrices = vec![matrix_device_1.view()].to_device().unwrap();
+            let mut first_layer_digests =
+                DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n).unwrap();
 
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
@@ -372,8 +381,9 @@ mod tests {
                 );
             }
 
-            let matrices_to_inject = vec![matrix_device_2.view()].to_device();
-            let mut next_digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n >> 1);
+            let matrices_to_inject = vec![matrix_device_2.view()].to_device().unwrap();
+            let mut next_digests =
+                DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
             unsafe {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(

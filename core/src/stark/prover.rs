@@ -146,7 +146,7 @@ where
                 // Copy the traces to device.
                 let traces: Vec<_> = traces
                     .iter()
-                    .map(|trace| trace.to_device().to_column_major())
+                    .map(|trace| trace.to_device().unwrap().to_column_major())
                     .collect();
 
                 // Commit to the traces.
@@ -368,7 +368,7 @@ where
                     }
                 }
 
-                let pk_data_device = pk.data.to_device();
+                let pk_data_device = pk.data.to_device().unwrap();
 
                 let (openings, opening_proof) =
                     tracing::debug_span!("compute opening").in_scope(|| {
@@ -549,7 +549,7 @@ where
                 let preprocessed_trace = pk
                     .chip_ordering
                     .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().to_column_major());
+                    .map(|&index| pk.traces[index].to_device().unwrap().to_column_major());
 
                 self.permutation_trace_generator
                     .generate_flattened_permutation_trace(

@@ -195,7 +195,7 @@ mod tests {
 
         // Get a big buffer and measure the time it takes to copy it.
         let data = vec![0u32; 1 << 22];
-        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len());
+        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len()).unwrap();
         let time = stream.now().unwrap();
         buffer.extend_from_host_slice(&data);
         let elapsed = stream.elapsed(&time).unwrap();

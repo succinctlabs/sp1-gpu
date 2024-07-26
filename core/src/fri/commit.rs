@@ -155,7 +155,7 @@ mod tests {
         let evaluations = domains_and_traces
             .iter()
             .map(|(domain, trace)| {
-                let trace = trace.to_device().to_column_major();
+                let trace = trace.to_device().unwrap().to_column_major();
                 (*domain, trace)
             })
             .collect::<Vec<_>>();

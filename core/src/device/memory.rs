@@ -7,7 +7,13 @@ use super::buffer::DeviceBuffer;
 pub trait ToDevice {
     type DeviceType;
 
-    fn to_device(&self) -> Self::DeviceType;
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError>;
+}
+
+pub trait ToDeviceAsync {
+    type DeviceType;
+
+    fn to_device_async(&self) -> Result<Self::DeviceType, CudaError>;
 }
 
 pub trait ToHost {
@@ -26,10 +32,10 @@ pub trait ToHost {
 impl<T: Copy> ToDevice for [T] {
     type DeviceType = DeviceBuffer<T>;
 
-    fn to_device(&self) -> Self::DeviceType {
-        let mut buffer = DeviceBuffer::with_capacity(self.len());
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        let mut buffer = DeviceBuffer::with_capacity(self.len())?;
         buffer.extend_from_host_slice(self);
-        buffer
+        Ok(buffer)
     }
 }
 
@@ -45,6 +51,51 @@ pub unsafe fn cuda_malloc<T>(len: usize) -> Result<*mut T, CudaError> {
     ))?;
 
     Ok(ptr as *mut T)
+}
+
+/// A Rust interface for cudaMallocHost.
+///
+/// Allocates pinned memory on the host.
+///
+/// # Safety
+/// The memory will not be freed until `cudaFreeHost` is called.
+pub unsafe fn cuda_malloc_host<T>(len: usize) -> Result<*mut T, CudaError> {
+    let mut ptr: *mut c_void = ptr::null_mut();
+    Result::<(), CudaError>::from(ffi::cuda_malloc_host(
+        &mut ptr as *mut *mut c_void,
+        len * mem::size_of::<T>(),
+    ))?;
+
+    Ok(ptr as *mut T)
+}
+
+/// A Rust interface for cudaHostRegister.
+///
+/// Registers host memory as pinned for cuda usage.
+///
+/// # Safety
+/// The memory will not be unregistered until `cudaHostUnregister` is called.
+pub unsafe fn cuda_host_register<T>(ptr: *const T, len: usize) -> Result<(), CudaError> {
+    Result::<(), CudaError>::from(ffi::cuda_host_register(
+        ptr as *const c_void,
+        len * mem::size_of::<T>(),
+    ))
+}
+
+/// A Rust interface for cudaFreeHost.
+///
+/// # Safety
+/// The caller must guarantee that after this call no data will point to the value of the pointer.
+pub unsafe fn cuda_free_host<T>(ptr: *const T) -> Result<(), CudaError> {
+    Result::<(), CudaError>::from(ffi::cuda_free_host(ptr as *const c_void))
+}
+
+/// A Rust interface for cudaHostUnregister.
+///
+/// # Safety
+/// The caller must guarantee that after this call no data will point to the value of the pointer.
+pub unsafe fn cuda_host_unregister<T>(ptr: *const T) -> Result<(), CudaError> {
+    Result::<(), CudaError>::from(ffi::cuda_host_unregister(ptr as *const c_void))
 }
 
 /// A Rust interface for cudaFree.

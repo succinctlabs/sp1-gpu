@@ -4,8 +4,9 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
-use crate::device::DeviceBuffer;
+use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
+use crate::device::DeviceBuffer;
 
 use super::ffi::{transpose_blowup_naive, transpose_naive};
 use super::{ColMajorMatrixDevice, DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -29,7 +30,7 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
     {
         let mut rng = rand::thread_rng();
         let data = (0..width * height).map(|_| rng.gen()).collect::<Vec<_>>();
-        let device = RowMajorMatrixDevice::new(data.to_device(), width);
+        let device = RowMajorMatrixDevice::new(data.to_device().unwrap(), width);
         let host = RowMajorMatrix::new(data, width);
         (host, device)
     }
@@ -85,7 +86,7 @@ impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
 
 impl RowMajorMatrixDevice<BabyBear> {
     pub fn to_column_major(&self) -> ColMajorMatrixDevice<BabyBear> {
-        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width());
+        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
         unsafe { transpose_naive(ret_values.as_mut_ptr(), self.view()) };
         unsafe { ret_values.set_max_len() };
 
@@ -93,7 +94,7 @@ impl RowMajorMatrixDevice<BabyBear> {
     }
 
     pub fn to_column_major_blowup(&self, log_blowup: usize) -> ColMajorMatrixDevice<BabyBear> {
-        let mut ret_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup);
+        let mut ret_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup).unwrap();
         unsafe { transpose_blowup_naive(ret_values.as_mut_ptr(), self.view(), log_blowup) };
         unsafe { ret_values.set_max_len() };
 
@@ -112,9 +113,9 @@ impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
 impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
     type DeviceType = RowMajorMatrixDevice<T>;
 
-    fn to_device(&self) -> Self::DeviceType {
-        let values = self.values.to_device();
-        RowMajorMatrixDevice::new(values, self.width)
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        let values = self.values.to_device()?;
+        Ok(RowMajorMatrixDevice::new(values, self.width))
     }
 }
 

@@ -9,6 +9,7 @@ use p3_field::{ExtensionField, Field, PrimeField32};
 use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
+use super::error::CudaError;
 use super::memory::{ToDevice, ToHost};
 
 /// Fixed-size device-side buffer.
@@ -24,14 +25,14 @@ unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
 unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
-    pub fn with_capacity(capacity: usize) -> Self {
-        let ptr = unsafe { cuda_malloc(capacity) }.unwrap();
+    pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
+        let ptr = unsafe { cuda_malloc(capacity) }?;
 
-        Self {
+        Ok(Self {
             buf: ptr,
             len: 0,
             cap: capacity,
-        }
+        })
     }
 
     /// Returns a new buffer from a pointer, length, and capacity.
@@ -268,10 +269,10 @@ impl_index! {
 impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
-    fn to_device(&self) -> Self::DeviceType {
-        let mut buffer = DeviceBuffer::with_capacity(self.len());
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        let mut buffer = DeviceBuffer::with_capacity(self.len())?;
         buffer.extend_from_host_slice(self);
-        buffer
+        Ok(buffer)
     }
 }
 
@@ -319,7 +320,7 @@ mod tests {
         T: Debug + Copy + Default + Eq,
         Standard: Distribution<T>,
     {
-        let mut buffer = DeviceBuffer::<T>::with_capacity(len);
+        let mut buffer = DeviceBuffer::<T>::with_capacity(len).unwrap();
         assert_eq!(buffer.len(), 0);
 
         let values = (0..len).map(|_| rng.gen()).collect::<Vec<_>>();
@@ -339,7 +340,7 @@ mod tests {
         T: Debug + Copy + Default + Eq,
         Standard: Distribution<T>,
     {
-        let mut buffer = DeviceBuffer::<T>::with_capacity(len);
+        let mut buffer = DeviceBuffer::<T>::with_capacity(len).unwrap();
         assert_eq!(buffer.len(), 0);
 
         // Initialize the buffer to zero.

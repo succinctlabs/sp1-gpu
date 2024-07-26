@@ -5,8 +5,8 @@ pub mod constants;
 pub mod tests {
     #[cfg(test)]
     pub mod baby_bear_tests {
-        use crate::device::DeviceBuffer;
         use crate::device::memory::{ToDevice, ToHost};
+        use crate::device::DeviceBuffer;
         use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
         };
@@ -134,8 +134,8 @@ pub mod tests {
                 .collect::<Vec<_>>();
 
             // Copy the input data to the device.
-            let input_device = input.to_device();
-            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
+            let input_device = input.to_device().unwrap();
+            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH).unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_baby_bear_16_perm();
@@ -187,9 +187,9 @@ pub mod tests {
             output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
 
             // Copy the input data to the device.
-            let left_device = left.to_device();
-            let right_device = right.to_device();
-            let mut output_device = output.to_device();
+            let left_device = left.to_device().unwrap();
+            let right_device = right.to_device().unwrap();
+            let mut output_device = output.to_device().unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_baby_bear_16_perm();
@@ -244,8 +244,8 @@ pub mod tests {
             output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
 
             // Copy the input data to the device.
-            let input_device = input.to_device();
-            let mut output_device = output.to_device();
+            let input_device = input.to_device().unwrap();
+            let mut output_device = output.to_device().unwrap();
 
             // Execute the source implementation.
             let sponge = poseidon2_baby_bear_16_hasher();
@@ -280,8 +280,8 @@ pub mod tests {
 
     #[cfg(test)]
     pub mod bn254_tests {
-        use crate::device::DeviceBuffer;
         use crate::device::memory::{ToDevice, ToHost};
+        use crate::device::DeviceBuffer;
         use crate::poseidon2::bn254::poseidon2_bn254_3_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
         };
@@ -345,8 +345,8 @@ pub mod tests {
                 .collect::<Vec<_>>();
 
             // Copy the input data to the device.
-            let input_device = input.to_device();
-            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH);
+            let input_device = input.to_device().unwrap();
+            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH).unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
@@ -398,9 +398,9 @@ pub mod tests {
             output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
 
             // Copy the input data to the device.
-            let left_device = left.to_device();
-            let right_device = right.to_device();
-            let mut output_device = output.to_device();
+            let left_device = left.to_device().unwrap();
+            let right_device = right.to_device().unwrap();
+            let mut output_device = output.to_device().unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
@@ -455,8 +455,8 @@ pub mod tests {
             output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
 
             // Copy the input data to the device.
-            let input_device = input.to_device();
-            let mut output_device = output.to_device();
+            let input_device = input.to_device().unwrap();
+            let mut output_device = output.to_device().unwrap();
 
             // Execute the source implementation.
             let sponge = poseidon2_bn254_3_hasher();

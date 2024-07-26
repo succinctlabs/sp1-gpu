@@ -7,8 +7,28 @@ extern "C" rustCudaError_t cuda_malloc(void **devPtr, size_t size) {
     return CUDA_SUCCESS_MOON;
 }
 
+extern "C" rustCudaError_t cuda_malloc_host(void **devPtr, size_t size) {
+    CUDA_OK(cudaMallocHost(devPtr, size));
+    return CUDA_SUCCESS_MOON;
+}
+
+extern "C" rustCudaError_t cuda_host_register(void *hostPtr, size_t size) {
+    CUDA_OK(cudaHostRegister(hostPtr, size, cudaHostRegisterDefault));
+    return CUDA_SUCCESS_MOON;
+}
+
 extern "C" rustCudaError_t cuda_free(void *devPtr) {
     CUDA_OK(cudaFree(devPtr));
+    return CUDA_SUCCESS_MOON;
+}
+
+extern "C" rustCudaError_t cuda_free_host(void *devPtr) {
+    CUDA_OK(cudaFreeHost(devPtr));
+    return CUDA_SUCCESS_MOON;
+}
+
+extern "C" rustCudaError_t cuda_host_unregister(void *hostPtr) {
+    CUDA_OK(cudaHostUnregister(hostPtr));
     return CUDA_SUCCESS_MOON;
 }
 

@@ -15,7 +15,7 @@ impl<T> RawPointer<T> for DevicePointer<T> {
         self.0
     }
 
-    fn free(self) {
+    fn free(&mut self) {
         unsafe { cuda_free(self.0) }.unwrap()
     }
 }
