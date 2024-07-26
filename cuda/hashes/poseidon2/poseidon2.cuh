@@ -85,6 +85,10 @@ class Hasher {
         }
     }
 
+    struct __align__(32) F8_t {
+        F_t v[8];
+    };
+
     __device__ static void compress(
         F_t left[Params::DIGEST_WIDTH],
         F_t right[Params::DIGEST_WIDTH],
@@ -92,17 +96,14 @@ class Hasher {
         RoundConstants_t roundConstants
     ) {
         F_t state[Params::WIDTH];
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            state[i] = left[i];
-            state[i + Params::DIGEST_WIDTH] = right[i];
-        }
+        F8_t* state8 = reinterpret_cast<F8_t*>(state);
+        state8[0] = *reinterpret_cast<F8_t*>(left);
+        state8[1] = *reinterpret_cast<F8_t*>(right);
         for (int i = 2 * Params::DIGEST_WIDTH; i < Params::WIDTH; i++) {
             state[i].zero();
         }
         permute(state, state, roundConstants);
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = state[i];
-        }
+        *reinterpret_cast<F8_t*>(out) = state8[0];
     }
 
     __device__ static void hash(
@@ -210,6 +211,10 @@ template<typename Params, typename Hasher_t>
 struct HasherState {
     using F_t = typename Params::F_t;
 
+    struct __align__(32) F8_t {
+        F_t v[8];
+    };
+
     F_t data[Params::WIDTH];
     size_t index;
 
@@ -221,6 +226,8 @@ struct HasherState {
 
     __device__ void absorb(Hasher_t hasher, F_t* in, size_t nIn) {
         for (int i = 0; i < nIn; i++) {
+            // hasher.permute(reinterpret_cast<F_t*>(in[i]), data);
+            // *reinterpret_cast<F8_t*>(data) = *reinterpret_cast<F8_t*>(in)
             data[index] = in[i];
             index++;
             if (index == Params::RATE) {
@@ -234,9 +241,10 @@ struct HasherState {
         if (index != 0) {
             hasher.permute(data, data);
         }
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = data[i];
-        }
+        *reinterpret_cast<F8_t*>(out) = *reinterpret_cast<F8_t*>(data);
+        // for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
+        //     out[i] = data[i];
+        // }
     }
 };
 
