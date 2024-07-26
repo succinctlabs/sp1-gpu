@@ -10,7 +10,7 @@ use super::{error::CudaError, memory::ToHost};
 #[repr(transparent)]
 pub struct DeviceSlice<T>([T]);
 
-impl<T: Copy> DeviceSlice<T> {
+impl<T> DeviceSlice<T> {
     #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()
@@ -71,7 +71,10 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_from_host(&mut self, src: &[T]) {
+    pub fn copy_from_host(&mut self, src: &[T])
+    where
+        T: Copy,
+    {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -99,7 +102,10 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_into_host(&self, dst: &mut [T]) {
+    pub fn copy_into_host(&self, dst: &mut [T])
+    where
+        T: Copy,
+    {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -127,7 +133,10 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_from_device(&mut self, src: &DeviceSlice<T>) -> Result<(), CudaError> {
+    pub fn copy_from_device(&mut self, src: &DeviceSlice<T>) -> Result<(), CudaError>
+    where
+        T: Copy,
+    {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]

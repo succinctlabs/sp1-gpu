@@ -1,40 +1,33 @@
+use std::marker::PhantomData;
 use std::ops::{
     Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
 };
-use std::{mem, slice};
+use std::slice;
 
-use p3_field::{ExtensionField, Field, PrimeField32};
-
-use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
+use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
 use super::error::CudaError;
 use super::memory::{ToDevice, ToHost};
+use super::{DevicePointer, RawPointer};
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
 #[repr(C)]
-pub struct DeviceBuffer<T: Copy> {
-    buf: *mut T,
+pub struct Buffer<T, P: RawPointer<T>> {
+    buf: P,
     len: usize,
     cap: usize,
+    _marker: PhantomData<T>,
 }
 
-unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
-unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
+unsafe impl<T, P: RawPointer<T>> Send for Buffer<T, P> {}
+unsafe impl<T, P: RawPointer<T>> Sync for Buffer<T, P> {}
 
-impl<T: Copy> DeviceBuffer<T> {
-    pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        let ptr = unsafe { cuda_malloc(capacity) }?;
+pub type DeviceBuffer<T> = Buffer<T, DevicePointer<T>>;
 
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-        })
-    }
-
+impl<T, P: RawPointer<T>> Buffer<T, P> {
     /// Returns a new buffer from a pointer, length, and capacity.
     ///
     /// # Safety
@@ -42,11 +35,12 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The pointer must be valid, it must have allocated memory in the size of
     /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
     /// about to be initialized in a foreign CUDA call.
-    pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+    pub const unsafe fn from_raw_parts(ptr: P, length: usize, capacity: usize) -> Self {
         Self {
             buf: ptr,
             len: length,
             cap: capacity,
+            _marker: PhantomData,
         }
     }
 
@@ -85,11 +79,30 @@ impl<T: Copy> DeviceBuffer<T> {
     }
 
     pub fn as_ptr(&self) -> *const T {
-        self.buf
+        self.buf.as_ptr()
     }
 
     pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.buf
+        self.buf.as_mut_ptr()
+    }
+
+    /// Calculates the offset to the current element.
+    #[inline]
+    unsafe fn offset(&self) -> *mut T {
+        (self.buf.as_ptr() as *mut T).add(self.len)
+    }
+}
+
+impl<T: Copy> DeviceBuffer<T> {
+    pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
+        let ptr = DevicePointer::from_raw(unsafe { cuda_malloc(capacity) }?);
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            _marker: PhantomData,
+        })
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.
@@ -117,7 +130,7 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
+        unsafe { copy_host_to_device(self.buf.as_mut_ptr(), src.as_ptr(), src.len()) }.unwrap()
     }
 
     pub fn copy_to_host(&self, dst: &mut [T]) {
@@ -137,13 +150,7 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), dst.len());
         }
 
-        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf, dst.len()) }.unwrap()
-    }
-
-    /// Calculates the offset to the current element.
-    #[inline]
-    unsafe fn offset(&self) -> *mut T {
-        self.buf.add(self.len)
+        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf.as_ptr(), dst.len()) }.unwrap()
     }
 
     /// Appends all the elements from `src` into `self`, using a cudaMemcpy.
@@ -174,81 +181,36 @@ impl<T: Copy> DeviceBuffer<T> {
         // Extend the length of the buffer to include the new elements.
         self.len += src.len();
     }
-
-    /// # Safety
-    ///
-    /// A device slice of type `T` should be castable to device slice of type `B`.
-    pub unsafe fn flatten_to_base<B>(self) -> DeviceBuffer<B>
-    where
-        B: PrimeField32,
-        T: ExtensionField<B>,
-    {
-        // Cast the device pointer to the base type.
-        let buff = self.buf as *mut B;
-
-        // The new length/capacity are the product of the old length/capacity and the extension
-        // degree.
-        let len = self.len * T::D;
-        let cap = self.cap * T::D;
-
-        // Prevent the buffer from being dropped.
-        mem::forget(self);
-
-        DeviceBuffer::from_raw_parts(buff, len, cap)
-    }
-
-    /// # Safety
-    ///
-    /// A device slice of type `T` should be castable to device slice of type `B`.
-    pub unsafe fn as_extension_buffer<E>(self) -> DeviceBuffer<E>
-    where
-        T: Field,
-        E: ExtensionField<T>,
-    {
-        // Cast the device pointer to the extension type.
-        let buff = self.buf as *mut E;
-
-        // The legth and capacity must be divisible by the degree.
-        assert!(self.len % E::D == 0);
-        assert!(self.cap % E::D == 0);
-        let len = self.len / E::D;
-        let cap = self.cap / E::D;
-
-        // Prevent the buffer from being dropped.
-        mem::forget(self);
-
-        DeviceBuffer::from_raw_parts(buff, len, cap)
-    }
 }
 
-impl<T: Copy> Drop for DeviceBuffer<T> {
+impl<T, P: RawPointer<T>> Drop for Buffer<T, P> {
     fn drop(&mut self) {
-        unsafe { cuda_free(self.buf) }.unwrap()
+        self.buf.free()
     }
 }
 
 macro_rules! impl_index {
     ($($t:ty)*) => {
         $(
-            impl<T : Copy> Index<$t> for DeviceBuffer<T>
+            impl<T, P: RawPointer<T>> Index<$t> for Buffer<T, P>
             {
                 type Output = DeviceSlice<T>;
 
                 fn index(&self, index: $t) -> &DeviceSlice<T> {
                     unsafe {
                         DeviceSlice::from_slice(
-                         slice::from_raw_parts(self.buf, self.len).index(index)
+                         slice::from_raw_parts(self.buf.as_ptr(), self.len).index(index)
                     )
                   }
                 }
             }
 
-            impl<T : Copy> IndexMut<$t> for DeviceBuffer<T>
+            impl<T, P: RawPointer<T>> IndexMut<$t> for Buffer<T, P>
             {
                 fn index_mut(&mut self, index: $t) -> &mut DeviceSlice<T> {
                     unsafe {
                         DeviceSlice::from_slice_mut(
-                            slice::from_raw_parts_mut(self.buf, self.len).index_mut(index)
+                            slice::from_raw_parts_mut(self.buf.as_mut_ptr(), self.len).index_mut(index)
                         )
                     }
                 }

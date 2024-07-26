@@ -19,3 +19,9 @@ impl<T> RawPointer<T> for DevicePointer<T> {
         unsafe { cuda_free(self.0) }.unwrap()
     }
 }
+
+impl<T> DevicePointer<T> {
+    pub const fn from_raw(ptr: *mut T) -> Self {
+        Self(ptr)
+    }
+}
