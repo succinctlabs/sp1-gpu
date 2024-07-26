@@ -1,4 +1,3 @@
-use std::os::raw::c_void;
 use tracing::{span, Subscriber};
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
@@ -11,8 +10,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for NvtxLayer {
         let span = ctx.span(id).expect("Failed to get span");
 
         // Attach start domain to the span
-        let domain = NvtxDomainHandle::new(span.name());
-        span.extensions_mut().insert(domain);
+        let range = start_range(span.name());
+        span.extensions_mut().insert(range);
     }
 
     fn on_close(&self, id: span::Id, ctx: Context<'_, S>) {
@@ -20,47 +19,33 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for NvtxLayer {
 
         // Retrieve start time and calculate the duration
         let extensions = span.extensions();
-        if let Some(domain) = extensions.get::<NvtxDomainHandle>() {
-            unsafe { ffi::nvtx_domain_destroy(*domain) }
+        if let Some(range) = extensions.get::<NvtxRangeId>() {
+            end_range(*range);
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
-struct NvtxDomainHandle(*mut c_void);
+struct NvtxRangeId(u64);
 
-unsafe impl Send for NvtxDomainHandle {}
-unsafe impl Sync for NvtxDomainHandle {}
+fn start_range(name: &str) -> NvtxRangeId {
+    let name = std::ffi::CString::new(name).unwrap();
+    unsafe { ffi::nvtx_range_start(name.as_ptr()) }
+}
+
+fn end_range(id: NvtxRangeId) {
+    unsafe { ffi::nvtx_range_end(id) }
+}
 
 mod ffi {
     use std::ffi::c_char;
 
-    use super::NvtxDomainHandle;
+    use super::NvtxRangeId;
 
     extern "C" {
-        #[link_name = "nvtxDomainCreateARust"]
-        pub fn nvtx_domain_create(name: *const c_char) -> NvtxDomainHandle;
+        pub fn nvtx_range_start(name: *const c_char) -> NvtxRangeId;
 
-        #[link_name = "nvtxDomainDestroyARust"]
-        pub fn nvtx_domain_destroy(domain: NvtxDomainHandle);
-    }
-}
-
-impl NvtxDomainHandle {
-    pub fn new(name: &str) -> Self {
-        let name = std::ffi::CString::new(name).unwrap();
-        unsafe { ffi::nvtx_domain_create(name.as_ptr()) }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nvtx_domain() {
-        let domain = NvtxDomainHandle::new("test");
-        unsafe { ffi::nvtx_domain_destroy(domain) };
+        pub fn nvtx_range_end(domain: NvtxRangeId);
     }
 }

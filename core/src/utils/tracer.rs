@@ -33,6 +33,7 @@ pub fn init_tracer() {
             .with_env_filter(env_filter)
             .finish()
             .with(TimeLayer)
+            .with(NvtxLayer)
             .init();
     });
 }

@@ -43,7 +43,9 @@ fn main() {
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
         nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
-        nvcc.flag("--threads").flag("14");
+        // nvcc.flag("--threads").flag("14");
+        nvcc.flag("-lnvToolsExt");
+        nvcc.flag("-ldl");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
@@ -56,9 +58,5 @@ fn main() {
         nvcc.define("FEATURE_BABY_BEAR", None);
 
         nvcc.file("bindings/api.cu").compile("moongate_cuda");
-
-        println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
-        println!("cargo:rustc-link-lib=dylib=nvtx3-c");
-        println!("cargo:rustc-link-lib=dylib=dl");
     }
 }
