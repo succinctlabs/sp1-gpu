@@ -8,12 +8,16 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
+
     opts.core_opts.shard_size = 1 << 21;
     opts.core_opts.shard_batch_size = 1;
     opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
     opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 4;
+
     opts.recursion_opts.shard_batch_size = 1;
+    opts.recursion_opts.records_and_traces_channel_capacity = 4;
+    opts.recursion_opts.trace_gen_workers = 4;
     opts
 }
 

@@ -36,6 +36,7 @@ use std::cmp::Reverse;
 use air::P3EvalFolder;
 
 use crate::fri::FriGpuOpeningProver;
+use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
@@ -49,7 +50,7 @@ use crate::{
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
-    poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
+    poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
 };
 
 use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
@@ -58,11 +59,11 @@ use super::natural_domain_for_degree;
 
 const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
-pub struct StarkGpuProver<SC: StarkGenericConfig, A> {
+pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
-    committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+    committer: TwoAdicFriCommitter<SC::Val, H>,
     opening_prover: FriGpuOpeningProver<SC>,
 }
 
@@ -75,7 +76,7 @@ pub type CpuProverData<SC> = PcsProverData<SC>;
 
 pub type CpuMatrix<F> = RowMajorMatrix<F>;
 
-impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, A>
+impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, DeviceHasherBabyBear, A>
 where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>>
@@ -373,6 +374,7 @@ where
                 let (openings, opening_proof) =
                     tracing::debug_span!("compute opening").in_scope(|| {
                         self.opening_prover.open(
+                            &self.committer,
                             self.pcs(),
                             vec![
                                 (&pk_data_device, preprocessed_opening_points),
@@ -389,12 +391,8 @@ where
                 drop(quotient_prover_data);
 
                 // Collect the opened values for each chip.
-                let [
-                    preprocessed_values,
-                    main_values,
-                    permutation_values,
-                    mut quotient_values,
-                ] = openings.try_into().unwrap();
+                let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+                    openings.try_into().unwrap();
                 assert!(main_values.len() == shard_chips.len());
                 let preprocessed_opened_values = preprocessed_values
                     .into_iter()
@@ -526,7 +524,7 @@ where
     }
 }
 
-impl<SC, A> StarkGpuProver<SC, A>
+impl<SC, H, A> StarkGpuProver<SC, H, A>
 where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>>
@@ -579,7 +577,7 @@ pub mod tests {
         },
     };
 
-    use crate::utils::init_tracer;
+    use crate::{poseidon2::baby_bear::DeviceHasherBabyBear, utils::init_tracer};
 
     use super::*;
 
@@ -596,7 +594,7 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
     }
 
     #[test]
@@ -606,6 +604,6 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
     }
 }
