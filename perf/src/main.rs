@@ -1,10 +1,11 @@
+use moongate_core::utils::init_tracer;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use clap::{Parser, ValueEnum};
 use moongate_perf::report::write_measurements_to_csv;
-use moongate_perf::tracer;
+// use moongate_perf::tracer;
 use moongate_perf::{
     make_measurement,
     programs::{FIBONACCI_ELF, LOOP_ELF, RETH_ELF, SHA2_CHAIN_ELF, TENDERMINT_BENCHMARK_ELF},
@@ -32,8 +33,9 @@ enum Program {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the tracer.
-    let resource = Resource::new(vec![KeyValue::new("service.name", "moongate-perf")]);
-    tracer::init(resource);
+    // let resource = Resource::new(vec![KeyValue::new("service.name", "moongate-perf")]);
+    // tracer::init(resource);
+    init_tracer();
 
     let args = Args::parse();
     let named_programs = match args.program {
