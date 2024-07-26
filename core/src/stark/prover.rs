@@ -37,7 +37,7 @@ use air::P3EvalFolder;
 
 use crate::fri::FriGpuOpeningProver;
 use crate::merkle_tree::FieldMerkleTreeHasher;
-use crate::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
+use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
@@ -51,7 +51,7 @@ use crate::{
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
-    poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+    poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
 };
 
 use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
@@ -578,7 +578,7 @@ pub mod tests {
         },
     };
 
-    use crate::{poseidon2::baby_bear_gpu::DeviceHasherBabyBear, utils::init_tracer};
+    use crate::{poseidon2::baby_bear::DeviceHasherBabyBear, utils::init_tracer};
 
     use super::*;
 

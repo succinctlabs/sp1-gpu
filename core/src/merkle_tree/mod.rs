@@ -4,7 +4,7 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
+use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -151,8 +151,8 @@ mod tests {
         };
         use crate::{
             device::buffer::DeviceBuffer,
-            poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
-            poseidon2::baby_bear_gpu::DeviceHasherBabyBear,
+            poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+            poseidon2::baby_bear::DeviceHasherBabyBear,
         };
 
         use p3_baby_bear::BabyBear;
@@ -304,8 +304,8 @@ mod tests {
         };
         use crate::{
             device::buffer::DeviceBuffer,
-            poseidon2::bn254_gpu::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
-            poseidon2::bn254_gpu::DeviceHasherBn254,
+            poseidon2::bn254::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
+            poseidon2::bn254::DeviceHasherBn254,
         };
 
         use p3_baby_bear::BabyBear;

@@ -10,8 +10,8 @@ use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
 use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
-use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-use crate::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
+use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 
 pub struct TwoAdicFriCommitter<F, H = DeviceHasherBabyBear, M = CudaSync<ColMajorMatrixDevice<F>>> {
     dft: DeviceDft<F>,

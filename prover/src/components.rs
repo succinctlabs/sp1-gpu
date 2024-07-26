@@ -1,4 +1,4 @@
-use moongate_core::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
+use moongate_core::poseidon2::baby_bear::DeviceHasherBabyBear;
 use moongate_core::stark::StarkGpuProver;
 use sp1_core::stark::{CpuProver, RiscvAir, StarkGenericConfig};
 

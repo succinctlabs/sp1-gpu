@@ -43,8 +43,8 @@ use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::DeviceMatrix;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
-use crate::poseidon2::baby_bear_gpu::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
-use crate::poseidon2::baby_bear_gpu::DeviceHasherBabyBear;
+use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
+use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::stark::BabyBearPoseidon2Config;
 use crate::stark::GpuProverData;
 
