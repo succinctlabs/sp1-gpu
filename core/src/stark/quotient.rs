@@ -24,10 +24,9 @@ use sp1_core::{
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
 
-use crate::device::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
-use crate::device::CudaSync;
+use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::FieldMerkleTreeHasher;
@@ -92,7 +91,7 @@ where
         evals: &ColMajorMatrixDevice<SC::Val>,
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
         (0..num_chunks)
-            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i)?))
+            .map(|i| evals.vertically_strided(num_chunks, i))
             .collect()
     }
 
@@ -102,8 +101,8 @@ where
         committer: &TwoAdicFriCommitter<SC::Val, H>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
-        main_traces: &[CudaSync<ColMajorMatrixDevice<SC::Val>>],
-        domain_and_permutation_traces: &[(Dom<SC>, CudaSync<ColMajorMatrixDevice<SC::Val>>)],
+        main_traces: &[ColMajorMatrixDevice<SC::Val>],
+        domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],

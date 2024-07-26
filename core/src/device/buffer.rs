@@ -10,9 +10,6 @@ use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free,
 use crate::device::slice::DeviceSlice;
 
 use super::memory::{ToDevice, ToHost};
-use super::CudaSync;
-
-pub type SyncBuffer<T> = CudaSync<DeviceBuffer<T>>;
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
@@ -22,6 +19,9 @@ pub struct DeviceBuffer<T: Copy> {
     len: usize,
     cap: usize,
 }
+
+unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
+unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
     pub fn with_capacity(capacity: usize) -> Self {

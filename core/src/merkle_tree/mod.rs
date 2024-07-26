@@ -1,8 +1,6 @@
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
-use crate::device::CudaSync;
 use crate::device::DeviceBuffer;
-use crate::device::SyncBuffer;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
 
@@ -20,7 +18,7 @@ pub use hasher::*;
 use crate::matrix::DeviceMatrix;
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMatrixDevice<F>> {
     pub leaves: Vec<M>,
-    pub digest_layers: Vec<SyncBuffer<D>>,
+    pub digest_layers: Vec<DeviceBuffer<D>>,
     _marker: std::marker::PhantomData<F>,
 }
 
@@ -50,7 +48,6 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             );
         }
 
-        let first_digest_layer = CudaSync::new(first_digest_layer).unwrap();
         let mut digest_layers = vec![first_digest_layer];
         loop {
             let prev_layer = digest_layers.last().unwrap();
@@ -77,7 +74,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                     32,
                 );
             }
-            digest_layers.push(CudaSync::new(next_digests).unwrap());
+            digest_layers.push(next_digests);
         }
 
         Self {
@@ -113,23 +110,20 @@ where
 }
 
 impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, BB31_DIGEST_WIDTH> {
-    type DeviceType = FieldMerkleTreeGpu<
-        BabyBear,
-        [BabyBear; BB31_DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >;
+    type DeviceType =
+        FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>;
 
     fn to_device(&self) -> Self::DeviceType {
         let leaves_device = self
             .leaves
             .iter()
-            .map(|l| CudaSync::new(l.to_device().to_column_major()).unwrap())
+            .map(|l| l.to_device().to_column_major())
             .collect::<Vec<_>>();
 
         let digest_layers_device = self
             .digest_layers
             .iter()
-            .map(|l| l.to_device_sync().unwrap())
+            .map(|l| l.to_device())
             .collect::<Vec<_>>();
 
         FieldMerkleTreeGpu {

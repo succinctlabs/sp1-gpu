@@ -6,14 +6,13 @@ use p3_field::{AbstractField, Field};
 use p3_symmetric::Hash;
 
 use crate::device::error::CudaError;
-use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
 use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 
-pub struct TwoAdicFriCommitter<F, H = DeviceHasherBabyBear, M = CudaSync<ColMajorMatrixDevice<F>>> {
+pub struct TwoAdicFriCommitter<F, H = DeviceHasherBabyBear, M = ColMajorMatrixDevice<F>> {
     dft: DeviceDft<F>,
     hasher: H,
     pub log_blowup: usize,
@@ -94,17 +93,17 @@ impl<H: FieldMerkleTreeHasher<BabyBear>> TwoAdicFriCommitter<BabyBear, H> {
         evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, Matrix)],
     ) -> (
         Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
-        FieldMerkleTreeGpu<BabyBear, H::Digest, CudaSync<ColMajorMatrixDevice<BabyBear>>>,
+        FieldMerkleTreeGpu<BabyBear, H::Digest, ColMajorMatrixDevice<BabyBear>>,
     )
     where
-        Matrix: Send + Sync + Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
+        Matrix: Borrow<ColMajorMatrixDevice<BabyBear>>,
         H: FieldMerkleTreeHasher<BabyBear, Digest = [BabyBear; DIGEST_WIDTH]>,
     {
         let lde_evaluations = evaluations
             .iter()
             .map(|(domain, matrix)| {
                 let matrix = matrix.borrow();
-                CudaSync::new(self.encode(*domain, matrix, true).unwrap()).unwrap()
+                self.encode(*domain, matrix, true).unwrap()
             })
             .collect::<Vec<_>>();
 
@@ -157,7 +156,6 @@ mod tests {
             .iter()
             .map(|(domain, trace)| {
                 let trace = trace.to_device().to_column_major();
-                let trace = CudaSync::new(trace).unwrap();
                 (*domain, trace)
             })
             .collect::<Vec<_>>();

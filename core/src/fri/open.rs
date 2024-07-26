@@ -36,11 +36,9 @@ use sp1_core::utils::{InnerVal, InnerValMmcs};
 
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
-use crate::device::CudaSync;
 use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::DeviceMatrix;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeGpu;
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
@@ -679,7 +677,7 @@ pub fn commit_phase(
 
     for log_folded_height in (committer.log_blowup..log_max_height).rev() {
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
-        let tree = committer.mmcs_commit(vec![CudaSync::new(temp).unwrap()]);
+        let tree = committer.mmcs_commit(vec![temp]);
         // ]);
         let commit: Hash<F, F, BB31_DIGEST_WIDTH> = tree.root().into();
         challenger.observe(commit);
@@ -711,9 +709,7 @@ pub fn commit_phase(
 
 pub struct CommitPhaseResult {
     commits: Vec<Hash<F, F, BB31_DIGEST_WIDTH>>,
-    data: Vec<
-        FieldMerkleTreeGpu<F, [F; BB31_DIGEST_WIDTH], CudaSync<ColMajorMatrixDevice<BabyBear>>>,
-    >,
+    data: Vec<FieldMerkleTreeGpu<F, [F; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>>,
     final_poly: EF,
 }
 
