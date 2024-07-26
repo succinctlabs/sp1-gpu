@@ -1,5 +1,5 @@
-use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
+use crate::device::DeviceBuffer;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeHasher;
 use p3_baby_bear::BabyBear;
@@ -71,9 +71,9 @@ impl DeviceHasherBn254 {
         let (internal_rounds_constats, external_rounds_constats, diffusion_matrix_m1) =
             poseidon2_bn254_3_constants();
         Self {
-            internal_rounds_constats_device: internal_rounds_constats.to_device(),
-            external_rounds_constats_device: external_rounds_constats.to_device(),
-            diffusion_matrix_m1_device: diffusion_matrix_m1.to_device(),
+            internal_rounds_constats_device: internal_rounds_constats.to_device().unwrap(),
+            external_rounds_constats_device: external_rounds_constats.to_device().unwrap(),
+            diffusion_matrix_m1_device: diffusion_matrix_m1.to_device().unwrap(),
         }
     }
 

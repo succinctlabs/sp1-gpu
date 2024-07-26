@@ -33,7 +33,7 @@ impl<T: Copy> DeviceBuffer<T> {
     where
         T: CudaScan,
     {
-        let mut result = Self::with_capacity(self.len());
+        let mut result = Self::with_capacity(self.len())?;
         unsafe { result.set_max_len() };
         self.scan_into(&mut result)?;
         Ok(result)

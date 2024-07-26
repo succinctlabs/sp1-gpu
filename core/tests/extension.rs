@@ -1,7 +1,7 @@
 use itertools::izip;
-use moongate_core::device::buffer::DeviceBuffer;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::device::memory::ToHost;
+use moongate_core::device::DeviceBuffer;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractField;
@@ -40,13 +40,13 @@ fn test_device_extension() {
     let mut b_h = (0..n - 1).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
     b_h.push(EF::one());
 
-    let a = a_h.to_device();
-    let b = b_h.to_device();
+    let a = a_h.to_device().unwrap();
+    let b = b_h.to_device().unwrap();
 
-    let mut add = DeviceBuffer::<EF>::with_capacity(n);
-    let mut sub = DeviceBuffer::<EF>::with_capacity(n);
-    let mut mul = DeviceBuffer::<EF>::with_capacity(n);
-    let mut div = DeviceBuffer::<EF>::with_capacity(n);
+    let mut add = DeviceBuffer::<EF>::with_capacity(n).unwrap();
+    let mut sub = DeviceBuffer::<EF>::with_capacity(n).unwrap();
+    let mut mul = DeviceBuffer::<EF>::with_capacity(n).unwrap();
+    let mut div = DeviceBuffer::<EF>::with_capacity(n).unwrap();
 
     unsafe {
         add.set_max_len();

@@ -3,9 +3,9 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
-use crate::device::buffer::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
+use crate::device::DeviceBuffer;
 
 use super::ffi::{self, transpose_naive};
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -25,14 +25,14 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
 
     pub fn null() -> Self {
         Self {
-            values: DeviceBuffer::with_capacity(0),
+            values: DeviceBuffer::with_capacity(0).unwrap(),
             height: 1,
         }
     }
 
-    pub fn with_capacity(width: usize, height: usize) -> Self {
-        let buffer = DeviceBuffer::with_capacity(width * height);
-        Self::new(buffer, height)
+    pub fn with_capacity(width: usize, height: usize) -> Result<Self, CudaError> {
+        let buffer = DeviceBuffer::with_capacity(width * height)?;
+        Ok(Self::new(buffer, height))
     }
 
     pub fn to_host_naive(&self) -> RowMajorMatrix<T> {
@@ -59,7 +59,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     {
         let mut rng = rand::thread_rng();
         let data = (0..width * height).map(|_| rng.gen()).collect::<Vec<_>>();
-        let device = ColMajorMatrixDevice::new(data.to_device(), height);
+        let device = ColMajorMatrixDevice::new(data.to_device().unwrap(), height);
         let host = RowMajorMatrix::new(data, height).transpose();
         (host, device)
     }
@@ -101,7 +101,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         &self,
         log_blowup: usize,
     ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
-        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup);
+        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
         unsafe { blowup_values.set_max_len() };
 
         let blowup_height = self.height << log_blowup;
@@ -146,7 +146,7 @@ impl ColMajorMatrixDevice<BabyBear> {
             0,
             "height must be a multiple of stride"
         );
-        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride);
+        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride).unwrap();
         unsafe { strided_values.set_max_len() };
 
         let mut output = ColMajorMatrixDevice::new(strided_values, self.height / stride);
@@ -161,7 +161,7 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
 
     /// Returns a host copy of the matrix in row major form.
     fn to_host(&self) -> Self::HostType {
-        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width());
+        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
         unsafe {
             ret_values.set_max_len();
             transpose_naive(ret_values.as_mut_ptr(), self.view())
@@ -196,7 +196,7 @@ mod tests {
     use p3_matrix::Matrix;
     use rand::thread_rng;
 
-    use crate::{device::memory::ToHost, runtime::sync_device};
+    use crate::{cuda_runtime::sync_device, device::memory::ToHost};
 
     use crate::device::memory::ToDevice;
 
@@ -211,7 +211,8 @@ mod tests {
         let values = (0..width * height)
             .map(|_| rng.gen::<BabyBear>())
             .collect::<Vec<_>>()
-            .to_device();
+            .to_device()
+            .unwrap();
 
         let matrix = ColMajorMatrixDevice::new(values, height);
 
@@ -238,7 +239,7 @@ mod tests {
         let mut rng = thread_rng();
         let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
 
-        let mut device_matrix = host_matrix.to_device().to_column_major();
+        let mut device_matrix = host_matrix.to_device().unwrap().to_column_major();
         device_matrix.bit_reverse_rows().unwrap();
 
         let host_matrix_reversed = host_matrix.bit_reverse_rows().to_row_major_matrix();
@@ -263,7 +264,7 @@ mod tests {
         let mut rng = thread_rng();
         let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
 
-        let device_matrix = host_matrix.to_device().to_column_major();
+        let device_matrix = host_matrix.to_device().unwrap().to_column_major();
 
         for offset in 0..stride {
             let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();

@@ -35,9 +35,9 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
+use crate::cuda_runtime::scope;
 use crate::fri::FriGpuOpeningProver;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
-use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -45,7 +45,6 @@ use crate::{
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
-        CudaSync,
     },
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
@@ -67,7 +66,7 @@ pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
     opening_prover: FriGpuOpeningProver<SC>,
 }
 
-pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
+pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
 
 pub type GpuProverData<SC> =
     FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
@@ -84,7 +83,7 @@ where
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
 {
-    type DeviceMatrix = CudaSync<ColMajorMatrixDevice<Val<SC>>>;
+    type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
     type DeviceProverData = GpuProverData<SC>;
     type Error = CudaError;
 
@@ -147,7 +146,7 @@ where
                 // Copy the traces to device.
                 let traces: Vec<_> = traces
                     .iter()
-                    .map(|trace| CudaSync::new(trace.to_device().to_column_major()).unwrap())
+                    .map(|trace| trace.to_device().unwrap().to_column_major())
                     .collect();
 
                 // Commit to the traces.
@@ -361,15 +360,15 @@ where
                 if recompute_ldes {
                     for (domain, perm_trace) in perm_domains_and_traces {
                         let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-                        perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+                        perm_prover_data.leaves.push(perm_lde);
                     }
                     for (domain, trace) in domains.iter().zip(traces) {
                         let main_lde = self.committer.encode(*domain, &trace, true)?;
-                        main_data.leaves.push(CudaSync::new(main_lde)?);
+                        main_data.leaves.push(main_lde);
                     }
                 }
 
-                let pk_data_device = pk.data.to_device();
+                let pk_data_device = pk.data.to_device().unwrap();
 
                 let (openings, opening_proof) =
                     tracing::debug_span!("compute opening").in_scope(|| {
@@ -550,17 +549,15 @@ where
                 let preprocessed_trace = pk
                     .chip_ordering
                     .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().to_column_major());
+                    .map(|&index| pk.traces[index].to_device().unwrap().to_column_major());
 
-                let flatenned_trace = self
-                    .permutation_trace_generator
+                self.permutation_trace_generator
                     .generate_flattened_permutation_trace(
                         chip,
                         preprocessed_trace.as_ref(),
                         main_trace,
                         random_elements,
-                    )?;
-                CudaSync::new(flatenned_trace)
+                    )
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
