@@ -6,7 +6,7 @@ use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
 use crate::{
-    device::{buffer::DeviceBuffer, error::CudaError, memory::ToDevice, slice::DeviceSlice},
+    device::{error::CudaError, memory::ToDevice, slice::DeviceSlice, DeviceBuffer},
     matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
 
@@ -33,11 +33,14 @@ where
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
     ) -> Result<ColMajorMatrixDevice<BinomialExtensionField<BabyBear, 4>>, CudaError> {
         type EF = BinomialExtensionField<BabyBear, 4>;
-        let device_interactions = HostInteractions::new(chip.sends(), chip.receives()).to_device();
+        let device_interactions = HostInteractions::new(chip.sends(), chip.receives())
+            .to_device()
+            .unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height();
-        let mut perm_buffer = DeviceBuffer::<EF>::with_capacity(perm_width * main_trace.height);
+        let mut perm_buffer =
+            DeviceBuffer::<EF>::with_capacity(perm_width * main_trace.height).unwrap();
         unsafe {
             perm_buffer.set_max_len();
         }
@@ -74,11 +77,14 @@ where
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
     ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
         const D: usize = 4;
-        let device_interactions = HostInteractions::new(chip.sends(), chip.receives()).to_device();
+        let device_interactions = HostInteractions::new(chip.sends(), chip.receives())
+            .to_device()
+            .unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
-        let mut perm_buffer = DeviceBuffer::<BabyBear>::with_capacity(perm_width * height * D);
+        let mut perm_buffer =
+            DeviceBuffer::<BabyBear>::with_capacity(perm_width * height * D).unwrap();
         unsafe {
             perm_buffer.set_max_len();
         }
@@ -251,19 +257,19 @@ impl<F: Field> HostInteractions<F> {
         }
     }
 
-    pub fn to_device(&self) -> DeviceInteractions<F> {
-        DeviceInteractions {
-            values_ptr: self.values_ptr.to_device(),
-            values_col_weights_ptr: self.values_col_weights_ptr.to_device(),
-            multiplicities_ptr: self.multiplicities_ptr.to_device(),
-            values_col_weights: self.values_col_weights.to_device(),
-            values_constants: self.values_constants.to_device(),
-            mult_col_weights: self.mult_col_weights.to_device(),
-            mult_constants: self.mult_constants.to_device(),
-            arg_indices: self.arg_indices.to_device(),
-            is_send: self.is_send.to_device(),
+    pub fn to_device(&self) -> Result<DeviceInteractions<F>, CudaError> {
+        Ok(DeviceInteractions {
+            values_ptr: self.values_ptr.to_device()?,
+            values_col_weights_ptr: self.values_col_weights_ptr.to_device()?,
+            multiplicities_ptr: self.multiplicities_ptr.to_device()?,
+            values_col_weights: self.values_col_weights.to_device()?,
+            values_constants: self.values_constants.to_device()?,
+            mult_col_weights: self.mult_col_weights.to_device()?,
+            mult_constants: self.mult_constants.to_device()?,
+            arg_indices: self.arg_indices.to_device()?,
+            is_send: self.is_send.to_device()?,
             num_interactions: self.num_interactions,
-        }
+        })
     }
 
     pub fn populate_permutation_row<EF: ExtensionField<F>>(
@@ -648,11 +654,11 @@ mod tests {
         }
 
         // Transfer perm and main traces to the device.
-        let prep_trace_d = preprocessed_trace.values.to_device();
+        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
         let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
         let prep_d = prep_d.to_column_major();
 
-        let main_trace_d = main_trace.values.to_device();
+        let main_trace_d = main_trace.values.to_device().unwrap();
         let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
         let main_d = main_d.to_column_major();
 
@@ -706,11 +712,11 @@ mod tests {
         }
 
         // Transfer perm and main traces to the device.
-        let prep_trace_d = preprocessed_trace.values.to_device();
+        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
         let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
         let prep_d = prep_d.to_column_major();
 
-        let main_trace_d = main_trace.values.to_device();
+        let main_trace_d = main_trace.values.to_device().unwrap();
         let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
         let main_d = main_d.to_column_major();
 

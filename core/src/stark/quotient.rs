@@ -24,13 +24,13 @@ use sp1_core::{
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
 
-use crate::device::buffer::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
-use crate::device::CudaSync;
+use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+use crate::merkle_tree::FieldMerkleTreeHasher;
+use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 use crate::stark::ffi::quotient_gpu;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
@@ -91,27 +91,30 @@ where
         evals: &ColMajorMatrixDevice<SC::Val>,
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
         (0..num_chunks)
-            .map(|i| CudaSync::new(evals.vertically_strided(num_chunks, i)?))
+            .map(|i| evals.vertically_strided(num_chunks, i))
             .collect()
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn generate_quotient_values(
+    pub fn generate_quotient_values<H>(
         &self,
-        committer: &TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+        committer: &TwoAdicFriCommitter<SC::Val, H>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
-        main_traces: &[CudaSync<ColMajorMatrixDevice<SC::Val>>],
-        domain_and_permutation_traces: &[(Dom<SC>, CudaSync<ColMajorMatrixDevice<SC::Val>>)],
+        main_traces: &[ColMajorMatrixDevice<SC::Val>],
+        domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
         cumulative_sums: &[SC::Challenge],
-    ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError> {
+    ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
+    where
+        H: FieldMerkleTreeHasher<SC::Val, Digest = [SC::Val; DIGEST_WIDTH]>,
+    {
         let mut results = Vec::with_capacity(chips.len());
 
-        let permutation_challenges_device = permutation_challenges.to_device();
-        let public_values_device = public_values.to_device();
+        let permutation_challenges_device = permutation_challenges.to_device().unwrap();
+        let public_values_device = public_values.to_device().unwrap();
         for (i, chip) in chips.iter().enumerate() {
             // Get the evaluations on the quotient domain.
             let evaluations_span =
@@ -128,7 +131,7 @@ where
             let preprocessed_on_quotient_domain = pk
                 .chip_ordering
                 .get(&chip.name())
-                .map(|&index| pk.traces[index].to_device().to_column_major())
+                .map(|&index| pk.traces[index].to_device().unwrap().to_column_major())
                 .map(|trace| {
                     committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
                 })
@@ -151,10 +154,10 @@ where
             // Move data to device and get generator powers.
             let generator_powers_span = trace_span!("Get generator powers").entered();
 
-            let trace_domain_device = trace_domain.to_device();
-            let quotient_domain_device = quotient_domain.to_device();
+            let trace_domain_device = trace_domain.to_device().unwrap();
+            let quotient_domain_device = quotient_domain.to_device().unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
-            let operations_device = operations.to_device();
+            let operations_device = operations.to_device().unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -163,7 +166,8 @@ where
                 .powers()
                 .take(NUM_THREADS_PER_BLOCK)
                 .collect::<Vec<_>>()
-                .to_device();
+                .to_device()
+                .unwrap();
             generator_powers_span.exit();
 
             // Compute quotient values.
@@ -171,7 +175,8 @@ where
                 let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
                     <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                     quotient_domain.size(),
-                );
+                )
+                .unwrap();
                 quotient_flat.set_max_width();
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
@@ -214,11 +219,11 @@ where
 impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
     type DeviceType = TwoAdicMultiplicativeCosetDevice<BabyBear>;
 
-    fn to_device(&self) -> Self::DeviceType {
-        Self::DeviceType {
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        Ok(Self::DeviceType {
             log_n: self.log_n,
             shift: self.shift,
-        }
+        })
     }
 }
 
@@ -234,13 +239,13 @@ pub struct LagrangeSelectorsDevice<T: Field> {
 impl ToDevice for LagrangeSelectors<Vec<BabyBear>> {
     type DeviceType = LagrangeSelectorsDevice<BabyBear>;
 
-    fn to_device(&self) -> Self::DeviceType {
-        Self::DeviceType {
-            is_first_row: self.is_first_row.to_device(),
-            is_last_row: self.is_last_row.to_device(),
-            is_transition: self.is_transition.to_device(),
-            inv_zeroifier: self.inv_zeroifier.to_device(),
-        }
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        Ok(Self::DeviceType {
+            is_first_row: self.is_first_row.to_device()?,
+            is_last_row: self.is_last_row.to_device()?,
+            is_transition: self.is_transition.to_device()?,
+            inv_zeroifier: self.inv_zeroifier.to_device()?,
+        })
     }
 }
 
@@ -503,40 +508,46 @@ mod tests {
                 .powers()
                 .take(512)
                 .collect::<Vec<_>>()
-                .to_device();
+                .to_device()
+                .unwrap();
 
-            let trace_domain_device = trace_domain.to_device();
-            let quotient_domain_device = quotient_domain.to_device();
+            let trace_domain_device = trace_domain.to_device().unwrap();
+            let quotient_domain_device = quotient_domain.to_device().unwrap();
 
             let preprocessed_trace_on_quotient_domain_device =
-                preprocessed_trace_on_quotient_domain.values.to_device();
+                preprocessed_trace_on_quotient_domain
+                    .values
+                    .to_device()
+                    .unwrap();
             let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 preprocessed_trace_on_quotient_domain_device,
                 preprocessed_trace_on_quotient_domain.width(),
             )
             .to_column_major();
             let main_trace_on_quotient_domain_device =
-                main_trace_on_quotient_domain.values.to_device();
+                main_trace_on_quotient_domain.values.to_device().unwrap();
             let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 main_trace_on_quotient_domain_device,
                 main_trace_on_quotient_domain.width(),
             )
             .to_column_major();
-            let permutation_trace_on_quotient_domain_device =
-                permutation_trace_on_quotient_domain.values.to_device();
+            let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
+                .values
+                .to_device()
+                .unwrap();
             let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 permutation_trace_on_quotient_domain_device,
                 permutation_trace_on_quotient_domain.width(),
             )
             .to_column_major();
-            let permutation_challenges_device = permutation_challenges.to_device();
-            let public_values_device = public_values.to_device();
+            let permutation_challenges_device = permutation_challenges.to_device().unwrap();
+            let public_values_device = public_values.to_device().unwrap();
 
             let mut quotient_output =
-                ColMajorMatrixDevice::with_capacity(D, quotient_domain.size());
+                ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
-            let operations_device = operations.to_device();
+            let operations_device = operations.to_device().unwrap();
             debug!("> Eval Program Len: {}", operations.len());
             debug!("> Eval Program Register Count: {}", expr_ctr);
 

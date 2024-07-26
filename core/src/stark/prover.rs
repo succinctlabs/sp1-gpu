@@ -35,8 +35,9 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
+use crate::cuda_runtime::scope;
 use crate::fri::FriGpuOpeningProver;
-use crate::runtime::scope;
+use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -44,12 +45,11 @@ use crate::{
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
-        CudaSync,
     },
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
-    poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH,
+    poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
 };
 
 use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
@@ -58,15 +58,15 @@ use super::natural_domain_for_degree;
 
 const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
-pub struct StarkGpuProver<SC: StarkGenericConfig, A> {
+pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
-    committer: TwoAdicFriCommitter<SC::Val, [SC::Val; DIGEST_WIDTH]>,
+    committer: TwoAdicFriCommitter<SC::Val, H>,
     opening_prover: FriGpuOpeningProver<SC>,
 }
 
-pub type GpuMatrix<F> = CudaSync<ColMajorMatrixDevice<F>>;
+pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
 
 pub type GpuProverData<SC> =
     FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
@@ -75,7 +75,7 @@ pub type CpuProverData<SC> = PcsProverData<SC>;
 
 pub type CpuMatrix<F> = RowMajorMatrix<F>;
 
-impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, A>
+impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, DeviceHasherBabyBear, A>
 where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>>
@@ -83,7 +83,7 @@ where
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
 {
-    type DeviceMatrix = CudaSync<ColMajorMatrixDevice<Val<SC>>>;
+    type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
     type DeviceProverData = GpuProverData<SC>;
     type Error = CudaError;
 
@@ -146,7 +146,7 @@ where
                 // Copy the traces to device.
                 let traces: Vec<_> = traces
                     .iter()
-                    .map(|trace| CudaSync::new(trace.to_device().to_column_major()).unwrap())
+                    .map(|trace| trace.to_device().unwrap().to_column_major())
                     .collect();
 
                 // Commit to the traces.
@@ -360,19 +360,20 @@ where
                 if recompute_ldes {
                     for (domain, perm_trace) in perm_domains_and_traces {
                         let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-                        perm_prover_data.leaves.push(CudaSync::new(perm_lde)?);
+                        perm_prover_data.leaves.push(perm_lde);
                     }
                     for (domain, trace) in domains.iter().zip(traces) {
                         let main_lde = self.committer.encode(*domain, &trace, true)?;
-                        main_data.leaves.push(CudaSync::new(main_lde)?);
+                        main_data.leaves.push(main_lde);
                     }
                 }
 
-                let pk_data_device = pk.data.to_device();
+                let pk_data_device = pk.data.to_device().unwrap();
 
                 let (openings, opening_proof) =
                     tracing::debug_span!("compute opening").in_scope(|| {
                         self.opening_prover.open(
+                            &self.committer,
                             self.pcs(),
                             vec![
                                 (&pk_data_device, preprocessed_opening_points),
@@ -389,12 +390,8 @@ where
                 drop(quotient_prover_data);
 
                 // Collect the opened values for each chip.
-                let [
-                    preprocessed_values,
-                    main_values,
-                    permutation_values,
-                    mut quotient_values,
-                ] = openings.try_into().unwrap();
+                let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+                    openings.try_into().unwrap();
                 assert!(main_values.len() == shard_chips.len());
                 let preprocessed_opened_values = preprocessed_values
                     .into_iter()
@@ -526,7 +523,7 @@ where
     }
 }
 
-impl<SC, A> StarkGpuProver<SC, A>
+impl<SC, H, A> StarkGpuProver<SC, H, A>
 where
     SC: BabyBearPoseidon2Config,
     A: for<'a> Air<P3EvalFolder<'a>>
@@ -552,17 +549,15 @@ where
                 let preprocessed_trace = pk
                     .chip_ordering
                     .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().to_column_major());
+                    .map(|&index| pk.traces[index].to_device().unwrap().to_column_major());
 
-                let flatenned_trace = self
-                    .permutation_trace_generator
+                self.permutation_trace_generator
                     .generate_flattened_permutation_trace(
                         chip,
                         preprocessed_trace.as_ref(),
                         main_trace,
                         random_elements,
-                    )?;
-                CudaSync::new(flatenned_trace)
+                    )
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
@@ -579,7 +574,7 @@ pub mod tests {
         },
     };
 
-    use crate::utils::init_tracer;
+    use crate::{poseidon2::baby_bear::DeviceHasherBabyBear, utils::init_tracer};
 
     use super::*;
 
@@ -596,7 +591,7 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
     }
 
     #[test]
@@ -606,6 +601,6 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
     }
 }

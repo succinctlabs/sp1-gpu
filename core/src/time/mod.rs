@@ -4,8 +4,8 @@ mod layer;
 pub use layer::*;
 
 use crate::{
+    cuda_runtime::{event::CudaEvent, ffi, stream::CudaStream},
     device::error::CudaError,
-    runtime::{event::CudaEvent, ffi, stream::UnsafeCudaStream},
 };
 
 pub struct CudaInstant(pub(crate) CudaEvent);
@@ -15,15 +15,14 @@ unsafe impl Sync for CudaInstant {}
 
 impl CudaInstant {
     pub fn now() -> Result<Self, CudaError> {
-        let default_stream = UnsafeCudaStream::default();
+        let default_stream = CudaStream::default();
         default_stream.now()
     }
 
     pub fn elapsed(&self) -> Result<Duration, CudaError> {
-        let stream = UnsafeCudaStream::default();
+        let stream = CudaStream::default();
         let end = CudaEvent::new()?;
         stream.record(&end)?;
-        stream.wait_event(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
         unsafe { ffi::cuda_event_elapsed_time(&mut ms, self.0 .0, end.0) }.to_result()?;

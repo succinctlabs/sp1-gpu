@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::sync::Arc;
 use std::time::Duration;
 use std::{ffi::c_void, mem, ptr};
 
@@ -6,122 +8,23 @@ use crate::{device::error::CudaError, time::CudaInstant};
 use super::{event::CudaEvent, ffi};
 
 #[repr(transparent)]
-pub struct UnsafeCudaStream(pub(crate) *mut c_void);
+pub struct CudaStreamHandle(*mut c_void);
 
-pub struct CudaStream(UnsafeCudaStream);
+unsafe impl Send for CudaStreamHandle {}
+unsafe impl Sync for CudaStreamHandle {}
 
-pub struct StreamHandle<T> {
-    value: T,
-    stream: CudaStream,
-}
-
-pub fn spawn<F, T>(f: F) -> Result<StreamHandle<T>, CudaError>
-where
-    F: FnOnce(&CudaStream) -> Result<T, CudaError> + Send + 'static,
-    T: Send + 'static,
-{
-    let stream = CudaStream(UnsafeCudaStream::create()?);
-    let value = f(&stream)?;
-    Ok(StreamHandle { value, stream })
-}
-
-impl<T: Copy> StreamHandle<T> {
-    pub fn join(self) -> Result<T, CudaError> {
-        let StreamHandle { value, stream } = self;
-        stream.0.synchronize()?;
-        Ok(value)
-    }
-}
+#[repr(transparent)]
+pub struct CudaStream(Arc<CudaStreamHandle>);
 
 impl CudaStream {
-    pub fn sync(&self) -> Result<(), CudaError> {
-        self.0.synchronize()
-    }
-
-    pub fn now(&self) -> Result<CudaInstant, CudaError> {
-        self.0.now()
-    }
-
-    pub fn elasped(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
-        self.0.elasped(start)
-    }
-
-    pub fn wait(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        self.0.wait_event(event)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
-        self.0.cuda_malloc_async(size)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
-        self.0.cuda_free_async(ptr)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_memcpy_device_to_device_async<T: Copy>(
-        &self,
-        dst: *mut T,
-        src: *const T,
-        count: usize,
-    ) -> Result<(), CudaError> {
-        self.0.cuda_memcpy_device_to_device_async(dst, src, count)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_memcpy_host_to_device_async<T: Copy>(
-        &self,
-        dst: *mut T,
-        src: *const T,
-        count: usize,
-    ) -> Result<(), CudaError> {
-        self.0.cuda_memcpy_host_to_device_async(dst, src, count)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_memcpy_device_to_host_async<T: Copy>(
-        &self,
-        dst: *mut T,
-        src: *const T,
-        count: usize,
-    ) -> Result<(), CudaError> {
-        self.0.cuda_memcpy_device_to_host_async(dst, src, count)
-    }
-
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
-        &self,
-        dst: *mut T,
-        src: *const T,
-        count: usize,
-    ) -> Result<(), CudaError> {
-        self.0.cuda_memcpy_host_to_host_async(dst, src, count)
-    }
-}
-
-impl UnsafeCudaStream {
     pub fn create() -> Result<Self, CudaError> {
         let mut ptr: *mut c_void = ptr::null_mut();
         unsafe { ffi::cuda_stream_create(&mut ptr as *mut *mut c_void) }.to_result()?;
-        Ok(Self(ptr))
+        Ok(Self(Arc::new(CudaStreamHandle(ptr))))
     }
 
     pub fn synchronize(&self) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_synchronize(self.0) }.to_result()
+        unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
     }
 
     pub fn now(&self) -> Result<CudaInstant, CudaError> {
@@ -131,13 +34,12 @@ impl UnsafeCudaStream {
     }
 
     pub fn record(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_event_record(event.0, self.0) }.to_result()
+        unsafe { ffi::cuda_event_record(event.0, self.0 .0) }.to_result()
     }
 
-    pub fn elasped(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
+    pub fn elapsed(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
         let end = CudaEvent::new()?;
         self.record(&end)?;
-        self.wait_event(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
         unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0 .0, end.0) }.to_result()?;
@@ -146,14 +48,8 @@ impl UnsafeCudaStream {
         Ok(Duration::from_secs_f64(s))
     }
 
-    pub fn elapsed_time(&self, start: &CudaEvent, end: &CudaEvent) -> Result<f32, CudaError> {
-        let mut ms: f32 = 0.0;
-        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0, end.0) }.to_result()?;
-        Ok(ms)
-    }
-
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_wait_event(self.0, event.0) }.to_result()
+        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.0) }.to_result()
     }
 
     /// # Safety
@@ -165,7 +61,7 @@ impl UnsafeCudaStream {
             ffi::cuda_malloc_async(
                 &mut ptr as *mut *mut c_void,
                 size * mem::size_of::<T>(),
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()?;
@@ -176,7 +72,7 @@ impl UnsafeCudaStream {
     ///
     /// TODO
     pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0) }.to_result()
+        unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
 
     /// # Safety
@@ -193,7 +89,7 @@ impl UnsafeCudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -213,7 +109,7 @@ impl UnsafeCudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -233,7 +129,7 @@ impl UnsafeCudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -253,20 +149,21 @@ impl UnsafeCudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
     }
 }
 
-impl Default for UnsafeCudaStream {
+impl Default for CudaStream {
     fn default() -> Self {
-        Self(unsafe { ffi::DEFAULT_STREAM })
+        let raw = CudaStreamHandle(unsafe { ffi::DEFAULT_STREAM });
+        Self(Arc::new(raw))
     }
 }
 
-impl Drop for UnsafeCudaStream {
+impl Drop for CudaStreamHandle {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
             unsafe { ffi::cuda_stream_destroy(self.0) }
@@ -276,25 +173,53 @@ impl Drop for UnsafeCudaStream {
     }
 }
 
+impl Deref for CudaStream {
+    type Target = CudaStreamHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::device::buffer::DeviceBuffer;
+    use crate::device::DeviceBuffer;
 
     use super::*;
 
     #[test]
     fn test_default_stream() {
-        let stream = UnsafeCudaStream::default();
+        let stream = CudaStream::default();
         let event = CudaEvent::new().unwrap();
         stream.record(&event).unwrap();
 
         // Get a big buffer and measure the time it takes to copy it.
         let data = vec![0u32; 1 << 22];
-        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len());
+        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len()).unwrap();
         let time = stream.now().unwrap();
         buffer.extend_from_host_slice(&data);
-        let elapsed = stream.elasped(&time).unwrap();
+        let elapsed = stream.elapsed(&time).unwrap();
         println!("{:?}", elapsed);
         stream.synchronize().unwrap();
+    }
+
+    #[test]
+    fn test_streams() {
+        let stream = CudaStream::create().unwrap();
+
+        // Get a big buffer and measure the time it takes to copy it.
+        let data = vec![0u32; 1 << 22];
+        let time = stream.now().unwrap();
+        unsafe {
+            let buf = stream.cuda_malloc_async::<u32>(data.len()).unwrap();
+            stream
+                .cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len())
+                .unwrap();
+            stream.cuda_free_async(buf).unwrap();
+            let end = CudaEvent::new().unwrap();
+            stream.record(&end).unwrap();
+            let elapsed = stream.elapsed(&time).unwrap();
+            println!("{:?}", elapsed);
+        }
     }
 }
