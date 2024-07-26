@@ -5,7 +5,7 @@ pub mod constants;
 pub mod tests {
     #[cfg(test)]
     pub mod baby_bear_tests {
-        use crate::device::buffer::DeviceBuffer;
+        use crate::device::DeviceBuffer;
         use crate::device::memory::{ToDevice, ToHost};
         use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
@@ -280,7 +280,7 @@ pub mod tests {
 
     #[cfg(test)]
     pub mod bn254_tests {
-        use crate::device::buffer::DeviceBuffer;
+        use crate::device::DeviceBuffer;
         use crate::device::memory::{ToDevice, ToHost};
         use crate::poseidon2::bn254::poseidon2_bn254_3_kernels::{
             DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,

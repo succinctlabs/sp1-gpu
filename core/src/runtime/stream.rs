@@ -166,7 +166,7 @@ impl Drop for CudaStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::buffer::DeviceBuffer;
+    use crate::device::DeviceBuffer;
 
     use super::*;
 

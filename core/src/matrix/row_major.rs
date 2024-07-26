@@ -4,7 +4,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
-use crate::device::buffer::DeviceBuffer;
+use crate::device::DeviceBuffer;
 use crate::device::memory::{ToDevice, ToHost};
 
 use super::ffi::{transpose_blowup_naive, transpose_naive};

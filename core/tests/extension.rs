@@ -1,5 +1,5 @@
 use itertools::izip;
-use moongate_core::device::buffer::DeviceBuffer;
+use moongate_core::device::DeviceBuffer;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::device::memory::ToHost;
 use p3_baby_bear::BabyBear;

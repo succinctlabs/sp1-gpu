@@ -1,5 +1,5 @@
-use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
+use crate::device::DeviceBuffer;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeHasher;
 use p3_baby_bear::BabyBear;

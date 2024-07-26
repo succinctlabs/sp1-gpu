@@ -116,8 +116,8 @@ mod tests {
     use super::DeviceDft;
     use crate::{
         device::{
-            buffer::DeviceBuffer,
             memory::{ToDevice, ToHost},
+            DeviceBuffer,
         },
         matrix::ColMajorMatrixDevice,
     };

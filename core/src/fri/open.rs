@@ -34,10 +34,10 @@ use sp1_core::utils::log2_strict_usize;
 use sp1_core::utils::BabyBearPoseidon2;
 use sp1_core::utils::{InnerVal, InnerValMmcs};
 
-use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
+use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::DeviceMatrix;

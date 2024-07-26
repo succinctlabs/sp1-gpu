@@ -1,8 +1,8 @@
-use crate::device::buffer::DeviceBuffer;
-use crate::device::buffer::SyncBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::CudaSync;
+use crate::device::DeviceBuffer;
+use crate::device::SyncBuffer;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
 
@@ -150,7 +150,7 @@ mod tests {
             poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
         };
         use crate::{
-            device::buffer::DeviceBuffer,
+            device::DeviceBuffer,
             poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
             poseidon2::baby_bear::DeviceHasherBabyBear,
         };
@@ -303,8 +303,7 @@ mod tests {
             poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm,
         };
         use crate::{
-            device::buffer::DeviceBuffer,
-            poseidon2::bn254::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
+            device::DeviceBuffer, poseidon2::bn254::poseidon2_bn254_3_kernels::DIGEST_WIDTH,
             poseidon2::bn254::DeviceHasherBn254,
         };
 

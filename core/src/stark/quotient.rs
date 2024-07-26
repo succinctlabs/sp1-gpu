@@ -24,7 +24,7 @@ use sp1_core::{
     stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
 };
 
-use crate::device::buffer::DeviceBuffer;
+use crate::device::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
 use crate::device::CudaSync;
