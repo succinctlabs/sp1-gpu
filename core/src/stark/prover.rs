@@ -36,7 +36,6 @@ use std::cmp::Reverse;
 use air::P3EvalFolder;
 
 use crate::fri::FriGpuOpeningProver;
-use crate::merkle_tree::FieldMerkleTreeHasher;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
