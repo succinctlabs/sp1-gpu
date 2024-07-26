@@ -3,9 +3,9 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
-use crate::device::DeviceBuffer;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
+use crate::device::DeviceBuffer;
 
 use super::ffi::{self, transpose_naive};
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -196,7 +196,7 @@ mod tests {
     use p3_matrix::Matrix;
     use rand::thread_rng;
 
-    use crate::{device::memory::ToHost, runtime::sync_device};
+    use crate::{cuda_runtime::sync_device, device::memory::ToHost};
 
     use crate::device::memory::ToDevice;
 

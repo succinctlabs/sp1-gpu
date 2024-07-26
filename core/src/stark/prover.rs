@@ -35,9 +35,9 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
+use crate::cuda_runtime::scope;
 use crate::fri::FriGpuOpeningProver;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
-use crate::runtime::scope;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;

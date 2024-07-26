@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::sync::Arc;
 use std::time::Duration;
 use std::{ffi::c_void, mem, ptr};
 
@@ -6,17 +8,23 @@ use crate::{device::error::CudaError, time::CudaInstant};
 use super::{event::CudaEvent, ffi};
 
 #[repr(transparent)]
-pub struct CudaStream(*mut c_void);
+pub struct CudaStreamHandle(*mut c_void);
+
+unsafe impl Send for CudaStreamHandle {}
+unsafe impl Sync for CudaStreamHandle {}
+
+#[repr(transparent)]
+pub struct CudaStream(Arc<CudaStreamHandle>);
 
 impl CudaStream {
     pub fn create() -> Result<Self, CudaError> {
         let mut ptr: *mut c_void = ptr::null_mut();
         unsafe { ffi::cuda_stream_create(&mut ptr as *mut *mut c_void) }.to_result()?;
-        Ok(Self(ptr))
+        Ok(Self(Arc::new(CudaStreamHandle(ptr))))
     }
 
     pub fn synchronize(&self) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_synchronize(self.0) }.to_result()
+        unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
     }
 
     pub fn now(&self) -> Result<CudaInstant, CudaError> {
@@ -26,7 +34,7 @@ impl CudaStream {
     }
 
     pub fn record(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_event_record(event.0, self.0) }.to_result()
+        unsafe { ffi::cuda_event_record(event.0, self.0 .0) }.to_result()
     }
 
     pub fn elapsed(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
@@ -41,7 +49,7 @@ impl CudaStream {
     }
 
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_wait_event(self.0, event.0) }.to_result()
+        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.0) }.to_result()
     }
 
     /// # Safety
@@ -53,7 +61,7 @@ impl CudaStream {
             ffi::cuda_malloc_async(
                 &mut ptr as *mut *mut c_void,
                 size * mem::size_of::<T>(),
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()?;
@@ -64,7 +72,7 @@ impl CudaStream {
     ///
     /// TODO
     pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0) }.to_result()
+        unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
 
     /// # Safety
@@ -81,7 +89,7 @@ impl CudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -101,7 +109,7 @@ impl CudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -121,7 +129,7 @@ impl CudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -141,7 +149,7 @@ impl CudaStream {
                 dst as *mut c_void,
                 src as *const c_void,
                 count,
-                self.0,
+                self.0 .0,
             )
         }
         .to_result()
@@ -150,17 +158,26 @@ impl CudaStream {
 
 impl Default for CudaStream {
     fn default() -> Self {
-        Self(unsafe { ffi::DEFAULT_STREAM })
+        let raw = CudaStreamHandle(unsafe { ffi::DEFAULT_STREAM });
+        Self(Arc::new(raw))
     }
 }
 
-impl Drop for CudaStream {
+impl Drop for CudaStreamHandle {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
             unsafe { ffi::cuda_stream_destroy(self.0) }
                 .to_result()
                 .unwrap();
         }
+    }
+}
+
+impl Deref for CudaStream {
+    type Target = CudaStreamHandle;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

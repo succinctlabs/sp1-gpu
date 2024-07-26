@@ -8,3 +8,4 @@ pub mod slice;
 
 pub use buffer::*;
 pub use ops::*;
+pub use pointer::*;

@@ -4,8 +4,8 @@ mod layer;
 pub use layer::*;
 
 use crate::{
+    cuda_runtime::{event::CudaEvent, ffi, stream::CudaStream},
     device::error::CudaError,
-    runtime::{event::CudaEvent, ffi, stream::CudaStream},
 };
 
 pub struct CudaInstant(pub(crate) CudaEvent);
