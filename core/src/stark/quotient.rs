@@ -394,6 +394,7 @@ mod tests {
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
+    use crate::utils::init_tracer;
     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
@@ -411,8 +412,9 @@ mod tests {
     #[test]
     pub fn test_quotient_values() {
         let mut rng = thread_rng();
+        init_tracer();
 
-        let config = BabyBearPoseidon2::default();
+        let config = BabyBearPoseidon2::compressed();
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
 
@@ -427,7 +429,7 @@ mod tests {
             debug!("Chip: {}", chip.name());
             debug!("Id: {}", i);
             let program = Program::from(FIBONACCI_ELF);
-            let num_rows = 1 << 14;
+            let num_rows = 1 << 10;
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
@@ -570,7 +572,7 @@ mod tests {
                     trace_domain_generator,
                     generator_powers.as_ptr(),
                     quotient_output.view_mut(),
-                    num_rows / 512 * 2,
+                    (num_rows << pcs.fri_config().log_blowup) / 512,
                     512,
                 );
             }
