@@ -14,7 +14,9 @@ use std::cmp::Reverse;
 use std::marker::PhantomData;
 
 mod hasher;
+mod mmcs;
 pub use hasher::*;
+pub use mmcs::*;
 
 use crate::matrix::DeviceMatrix;
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMatrixDevice<F>> {

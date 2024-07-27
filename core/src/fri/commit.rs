@@ -4,6 +4,7 @@ use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
 use p3_symmetric::Hash;
+use sp1_core::stark::StarkGenericConfig;
 
 use crate::device::error::CudaError;
 use crate::dft::DeviceDft;
@@ -11,6 +12,10 @@ use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
 use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
+
+pub trait FriCommitter<SC: StarkGenericConfig> {
+    type ProverData;
+}
 
 pub struct TwoAdicFriCommitter<F, H = DeviceHasherBabyBear, M = ColMajorMatrixDevice<F>> {
     dft: DeviceDft<F>,

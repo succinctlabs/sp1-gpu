@@ -13,7 +13,7 @@ use p3_challenger::CanObserve;
 use p3_challenger::CanSample;
 use p3_challenger::CanSampleBits;
 use p3_challenger::GrindingChallenger;
-use p3_commit::{OpenedValues, Pcs};
+use p3_commit::OpenedValues;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
@@ -49,27 +49,6 @@ use crate::stark::GpuProverData;
 type F = BabyBear;
 type EF = BinomialExtensionField<BabyBear, 4>;
 type SC = BabyBearPoseidon2;
-
-#[derive(Clone, Copy, Debug)]
-pub struct FriCpuOpeningProver<SC>(PhantomData<SC>);
-
-impl<SC: BabyBearPoseidon2Config> FriCpuOpeningProver<SC> {
-    #[allow(clippy::type_complexity)]
-    pub fn open(
-        &self,
-        pcs: &SC::Pcs,
-        rounds: Vec<(&PcsProverData<SC>, Vec<Vec<SC::Challenge>>)>,
-        challenger: &mut SC::Challenger,
-    ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>) {
-        <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::open(pcs, rounds, challenger)
-    }
-}
-
-impl<SC: BabyBearPoseidon2Config> Default for FriCpuOpeningProver<SC> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
