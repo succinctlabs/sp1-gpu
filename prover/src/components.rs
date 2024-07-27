@@ -17,6 +17,10 @@ impl SP1ProverComponents for GpuProverComponents {
         DeviceHasherBabyBear,
         CompressAir<<InnerSC as StarkGenericConfig>::Val>,
     >;
-    type ShrinkProver = CpuProver<InnerSC, ShrinkAir<<InnerSC as StarkGenericConfig>::Val>>;
+    type ShrinkProver = StarkGpuProver<
+        InnerSC,
+        DeviceHasherBabyBear,
+        ShrinkAir<<InnerSC as StarkGenericConfig>::Val>,
+    >;
     type WrapProver = CpuProver<OuterSC, WrapAir<<OuterSC as StarkGenericConfig>::Val>>;
 }

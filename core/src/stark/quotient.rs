@@ -394,6 +394,7 @@ mod tests {
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
+    use crate::utils::init_tracer;
     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
@@ -411,28 +412,28 @@ mod tests {
     #[test]
     pub fn test_quotient_values() {
         let mut rng = thread_rng();
+        init_tracer();
 
-        let config = BabyBearPoseidon2::default();
+        let config = BabyBearPoseidon2::compressed();
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            if chip.name() == "Program"
-                || chip.name() == "Bn254AddAssign"
-                || chip.name() == "MemoryProgram"
-                || chip.name() == "Byte"
-            {
-                continue;
-            }
             debug!("Chip: {}", chip.name());
             debug!("Id: {}", i);
+
             let program = Program::from(FIBONACCI_ELF);
-            let num_rows = 1 << 14;
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
-            let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
             let prep = chip.generate_preprocessed_trace(&program);
+            let num_rows = if let Some(prep) = prep.as_ref() {
+                prep.height()
+            } else {
+                1 << 10
+            };
+
+            let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
             let permutation_challenges = vec![EF::one(), EF::two()];
             let perm =
@@ -443,6 +444,8 @@ mod tests {
             let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
             let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
+
+            // Calculate evaluations on quotient domain.
 
             let (_, main_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
                 <SC as StarkGenericConfig>::Challenge,
@@ -477,6 +480,7 @@ mod tests {
                     <SC as StarkGenericConfig>::Challenger,
                 >>::get_evaluations_on_domain(pcs, &main_data, 0, quotient_domain)
                 .to_row_major_matrix();
+
             let permutation_trace_on_quotient_domain =
                 <<SC as StarkGenericConfig>::Pcs as Pcs<
                     <SC as StarkGenericConfig>::Challenge,
@@ -524,6 +528,7 @@ mod tests {
                 preprocessed_trace_on_quotient_domain.width(),
             )
             .to_column_major();
+
             let main_trace_on_quotient_domain_device =
                 main_trace_on_quotient_domain.values.to_device().unwrap();
             let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
@@ -531,6 +536,7 @@ mod tests {
                 main_trace_on_quotient_domain.width(),
             )
             .to_column_major();
+
             let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
                 .values
                 .to_device()
@@ -570,7 +576,7 @@ mod tests {
                     trace_domain_generator,
                     generator_powers.as_ptr(),
                     quotient_output.view_mut(),
-                    num_rows / 512 * 2,
+                    (num_rows << pcs.fri_config().log_blowup) / 512,
                     512,
                 );
             }
