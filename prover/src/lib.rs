@@ -23,6 +23,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use moongate_core::utils::init_tracer;
     use sp1_core::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
@@ -41,8 +43,12 @@ mod tests {
         let elf = FIBONACCI_ELF;
         init_tracer();
 
+        if env::var("FRI_QUERIES").is_err() {
+            env::set_var("FRI_QUERIES", "1");
+        }
+
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Shrink).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
