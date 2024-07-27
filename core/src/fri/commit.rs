@@ -79,7 +79,7 @@ impl<H: FieldMerkleTreeHasher<BabyBear>> TwoAdicFriCommitter<BabyBear, H> {
         let shift = dst_domain.shift * BabyBear::generator().inverse() * src_domain.shift.inverse();
         let log_blowup = dst_domain.log_n - src_domain.log_n;
         unsafe {
-            let mut lde_mat = matrix.embed_as_blowup(self.log_blowup)?;
+            let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
             self.dft
                 .coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
 
