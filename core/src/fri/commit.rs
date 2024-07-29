@@ -3,13 +3,12 @@ use std::borrow::Borrow;
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
-use p3_symmetric::Hash;
-use sp1_core::stark::{Com, StarkGenericConfig};
+use sp1_core::stark::Com;
 
 use crate::device::error::CudaError;
 use crate::dft::DeviceDft;
-use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
-use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher, MmcsCommitter};
+use crate::matrix::ColMajorMatrixDevice;
+use crate::merkle_tree::MmcsCommitter;
 use crate::stark::BabyBearFriConfig;
 
 pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {

@@ -52,7 +52,7 @@ use crate::{
 };
 
 use super::BabyBearFriConfig;
-use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
+use super::PermutationTraceGenerator;
 
 use super::natural_domain_for_degree;
 

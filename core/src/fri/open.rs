@@ -16,7 +16,6 @@ use p3_challenger::CanSample;
 use p3_challenger::CanSampleBits;
 use p3_challenger::GrindingChallenger;
 use p3_commit::OpenedValues;
-use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
@@ -29,7 +28,6 @@ use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
 use sp1_core::stark::OpeningProof;
 use sp1_core::utils::log2_strict_usize;
-use sp1_core::utils::BabyBearPoseidon2;
 use sp1_core::utils::InnerVal;
 
 use crate::device::memory::ToDevice;
@@ -44,16 +42,10 @@ use crate::stark::BabyBearFriConfig;
 use crate::stark::FriMmcs;
 use crate::stark::PcsConfig;
 
-type F = BabyBear;
-type EF = BinomialExtensionField<BabyBear, 4>;
-type SC = BabyBearPoseidon2;
-
 #[derive(Clone, Copy, Debug)]
 pub struct FriOpeningProver<SC>(PhantomData<SC>);
 
-pub(crate) trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>:
-    MmcsCommitter<F, ValMmcs>
-{
+pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> {
     fn query_open_batch(
         &self,
         query_indices: &[usize],
@@ -127,9 +119,11 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let mut height_index_map = HashMap::new();
         let mut reduced_leaves = vec![];
 
-        let mut reduced_leaf =
-            ColMajorMatrixDevice::<F>::with_capacity(2 * <EF as AbstractExtensionField<F>>::D, 1)
-                .unwrap();
+        let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+            2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+            1,
+        )
+        .unwrap();
         unsafe {
             reduced_leaf.set_max_width();
         }
@@ -146,8 +140,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                         .or_insert_with_key(|log_height| {
                             let idx = reduced_leaves.len();
                             height_indices[*log_height] = idx;
-                            let mut reduced_leaf = ColMajorMatrixDevice::<F>::with_capacity(
-                                2 * <EF as AbstractExtensionField<F>>::D,
+                            let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+                                2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                                 1 << (log_height - 1),
                             )
                             .unwrap();
@@ -165,7 +159,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                     total_polys += num_polys;
                     let coset_log_height = log2_strict_usize(coset_height);
                     let g = BabyBear::two_adic_generator(coset_log_height);
-                    let denominator = F::from_canonical_usize(coset_height)
+                    let denominator = SC::Val::from_canonical_usize(coset_height)
                         * shift.exp_u64(coset_height as u64 - 1);
 
                     g_values.extend((0..num_polys).flat_map(|_| g.powers().take(32)));
@@ -188,8 +182,11 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                         shifts_for_inv.push(shift);
 
                         opening_points.extend((0..cols).map(|_| *point));
-                        let zerofier =
-                            two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), *point);
+                        let zerofier = two_adic_coset_zerofier(
+                            coset_log_height,
+                            SC::Challenge::from_base(shift),
+                            *point,
+                        );
                         let barycentric_scalar = zerofier * denominator.inverse();
                         barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
 
@@ -222,7 +219,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
-        let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset).unwrap();
+        let mut inv_denominators =
+            DeviceBuffer::<SC::Challenge>::with_capacity(inv_offset).unwrap();
         let inv_indices_device = inv_indices.to_device().unwrap();
         unsafe {
             inv_denominators.set_max_len();
@@ -253,7 +251,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         assert_eq!(barycentric_scalars.len(), total_polys);
 
         let ys_output_buffer = {
-            let mut ys_output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys).unwrap();
+            let mut ys_output_buffer =
+                DeviceBuffer::<SC::Challenge>::with_capacity(total_polys).unwrap();
 
             let poly_evals = poly_evals.to_device().unwrap();
             let coset_heights = coset_heights.to_device().unwrap();
@@ -293,7 +292,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let mut point_index = 0;
         let all_opened_values = {
             let mut reduced_openings_device =
-                DeviceBuffer::<EF>::with_capacity(inv_offset).unwrap();
+                DeviceBuffer::<SC::Challenge>::with_capacity(inv_offset).unwrap();
 
             // Compute openings fused.
             let compute_reduced_openings_span =
@@ -545,9 +544,9 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 pub fn prove<SC, C>(
     committer: &TwoAdicFriCommitter<SC, C>,
     config: &PcsConfig<SC>,
-    input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+    input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
     challenger: &mut Challenger<SC>,
-) -> (FriProof<EF, FriMmcs<SC>, F>, Vec<usize>)
+) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
 where
     SC: BabyBearFriConfig,
     C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
@@ -593,7 +592,7 @@ where
 
                     let opened_row = opened_rows.pop().unwrap();
                     let opened_row_ext = (0..opened_row.len() / 4)
-                        .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
+                        .map(|j| SC::Challenge::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
                         .collect::<Vec<_>>();
                     assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
                     let sibling_value = opened_row_ext[index_i_sibling % 2];
@@ -624,19 +623,19 @@ where
     )
 }
 
-pub fn fold_even_odd(
-    evaluations: &ColMajorMatrixDevice<F>,
-    input_leaves: Option<ColMajorMatrixDevice<F>>,
-    beta: EF,
-) -> ColMajorMatrixDevice<F> {
+pub fn fold_even_odd<SC: BabyBearFriConfig>(
+    evaluations: &ColMajorMatrixDevice<SC::Val>,
+    input_leaves: Option<ColMajorMatrixDevice<SC::Val>>,
+    beta: SC::Challenge,
+) -> ColMajorMatrixDevice<BabyBear> {
     let mut output =
         ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2).unwrap();
 
-    let g_inv = F::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
-    let one_half = F::two().inverse();
+    let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
+    let one_half = SC::Val::two().inverse();
     let half_beta = beta * one_half;
 
-    let mut powers = shifted_powers(g_inv, half_beta, evaluations.height());
+    let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height());
     powers.bit_reverse_rows().unwrap();
 
     unsafe {
@@ -658,9 +657,16 @@ pub fn fold_even_odd(
     output
 }
 
-pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
-    let mut output =
-        ColMajorMatrixDevice::with_capacity(<EF as AbstractExtensionField<F>>::D, n).unwrap();
+pub fn shifted_powers<SC: BabyBearFriConfig>(
+    g: SC::Val,
+    shift: SC::Challenge,
+    n: usize,
+) -> ColMajorMatrixDevice<SC::Val> {
+    let mut output = ColMajorMatrixDevice::with_capacity(
+        <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+        n,
+    )
+    .unwrap();
 
     let num_threads = 256;
     let num_blocks = n.div_ceil(num_threads);
@@ -691,7 +697,7 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
 
 pub fn commit_phase<SC, C>(
     committer: &TwoAdicFriCommitter<SC, C>,
-    mut input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+    mut input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
 ) -> CommitPhaseResult<SC, C>
@@ -709,10 +715,10 @@ where
         let (commit, prover_data) = committer.mmcs_commit(vec![temp]);
         challenger.observe(commit.clone());
 
-        let beta: EF = challenger.sample();
+        let beta: SC::Challenge = challenger.sample();
 
         let injected_input = input.remove(&log_folded_height);
-        leaves = fold_even_odd(&prover_data.matrices()[0], injected_input, beta);
+        leaves = fold_even_odd::<SC>(&prover_data.matrices()[0], injected_input, beta);
 
         commits.push(commit);
         data.push(prover_data);
@@ -722,9 +728,11 @@ where
     let leaves = leaves.to_host();
     assert_eq!(
         leaves.values.len(),
-        (1 << committer.log_blowup) * <EF as AbstractExtensionField<F>>::D
+        (1 << committer.log_blowup) * <SC::Challenge as AbstractExtensionField<SC::Val>>::D
     );
-    let final_poly = EF::from_base_slice(&leaves.values[0..<EF as AbstractExtensionField<F>>::D]);
+    let final_poly = SC::Challenge::from_base_slice(
+        &leaves.values[0..<SC::Challenge as AbstractExtensionField<SC::Val>>::D],
+    );
     challenger.observe_ext_element(final_poly);
 
     CommitPhaseResult {
