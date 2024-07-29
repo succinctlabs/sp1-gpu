@@ -61,7 +61,6 @@ use super::PermutationTraceGenerator;
 use super::natural_domain_for_degree;
 
 const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
-
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
