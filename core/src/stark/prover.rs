@@ -1,20 +1,22 @@
+use hashbrown::HashMap;
+
+use rayon::prelude::*;
+
 use p3_air::Air;
-use p3_challenger::{CanObserve, FieldChallenger};
-
-use itertools::Itertools;
-
-use sp1_core::stark::ShardMainData;
-use tracing::info;
-
 use p3_baby_bear::BabyBear;
+use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::PolynomialSpace;
 use p3_field::AbstractExtensionField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
-use rayon::iter::IntoParallelRefIterator;
-use rayon::iter::ParallelIterator;
+use itertools::Itertools;
+
+use sp1_core::stark::ShardMainData;
+use tracing::info;
+
+use sp1_core::air::MachineProgram;
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
 use sp1_core::stark::DebugConstraintBuilder;
@@ -23,6 +25,7 @@ use sp1_core::stark::MachineProver;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
 use sp1_core::stark::ShardProof;
+use sp1_core::stark::StarkVerifyingKey;
 use sp1_core::utils::SP1CoreOpts;
 use sp1_core::{
     air::MachineAir,
@@ -88,7 +91,7 @@ where
         + Send
         + Sync
         + Default,
-    C::ProverData: Send,
+    C::ProverData: Send + ToHost<HostType = PcsProverData<SC>>,
     PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
@@ -170,6 +173,85 @@ where
             chip_ordering,
             public_values: shard.public_values(),
         }
+    }
+
+    /// Setup the preprocessed data into a proving and verifying key.
+    fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+        let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
+            .in_scope(|| {
+                self.machine()
+                    .chips()
+                    .iter()
+                    .map(|chip| {
+                        let prep_trace = chip.generate_preprocessed_trace(program);
+                        // Assert that the chip width data is correct.
+                        let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                        assert_eq!(
+                            expected_width,
+                            chip.preprocessed_width(),
+                            "Incorrect number of preprocessed columns for chip {}",
+                            chip.name()
+                        );
+
+                        (chip.name(), prep_trace)
+                    })
+                    .filter(|(_, prep_trace)| prep_trace.is_some())
+                    .map(|(name, prep_trace)| {
+                        let prep_trace = prep_trace.unwrap();
+                        (name, prep_trace)
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+        // Order the chips and traces by trace size (biggest first), and get the ordering map.
+        named_preprocessed_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+        let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
+            .iter()
+            .map(|(name, trace)| {
+                let domain = natural_domain_for_degree(self.config(), trace.height());
+                (
+                    (name.to_owned(), domain, trace.dimensions()),
+                    (domain, trace.to_device().unwrap().to_column_major()),
+                )
+            })
+            .unzip();
+
+        // Commit to the batch of traces.
+        let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
+            .in_scope(|| self.committer.commit(&domains_and_traces));
+        let data = data.to_host();
+
+        // Get the chip ordering.
+        let chip_ordering = named_preprocessed_traces
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (name.to_owned(), i))
+            .collect::<HashMap<_, _>>();
+
+        // Get the preprocessed traces
+        let traces = named_preprocessed_traces
+            .into_iter()
+            .map(|(_, trace)| trace)
+            .collect::<Vec<_>>();
+
+        let pc_start = program.pc_start();
+
+        (
+            StarkProvingKey {
+                commit: commit.clone(),
+                pc_start,
+                traces,
+                data,
+                chip_ordering: chip_ordering.clone(),
+            },
+            StarkVerifyingKey {
+                commit,
+                pc_start,
+                chip_information,
+                chip_ordering,
+            },
+        )
     }
 
     fn open(
