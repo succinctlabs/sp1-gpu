@@ -29,13 +29,12 @@ use crate::device::memory::ToDevice;
 use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::FieldMerkleTreeHasher;
-use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::merkle_tree::MmcsCommitter;
 use crate::stark::ffi::quotient_gpu;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
-use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
+use super::{BabyBearFriConfig, BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -66,7 +65,7 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
@@ -96,9 +95,9 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn generate_quotient_values<H>(
+    pub fn generate_quotient_values<C>(
         &self,
-        committer: &TwoAdicFriCommitter<SC::Val, H>,
+        committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
         main_traces: &[ColMajorMatrixDevice<SC::Val>],
@@ -109,7 +108,7 @@ where
         cumulative_sums: &[SC::Challenge],
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
-        H: FieldMerkleTreeHasher<SC::Val, Digest = [SC::Val; DIGEST_WIDTH]>,
+        C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     {
         let mut results = Vec::with_capacity(chips.len());
 

@@ -35,9 +35,8 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
-use crate::cuda_runtime::scope;
-use crate::fri::FriGpuOpeningProver;
-use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
+use crate::fri::FriOpeningProver;
+use crate::fri::FriQueryProver;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -52,18 +51,19 @@ use crate::{
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
 };
 
+use super::BabyBearFriConfig;
 use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
 
 use super::natural_domain_for_degree;
 
 const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
-pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
+pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
-    committer: TwoAdicFriCommitter<SC::Val, H>,
-    opening_prover: FriGpuOpeningProver<SC>,
+    committer: TwoAdicFriCommitter<SC, C>,
+    opening_prover: FriOpeningProver<SC>,
 }
 
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
@@ -75,16 +75,23 @@ pub type CpuProverData<SC> = PcsProverData<SC>;
 
 pub type CpuMatrix<F> = RowMajorMatrix<F>;
 
-impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, DeviceHasherBabyBear, A>
+impl<SC, C, A> MachineProver<SC, A> for StarkGpuProver<SC, C, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+    C::ProverData: Send,
+    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
-    type DeviceProverData = GpuProverData<SC>;
+    type DeviceProverData = C::ProverData;
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -94,7 +101,7 @@ where
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriGpuOpeningProver::default(),
+            opening_prover: FriOpeningProver::default(),
             quotient_generator,
         }
     }
@@ -137,37 +144,31 @@ where
             .unzip();
 
         let span = tracing::Span::current();
-        scope(|s| {
-            let _span = span.enter();
-            let span = tracing::Span::current();
-            s.spawn(move || {
-                let _span = span.enter();
+        let _span = span.enter();
+        let span = tracing::Span::current();
+        let _span = span.enter();
 
-                // Copy the traces to device.
-                let traces: Vec<_> = traces
-                    .iter()
-                    .map(|trace| trace.to_device().unwrap().to_column_major())
-                    .collect();
+        // Copy the traces to device.
+        let traces: Vec<_> = traces
+            .iter()
+            .map(|trace| trace.to_device().unwrap().to_column_major())
+            .collect();
 
-                // Commit to the traces.
-                let domains_and_traces = domains
-                    .iter()
-                    .copied()
-                    .zip(traces.iter())
-                    .collect::<Vec<_>>();
-                let (commit, data) = self.committer.commit(&domains_and_traces);
+        // Commit to the traces.
+        let domains_and_traces = domains
+            .iter()
+            .copied()
+            .zip(traces.iter())
+            .collect::<Vec<_>>();
+        let (commit, data) = self.committer.commit(&domains_and_traces);
 
-                ShardMainData {
-                    traces,
-                    main_commit: commit,
-                    main_data: data,
-                    chip_ordering,
-                    public_values: shard.public_values(),
-                }
-            })
-            .sync_join()
-            .unwrap()
-        })
+        ShardMainData {
+            traces,
+            main_commit: commit,
+            main_data: data,
+            chip_ordering,
+            public_values: shard.public_values(),
+        }
     }
 
     fn open(
@@ -177,301 +178,286 @@ where
         challenger: &mut <SC as StarkGenericConfig>::Challenger,
     ) -> Result<ShardProof<SC>, Self::Error> {
         let span = tracing::Span::current();
-        scope(move |s| {
-            let _span = span.enter();
-            let span = tracing::Span::current();
-            s.spawn(move || {
-                let _span = span.enter();
-                let ShardMainData {
-                    traces,
-                    main_commit,
-                    mut main_data,
-                    chip_ordering,
-                    public_values,
-                } = data;
+        let _span = span.enter();
+        let span = tracing::Span::current();
+        let _span = span.enter();
+        let ShardMainData {
+            traces,
+            main_commit,
+            mut main_data,
+            chip_ordering,
+            public_values,
+        } = data;
 
-                let shard_chips = self
-                    .machine
-                    .shard_chips_ordered(&chip_ordering)
-                    .collect::<Vec<_>>();
+        let shard_chips = self
+            .machine
+            .shard_chips_ordered(&chip_ordering)
+            .collect::<Vec<_>>();
 
-                let domains = traces
-                    .iter()
-                    .map(|trace| {
-                        let config = self.machine.config();
-                        natural_domain_for_degree(config, trace.height())
-                    })
-                    .collect::<Vec<_>>();
+        let domains = traces
+            .iter()
+            .map(|trace| {
+                let config = self.machine.config();
+                natural_domain_for_degree(config, trace.height())
+            })
+            .collect::<Vec<_>>();
 
-                // Compute some statistics.
-                let mut total_lde_size = 0;
-                let log_blowup = self.committer.log_blowup();
-                for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
-                    let height = domain.size();
-                    let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
-                    total_lde_size += stats.lde_memory_size(log_blowup);
-                }
-                info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
+        // Compute some statistics.
+        let mut total_lde_size = 0;
+        let log_blowup = self.committer.log_blowup();
+        for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
+            let height = domain.size();
+            let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
+            total_lde_size += stats.lde_memory_size(log_blowup);
+        }
+        info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
-                let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
+        let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
 
-                // Delete the ldes of the main prover data.
-                if recompute_ldes {
-                    main_data.leaves.clear();
-                }
+        // Delete the ldes of the main prover data.
+        // if recompute_ldes {
+        //     main_data.leaves.clear();
+        // }
 
-                // Get the permutation challenges.
-                let permutation_challenges = (0..2)
-                    .map(|_| challenger.sample_ext_element())
-                    .collect::<Vec<_>>();
-                // Generate permutation traces.
-                let permutation_traces = tracing::debug_span!("generate permutation traces")
-                    .in_scope(|| {
-                        self.generate_permutation_traces(
-                            pk,
-                            &shard_chips,
-                            &traces,
-                            &permutation_challenges,
-                        )
-                    })?;
+        // Get the permutation challenges.
+        let permutation_challenges = (0..2)
+            .map(|_| challenger.sample_ext_element())
+            .collect::<Vec<_>>();
+        // Generate permutation traces.
+        let permutation_traces =
+            tracing::debug_span!("generate permutation traces").in_scope(|| {
+                self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
+            })?;
 
-                info!(
-                    "Shard: [{}]",
-                    shard_chips
-                        .iter()
-                        .map(|c| c.name())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
+        info!(
+            "Shard: [{}]",
+            shard_chips
+                .iter()
+                .map(|c| c.name())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
 
-                for (i, chip) in shard_chips.iter().enumerate() {
-                    let width = traces[i].width();
-                    let height = traces[i].height();
-                    let permutation_width = permutation_traces[i].width();
-                    let total_width = width + permutation_width;
-                    info!(
-                        "Chip {:<20}: {:<20} = {:>10}W x {:>10}H",
-                        chip.name(),
-                        total_width * height,
-                        total_width,
-                        height,
-                    );
-                }
+        for (i, chip) in shard_chips.iter().enumerate() {
+            let width = traces[i].width();
+            let height = traces[i].height();
+            let permutation_width = permutation_traces[i].width();
+            let total_width = width + permutation_width;
+            info!(
+                "Chip {:<20}: {:<20} = {:>10}W x {:>10}H",
+                chip.name(),
+                total_width * height,
+                total_width,
+                height,
+            );
+        }
 
-                // Commit to the permutation traces.
-                let perm_domains_and_traces = domains
-                    .iter()
-                    .copied()
-                    .zip(permutation_traces)
-                    .collect::<Vec<_>>();
-                let (permutation_commit, mut perm_prover_data) =
-                    self.committer.commit(&perm_domains_and_traces);
+        // Commit to the permutation traces.
+        let perm_domains_and_traces = domains
+            .iter()
+            .copied()
+            .zip(permutation_traces)
+            .collect::<Vec<_>>();
+        let (permutation_commit, perm_prover_data) =
+            self.committer.commit(&perm_domains_and_traces);
 
-                // Observe the permutation commitment.
-                challenger.observe(permutation_commit);
+        // Observe the permutation commitment.
+        challenger.observe(permutation_commit.clone());
 
-                // Get the cumulative sums from device.
-                let cumulative_sums = perm_domains_and_traces
-                    .iter()
-                    .map(|(_, trace)| {
-                        let row_idx = trace.height() - 1;
-                        let start_col_idx =
-                            trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
-                        SC::Challenge::from_base_fn(|i| {
-                            let index = (start_col_idx + i) * trace.height() + row_idx;
-                            let val = trace.values[index..index + 1].to_host();
-                            val[0]
-                        })
-                    })
-                    .collect::<Vec<_>>();
-                // Delete the ldes of the permutation prover data.
-                if recompute_ldes {
-                    perm_prover_data.leaves.clear();
-                }
-
-                // Get a challenge for folding the constraints.
-                //
-                // *Remark*: this is called `alpha` in [sp1_core].
-                let folding_challenge: SC::Challenge = challenger.sample_ext_element();
-
-                // Compute quotient values.
-
-                // Compute values
-                let quotient_values = tracing::debug_span!("quotient").in_scope(|| {
-                    self.quotient_generator.generate_quotient_values(
-                        &self.committer,
-                        &shard_chips,
-                        pk,
-                        &traces,
-                        &perm_domains_and_traces,
-                        &permutation_challenges,
-                        folding_challenge,
-                        &public_values,
-                        &cumulative_sums,
-                    )
-                })?;
-
-                // Commit to the quotient values
-                let quotient_domains_and_chunks = quotient_values
-                    .into_iter()
-                    .flat_map(|values| {
-                        let DeviceQuotientValues {
-                            quotient_chunks,
-                            quotient_chunk_domains,
-                        } = values;
-
-                        quotient_chunk_domains.into_iter().zip(quotient_chunks)
-                    })
-                    .collect::<Vec<_>>();
-                let (quotient_commit, quotient_prover_data) =
-                    tracing::debug_span!("commit to quotient")
-                        .in_scope(|| self.committer.commit(&quotient_domains_and_chunks));
-                let num_quotient_chunks = quotient_domains_and_chunks.len();
-                drop(quotient_domains_and_chunks);
-                // Observe the quotient commitment.
-                challenger.observe(quotient_commit);
-
-                // Generate the opening proof and assemble the shard proof.
-
-                // Compute the opening challenge.
-                let zeta: SC::Challenge = challenger.sample_ext_element();
-
-                let preprocessed_opening_points = pk
-                    .traces
-                    .iter()
-                    .map(|trace| {
-                        let domain =
-                            natural_domain_for_degree(self.machine.config(), trace.height());
-                        vec![zeta, domain.next_point(zeta).unwrap()]
-                    })
-                    .collect::<Vec<_>>();
-
-                let trace_opening_points = domains
-                    .iter()
-                    .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
-                    .collect::<Vec<_>>();
-
-                // Compute quotient openning points, open every chunk at zeta.
-                let quotient_opening_points = (0..num_quotient_chunks)
-                    .map(|_| vec![zeta])
-                    .collect::<Vec<_>>();
-
-                // Recompute main and permutation LDE and insert into the prover data.
-                if recompute_ldes {
-                    for (domain, perm_trace) in perm_domains_and_traces {
-                        let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-                        perm_prover_data.leaves.push(perm_lde);
-                    }
-                    for (domain, trace) in domains.iter().zip(traces) {
-                        let main_lde = self.committer.encode(*domain, &trace, true)?;
-                        main_data.leaves.push(main_lde);
-                    }
-                }
-
-                let pk_data_device = pk.data.to_device().unwrap();
-
-                let (openings, opening_proof) =
-                    tracing::debug_span!("compute opening").in_scope(|| {
-                        self.opening_prover.open(
-                            &self.committer,
-                            self.pcs(),
-                            vec![
-                                (&pk_data_device, preprocessed_opening_points),
-                                (&main_data, trace_opening_points.clone()),
-                                (&perm_prover_data, trace_opening_points),
-                                (&quotient_prover_data, quotient_opening_points),
-                            ],
-                            challenger,
-                        )
-                    });
-                drop(pk_data_device);
-                drop(main_data);
-                drop(perm_prover_data);
-                drop(quotient_prover_data);
-
-                // Collect the opened values for each chip.
-                let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
-                    openings.try_into().unwrap();
-                assert!(main_values.len() == shard_chips.len());
-                let preprocessed_opened_values = preprocessed_values
-                    .into_iter()
-                    .map(|op| {
-                        let [local, next] = op.try_into().unwrap();
-                        AirOpenedValues { local, next }
-                    })
-                    .collect::<Vec<_>>();
-
-                let main_opened_values = main_values
-                    .into_iter()
-                    .map(|op| {
-                        let [local, next] = op.try_into().unwrap();
-                        AirOpenedValues { local, next }
-                    })
-                    .collect::<Vec<_>>();
-
-                let permutation_opened_values = permutation_values
-                    .into_iter()
-                    .map(|op| {
-                        let [local, next] = op.try_into().unwrap();
-                        AirOpenedValues { local, next }
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
-                for chip in shard_chips.iter() {
-                    let log_quotient_degree = chip.log_quotient_degree();
-                    let degree = 1 << log_quotient_degree;
-                    let slice = quotient_values.drain(0..degree);
-                    quotient_opened_values
-                        .push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
-                }
-
-                let opened_values = main_opened_values
-                    .into_iter()
-                    .zip_eq(permutation_opened_values)
-                    .zip_eq(quotient_opened_values)
-                    .zip_eq(cumulative_sums)
-                    .zip_eq(shard_chips.iter())
-                    .enumerate()
-                    .map(
-                        |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
-                            let preprocessed = pk
-                                .chip_ordering
-                                .get(&chip.name())
-                                .map(|&index| preprocessed_opened_values[index].clone())
-                                .unwrap_or(AirOpenedValues {
-                                    local: vec![],
-                                    next: vec![],
-                                });
-                            let log_degree = domains[i].size().ilog2() as usize;
-                            ChipOpenedValues {
-                                preprocessed,
-                                main,
-                                permutation,
-                                quotient,
-                                cumulative_sum,
-                                log_degree,
-                            }
-                        },
-                    )
-                    .collect::<Vec<_>>();
-
-                Ok(ShardProof::<SC> {
-                    commitment: ShardCommitment {
-                        main_commit,
-                        permutation_commit,
-                        quotient_commit,
-                    },
-                    opened_values: ShardOpenedValues {
-                        chips: opened_values,
-                    },
-                    opening_proof,
-                    chip_ordering,
-                    public_values,
+        // Get the cumulative sums from device.
+        let cumulative_sums = perm_domains_and_traces
+            .iter()
+            .map(|(_, trace)| {
+                let row_idx = trace.height() - 1;
+                let start_col_idx =
+                    trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
+                SC::Challenge::from_base_fn(|i| {
+                    let index = (start_col_idx + i) * trace.height() + row_idx;
+                    let val = trace.values[index..index + 1].to_host();
+                    val[0]
                 })
             })
-            .sync_join()
-            .unwrap()
+            .collect::<Vec<_>>();
+        // // Delete the ldes of the permutation prover data.
+        // if recompute_ldes {
+        //     perm_prover_data.matrices().clear();
+        // }
+
+        // Get a challenge for folding the constraints.
+        //
+        // *Remark*: this is called `alpha` in [sp1_core].
+        let folding_challenge: SC::Challenge = challenger.sample_ext_element();
+
+        // Compute quotient values.
+
+        // Compute values
+        let quotient_values = tracing::debug_span!("quotient").in_scope(|| {
+            self.quotient_generator.generate_quotient_values(
+                &self.committer,
+                &shard_chips,
+                pk,
+                &traces,
+                &perm_domains_and_traces,
+                &permutation_challenges,
+                folding_challenge,
+                &public_values,
+                &cumulative_sums,
+            )
+        })?;
+
+        // Commit to the quotient values
+        let quotient_domains_and_chunks = quotient_values
+            .into_iter()
+            .flat_map(|values| {
+                let DeviceQuotientValues {
+                    quotient_chunks,
+                    quotient_chunk_domains,
+                } = values;
+
+                quotient_chunk_domains.into_iter().zip(quotient_chunks)
+            })
+            .collect::<Vec<_>>();
+        let (quotient_commit, quotient_prover_data) = tracing::debug_span!("commit to quotient")
+            .in_scope(|| self.committer.commit(&quotient_domains_and_chunks));
+        let num_quotient_chunks = quotient_domains_and_chunks.len();
+        drop(quotient_domains_and_chunks);
+        // Observe the quotient commitment.
+        challenger.observe(quotient_commit.clone());
+
+        // Generate the opening proof and assemble the shard proof.
+
+        // Compute the opening challenge.
+        let zeta: SC::Challenge = challenger.sample_ext_element();
+
+        let preprocessed_opening_points = pk
+            .traces
+            .iter()
+            .map(|trace| {
+                let domain = natural_domain_for_degree(self.machine.config(), trace.height());
+                vec![zeta, domain.next_point(zeta).unwrap()]
+            })
+            .collect::<Vec<_>>();
+
+        let trace_opening_points = domains
+            .iter()
+            .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
+            .collect::<Vec<_>>();
+
+        // Compute quotient openning points, open every chunk at zeta.
+        let quotient_opening_points = (0..num_quotient_chunks)
+            .map(|_| vec![zeta])
+            .collect::<Vec<_>>();
+
+        // // Recompute main and permutation LDE and insert into the prover data.
+        // if recompute_ldes {
+        //     for (domain, perm_trace) in perm_domains_and_traces {
+        //         let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
+        //         perm_prover_data.leaves.push(perm_lde);
+        //     }
+        //     for (domain, trace) in domains.iter().zip(traces) {
+        //         let main_lde = self.committer.encode(*domain, &trace, true)?;
+        //         main_data.leaves.push(main_lde);
+        //     }
+        // }
+
+        let pk_data_device = pk.data.to_device().unwrap();
+
+        let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
+            self.opening_prover.open(
+                &self.committer,
+                self.pcs(),
+                vec![
+                    (pk_data_device, preprocessed_opening_points),
+                    (main_data, trace_opening_points.clone()),
+                    (perm_prover_data, trace_opening_points),
+                    (quotient_prover_data, quotient_opening_points),
+                ],
+                challenger,
+            )
+        });
+        // drop(pk_data_device);
+        // drop(main_data);
+        // drop(perm_prover_data);
+        // drop(quotient_prover_data);
+
+        // Collect the opened values for each chip.
+        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+            openings.try_into().unwrap();
+        assert!(main_values.len() == shard_chips.len());
+        let preprocessed_opened_values = preprocessed_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+
+        let main_opened_values = main_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+
+        let permutation_opened_values = permutation_values
+            .into_iter()
+            .map(|op| {
+                let [local, next] = op.try_into().unwrap();
+                AirOpenedValues { local, next }
+            })
+            .collect::<Vec<_>>();
+
+        let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
+        for chip in shard_chips.iter() {
+            let log_quotient_degree = chip.log_quotient_degree();
+            let degree = 1 << log_quotient_degree;
+            let slice = quotient_values.drain(0..degree);
+            quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
+        }
+
+        let opened_values = main_opened_values
+            .into_iter()
+            .zip_eq(permutation_opened_values)
+            .zip_eq(quotient_opened_values)
+            .zip_eq(cumulative_sums)
+            .zip_eq(shard_chips.iter())
+            .enumerate()
+            .map(
+                |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                    let preprocessed = pk
+                        .chip_ordering
+                        .get(&chip.name())
+                        .map(|&index| preprocessed_opened_values[index].clone())
+                        .unwrap_or(AirOpenedValues {
+                            local: vec![],
+                            next: vec![],
+                        });
+                    let log_degree = domains[i].size().ilog2() as usize;
+                    ChipOpenedValues {
+                        preprocessed,
+                        main,
+                        permutation,
+                        quotient,
+                        cumulative_sum,
+                        log_degree,
+                    }
+                },
+            )
+            .collect::<Vec<_>>();
+
+        Ok(ShardProof::<SC> {
+            commitment: ShardCommitment {
+                main_commit,
+                permutation_commit,
+                quotient_commit,
+            },
+            opened_values: ShardOpenedValues {
+                chips: opened_values,
+            },
+            opening_proof,
+            chip_ordering,
+            public_values,
         })
     }
 
@@ -505,7 +491,7 @@ where
 
         // Observe the challenges for each segment.
         shard_data.iter().for_each(|data| {
-            challenger.observe(data.main_commit);
+            challenger.observe(data.main_commit.clone());
             challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
         });
 
@@ -523,9 +509,9 @@ where
     }
 }
 
-impl<SC, H, A> StarkGpuProver<SC, H, A>
+impl<SC, C, A> StarkGpuProver<SC, C, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
