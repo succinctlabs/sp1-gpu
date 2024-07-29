@@ -37,6 +37,7 @@ use air::P3EvalFolder;
 
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
+use crate::merkle_tree::MmcsProverData;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -215,9 +216,9 @@ where
         let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
 
         // Delete the ldes of the main prover data.
-        // if recompute_ldes {
-        //     main_data.leaves.clear();
-        // }
+        if recompute_ldes {
+            main_data.clear_matrices();
+        }
 
         // Get the permutation challenges.
         let permutation_challenges = (0..2)
@@ -258,7 +259,7 @@ where
             .copied()
             .zip(permutation_traces)
             .collect::<Vec<_>>();
-        let (permutation_commit, perm_prover_data) =
+        let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
 
         // Observe the permutation commitment.
@@ -278,10 +279,10 @@ where
                 })
             })
             .collect::<Vec<_>>();
-        // // Delete the ldes of the permutation prover data.
-        // if recompute_ldes {
-        //     perm_prover_data.matrices().clear();
-        // }
+        // Delete the ldes of the permutation prover data.
+        if recompute_ldes {
+            perm_prover_data.clear_matrices();
+        }
 
         // Get a challenge for folding the constraints.
         //
@@ -348,17 +349,17 @@ where
             .map(|_| vec![zeta])
             .collect::<Vec<_>>();
 
-        // // Recompute main and permutation LDE and insert into the prover data.
-        // if recompute_ldes {
-        //     for (domain, perm_trace) in perm_domains_and_traces {
-        //         let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-        //         perm_prover_data.leaves.push(perm_lde);
-        //     }
-        //     for (domain, trace) in domains.iter().zip(traces) {
-        //         let main_lde = self.committer.encode(*domain, &trace, true)?;
-        //         main_data.leaves.push(main_lde);
-        //     }
-        // }
+        // Recompute main and permutation LDE and insert into the prover data.
+        if recompute_ldes {
+            for (domain, perm_trace) in perm_domains_and_traces {
+                let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
+                perm_prover_data.push_matrix(perm_lde);
+            }
+            for (domain, trace) in domains.iter().zip(traces) {
+                let main_lde = self.committer.encode(*domain, &trace, true)?;
+                main_data.push_matrix(main_lde);
+            }
+        }
 
         let pk_data_device = pk.data.to_device().unwrap();
 
@@ -375,10 +376,6 @@ where
                 challenger,
             )
         });
-        // drop(pk_data_device);
-        // drop(main_data);
-        // drop(perm_prover_data);
-        // drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =

@@ -23,6 +23,10 @@ pub trait MmcsCommitter<T: Send + Sync, M: Mmcs<T>> {
 
 pub trait MmcsProverData<Matrix> {
     fn matrices(&self) -> &[Matrix];
+
+    fn clear_matrices(&mut self);
+
+    fn push_matrix(&mut self, matrix: Matrix);
 }
 
 pub type Poseidon2BabyBearCommitter = FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>;
@@ -68,5 +72,15 @@ impl<F: Copy, D: Copy, M: DeviceMatrix<F>> MmcsProverData<M> for FieldMerkleTree
     #[inline]
     fn matrices(&self) -> &[M] {
         &self.leaves
+    }
+
+    #[inline]
+    fn clear_matrices(&mut self) {
+        self.leaves.clear();
+    }
+
+    #[inline]
+    fn push_matrix(&mut self, matrix: M) {
+        self.leaves.push(matrix);
     }
 }
