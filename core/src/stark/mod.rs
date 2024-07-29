@@ -1,19 +1,22 @@
+mod error;
 pub(super) mod ffi;
 mod permutation;
 mod prover;
 mod quotient;
 mod utils;
 
+pub use error::*;
+pub use permutation::*;
+pub use prover::*;
+pub use quotient::*;
+pub use utils::*;
+
 use p3_challenger::{CanObserve, CanSample, FieldChallenger, GrindingChallenger};
 use p3_commit::{ExtensionMmcs, Mmcs};
 use p3_dft::Radix2DitParallel;
 use p3_fri::{FriConfig, TwoAdicFriPcs};
 use p3_matrix::dense::RowMajorMatrix;
-pub use permutation::*;
-pub use prover::*;
-pub use quotient::*;
 use sp1_recursion_core::stark::config::{BabyBearPoseidon2Outer, OuterValMmcs};
-pub use utils::*;
 
 use p3_baby_bear::BabyBear;
 use sp1_core::{
