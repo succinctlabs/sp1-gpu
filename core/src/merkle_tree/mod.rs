@@ -4,9 +4,11 @@ use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
+use crate::poseidon2::bn254::poseidon2_bn254_3_kernels::DIGEST_WIDTH as BN254_DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
+use p3_bn254_fr::Bn254Fr;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
@@ -114,9 +116,14 @@ where
     }
 }
 
-impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, BB31_DIGEST_WIDTH> {
+impl<W, const DIGEST_ELEMS: usize> ToDevice
+    for FieldMerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
+where
+    BabyBear: Field,
+    W: Copy,
+{
     type DeviceType =
-        FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>;
+        FieldMerkleTreeGpu<BabyBear, [W; DIGEST_ELEMS], ColMajorMatrixDevice<BabyBear>>;
 
     fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
         let leaves_device = self
@@ -137,7 +144,72 @@ impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, 
             _marker: PhantomData,
         })
     }
+    // type HostType = FieldMerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>;
+
+    // fn to_host(&self) -> Self::HostType {
+    //     let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
+    //     let digest_layers = self
+    //         .digest_layers
+    //         .iter()
+    //         .map(|l| l.to_host())
+    //         .collect::<Vec<_>>();
+
+    //     FieldMerkleTree::from_parts(leaves, digest_layers)
+    // }
 }
+
+// impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, BB31_DIGEST_WIDTH> {
+//     type DeviceType =
+//         FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>;
+
+//     fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+//         let leaves_device = self
+//             .leaves
+//             .iter()
+//             .map(|l| Ok(l.to_device()?.to_column_major()))
+//             .collect::<Result<Vec<_>, CudaError>>()?;
+
+//         let digest_layers_device = self
+//             .digest_layers
+//             .iter()
+//             .map(|l| l.to_device())
+//             .collect::<Result<Vec<_>, CudaError>>()?;
+
+//         Ok(FieldMerkleTreeGpu {
+//             leaves: leaves_device,
+//             digest_layers: digest_layers_device,
+//             _marker: PhantomData,
+//         })
+//     }
+// }
+
+// impl ToDevice for FieldMerkleTree<BabyBear, Bn254Fr, RowMajorMatrix<BabyBear>, BN254_DIGEST_WIDTH> {
+//     type DeviceType = FieldMerkleTreeGpu<
+//         BabyBear,
+//         [BabyBear; BN254_DIGEST_WIDTH],
+//         ColMajorMatrixDevice<BabyBear>,
+//     >;
+
+//     fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+//         let leaves_device = self
+//             .leaves
+//             .iter()
+//             .map(|l| Ok(l.to_device()?.to_column_major()))
+//             .collect::<Result<Vec<_>, CudaError>>()?;
+
+//         let digest_layers_device = self
+//             .digest_layers
+//             .iter()
+//             .map(|l| l.to_device())
+//             .collect::<Result<Vec<_>, CudaError>>()?;
+
+//         Ok(FieldMerkleTreeGpu {
+//             leaves: leaves_device,
+//             digest_layers: digest_layers_device,
+//             _marker: PhantomData,
+//         })
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

@@ -411,136 +411,185 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     }
 }
 
-// pub(super) mod merkle_tree_opening_prover {
+pub(super) mod merkle_tree_opening_prover {
+    use p3_field::PackedField;
+    use serde::de::DeserializeOwned;
+    use serde::Serialize;
 
-//     /// Open a batch of queries for a FieldMerkleTreeMmcs.
-//     fn query_open_batch_field_merkle_tree<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>(
-//         query_indices: &[usize],
-//         prover_data_slice: &[&C::ProverData],
-//         log_global_max_height: usize,
-//         is_answering: bool,
-//     ) -> Vec<Vec<BatchOpening<BabyBear, SC::ValMmcs>>>
-//     where
-//         Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
-//         P: PackedField<Scalar = BabyBear>,
-//         PW: PackedValue,
-//         H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
-//         H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
-//         H: Sync,
-//         C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
-//         C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
-//         C: Sync,
-//         PW::Value: Eq,
-//         [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
-//     {
-//         // Function runs one kernel for all query indices and all matrices.
-//         //
-//         // 1. Collect relevant data and calculate offsets based on matrix.width.
-//         // 2. Run kernel that returns one output buffer full of data:
-//         //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
-//         // 3. Slice buffer to proper structure.
-//         // 4. Calculate proofs for each data.
-//         let total_matrices: usize = prover_data_slice
-//             .iter()
-//             .map(|data| data.matrices().len())
-//             .sum();
-//         let mut matrix_views: Vec<MatrixViewDevice<F>> = Vec::with_capacity(total_matrices);
-//         let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
-//         let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
-//         let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
-//         let mut total_width = 0;
-//         let mut data_matrix_offset = 0;
-//         let mut max_width = 0;
-//         prover_data_slice.iter().for_each(|data| {
-//             let mut max_height = 0;
-//             data_matrix_offsets.push(data_matrix_offset);
-//             data_matrix_offset += data.matrices().len();
+    use p3_baby_bear::BabyBear;
+    use p3_field::PackedValue;
+    use p3_fri::BatchOpening;
+    use p3_merkle_tree::FieldMerkleTreeMmcs;
+    use p3_symmetric::CryptographicHasher;
+    use p3_symmetric::PseudoCompressionFunction;
+    use p3_util::log2_ceil_usize;
 
-//             data.matrices().iter().for_each(|matrix| {
-//                 matrix_views.push(matrix.view());
-//                 width_offsets.push(total_width);
-//                 let matrix_width = matrix.width();
-//                 total_width += matrix_width;
-//                 max_width = std::cmp::max(max_width, matrix_width);
-//                 max_height = std::cmp::max(max_height, matrix.height());
-//             });
-//             log2_max_heights.push(log2_ceil_usize(max_height));
-//         });
-//         width_offsets.push(total_width);
-//         assert_eq!(data_matrix_offset, total_matrices);
+    use crate::device::memory::ToDevice;
+    use crate::matrix::MatrixViewDevice;
+    use crate::merkle_tree::FieldMerkleTreeDeviceCommitter;
+    use crate::merkle_tree::FieldMerkleTreeHasher;
+    use crate::merkle_tree::MmcsProverData;
 
-//         let matrix_views_device = matrix_views.to_device().unwrap();
-//         let width_offsets_device = width_offsets.to_device().unwrap();
-//         let query_indices_device = query_indices.to_vec().to_device().unwrap();
+    use super::*;
 
-//         let total_query_indices = query_indices_device.len();
-//         let output_capacity = total_width * total_query_indices;
-//         let mut total_output_device: DeviceBuffer<F> =
-//             DeviceBuffer::with_capacity(output_capacity).unwrap();
-//         unsafe {
-//             total_output_device.set_len(output_capacity);
-//             opening_gpu::calculate_openings(
-//                 matrix_views_device.as_ptr(),
-//                 width_offsets_device.as_ptr(),
-//                 query_indices_device.as_ptr(),
-//                 total_matrices,
-//                 total_width,
-//                 max_width,
-//                 total_query_indices,
-//                 log_global_max_height,
-//                 is_answering,
-//                 total_output_device.as_mut_ptr(),
-//             );
-//         }
-//         let total_output_host = total_output_device.to_host();
+    impl<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>
+        FriQueryProver<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
+        for FieldMerkleTreeDeviceCommitter<Hasher>
+    where
+        Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
+        P: PackedField<Scalar = BabyBear>,
+        PW: PackedValue,
+        H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
+        H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
+        H: Sync,
+        C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
+        C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
+        C: Sync,
+        PW::Value: Eq,
+        [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
+    {
+        fn query_open_batch(
+            &self,
+            query_indices: &[usize],
+            prover_data_slice: &[Self::ProverData],
+            log_global_max_height: usize,
+            is_answering: bool,
+        ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
+        {
+            // Function runs one kernel for all query indices and all matrices.
+            //
+            // 1. Collect relevant data and calculate offsets based on matrix.width.
+            // 2. Run kernel that returns one output buffer full of data:
+            //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
+            // 3. Slice buffer to proper structure.
+            // 4. Calculate proofs for each data.
+            let total_matrices: usize = prover_data_slice
+                .iter()
+                .map(|data| data.matrices().len())
+                .sum();
+            let mut matrix_views: Vec<MatrixViewDevice<BabyBear>> =
+                Vec::with_capacity(total_matrices);
+            let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
+            let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+            let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+            let mut total_width = 0;
+            let mut data_matrix_offset = 0;
+            let mut max_width = 0;
+            prover_data_slice.iter().for_each(|data| {
+                let mut max_height = 0;
+                data_matrix_offsets.push(data_matrix_offset);
+                data_matrix_offset += data.matrices().len();
 
-//         query_indices
-//             .iter()
-//             .enumerate()
-//             .map(|(index_i, &index)| {
-//                 let index_offset = index_i * total_width;
-//                 prover_data_slice
-//                     .iter()
-//                     .enumerate()
-//                     .map(|(data_i, data)| {
-//                         let data_offset = data_matrix_offsets[data_i];
-//                         let openings: Vec<Vec<F>> = data
-//                             .leaves
-//                             .iter()
-//                             .enumerate()
-//                             .map(|(matrix_i, _)| {
-//                                 let start = index_offset + width_offsets[data_offset + matrix_i];
-//                                 let end = index_offset + width_offsets[data_offset + matrix_i + 1];
-//                                 total_output_host[start..end].to_vec()
-//                             })
-//                             .collect();
+                data.matrices().iter().for_each(|matrix| {
+                    matrix_views.push(matrix.view());
+                    width_offsets.push(total_width);
+                    let matrix_width = matrix.width();
+                    total_width += matrix_width;
+                    max_width = std::cmp::max(max_width, matrix_width);
+                    max_height = std::cmp::max(max_height, matrix.height());
+                });
+                log2_max_heights.push(log2_ceil_usize(max_height));
+            });
+            width_offsets.push(total_width);
+            assert_eq!(data_matrix_offset, total_matrices);
 
-//                         let log_max_height = log2_max_heights[data_i];
-//                         let bits_reduced = if is_answering {
-//                             data_i + 1
-//                         } else {
-//                             log_global_max_height - log_max_height
-//                         };
-//                         let data_index = index >> bits_reduced;
-//                         let proof = (0..log_max_height)
-//                             .map(|i| {
-//                                 let start = (data_index >> i) ^ 1;
-//                                 let end = start + 1;
-//                                 data.digest_layers[i][start..end].to_host()[0]
-//                             })
-//                             .collect();
+            let matrix_views_device = matrix_views.to_device().unwrap();
+            let width_offsets_device = width_offsets.to_device().unwrap();
+            let query_indices_device = query_indices.to_vec().to_device().unwrap();
 
-//                         BatchOpening::<BabyBear, SC::ValMmcs> {
-//                             opened_values: openings,
-//                             opening_proof: proof,
-//                         }
-//                     })
-//                     .collect::<Vec<_>>()
-//             })
-//             .collect::<Vec<_>>()
-//     }
-// }
+            let total_query_indices = query_indices_device.len();
+            let output_capacity = total_width * total_query_indices;
+            let mut total_output_device: DeviceBuffer<BabyBear> =
+                DeviceBuffer::with_capacity(output_capacity).unwrap();
+            unsafe {
+                total_output_device.set_len(output_capacity);
+                opening_gpu::calculate_openings(
+                    matrix_views_device.as_ptr(),
+                    width_offsets_device.as_ptr(),
+                    query_indices_device.as_ptr(),
+                    total_matrices,
+                    total_width,
+                    max_width,
+                    total_query_indices,
+                    log_global_max_height,
+                    is_answering,
+                    total_output_device.as_mut_ptr(),
+                );
+            }
+            let total_output_host = total_output_device.to_host();
 
+            query_indices
+                .iter()
+                .enumerate()
+                .map(|(index_i, &index)| {
+                    let index_offset = index_i * total_width;
+                    prover_data_slice
+                        .iter()
+                        .enumerate()
+                        .map(|(data_i, data)| {
+                            let data_offset = data_matrix_offsets[data_i];
+                            let openings: Vec<Vec<BabyBear>> = data
+                                .leaves
+                                .iter()
+                                .enumerate()
+                                .map(|(matrix_i, _)| {
+                                    let start =
+                                        index_offset + width_offsets[data_offset + matrix_i];
+                                    let end =
+                                        index_offset + width_offsets[data_offset + matrix_i + 1];
+                                    total_output_host[start..end].to_vec()
+                                })
+                                .collect();
+
+                            let log_max_height = log2_max_heights[data_i];
+                            let bits_reduced = if is_answering {
+                                data_i + 1
+                            } else {
+                                log_global_max_height - log_max_height
+                            };
+                            let data_index = index >> bits_reduced;
+                            let proof = (0..log_max_height)
+                                .map(|i| {
+                                    let start = (data_index >> i) ^ 1;
+                                    let end = start + 1;
+                                    data.digest_layers[i][start..end].to_host()[0]
+                                })
+                                .collect();
+
+                            BatchOpening {
+                                opened_values: openings,
+                                opening_proof: proof,
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        }
+    }
+}
+
+// /// Open a batch of queries for a FieldMerkleTreeMmcs.
+// fn query_open_batch_field_merkle_tree<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>(
+//     query_indices: &[usize],
+//     prover_data_slice: &[&C::ProverData],
+//     log_global_max_height: usize,
+//     is_answering: bool,
+// ) -> Vec<Vec<BatchOpening<BabyBear, SC::ValMmcs>>>
+// where
+//     Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
+//     P: PackedField<Scalar = BabyBear>,
+//     PW: PackedValue,
+//     H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
+//     H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
+//     H: Sync,
+//     C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
+//     C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
+//     C: Sync,
+//     PW::Value: Eq,
+//     [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
+// {
+
+#[allow(clippy::type_complexity)]
 pub fn prove<SC, C>(
     committer: &TwoAdicFriCommitter<SC, C>,
     config: &PcsConfig<SC>,

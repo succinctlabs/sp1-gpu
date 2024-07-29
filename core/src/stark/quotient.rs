@@ -34,7 +34,7 @@ use crate::stark::ffi::quotient_gpu;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
-use super::{BabyBearFriConfig, BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
+use super::{BabyBearFriConfig, CpuProverData, GpuMatrix};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -272,7 +272,7 @@ pub struct LagrangeSelectorsView<'a, T: Field> {
 
 impl<SC, A> CpuQuotientValuesGenerator<SC, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<ProverConstraintFolder<'a, SC>> + MachineAir<SC::Val>,
 {
     pub fn get_evaluations_on_domain(

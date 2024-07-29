@@ -553,14 +553,20 @@ where
 pub mod tests {
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
+        stark::RiscvAir,
         utils::{
             run_test,
             tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
             SP1CoreOpts,
         },
     };
+    use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
-    use crate::{poseidon2::baby_bear::DeviceHasherBabyBear, utils::init_tracer};
+    use crate::{
+        merkle_tree::FieldMerkleTreeDeviceCommitter,
+        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+        utils::init_tracer,
+    };
 
     use super::*;
 
@@ -572,12 +578,61 @@ pub mod tests {
     }
 
     #[test]
-    fn test_fibonacci_prove() {
+    fn test_fibonacci_poseidon_2_baby_bear_prove() {
         let program = Program::from(FIBONACCI_ELF);
 
         init_tracer();
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_fibonacci_poseidon2_bn254_prove() {
+        use sp1_core::io::SP1Stdin;
+        use sp1_core::runtime::SP1Context;
+
+        let program = Program::from(FIBONACCI_ELF);
+
+        type SC = BabyBearPoseidon2Outer;
+
+        type P = StarkGpuProver<
+            SC,
+            FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+            RiscvAir<BabyBear>,
+        >;
+
+        init_tracer();
+
+        let config = BabyBearPoseidon2Outer::new();
+
         // Execute the program.
-        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
+        let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+            let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+            runtime.run().unwrap();
+            runtime
+        });
+
+        let machine = RiscvAir::machine(config);
+        let prover = P::new(machine);
+        let inputs = SP1Stdin::new();
+        let (pk, vk) = prover.setup(runtime.program.as_ref());
+        let (proof, _, _) = sp1_core::utils::prove_with_context(
+            &prover,
+            &pk,
+            Program::clone(&runtime.program),
+            &inputs,
+            SP1CoreOpts::default(),
+            SP1Context::default(),
+        )
+        .unwrap();
+
+        let mut challenger = prover.config().challenger();
+        prover
+            .machine()
+            .verify(&vk, &proof, &mut challenger)
+            .unwrap();
     }
 
     #[test]
@@ -587,6 +642,9 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
     }
 }

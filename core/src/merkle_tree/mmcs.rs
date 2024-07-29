@@ -23,8 +23,6 @@ pub trait MmcsCommitter<T: Send + Sync, M: Mmcs<T>> {
 
 pub trait MmcsProverData<Matrix> {
     fn matrices(&self) -> &[Matrix];
-
-    // fn matrices_mut(&mut self) -> &mut [Matrix];
 }
 
 pub type Poseidon2BabyBearCommitter = FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>;

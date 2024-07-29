@@ -12,18 +12,24 @@ use p3_matrix::dense::RowMajorMatrix;
 pub use permutation::*;
 pub use prover::*;
 pub use quotient::*;
+use sp1_recursion_core::stark::config::{BabyBearPoseidon2Outer, OuterValMmcs};
 pub use utils::*;
 
 use p3_baby_bear::BabyBear;
 use sp1_core::{
-    stark::{Com, PcsProverData, StarkGenericConfig},
+    stark::{PcsProverData, StarkGenericConfig},
     utils::BabyBearPoseidon2,
 };
 
 type EF = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge;
 
-pub type PcsConfig<SC: BabyBearFriConfig> =
-    FriConfig<ExtensionMmcs<SC::Val, SC::Challenge, SC::ValMmcs>>;
+pub type PcsConfig<SC> = FriConfig<
+    ExtensionMmcs<
+        <SC as StarkGenericConfig>::Val,
+        <SC as StarkGenericConfig>::Challenge,
+        <SC as BabyBearFriConfig>::ValMmcs,
+    >,
+>;
 
 pub type FriMmcs<SC> = ExtensionMmcs<BabyBear, EF, <SC as BabyBearFriConfig>::ValMmcs>;
 
@@ -48,31 +54,14 @@ pub trait BabyBearFriConfig:
         + FieldChallenger<BabyBear>;
 }
 
-pub trait BabyBearPoseidon2Config:
-    StarkGenericConfig<
-    Val = BabyBear,
-    Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
-    Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
-    Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
->
-{
-}
-
-impl<SC> BabyBearPoseidon2Config for SC where
-    SC: StarkGenericConfig<
-        Val = BabyBear,
-        Challenge = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge,
-        Challenger = <BabyBearPoseidon2 as StarkGenericConfig>::Challenger,
-        Pcs = <BabyBearPoseidon2 as StarkGenericConfig>::Pcs,
-    >
-{
-}
-
-impl<SC> BabyBearFriConfig for SC
-where
-    SC: BabyBearPoseidon2Config,
-{
+impl BabyBearFriConfig for BabyBearPoseidon2 {
     type ValMmcs = sp1_core::utils::baby_bear_poseidon2::ValMmcs;
-    type RowMajorProverData = PcsProverData<SC>;
-    type FriChallenger = SC::Challenger;
+    type RowMajorProverData = PcsProverData<Self>;
+    type FriChallenger = <Self as StarkGenericConfig>::Challenger;
+}
+
+impl BabyBearFriConfig for BabyBearPoseidon2Outer {
+    type ValMmcs = OuterValMmcs;
+    type RowMajorProverData = PcsProverData<Self>;
+    type FriChallenger = <Self as StarkGenericConfig>::Challenger;
 }
