@@ -1,28 +1,33 @@
+use hashbrown::HashMap;
+
+use rayon::prelude::*;
+
 use p3_air::Air;
-use p3_challenger::{CanObserve, FieldChallenger};
-
-use itertools::Itertools;
-
-use sp1_core::stark::ShardMainData;
-use tracing::info;
-
 use p3_baby_bear::BabyBear;
+use p3_challenger::{CanObserve, FieldChallenger};
+use p3_commit::Mmcs;
 use p3_commit::PolynomialSpace;
 use p3_field::AbstractExtensionField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
 
-use rayon::iter::IntoParallelRefIterator;
-use rayon::iter::ParallelIterator;
+use itertools::Itertools;
+
+use sp1_core::stark::ShardMainData;
+use tracing::info;
+
+use sp1_core::air::MachineProgram;
 use sp1_core::stark::Chip;
 use sp1_core::stark::ChipOpenedValues;
+use sp1_core::stark::Com;
 use sp1_core::stark::DebugConstraintBuilder;
 use sp1_core::stark::MachineProof;
 use sp1_core::stark::MachineProver;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
 use sp1_core::stark::ShardProof;
+use sp1_core::stark::StarkVerifyingKey;
 use sp1_core::utils::SP1CoreOpts;
 use sp1_core::{
     air::MachineAir,
@@ -35,9 +40,10 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
-use crate::cuda_runtime::scope;
-use crate::fri::FriGpuOpeningProver;
-use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
+use crate::cuda_runtime;
+use crate::fri::FriOpeningProver;
+use crate::fri::FriQueryProver;
+use crate::merkle_tree::MmcsProverData;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -52,18 +58,20 @@ use crate::{
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
 };
 
-use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
+use super::BabyBearFriConfig;
+use super::PermutationTraceGenerator;
 
 use super::natural_domain_for_degree;
 
 const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
 
-pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
+/// A CUDA prover for a STARK.
+pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
-    committer: TwoAdicFriCommitter<SC::Val, H>,
-    opening_prover: FriGpuOpeningProver<SC>,
+    committer: TwoAdicFriCommitter<SC, C>,
+    opening_prover: FriOpeningProver<SC>,
 }
 
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
@@ -75,16 +83,28 @@ pub type CpuProverData<SC> = PcsProverData<SC>;
 
 pub type CpuMatrix<F> = RowMajorMatrix<F>;
 
-impl<SC, A> MachineProver<SC, A> for StarkGpuProver<SC, DeviceHasherBabyBear, A>
+impl<SC, C, A> MachineProver<SC, A> for StarkGpuProver<SC, C, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+    C::ProverData: Send + ToHost<HostType = PcsProverData<SC>>,
+    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+    Com<SC>: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
+    SC::FriChallenger: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Commitment: Send + Sync,
+    SC::RowMajorProverData: Send + Sync,
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
-    type DeviceProverData = GpuProverData<SC>;
+    type DeviceProverData = C::ProverData;
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -94,7 +114,7 @@ where
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriGpuOpeningProver::default(),
+            opening_prover: FriOpeningProver::default(),
             quotient_generator,
         }
     }
@@ -137,10 +157,10 @@ where
             .unzip();
 
         let span = tracing::Span::current();
-        scope(|s| {
-            let _span = span.enter();
-            let span = tracing::Span::current();
+        cuda_runtime::scope(|s| {
             s.spawn(move || {
+                let _span = span.enter();
+                let span = tracing::Span::current();
                 let _span = span.enter();
 
                 // Copy the traces to device.
@@ -170,6 +190,88 @@ where
         })
     }
 
+    /// Setup the preprocessed data into a proving and verifying key.
+    fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+        let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
+            .in_scope(|| {
+                self.machine()
+                    .chips()
+                    .iter()
+                    .map(|chip| {
+                        let prep_trace = chip.generate_preprocessed_trace(program);
+                        // Assert that the chip width data is correct.
+                        let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                        assert_eq!(
+                            expected_width,
+                            chip.preprocessed_width(),
+                            "Incorrect number of preprocessed columns for chip {}",
+                            chip.name()
+                        );
+
+                        (chip.name(), prep_trace)
+                    })
+                    .filter(|(_, prep_trace)| prep_trace.is_some())
+                    .map(|(name, prep_trace)| {
+                        let prep_trace = prep_trace.unwrap();
+                        (name, prep_trace)
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+        // Order the chips and traces by trace size (biggest first), and get the ordering map.
+        named_preprocessed_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+
+        let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
+            .iter()
+            .map(|(name, trace)| {
+                let domain = natural_domain_for_degree(self.config(), trace.height());
+                (
+                    (name.to_owned(), domain, trace.dimensions()),
+                    (domain, trace.to_device().unwrap().to_column_major()),
+                )
+            })
+            .unzip();
+
+        // Commit to the batch of traces.
+        let (commit, data) = tracing::debug_span!("commit to preprocessed traces").in_scope(|| {
+            cuda_runtime::scope(|s| s.spawn(|| self.committer.commit(&domains_and_traces)))
+                .sync_join()
+                .unwrap()
+        });
+        let data = data.to_host();
+
+        // Get the chip ordering.
+        let chip_ordering = named_preprocessed_traces
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| (name.to_owned(), i))
+            .collect::<HashMap<_, _>>();
+
+        // Get the preprocessed traces
+        let traces = named_preprocessed_traces
+            .into_iter()
+            .map(|(_, trace)| trace)
+            .collect::<Vec<_>>();
+
+        let pc_start = program.pc_start();
+
+        (
+            StarkProvingKey {
+                commit: commit.clone(),
+                pc_start,
+                traces,
+                data,
+                chip_ordering: chip_ordering.clone(),
+            },
+            StarkVerifyingKey {
+                commit,
+                pc_start,
+                chip_information,
+                chip_ordering,
+            },
+        )
+    }
+
     fn open(
         &self,
         pk: &StarkProvingKey<SC>,
@@ -177,7 +279,7 @@ where
         challenger: &mut <SC as StarkGenericConfig>::Challenger,
     ) -> Result<ShardProof<SC>, Self::Error> {
         let span = tracing::Span::current();
-        scope(move |s| {
+        cuda_runtime::scope(|s| {
             let _span = span.enter();
             let span = tracing::Span::current();
             s.spawn(move || {
@@ -217,7 +319,7 @@ where
 
                 // Delete the ldes of the main prover data.
                 if recompute_ldes {
-                    main_data.leaves.clear();
+                    main_data.clear_matrices();
                 }
 
                 // Get the permutation challenges.
@@ -268,7 +370,7 @@ where
                     self.committer.commit(&perm_domains_and_traces);
 
                 // Observe the permutation commitment.
-                challenger.observe(permutation_commit);
+                challenger.observe(permutation_commit.clone());
 
                 // Get the cumulative sums from device.
                 let cumulative_sums = perm_domains_and_traces
@@ -286,7 +388,7 @@ where
                     .collect::<Vec<_>>();
                 // Delete the ldes of the permutation prover data.
                 if recompute_ldes {
-                    perm_prover_data.leaves.clear();
+                    perm_prover_data.clear_matrices();
                 }
 
                 // Get a challenge for folding the constraints.
@@ -329,7 +431,7 @@ where
                 let num_quotient_chunks = quotient_domains_and_chunks.len();
                 drop(quotient_domains_and_chunks);
                 // Observe the quotient commitment.
-                challenger.observe(quotient_commit);
+                challenger.observe(quotient_commit.clone());
 
                 // Generate the opening proof and assemble the shard proof.
 
@@ -360,11 +462,11 @@ where
                 if recompute_ldes {
                     for (domain, perm_trace) in perm_domains_and_traces {
                         let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-                        perm_prover_data.leaves.push(perm_lde);
+                        perm_prover_data.push_matrix(perm_lde);
                     }
                     for (domain, trace) in domains.iter().zip(traces) {
                         let main_lde = self.committer.encode(*domain, &trace, true)?;
-                        main_data.leaves.push(main_lde);
+                        main_data.push_matrix(main_lde);
                     }
                 }
 
@@ -376,18 +478,14 @@ where
                             &self.committer,
                             self.pcs(),
                             vec![
-                                (&pk_data_device, preprocessed_opening_points),
-                                (&main_data, trace_opening_points.clone()),
-                                (&perm_prover_data, trace_opening_points),
-                                (&quotient_prover_data, quotient_opening_points),
+                                (pk_data_device, preprocessed_opening_points),
+                                (main_data, trace_opening_points.clone()),
+                                (perm_prover_data, trace_opening_points),
+                                (quotient_prover_data, quotient_opening_points),
                             ],
                             challenger,
                         )
                     });
-                drop(pk_data_device);
-                drop(main_data);
-                drop(perm_prover_data);
-                drop(quotient_prover_data);
 
                 // Collect the opened values for each chip.
                 let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
@@ -505,7 +603,7 @@ where
 
         // Observe the challenges for each segment.
         shard_data.iter().for_each(|data| {
-            challenger.observe(data.main_commit);
+            challenger.observe(data.main_commit.clone());
             challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
         });
 
@@ -523,9 +621,9 @@ where
     }
 }
 
-impl<SC, H, A> StarkGpuProver<SC, H, A>
+impl<SC, C, A> StarkGpuProver<SC, C, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
@@ -567,14 +665,20 @@ where
 pub mod tests {
     use sp1_core::{
         runtime::{ExecutionRecord, Program, Runtime},
+        stark::RiscvAir,
         utils::{
             run_test,
             tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
             SP1CoreOpts,
         },
     };
+    use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
-    use crate::{poseidon2::baby_bear::DeviceHasherBabyBear, utils::init_tracer};
+    use crate::{
+        merkle_tree::FieldMerkleTreeDeviceCommitter,
+        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+        utils::init_tracer,
+    };
 
     use super::*;
 
@@ -586,12 +690,61 @@ pub mod tests {
     }
 
     #[test]
-    fn test_fibonacci_prove() {
+    fn test_fibonacci_poseidon_2_baby_bear_prove() {
         let program = Program::from(FIBONACCI_ELF);
 
         init_tracer();
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_fibonacci_poseidon2_bn254_prove() {
+        use sp1_core::io::SP1Stdin;
+        use sp1_core::runtime::SP1Context;
+
+        let program = Program::from(FIBONACCI_ELF);
+
+        type SC = BabyBearPoseidon2Outer;
+
+        type P = StarkGpuProver<
+            SC,
+            FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+            RiscvAir<BabyBear>,
+        >;
+
+        init_tracer();
+
+        let config = BabyBearPoseidon2Outer::new();
+
         // Execute the program.
-        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
+        let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+            let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+            runtime.run().unwrap();
+            runtime
+        });
+
+        let machine = RiscvAir::machine(config);
+        let prover = P::new(machine);
+        let inputs = SP1Stdin::new();
+        let (pk, vk) = prover.setup(runtime.program.as_ref());
+        let (proof, _, _) = sp1_core::utils::prove_with_context(
+            &prover,
+            &pk,
+            Program::clone(&runtime.program),
+            &inputs,
+            SP1CoreOpts::default(),
+            SP1Context::default(),
+        )
+        .unwrap();
+
+        let mut challenger = prover.config().challenger();
+        prover
+            .machine()
+            .verify(&vk, &proof, &mut challenger)
+            .unwrap();
     }
 
     #[test]
@@ -601,6 +754,9 @@ pub mod tests {
 
         init_tracer();
         // Execute the program.
-        run_test::<StarkGpuProver<_, DeviceHasherBabyBear, _>>(program).unwrap();
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
     }
 }

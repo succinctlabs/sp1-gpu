@@ -1590,6 +1590,7 @@ dependencies = [
  "p3-util",
  "rand",
  "rayon",
+ "serde",
  "sp1-core",
  "sp1-recursion-core",
  "tracing",
