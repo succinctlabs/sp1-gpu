@@ -24,7 +24,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
         |_| default_shard_size,
         |s| s.parse::<usize>().unwrap_or(default_shard_size),
     );
-    opts.core_opts.shard_size = 1 << shard_size_log;
+    opts.core_opts.shard_size = shard_size;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
 
