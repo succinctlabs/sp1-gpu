@@ -2907,7 +2907,6 @@ dependencies = [
 [[package]]
 name = "sp1-core"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -2969,7 +2968,6 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2979,7 +2977,6 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -2992,7 +2989,6 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3029,7 +3025,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3052,7 +3047,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3077,7 +3071,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3112,7 +3105,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3122,7 +3114,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3147,7 +3138,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/fix-oom#1916a7a9812ea69c8e9b56ba0dec50ceb12ee2eb"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
