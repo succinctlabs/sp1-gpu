@@ -36,6 +36,7 @@ use std::cmp::Reverse;
 use air::P3EvalFolder;
 
 use crate::cuda_runtime::scope;
+use crate::device::memory::cuda_mem_get_info;
 use crate::fri::FriGpuOpeningProver;
 use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
 use crate::stark::DeviceQuotientValues;
@@ -56,7 +57,7 @@ use super::{BabyBearPoseidon2Config, PermutationTraceGenerator};
 
 use super::natural_domain_for_degree;
 
-const LDE_MEM_THRESHOLD: usize = 1e10 as usize;
+const LDE_MEM_RATIO: f64 = 10.0 / 24.0;
 
 pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
     pub(crate) machine: StarkMachine<SC, A>,
@@ -64,6 +65,7 @@ pub struct StarkGpuProver<SC: StarkGenericConfig, H, A> {
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC::Val, H>,
     opening_prover: FriGpuOpeningProver<SC>,
+    lde_mem_threshold: usize,
 }
 
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
@@ -90,11 +92,15 @@ where
     fn new(machine: StarkMachine<SC, A>) -> Self {
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
+        let (_, total) = cuda_mem_get_info().unwrap();
+        let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
+        tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriGpuOpeningProver::default(),
+            lde_mem_threshold,
             quotient_generator,
         }
     }
@@ -213,7 +219,7 @@ where
                 }
                 info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
-                let recompute_ldes = total_lde_size > LDE_MEM_THRESHOLD;
+                let recompute_ldes = total_lde_size > self.lde_mem_threshold;
 
                 // Delete the ldes of the main prover data.
                 if recompute_ldes {
