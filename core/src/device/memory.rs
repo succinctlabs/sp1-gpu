@@ -157,6 +157,7 @@ pub unsafe fn copy_device_to_device<T: Copy>(
     .into()
 }
 
+/// Returns a pair `(free, total)` of the amount of free and total memory on the device.
 pub fn cuda_mem_get_info() -> Result<(usize, usize), CudaError> {
     let mut free: usize = 0;
     let mut total: usize = 0;

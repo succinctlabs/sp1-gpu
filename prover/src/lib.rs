@@ -1,17 +1,44 @@
+use std::env;
+
 use components::GpuProverComponents;
-use sp1_core::utils::SP1ProverOpts;
+use moongate_core::device::memory::cuda_mem_get_info;
+use sp1_core::{runtime::SplitOpts, utils::SP1ProverOpts};
 use sp1_prover::SP1Prover;
 
 pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
+const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / 24.0;
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
+
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
-    opts.core_opts.shard_size = 1 << 21;
+    let (_, total) = cuda_mem_get_info().unwrap();
+    tracing::info!("Total memory on device: {}", total);
+
+    let shard_size_log = (total as f64 * SHARD_MEM_RATIO).log2().ceil() as usize;
+    let shard_size = 1 << shard_size_log;
+    opts.core_opts.shard_size = 1 << shard_size_log;
+    tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
-    opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
+
+    // Set the deferred split threshold.
+    let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
+    let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
+    let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
+        .map(|s| {
+            s.parse::<usize>()
+                .unwrap_or(default_deferred_split_threshold)
+        })
+        .unwrap_or(default_deferred_split_threshold);
+    tracing::info!(
+        "Deffered split threshold set to {}",
+        deferred_split_threshold
+    );
+    opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
+
     opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 4;
 
