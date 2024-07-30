@@ -19,7 +19,11 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     tracing::info!("Total memory on device: {}", total);
 
     let shard_size_log = (total as f64 * SHARD_MEM_RATIO).log2().ceil() as usize;
-    let shard_size = 1 << shard_size_log;
+    let default_shard_size = 1 << shard_size_log;
+    let shard_size = env::var("SHARD_SIZE").map_or_else(
+        |_| default_shard_size,
+        |s| s.parse::<usize>().unwrap_or(default_shard_size),
+    );
     opts.core_opts.shard_size = 1 << shard_size_log;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
