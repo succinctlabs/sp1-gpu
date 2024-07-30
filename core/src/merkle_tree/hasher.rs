@@ -22,7 +22,6 @@ pub trait FieldMerkleTreeHasher<F: Field> {
     unsafe fn compress_and_inject(
         &self,
         prev_layer: *const Self::Digest,
-        n_prev_layer: usize,
         matrices_to_inject: *const MatrixViewDevice<F>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,

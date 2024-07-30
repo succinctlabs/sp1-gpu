@@ -36,7 +36,6 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
     unsafe fn compress_and_inject(
         &self,
         prev_layer: *const Self::Digest,
-        n_prev_layer: usize,
         matrices_to_inject: *const MatrixViewDevice<BabyBear>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
@@ -44,7 +43,6 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
     ) {
         poseidon2_bn254_3_kernels::compress_and_inject_bn254(
             prev_layer,
-            n_prev_layer,
             matrices_to_inject,
             n_matrices_to_inject,
             next_digests,
@@ -207,7 +205,7 @@ pub mod poseidon2_bn254_3_kernels {
 
         pub fn compress_and_inject_bn254(
             prev_layer: *const [Bn254Fr; DIGEST_WIDTH],
-            n_prev_layer: usize,
+            //n_prev_layer: usize,
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [Bn254Fr; DIGEST_WIDTH],

@@ -28,7 +28,6 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
     unsafe fn compress_and_inject(
         &self,
         prev_layer: *const Self::Digest,
-        n_prev_layer: usize,
         matrices_to_inject: *const MatrixViewDevice<BabyBear>,
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
@@ -36,7 +35,6 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
     ) {
         poseidon2_baby_bear_16_kernels::compress_and_inject_baby_bear(
             prev_layer,
-            n_prev_layer,
             matrices_to_inject,
             n_matrices_to_inject,
             next_digests,
@@ -168,7 +166,6 @@ pub mod poseidon2_baby_bear_16_kernels {
 
         pub fn compress_and_inject_baby_bear(
             prev_layer: *const [BabyBear; DIGEST_WIDTH],
-            n_prev_layer: usize,
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
             next_digests: *mut [BabyBear; DIGEST_WIDTH],

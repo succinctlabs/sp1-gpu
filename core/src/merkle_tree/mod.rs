@@ -69,7 +69,6 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
                     prev_layer.as_ptr(),
-                    prev_layer.len(),
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
@@ -225,7 +224,6 @@ mod tests {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(
                     first_layer_digests.as_ptr(),
-                    first_layer_digests.len(),
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
@@ -387,7 +385,6 @@ mod tests {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(
                     first_layer_digests.as_ptr(),
-                    first_layer_digests.len(),
                     matrices_to_inject.as_ptr(),
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
