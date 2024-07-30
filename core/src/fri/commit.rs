@@ -3,40 +3,38 @@ use std::borrow::Borrow;
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
-use p3_symmetric::Hash;
+use sp1_core::stark::Com;
 
 use crate::device::error::CudaError;
 use crate::dft::DeviceDft;
-use crate::matrix::{ColMajorMatrixDevice, DeviceMatrix};
-use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
-use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
+use crate::matrix::ColMajorMatrixDevice;
+use crate::merkle_tree::MmcsCommitter;
+use crate::stark::BabyBearFriConfig;
 
-pub struct TwoAdicFriCommitter<F, H = DeviceHasherBabyBear, M = ColMajorMatrixDevice<F>> {
-    dft: DeviceDft<F>,
-    hasher: H,
+pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
+    pub dft: DeviceDft<SC::Val>,
+    pub mmcs_committer: C,
     pub log_blowup: usize,
-    _marker: std::marker::PhantomData<(H, M)>,
 }
 
-impl<H: FieldMerkleTreeHasher<BabyBear>> TwoAdicFriCommitter<BabyBear, H> {
+impl<
+        SC: BabyBearFriConfig,
+        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    > TwoAdicFriCommitter<SC, C>
+{
     pub fn new(log_blowup: usize) -> Self
     where
-        H: Default,
+        C: Default,
     {
         Self {
             dft: DeviceDft::new(),
-            hasher: H::default(),
+            mmcs_committer: C::default(),
             log_blowup,
-            _marker: std::marker::PhantomData,
         }
     }
 
-    pub fn mmcs_commit<Matrix: DeviceMatrix<BabyBear>>(
-        &self,
-        leaves: Vec<Matrix>,
-    ) -> FieldMerkleTreeGpu<BabyBear, H::Digest, Matrix> {
-        FieldMerkleTreeGpu::new(&self.hasher, leaves)
+    pub fn mmcs_commit(&self, leaves: Vec<C::Matrix>) -> (Com<SC>, C::ProverData) {
+        self.mmcs_committer.commit(leaves)
     }
 
     pub const fn log_blowup(&self) -> usize {
@@ -87,17 +85,12 @@ impl<H: FieldMerkleTreeHasher<BabyBear>> TwoAdicFriCommitter<BabyBear, H> {
         }
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn commit<Matrix>(
+    pub fn commit<M>(
         &self,
-        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, Matrix)],
-    ) -> (
-        Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
-        FieldMerkleTreeGpu<BabyBear, H::Digest, ColMajorMatrixDevice<BabyBear>>,
-    )
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+    ) -> (Com<SC>, C::ProverData)
     where
-        Matrix: Borrow<ColMajorMatrixDevice<BabyBear>>,
-        H: FieldMerkleTreeHasher<BabyBear, Digest = [BabyBear; DIGEST_WIDTH]>,
+        M: Borrow<C::Matrix>,
     {
         let lde_evaluations = evaluations
             .iter()
@@ -107,10 +100,7 @@ impl<H: FieldMerkleTreeHasher<BabyBear>> TwoAdicFriCommitter<BabyBear, H> {
             })
             .collect::<Vec<_>>();
 
-        let tree_device = self.mmcs_commit(lde_evaluations);
-        let root_device = tree_device.root().into();
-
-        (root_device, tree_device)
+        self.mmcs_commit(lde_evaluations)
     }
 }
 
@@ -126,6 +116,8 @@ mod tests {
     use p3_field::AbstractField;
 
     use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
+
+    use crate::merkle_tree::Poseidon2BabyBearCommitter;
 
     #[test]
     fn test_commit_device() {
@@ -160,7 +152,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let pcs = TwoAdicFriCommitter::<_, DeviceHasherBabyBear, _>::new(log_blowup);
+        let pcs = TwoAdicFriCommitter::<SC, Poseidon2BabyBearCommitter>::new(log_blowup);
         let time = CudaInstant::now().unwrap();
         let (commit, _) = pcs.commit(&evaluations);
         println!("time: {:?}", time.elapsed().unwrap());
