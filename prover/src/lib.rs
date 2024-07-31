@@ -1,19 +1,55 @@
+use std::env;
+
 use components::GpuProverComponents;
-use sp1_core::utils::SP1ProverOpts;
+use moongate_core::device::memory::cuda_mem_get_info;
+use sp1_core::{runtime::SplitOpts, utils::SP1ProverOpts};
 use sp1_prover::SP1Prover;
 
 pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
+const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (24.0 * 1e9);
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
+const MAX_SHARD_SIZE: usize = 1 << 22;
+
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
-    opts.core_opts.shard_size = 1 << 21;
+    // Core options
+    let (_, total) = cuda_mem_get_info().unwrap();
+    tracing::info!("Total memory on device: {}", total);
+
+    let shard_size_log = (total as f64 * SHARD_MEM_RATIO).log2().ceil() as usize;
+    let default_shard_size = 1 << shard_size_log;
+    let shard_size = env::var("SHARD_SIZE").map_or_else(
+        |_| default_shard_size,
+        |s| s.parse::<usize>().unwrap_or(default_shard_size),
+    );
+    let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
+    opts.core_opts.shard_size = shard_size;
+    tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
-    opts.core_opts.split_opts.keccak_split_threshold = (1 << 18) / 24;
+
+    // Set the deferred split threshold.
+    let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
+    let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
+    let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
+        .map(|s| {
+            s.parse::<usize>()
+                .unwrap_or(default_deferred_split_threshold)
+        })
+        .unwrap_or(default_deferred_split_threshold);
+    tracing::info!(
+        "Deffered split threshold set to {}",
+        deferred_split_threshold
+    );
+    opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
+
     opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 4;
+
+    // Recursion options
 
     opts.recursion_opts.shard_batch_size = 1;
     opts.recursion_opts.records_and_traces_channel_capacity = 4;
@@ -23,6 +59,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use moongate_core::utils::init_tracer;
     use sp1_core::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
@@ -41,8 +79,12 @@ mod tests {
         let elf = FIBONACCI_ELF;
         init_tracer();
 
+        if env::var("FRI_QUERIES").is_err() {
+            env::set_var("FRI_QUERIES", "1");
+        }
+
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Shrink).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {

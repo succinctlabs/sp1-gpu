@@ -29,13 +29,12 @@ use crate::device::memory::ToDevice;
 use crate::device::DeviceBuffer;
 use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::FieldMerkleTreeHasher;
-use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
+use crate::merkle_tree::MmcsCommitter;
 use crate::stark::ffi::quotient_gpu;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
-use super::{BabyBearPoseidon2Config, CpuProverData, GpuMatrix};
+use super::{BabyBearFriConfig, CpuProverData, GpuMatrix};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -66,7 +65,7 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
@@ -96,9 +95,9 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn generate_quotient_values<H>(
+    pub fn generate_quotient_values<C>(
         &self,
-        committer: &TwoAdicFriCommitter<SC::Val, H>,
+        committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
         main_traces: &[ColMajorMatrixDevice<SC::Val>],
@@ -109,7 +108,7 @@ where
         cumulative_sums: &[SC::Challenge],
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
-        H: FieldMerkleTreeHasher<SC::Val, Digest = [SC::Val; DIGEST_WIDTH]>,
+        C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     {
         let mut results = Vec::with_capacity(chips.len());
 
@@ -273,7 +272,7 @@ pub struct LagrangeSelectorsView<'a, T: Field> {
 
 impl<SC, A> CpuQuotientValuesGenerator<SC, A>
 where
-    SC: BabyBearPoseidon2Config,
+    SC: BabyBearFriConfig,
     A: for<'a> Air<ProverConstraintFolder<'a, SC>> + MachineAir<SC::Val>,
 {
     pub fn get_evaluations_on_domain(
@@ -394,6 +393,7 @@ mod tests {
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
+    use crate::utils::init_tracer;
     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
@@ -411,28 +411,28 @@ mod tests {
     #[test]
     pub fn test_quotient_values() {
         let mut rng = thread_rng();
+        init_tracer();
 
-        let config = BabyBearPoseidon2::default();
+        let config = BabyBearPoseidon2::compressed();
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            if chip.name() == "Program"
-                || chip.name() == "Bn254AddAssign"
-                || chip.name() == "MemoryProgram"
-                || chip.name() == "Byte"
-            {
-                continue;
-            }
             debug!("Chip: {}", chip.name());
             debug!("Id: {}", i);
+
             let program = Program::from(FIBONACCI_ELF);
-            let num_rows = 1 << 14;
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
-            let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
             let prep = chip.generate_preprocessed_trace(&program);
+            let num_rows = if let Some(prep) = prep.as_ref() {
+                prep.height()
+            } else {
+                1 << 10
+            };
+
+            let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
             let permutation_challenges = vec![EF::one(), EF::two()];
             let perm =
@@ -443,6 +443,8 @@ mod tests {
             let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
             let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
+
+            // Calculate evaluations on quotient domain.
 
             let (_, main_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
                 <SC as StarkGenericConfig>::Challenge,
@@ -477,6 +479,7 @@ mod tests {
                     <SC as StarkGenericConfig>::Challenger,
                 >>::get_evaluations_on_domain(pcs, &main_data, 0, quotient_domain)
                 .to_row_major_matrix();
+
             let permutation_trace_on_quotient_domain =
                 <<SC as StarkGenericConfig>::Pcs as Pcs<
                     <SC as StarkGenericConfig>::Challenge,
@@ -524,6 +527,7 @@ mod tests {
                 preprocessed_trace_on_quotient_domain.width(),
             )
             .to_column_major();
+
             let main_trace_on_quotient_domain_device =
                 main_trace_on_quotient_domain.values.to_device().unwrap();
             let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
@@ -531,6 +535,7 @@ mod tests {
                 main_trace_on_quotient_domain.width(),
             )
             .to_column_major();
+
             let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
                 .values
                 .to_device()
@@ -570,7 +575,7 @@ mod tests {
                     trace_domain_generator,
                     generator_powers.as_ptr(),
                     quotient_output.view_mut(),
-                    num_rows / 512 * 2,
+                    (num_rows << pcs.fri_config().log_blowup) / 512,
                     512,
                 );
             }

@@ -3,7 +3,6 @@ use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH as BB31_DIGEST_WIDTH;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
@@ -14,7 +13,9 @@ use std::cmp::Reverse;
 use std::marker::PhantomData;
 
 mod hasher;
+mod mmcs;
 pub use hasher::*;
+pub use mmcs::*;
 
 use crate::matrix::DeviceMatrix;
 pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMatrixDevice<F>> {
@@ -112,9 +113,14 @@ where
     }
 }
 
-impl ToDevice for FieldMerkleTree<BabyBear, BabyBear, RowMajorMatrix<BabyBear>, BB31_DIGEST_WIDTH> {
+impl<W, const DIGEST_ELEMS: usize> ToDevice
+    for FieldMerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
+where
+    BabyBear: Field,
+    W: Copy,
+{
     type DeviceType =
-        FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], ColMajorMatrixDevice<BabyBear>>;
+        FieldMerkleTreeGpu<BabyBear, [W; DIGEST_ELEMS], ColMajorMatrixDevice<BabyBear>>;
 
     fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
         let leaves_device = self

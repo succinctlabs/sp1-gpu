@@ -1,3 +1,4 @@
+use moongate_core::utils::init_tracer;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
@@ -17,6 +18,8 @@ use opentelemetry_sdk::Resource;
 struct Args {
     #[arg(short, long, default_value = "all")]
     pub program: Program,
+    #[arg(short, long, default_value = "telemetry")]
+    pub trace: Trace,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -29,13 +32,25 @@ enum Program {
     All,
 }
 
+#[derive(Clone, Debug, ValueEnum)]
+enum Trace {
+    Nvtx,
+    Telemetry,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the tracer.
-    let resource = Resource::new(vec![KeyValue::new("service.name", "moongate-perf")]);
-    tracer::init(resource);
-
     let args = Args::parse();
+
+    // Initialize the tracer.
+    match args.trace {
+        Trace::Nvtx => init_tracer(),
+        Trace::Telemetry => {
+            let resource = Resource::new(vec![KeyValue::new("service.name", "moongate-perf")]);
+            tracer::init(resource);
+        }
+    }
+
     let named_programs = match args.program {
         Program::All => vec![
             ("Fibonacci", FIBONACCI_ELF),
