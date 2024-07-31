@@ -57,7 +57,7 @@ public:
     inline bb31_t& operator+=(const bb31_t b)
     {
         val += b.val;
-        if (val >= MOD) val -= MOD;
+        final_sub(val);
 
         return *this;
     }
@@ -68,7 +68,7 @@ public:
     {
         while (l--) {
             val <<= 1;
-            if (val >= MOD) val -= MOD;
+            final_sub(val);
         }
 
         return *this;

@@ -51,7 +51,7 @@ class Hasher {
 
         Params::externalLinearLayer(state);
 
-        int rounds_f_half = Params::ROUNDS_F / 2;
+        int rounds_f_half = Params::ROUNDS_F >> 1;
         for (int i = 0; i < rounds_f_half; i++) {
             addExtRc(
                 state,
@@ -126,9 +126,7 @@ class Hasher {
             permute(state, state, roundConstants);
         }
 
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = state[i];
-        }
+        *reinterpret_cast<F8_t*>(out) = *reinterpret_cast<F8_t*>(state);
     }
 };
 
