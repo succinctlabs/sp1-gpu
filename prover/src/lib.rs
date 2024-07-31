@@ -11,6 +11,7 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (24.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
+const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -25,6 +26,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
         |_| default_shard_size,
         |s| s.parse::<usize>().unwrap_or(default_shard_size),
     );
+    let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
     opts.core_opts.shard_size = shard_size;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
