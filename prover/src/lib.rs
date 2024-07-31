@@ -15,6 +15,7 @@ const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
 
+    // Core options
     let (_, total) = cuda_mem_get_info().unwrap();
     tracing::info!("Total memory on device: {}", total);
 
@@ -45,6 +46,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
     opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 4;
+
+    // Recursion options
 
     opts.recursion_opts.shard_batch_size = 1;
     opts.recursion_opts.records_and_traces_channel_capacity = 4;

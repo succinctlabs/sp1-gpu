@@ -3,12 +3,14 @@ pub(super) mod ffi;
 mod permutation;
 mod prover;
 mod quotient;
+mod sync;
 mod utils;
 
 pub use error::*;
 pub use permutation::*;
 pub use prover::*;
 pub use quotient::*;
+pub use sync::*;
 pub use utils::*;
 
 use p3_challenger::{CanObserve, CanSample, FieldChallenger, GrindingChallenger};
