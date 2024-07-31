@@ -1,5 +1,7 @@
 use std::borrow::Borrow;
 
+use thiserror::Error;
+
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
@@ -15,6 +17,14 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
     pub dft: DeviceDft<SC::Val>,
     pub mmcs_committer: C,
     pub log_blowup: usize,
+}
+
+#[derive(Debug, Clone, Error)]
+pub enum TwoAdicFriCommitterError<LdeError, MmcsError> {
+    #[error("LDE error: {0}")]
+    LdeError(LdeError),
+    #[error("MMCS committment error: {0}")]
+    MmcsError(MmcsError),
 }
 
 impl<
