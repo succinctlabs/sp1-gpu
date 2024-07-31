@@ -85,8 +85,8 @@ class Hasher {
         }
     }
 
-    struct __align__(32) F8_t {
-        F_t v[8];
+    struct __align__(32) Fdigest_t {
+        F_t v[Params::DIGEST_WIDTH];
     };
 
     __device__ static void compress(
@@ -96,14 +96,14 @@ class Hasher {
         RoundConstants_t roundConstants
     ) {
         F_t state[Params::WIDTH];
-        F8_t* state8 = reinterpret_cast<F8_t*>(state);
-        state8[0] = *reinterpret_cast<F8_t*>(left);
-        state8[1] = *reinterpret_cast<F8_t*>(right);
+        Fdigest_t* state8 = reinterpret_cast<Fdigest_t*>(state);
+        state8[0] = *reinterpret_cast<Fdigest_t*>(left);
+        state8[1] = *reinterpret_cast<Fdigest_t*>(right);
         for (int i = 2 * Params::DIGEST_WIDTH; i < Params::WIDTH; i++) {
             state[i].zero();
         }
         permute(state, state, roundConstants);
-        *reinterpret_cast<F8_t*>(out) = state8[0];
+        *reinterpret_cast<Fdigest_t*>(out) = state8[0];
     }
 
     __device__ static void hash(
@@ -126,7 +126,7 @@ class Hasher {
             permute(state, state, roundConstants);
         }
 
-        *reinterpret_cast<F8_t*>(out) = *reinterpret_cast<F8_t*>(state);
+        *reinterpret_cast<Fdigest_t*>(out) = *reinterpret_cast<Fdigest_t*>(state);
     }
 };
 
