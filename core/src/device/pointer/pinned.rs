@@ -1,4 +1,8 @@
-use crate::device::memory::{cuda_free_host, cuda_host_unregister};
+use crate::device::{
+    error::CudaError,
+    memory::{cuda_free_host, cuda_host_unregister, cuda_malloc_host},
+    DefaultDeviceAllocator, DeviceAllocator,
+};
 
 use super::RawPointer;
 
@@ -46,5 +50,13 @@ impl<T: Copy> RawPointer for CudaRegisteredPointer<T> {
         // Drop the vector. This call is not necessary since the vector will be dropped in the
         // end of the scope, but we keep it here for clarity.
         drop(vec);
+    }
+}
+
+impl<T: Copy> DeviceAllocator<CudaHostPointer<T>> for DefaultDeviceAllocator {
+    unsafe fn alloc(&self, len: usize) -> Result<CudaHostPointer<T>, CudaError> {
+        let ptr = cuda_malloc_host(len)?;
+
+        Ok(CudaHostPointer(ptr))
     }
 }

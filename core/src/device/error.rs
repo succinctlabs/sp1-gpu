@@ -4,11 +4,14 @@ use std::{
     fmt::Display,
 };
 
-use crate::device::ffi::CUDA_SUCCESS_MOON;
+use crate::device::ffi::{CUDA_OUT_OF_MEMORY, CUDA_SUCCESS_MOON};
 
 #[derive(Debug, Clone)]
 
-pub struct CudaError(String);
+pub enum CudaError {
+    OutOfMemory(String),
+    Other(String),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
@@ -27,8 +30,12 @@ impl From<CudaRustError> for Result<(), CudaError> {
         unsafe {
             if value == CUDA_SUCCESS_MOON {
                 Ok(())
+            } else if value == CUDA_OUT_OF_MEMORY {
+                Err(CudaError::OutOfMemory(
+                    CStr::from_ptr(value.message).to_str().unwrap().to_string(),
+                ))
             } else {
-                Err(CudaError(
+                Err(CudaError::Other(
                     CStr::from_ptr(value.message).to_str().unwrap().to_string(),
                 ))
             }
@@ -38,7 +45,10 @@ impl From<CudaRustError> for Result<(), CudaError> {
 
 impl Display for CudaError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        match self {
+            CudaError::OutOfMemory(msg) => write!(f, "{}", msg),
+            CudaError::Other(msg) => write!(f, "{}", msg),
+        }
     }
 }
 
