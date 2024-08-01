@@ -35,10 +35,6 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         Ok(Self::new(buffer, height))
     }
 
-    pub fn to_host_naive(&self) -> RowMajorMatrix<T> {
-        RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
-    }
-
     /// # Safety
     ///
     /// TODO
@@ -219,7 +215,8 @@ mod tests {
         sync_device().unwrap();
 
         let time = std::time::Instant::now();
-        let matrix_host_naive = matrix.to_host_naive();
+        let matrix_host_naive =
+            RowMajorMatrix::new(matrix.values.to_host(), matrix.height).transpose();
         println!("Naive time: {:?}", time.elapsed());
 
         let time = std::time::Instant::now();

@@ -636,64 +636,6 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_permutation_trace_device() {
-        let mut rng = thread_rng();
-
-        let air = ByteChip::<F>::default();
-        let chip = Chip::new(air);
-
-        let program = Program::from(FIBONACCI_ELF);
-
-        let num_rows = 1 << 16;
-        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
-
-        // Generate a random trace.
-        let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
-        for val in main_trace.values.iter_mut() {
-            *val = rng.gen::<F>();
-        }
-
-        // Transfer perm and main traces to the device.
-        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
-        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
-        let prep_d = prep_d.to_column_major();
-
-        let main_trace_d = main_trace.values.to_device().unwrap();
-        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
-        let main_d = main_d.to_column_major();
-
-        // Get randomness.
-        let alpha = rng.gen::<EF>();
-        let beta = rng.gen::<EF>();
-
-        let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
-        // Generate the permutation rows on device.
-        let time = CudaInstant::now().unwrap();
-        let perm_d = perm_generator
-            .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
-            .unwrap();
-        let elapsed = time.elapsed().unwrap();
-        println!("Device generate_permutation_trace: {:?}", elapsed);
-
-        let perm_h = perm_d.to_host_naive();
-
-        let time = std::time::Instant::now();
-        let expected_perm_trace =
-            chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
-        println!("Host generate_permutation_trace: {:?}", time.elapsed());
-
-        // Compare the values to the host values.
-        for (i, (exp, res)) in expected_perm_trace
-            .values
-            .iter()
-            .zip(perm_h.values.iter())
-            .enumerate()
-        {
-            assert_eq!(exp, res, "at index {}", i);
-        }
-    }
-
-    #[test]
     fn test_generate_flatenned_permutation_trace_device() {
         let mut rng = thread_rng();
 
