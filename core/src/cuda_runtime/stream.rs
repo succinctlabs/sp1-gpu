@@ -7,13 +7,15 @@ use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
 unsafe impl Send for CudaStreamHandle {}
 unsafe impl Sync for CudaStreamHandle {}
 
-#[repr(transparent)]
+#[derive(Debug, Clone)]
+#[repr(C)]
 pub struct CudaStream(Arc<CudaStreamHandle>);
 
 impl CudaStream {

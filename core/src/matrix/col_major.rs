@@ -21,10 +21,6 @@ pub struct ColMajorMatrix<P: RawPointer> {
 pub type ColMajorMatrixDevice<T> = ColMajorMatrix<DevicePointer<T>>;
 
 impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
-    pub fn new(values: DeviceBuffer<T>, height: usize) -> Self {
-        Self { values, height }
-    }
-
     pub fn empty() -> Self {
         Self {
             values: DeviceBuffer::with_capacity(0).unwrap(),
@@ -37,20 +33,6 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         Ok(Self::new(buffer, height))
     }
 
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn set_width(&mut self, width: usize) {
-        self.values.set_len(width * self.height);
-    }
-
-    /// # Safety
-    ///
-    /// See [Self::set_height]
-    pub unsafe fn set_max_width(&mut self) {
-        self.values.set_max_len();
-    }
-
     pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
     where
         Standard: Distribution<T>,
@@ -60,38 +42,6 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         let device = ColMajorMatrixDevice::new(data.to_device().unwrap(), height);
         let host = RowMajorMatrix::new(data, height).transpose();
         (host, device)
-    }
-
-    /// Returns a view of the matrix in column major form.
-    pub fn view(&self) -> MatrixViewDevice<T> {
-        MatrixViewDevice {
-            values: self.values.as_ptr(),
-            width: self.width(),
-            height: self.height(),
-            row_major: false,
-            _marker: std::marker::PhantomData,
-        }
-    }
-
-    /// Returns a mutable view of the matrix in column major form.
-    pub fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
-        MatrixViewMutDevice {
-            values: self.values.as_mut_ptr(),
-            width: self.width(),
-            height: self.height(),
-            row_major: false,
-            _marker: std::marker::PhantomData,
-        }
-    }
-
-    #[inline]
-    pub fn width(&self) -> usize {
-        self.values.len() / self.height
-    }
-
-    #[inline]
-    pub fn height(&self) -> usize {
-        self.height
     }
 
     /// # Safety
@@ -116,26 +66,58 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
 
         Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
     }
+}
 
-    // pub fn embed_as_blowup_into(
-    //     &self,
-    //     log_blowup: usize,
-    // ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
-    //     let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
-    //     unsafe { blowup_values.set_max_len() };
+impl<P: RawPointer> ColMajorMatrix<P> {
+    pub const fn new(values: Buffer<P>, height: usize) -> Self {
+        Self { values, height }
+    }
 
-    //     let blowup_height = self.height << log_blowup;
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn set_width(&mut self, width: usize) {
+        self.values.set_len(width * self.height);
+    }
 
-    //     // Copy the columns from the source buffer into the correct place in the destination buffer.
-    //     for j in 0..self.width() {
-    //         let src = &self.values[j * self.height..(j + 1) * self.height];
-    //         let dst = &mut blowup_values
-    //             [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
-    //         dst.copy_from_device(src)?;
-    //     }
+    /// # Safety
+    ///
+    /// See [Self::set_height]
+    pub unsafe fn set_max_width(&mut self) {
+        self.values.set_max_len();
+    }
 
-    //     Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
-    // }
+    /// Returns a view of the matrix in column major form.
+    pub fn view(&self) -> MatrixViewDevice<P::Data> {
+        MatrixViewDevice {
+            values: self.values.as_ptr(),
+            width: self.width(),
+            height: self.height(),
+            row_major: false,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    /// Returns a mutable view of the matrix in column major form.
+    pub fn view_mut(&mut self) -> MatrixViewMutDevice<P::Data> {
+        MatrixViewMutDevice {
+            values: self.values.as_mut_ptr(),
+            width: self.width(),
+            height: self.height(),
+            row_major: false,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn width(&self) -> usize {
+        self.values.len() / self.height
+    }
+
+    #[inline]
+    pub fn height(&self) -> usize {
+        self.height
+    }
 }
 
 impl ColMajorMatrixDevice<BabyBear> {

@@ -1,3 +1,4 @@
+mod allocator;
 mod buffer;
 pub mod error;
 pub(crate) mod ffi;
@@ -6,6 +7,7 @@ mod ops;
 mod pointer;
 pub mod slice;
 
+pub use allocator::*;
 pub use buffer::*;
 pub use ops::*;
 pub use pointer::*;
