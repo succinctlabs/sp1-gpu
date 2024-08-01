@@ -1,6 +1,6 @@
 use crate::{
     cuda_runtime::stream::CudaStream,
-    device::{error::CudaError, DeviceAllocator},
+    device::{DeviceAllocator, TryAllocError},
 };
 
 use super::RawPointer;
@@ -33,7 +33,7 @@ impl<T: Copy> RawPointer for DeviceStreamPointer<T> {
 }
 
 impl<T: Copy> DeviceAllocator<DeviceStreamPointer<T>> for CudaStream {
-    unsafe fn alloc(&self, len: usize) -> Result<DeviceStreamPointer<T>, CudaError> {
+    unsafe fn try_alloc(&self, len: usize) -> Result<DeviceStreamPointer<T>, TryAllocError> {
         let ptr = self.cuda_malloc_async(len)?;
         Ok(DeviceStreamPointer {
             ptr,

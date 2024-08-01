@@ -1,7 +1,6 @@
 use crate::device::{
-    error::CudaError,
     memory::{cuda_free_host, cuda_host_unregister, cuda_malloc_host},
-    DefaultDeviceAllocator, DeviceAllocator,
+    DefaultDeviceAllocator, DeviceAllocator, TryAllocError,
 };
 
 use super::RawPointer;
@@ -54,7 +53,7 @@ impl<T: Copy> RawPointer for CudaRegisteredPointer<T> {
 }
 
 impl<T: Copy> DeviceAllocator<CudaHostPointer<T>> for DefaultDeviceAllocator {
-    unsafe fn alloc(&self, len: usize) -> Result<CudaHostPointer<T>, CudaError> {
+    unsafe fn try_alloc(&self, len: usize) -> Result<CudaHostPointer<T>, TryAllocError> {
         let ptr = cuda_malloc_host(len)?;
 
         Ok(CudaHostPointer(ptr))
