@@ -739,7 +739,7 @@ where
     let mut data = vec![];
 
     for log_folded_height in (committer.log_blowup..log_max_height).rev() {
-        let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
+        let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::empty());
         let (commit, prover_data) = committer.mmcs_commit(vec![temp]);
         challenger.observe(commit.clone());
 

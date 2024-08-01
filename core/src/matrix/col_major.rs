@@ -5,7 +5,7 @@ use rand::Rng;
 
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
-use crate::device::DeviceBuffer;
+use crate::device::{Buffer, DeviceBuffer, DevicePointer, RawPointer};
 
 use super::ffi::{self, transpose_naive};
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -13,25 +13,19 @@ use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 /// A matrix stored on the device in column major form.
 #[derive(Debug)]
 #[repr(C)]
-pub struct ColMajorMatrix<T> {
-    pub values: T,
+pub struct ColMajorMatrix<P: RawPointer> {
+    pub values: Buffer<P>,
     pub height: usize,
 }
 
-/// A matrix stored on the device in column major form.
-#[derive(Debug)]
-#[repr(C)]
-pub struct ColMajorMatrixDevice<T: Copy> {
-    pub values: DeviceBuffer<T>,
-    pub height: usize,
-}
+pub type ColMajorMatrixDevice<T> = ColMajorMatrix<DevicePointer<T>>;
 
 impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     pub fn new(values: DeviceBuffer<T>, height: usize) -> Self {
         Self { values, height }
     }
 
-    pub fn null() -> Self {
+    pub fn empty() -> Self {
         Self {
             values: DeviceBuffer::with_capacity(0).unwrap(),
             height: 1,

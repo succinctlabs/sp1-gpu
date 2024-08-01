@@ -136,7 +136,7 @@ where
                 })
                 .transpose()?;
             let preprocessed_on_quotient_domain =
-                preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
+                preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::empty);
 
             let main_on_quotient_domain = committer.get_evaluations_on_domain(
                 trace_domain,
