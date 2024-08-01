@@ -27,6 +27,7 @@ pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMat
 impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
     pub fn new(hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>, leaves: Vec<M>) -> Self {
         let mut leaves_largest_first = leaves
+            .as_slice()
             .iter()
             .map(|l| l.view())
             .sorted_by_key(|l| Reverse(l.height))
@@ -80,6 +81,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             }
             digest_layers.push(next_digests);
         }
+        drop(tallest_matrices);
 
         Self {
             leaves,

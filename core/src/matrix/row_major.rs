@@ -41,6 +41,7 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
             width: self.width,
             height: self.values.len() / self.width,
             row_major: true,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -50,6 +51,7 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
             width: self.width,
             height: self.values.len() / self.width,
             row_major: true,
+            _marker: std::marker::PhantomData,
         }
     }
 

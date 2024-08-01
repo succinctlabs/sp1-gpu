@@ -568,27 +568,6 @@ pub(super) mod merkle_tree_opening_prover {
     }
 }
 
-// /// Open a batch of queries for a FieldMerkleTreeMmcs.
-// fn query_open_batch_field_merkle_tree<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>(
-//     query_indices: &[usize],
-//     prover_data_slice: &[&C::ProverData],
-//     log_global_max_height: usize,
-//     is_answering: bool,
-// ) -> Vec<Vec<BatchOpening<BabyBear, SC::ValMmcs>>>
-// where
-//     Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
-//     P: PackedField<Scalar = BabyBear>,
-//     PW: PackedValue,
-//     H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
-//     H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
-//     H: Sync,
-//     C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
-//     C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
-//     C: Sync,
-//     PW::Value: Eq,
-//     [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
-// {
-
 #[allow(clippy::type_complexity)]
 pub fn prove<SC, C>(
     committer: &TwoAdicFriCommitter<SC, C>,

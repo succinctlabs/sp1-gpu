@@ -411,6 +411,10 @@ impl DeviceInteractions<BabyBear> {
         num_blocks: usize,
         num_threads_per_block: usize,
     ) -> Result<(), CudaError> {
+        let height = permutation.height;
+
+        let last_col = permutation.width - 1;
+        let last_col_ptr = unsafe { permutation.values_ptr().add(last_col * height) };
         // Populate the permutation rows.
         self.populate_permutation_rows(
             permutation,
@@ -424,10 +428,7 @@ impl DeviceInteractions<BabyBear> {
         );
 
         // Collect the cumulative sums using a scan in place.
-        let col = permutation.width - 1;
-        let height = permutation.height;
         unsafe {
-            let last_col_ptr = permutation.values.add(col * height);
             let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
             cumulative_column.scan_inplace()
         }
@@ -445,6 +446,11 @@ impl DeviceInteractions<BabyBear> {
         num_threads_per_block: usize,
     ) -> Result<(), CudaError> {
         const D: usize = 4;
+        let last_col = permutation.width - D;
+        let height = permutation.height;
+        let last_col_ptrs: [_; D] = unsafe {
+            core::array::from_fn(|j| permutation.values_ptr().add((last_col + j) * height))
+        };
         // Populate the permutation rows.
         self.populate_permutation_rows_flattened(
             permutation,
@@ -460,11 +466,8 @@ impl DeviceInteractions<BabyBear> {
         // Collect the cumulative sums using a scan in place.
 
         // TODO: optimize with a single kernel call instead of scan for each column of the batch.
-        let col = permutation.width - D;
-        let height = permutation.height;
         unsafe {
-            for j in 0..4 {
-                let last_col_ptr = permutation.values.add((col + j) * height);
+            for last_col_ptr in last_col_ptrs {
                 let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
                 cumulative_column.scan_inplace()?;
             }

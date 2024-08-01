@@ -67,6 +67,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             width: self.width(),
             height: self.height(),
             row_major: false,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -77,6 +78,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             width: self.width(),
             height: self.height(),
             row_major: false,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -92,7 +94,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
 
     /// # Safety
     ///
-    /// The memory returened by this function is only partially initialized.
+    /// The memory returned by this function is only partially initialized.
     pub unsafe fn embed_as_blowup(
         &self,
         log_blowup: usize,
@@ -112,6 +114,26 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
 
         Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
     }
+
+    // pub fn embed_as_blowup_into(
+    //     &self,
+    //     log_blowup: usize,
+    // ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
+    //     let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
+    //     unsafe { blowup_values.set_max_len() };
+
+    //     let blowup_height = self.height << log_blowup;
+
+    //     // Copy the columns from the source buffer into the correct place in the destination buffer.
+    //     for j in 0..self.width() {
+    //         let src = &self.values[j * self.height..(j + 1) * self.height];
+    //         let dst = &mut blowup_values
+    //             [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
+    //         dst.copy_from_device(src)?;
+    //     }
+
+    //     Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
+    // }
 }
 
 impl ColMajorMatrixDevice<BabyBear> {
