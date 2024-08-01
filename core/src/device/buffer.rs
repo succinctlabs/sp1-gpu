@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::ops::{
     Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
@@ -15,19 +14,18 @@ use super::{DevicePointer, RawPointer};
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
 #[repr(C)]
-pub struct Buffer<T, P: RawPointer<T>> {
+pub struct Buffer<P: RawPointer> {
     buf: P,
     len: usize,
     cap: usize,
-    _marker: PhantomData<T>,
 }
 
-unsafe impl<T, P: RawPointer<T>> Send for Buffer<T, P> {}
-unsafe impl<T, P: RawPointer<T>> Sync for Buffer<T, P> {}
+unsafe impl<P: RawPointer> Send for Buffer<P> {}
+unsafe impl<P: RawPointer> Sync for Buffer<P> {}
 
-pub type DeviceBuffer<T> = Buffer<T, DevicePointer<T>>;
+pub type DeviceBuffer<T> = Buffer<DevicePointer<T>>;
 
-impl<T, P: RawPointer<T>> Buffer<T, P> {
+impl<P: RawPointer> Buffer<P> {
     /// Returns a new buffer from a pointer, length, and capacity.
     ///
     /// # Safety
@@ -40,7 +38,6 @@ impl<T, P: RawPointer<T>> Buffer<T, P> {
             buf: ptr,
             len: length,
             cap: capacity,
-            _marker: PhantomData,
         }
     }
 
@@ -70,26 +67,26 @@ impl<T, P: RawPointer<T>> Buffer<T, P> {
         self.len == 0
     }
 
-    pub fn as_slice(&self) -> &DeviceSlice<T> {
+    pub fn as_slice(&self) -> &DeviceSlice<P::Data> {
         &self[..]
     }
 
-    pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<T> {
+    pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<P::Data> {
         &mut self[..]
     }
 
-    pub fn as_ptr(&self) -> *const T {
+    pub fn as_ptr(&self) -> *const P::Data {
         self.buf.as_ptr()
     }
 
-    pub fn as_mut_ptr(&mut self) -> *mut T {
+    pub fn as_mut_ptr(&mut self) -> *mut P::Data {
         self.buf.as_mut_ptr()
     }
 
     /// Calculates the offset to the current element.
     #[inline]
-    unsafe fn offset(&self) -> *mut T {
-        (self.buf.as_ptr() as *mut T).add(self.len)
+    unsafe fn offset(&self) -> *mut P::Data {
+        (self.buf.as_ptr() as *mut P::Data).add(self.len)
     }
 }
 
@@ -101,7 +98,6 @@ impl<T: Copy> DeviceBuffer<T> {
             buf: ptr,
             len: 0,
             cap: capacity,
-            _marker: PhantomData,
         })
     }
 
@@ -183,7 +179,7 @@ impl<T: Copy> DeviceBuffer<T> {
     }
 }
 
-impl<T, P: RawPointer<T>> Drop for Buffer<T, P> {
+impl<P: RawPointer> Drop for Buffer<P> {
     fn drop(&mut self) {
         self.buf.free()
     }
@@ -192,11 +188,11 @@ impl<T, P: RawPointer<T>> Drop for Buffer<T, P> {
 macro_rules! impl_index {
     ($($t:ty)*) => {
         $(
-            impl<T, P: RawPointer<T>> Index<$t> for Buffer<T, P>
+            impl<P: RawPointer> Index<$t> for Buffer<P>
             {
-                type Output = DeviceSlice<T>;
+                type Output = DeviceSlice<P::Data>;
 
-                fn index(&self, index: $t) -> &DeviceSlice<T> {
+                fn index(&self, index: $t) -> &DeviceSlice<P::Data> {
                     unsafe {
                         DeviceSlice::from_slice(
                          slice::from_raw_parts(self.buf.as_ptr(), self.len).index(index)
@@ -205,9 +201,9 @@ macro_rules! impl_index {
                 }
             }
 
-            impl<T, P: RawPointer<T>> IndexMut<$t> for Buffer<T, P>
+            impl<P: RawPointer> IndexMut<$t> for Buffer<P>
             {
-                fn index_mut(&mut self, index: $t) -> &mut DeviceSlice<T> {
+                fn index_mut(&mut self, index: $t) -> &mut DeviceSlice<P::Data> {
                     unsafe {
                         DeviceSlice::from_slice_mut(
                             slice::from_raw_parts_mut(self.buf.as_mut_ptr(), self.len).index_mut(index)

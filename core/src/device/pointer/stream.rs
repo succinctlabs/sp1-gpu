@@ -7,7 +7,9 @@ pub struct DeviceStreamPointer<T> {
     stream: CudaStream,
 }
 
-impl<T: Copy> RawPointer<T> for DeviceStreamPointer<T> {
+impl<T: Copy> RawPointer for DeviceStreamPointer<T> {
+    type Data = T;
+
     fn as_ptr(&self) -> *const T {
         self.ptr
     }

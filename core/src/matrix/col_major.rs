@@ -13,6 +13,14 @@ use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
 /// A matrix stored on the device in column major form.
 #[derive(Debug)]
 #[repr(C)]
+pub struct ColMajorMatrix<T> {
+    pub values: T,
+    pub height: usize,
+}
+
+/// A matrix stored on the device in column major form.
+#[derive(Debug)]
+#[repr(C)]
 pub struct ColMajorMatrixDevice<T: Copy> {
     pub values: DeviceBuffer<T>,
     pub height: usize,

@@ -11,7 +11,9 @@ pub struct CudaRegisteredPointer<T> {
     capacity: usize,
 }
 
-impl<T: Copy> RawPointer<T> for CudaHostPointer<T> {
+impl<T: Copy> RawPointer for CudaHostPointer<T> {
+    type Data = T;
+
     fn as_ptr(&self) -> *const T {
         self.0
     }
@@ -25,7 +27,9 @@ impl<T: Copy> RawPointer<T> for CudaHostPointer<T> {
     }
 }
 
-impl<T: Copy> RawPointer<T> for CudaRegisteredPointer<T> {
+impl<T: Copy> RawPointer for CudaRegisteredPointer<T> {
+    type Data = T;
+
     fn as_ptr(&self) -> *const T {
         self.ptr
     }

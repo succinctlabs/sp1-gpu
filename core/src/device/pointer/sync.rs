@@ -6,7 +6,9 @@ use super::RawPointer;
 #[repr(transparent)]
 pub struct DevicePointer<T>(*mut T);
 
-impl<T> RawPointer<T> for DevicePointer<T> {
+impl<T> RawPointer for DevicePointer<T> {
+    type Data = T;
+
     fn as_ptr(&self) -> *const T {
         self.0
     }
