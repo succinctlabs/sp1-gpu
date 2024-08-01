@@ -95,6 +95,7 @@ using Hasher_t = BabyBearHasher;
 using HasherState_t = BabyBearHasherState;
 using Matrix_t = Matrix<bb31_t>;
 
+__launch_bounds__(256, 2) 
 __global__ void firstDigestLayer(
     Matrix_t* tallestMatrices,
     size_t nTallestMatrices,
@@ -109,6 +110,7 @@ __global__ void firstDigestLayer(
     );
 }
 
+__launch_bounds__(128, 1) 
 __global__ void compressAndInject(
     bb31_t (*prevLayer)[HashParams::DIGEST_WIDTH],
     Matrix_t* matricesToInject,
@@ -137,6 +139,7 @@ using Hasher_t = Bn254Hasher;
 using HasherState_t = Bn254HasherState;
 using Matrix_t = Matrix<bb31_t>;
 
+__launch_bounds__(256, 2) 
 __global__ void firstDigestLayer(
     Hasher_t hasher,
     Matrix_t* tallestMatrices,
@@ -151,6 +154,7 @@ __global__ void firstDigestLayer(
     );
 }
 
+__launch_bounds__(128, 1) 
 __global__ void compressAndInject(
     Hasher_t hasher,
     bn254_t (*prevLayer)[HashParams::DIGEST_WIDTH],
@@ -173,7 +177,6 @@ namespace column_major {}
 
 }  // namespace merkle_tree_kernels_bn254_3
 
-const size_t MAX_THREADS = 32; //1024;
 
 extern "C" namespace merkle_tree_baby_bear_16_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear;
@@ -187,7 +190,7 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         F_t(*digests)[HashParams::DIGEST_WIDTH],
         size_t max_height
     ) {
-        size_t blockSize = std::min(max_height, MAX_THREADS);
+        size_t blockSize = std::min(max_height, static_cast<size_t>(256));
         size_t gridSize = (max_height-1) / blockSize +1;
         merkle_tree_kernels_baby_bear_16::
             firstDigestLayer<<<gridSize, blockSize>>>(
@@ -204,7 +207,7 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         F_t(*nextDigests)[HashParams::DIGEST_WIDTH],
         size_t layerLen
     ) {
-        size_t blockSize = std::min(layerLen, MAX_THREADS);
+        size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
         size_t gridSize = (layerLen-1) / blockSize +1;
         merkle_tree_kernels_baby_bear_16::
             compressAndInject<<<gridSize, blockSize>>>(
@@ -232,7 +235,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         pF_t * matInternalDiagM1,
         size_t max_height
     ) {
-        size_t blockSize = std::min(max_height, MAX_THREADS);
+        size_t blockSize = std::min(max_height, static_cast<size_t>(256));
         size_t gridSize = (max_height-1) / blockSize +1;
         poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
@@ -257,7 +260,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         pF_t * matInternalDiagM1,
         size_t layerLen
     ) {
-        size_t blockSize = std::min(layerLen, MAX_THREADS);
+        size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
         size_t gridSize = (layerLen-1) / blockSize +1;
         poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
