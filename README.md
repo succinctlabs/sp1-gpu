@@ -20,3 +20,15 @@ Run a benchmark:
 ```
 RUST_LOG="debug" nsys profile --trace=cuda,nvtx cargo run --release -p moongate-perf -- --program fibonacci --trace nvtx 
 ```
+
+## Server
+
+Build the server image:
+```
+sudo docker build -f Dockerfile.server -t moongate-server .
+```
+
+Run the server:
+```
+sudo docker run -e "RUST_LOG=debug" -p 3000:3000 --rm --runtime=nvidia --gpus all moongate-server
+```
