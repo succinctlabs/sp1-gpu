@@ -1,3 +1,5 @@
+use core::alloc;
+
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
@@ -5,7 +7,9 @@ use rand::Rng;
 
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
-use crate::device::{Buffer, DeviceBuffer, DevicePointer, RawPointer};
+use crate::device::{
+    AllocError, Buffer, DeviceAllocator, DeviceBuffer, DevicePointer, RawDevicePointer, RawPointer,
+};
 
 use super::ffi::{self, transpose_naive};
 use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
@@ -19,8 +23,6 @@ pub struct ColMajorMatrix<P: RawPointer> {
 }
 
 pub type ColMajorMatrixDevice<T> = ColMajorMatrix<DevicePointer<T>>;
-
-impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {}
 
 impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     pub fn empty() -> Self {
@@ -45,15 +47,27 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         let host = RowMajorMatrix::new(data, height).transpose();
         (host, device)
     }
+}
+
+impl<P: RawPointer> ColMajorMatrix<P> {
+    pub fn with_capacity_in(
+        width: usize,
+        height: usize,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<Self, AllocError> {
+        let buffer = Buffer::with_capacity_in(width * height, alloc)?;
+        Ok(Self::new(buffer, height))
+    }
 
     /// # Safety
     ///
     /// The memory returned by this function is only partially initialized.
-    pub unsafe fn embed_as_blowup(
-        &self,
-        log_blowup: usize,
-    ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
-        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
+    pub unsafe fn embed_as_blowup(&self, log_blowup: usize) -> Result<Self, CudaError>
+    where
+        P: RawDevicePointer,
+    {
+        let mut blowup_values =
+            Buffer::with_capacity_in(self.values.len() << log_blowup, self.values.allocator())?;
         unsafe { blowup_values.set_max_len() };
 
         let blowup_height = self.height << log_blowup;
@@ -66,7 +80,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             dst.copy_from_device(src)?;
         }
 
-        Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
+        Ok(Self::new(blowup_values, blowup_height))
     }
 }
 

@@ -18,7 +18,9 @@ pub trait RawPointer: Sized {
 }
 
 pub trait RawDevicePointer: RawPointer {
-    fn allocator(&self) -> &impl DeviceAllocator<Self>;
+    type Allocator: DeviceAllocator<Self>;
+
+    fn allocator(&self) -> &Self::Allocator;
 }
 
 pub trait CopyRawFrom<P> {

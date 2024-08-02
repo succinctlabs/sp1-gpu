@@ -85,3 +85,9 @@ impl<T: Copy> DeviceAllocator<DevicePointer<T>> for DefaultDeviceAllocator {
         Ok(DevicePointer::from_raw(cuda_malloc(len)?))
     }
 }
+
+impl From<AllocError> for CudaError {
+    fn from(value: AllocError) -> Self {
+        value.0
+    }
+}

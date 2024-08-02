@@ -31,7 +31,9 @@ impl<T: Copy> RawPointer for CudaHostPointer<T> {
 }
 
 impl<T: Copy> RawDevicePointer for CudaHostPointer<T> {
-    fn allocator(&self) -> &impl DeviceAllocator<Self> {
+    type Allocator = DefaultDeviceAllocator;
+
+    fn allocator(&self) -> &Self::Allocator {
         &DEFAULT_ALLOCATOR
     }
 }

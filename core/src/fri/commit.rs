@@ -6,7 +6,7 @@ use p3_field::{AbstractField, Field};
 use sp1_core::stark::Com;
 
 use crate::device::error::CudaError;
-use crate::dft::DeviceDft;
+use crate::dft::{DeviceDft, Dft};
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::MmcsCommitter;
 use crate::stark::BabyBearFriConfig;
@@ -52,12 +52,8 @@ impl<
         let shift = domain.shift.inverse();
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(self.log_blowup)?;
-            self.dft.coset_lde_batch_device(
-                lde_mat.view_mut(),
-                self.log_blowup,
-                shift,
-                bit_reversed,
-            )?;
+            self.dft
+                .coset_lde_batch(&mut lde_mat, self.log_blowup, shift, bit_reversed)?;
 
             Ok(lde_mat)
         }
@@ -79,7 +75,7 @@ impl<
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
             self.dft
-                .coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
+                .coset_lde_batch(&mut lde_mat, log_blowup, shift, false)?;
 
             Ok(lde_mat)
         }

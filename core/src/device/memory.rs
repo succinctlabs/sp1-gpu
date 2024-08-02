@@ -23,11 +23,11 @@ pub trait ToHost {
     }
 }
 
-pub trait CopyFrom<P> {
+pub trait CopyFrom<P: ?Sized> {
     fn copy_from(&mut self, src: &P, len: usize) -> Result<(), CudaError>;
 }
 
-pub trait CopyTo<P> {
+pub trait CopyTo<P: ?Sized> {
     fn copy_to(&self, dst: &mut P, len: usize) -> Result<(), CudaError>;
 }
 

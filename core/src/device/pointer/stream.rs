@@ -33,7 +33,9 @@ impl<T: Copy> RawPointer for DeviceStreamPointer<T> {
 }
 
 impl<T: Copy> RawDevicePointer for DeviceStreamPointer<T> {
-    fn allocator(&self) -> &impl DeviceAllocator<Self> {
+    type Allocator = CudaStream;
+
+    fn allocator(&self) -> &Self::Allocator {
         &self.stream
     }
 }
@@ -60,8 +62,8 @@ impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for DeviceStreamPointer<T> {
     }
 }
 
-impl<T: Copy> CopyRawFrom<*mut T> for DeviceStreamPointer<T> {
-    unsafe fn copy_from(&mut self, src: &*mut T, len: usize) -> Result<(), CudaError> {
+impl<T: Copy> CopyRawFrom<*const T> for DeviceStreamPointer<T> {
+    unsafe fn copy_from(&mut self, src: &*const T, len: usize) -> Result<(), CudaError> {
         self.stream
             .cuda_memcpy_host_to_device_async(self.ptr, *src, len)?;
         Ok(())
