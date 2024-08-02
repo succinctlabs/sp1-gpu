@@ -12,6 +12,40 @@ template<
     typename Hasher_t,
     typename HasherState_t,
     typename Matrix_t>
+__device__ void absorbMatrices(
+    Hasher_t hasher,
+    Matrix_t* matrices,
+    size_t* nHeightMatrices,
+    size_t* nPresums,
+    size_t* heightOffsets,
+    size_t log_max_height,
+    typename HashParams::F_t (*digests)[HashParams::DIGEST_WIDTH]
+) {
+    uint32_t rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;      // [0 .. 2*max_height)
+    uint32_t maxIdx = gridDim.x * blockDim.x - 1;                   // 2max_height-1
+    int heightIdx = __clz(maxIdx - rowIdx) + log_max_height - 31;   // [0 .. log_max_height+1]
+
+    size_t nMatrices = nHeightMatrices[heightIdx];
+    if (nMatrices == 0)
+        return;
+
+    digests += heightOffsets[heightIdx];
+    rowIdx -= maxIdx ^ ((1 << (log_max_height+1-heightIdx)) - 1);
+
+    HasherState_t state;
+
+    for (int i = 0, matrixIdx = nPresums[heightIdx]; i < nMatrices; i++, matrixIdx++) {
+        state.absorbRow(hasher, &matrices[matrixIdx], rowIdx);
+    }
+
+    state.finalize(hasher, digests[rowIdx]);
+}
+
+template<
+    typename HashParams,
+    typename Hasher_t,
+    typename HasherState_t,
+    typename Matrix_t>
 __device__ void firstDigestLayer(
     Hasher_t hasher,
     Matrix_t* tallestMatrices,
@@ -30,6 +64,7 @@ __device__ void firstDigestLayer(
     }
     state.finalize(hasher, digests[rowIdx]);
 }
+
 
 template<
     typename HashParams,
@@ -95,6 +130,29 @@ using Hasher_t = BabyBearHasher;
 using HasherState_t = BabyBearHasherState;
 using Matrix_t = Matrix<bb31_t>;
 
+
+__launch_bounds__(256, 2) 
+__global__ void absorbMatrices(
+    Matrix_t* matrices,
+    size_t* nHeightMatrices,
+    size_t* nPresums,
+    size_t* heightOffsets,
+    size_t log_max_height,
+    bb31_t (*digests)[HashParams::DIGEST_WIDTH]
+) {
+    Hasher_t hasher;
+    ::absorbMatrices<HashParams, Hasher_t, HasherState_t, Matrix_t>(
+        hasher,
+        matrices,
+        nHeightMatrices,
+        nPresums,
+        heightOffsets,
+        log_max_height,
+        digests
+    );
+}
+
+
 __launch_bounds__(256, 2) 
 __global__ void firstDigestLayer(
     Matrix_t* tallestMatrices,
@@ -138,6 +196,28 @@ using HashParams = poseidon2_bn254_3::Bn254;
 using Hasher_t = Bn254Hasher;
 using HasherState_t = Bn254HasherState;
 using Matrix_t = Matrix<bb31_t>;
+
+
+__launch_bounds__(256, 2) 
+__global__ void absorbMatrices(
+    Hasher_t hasher,
+    Matrix_t* matrices,
+    size_t* nHeightMatrices,
+    size_t* nPresums,
+    size_t* heightOffsets,
+    size_t log_max_height,
+    bn254_t (*digests)[HashParams::DIGEST_WIDTH]
+) {
+    ::absorbMatrices<HashParams, Hasher_t, HasherState_t, Matrix_t>(
+        hasher,
+        matrices,
+        nHeightMatrices,
+        nPresums,
+        heightOffsets,
+        log_max_height,
+        digests
+    );
+}
 
 __launch_bounds__(256, 2) 
 __global__ void firstDigestLayer(
@@ -184,12 +264,54 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
     using pF_t = typename HashParams::pF_t;
     using Matrix_t = Matrix<bb31_t>;
 
+    extern "C" void absorb_matrices_baby_bear(
+        Matrix_t* matrices,
+        size_t* nHeightMatrices,
+        size_t* nPresums,
+        size_t* heightOffsets,
+        size_t log_max_height,
+        size_t max_height,
+        F_t (*digests)[HashParams::DIGEST_WIDTH]
+    ) {
+        // printf("LOG_MAX_HEIGHT = %d", log_max_height);
+
+        size_t blockSize = std::min(max_height * 2, static_cast<size_t>(256));
+        size_t gridSize = max_height * 2 / blockSize;
+        merkle_tree_kernels_baby_bear_16::
+            absorbMatrices<<<gridSize, blockSize>>>(
+                matrices,
+                nHeightMatrices,
+                nPresums,
+                heightOffsets,
+                log_max_height,
+                digests
+            );
+    }
+
     extern "C" void first_digest_layer_baby_bear(
         Matrix_t * tallestMatrices,
         size_t nTallestMatrices,
         F_t(*digests)[HashParams::DIGEST_WIDTH],
         size_t max_height
     ) {
+        // printf("max_height = %d\n", max_height);
+        // int count = 0;
+        // int hIdx_start = 0;
+        // for (uint32_t i = 2*max_height-1; true; i--) {
+        //     int hIdx = 17 - 31 + __builtin_clz(i);
+        //     if (hIdx == hIdx_start)
+        //         count++;
+        //     else {
+        //         printf("%d: %d\n", hIdx_start, count);
+        //         count = 1;
+        //         hIdx_start = hIdx;
+        //     }
+        //     if (i == 0) {
+        //         printf("%d: %d\n", hIdx_start, count);
+        //         break;
+        //     }
+        // }
+        
         size_t blockSize = std::min(max_height, static_cast<size_t>(256));
         size_t gridSize = (max_height-1) / blockSize +1;
         merkle_tree_kernels_baby_bear_16::
@@ -225,6 +347,36 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
     using F_t = typename HashParams::F_t;
     using pF_t = typename HashParams::pF_t;
     using Matrix_t = Matrix<bb31_t>;
+
+    extern "C" void absorb_matrices_bn254(
+        Matrix_t* matrices,
+        size_t* nHeightMatrices,
+        size_t* nPresums,
+        size_t* heightOffsets,
+        size_t log_max_height,
+        size_t max_height,
+        F_t (*digests)[HashParams::DIGEST_WIDTH],
+        pF_t * internalRoundConstants,
+        pF_t * externalRoundConstants,
+        pF_t * matInternalDiagM1
+    ) {
+        size_t blockSize = std::min(max_height*2, static_cast<size_t>(256));
+        size_t gridSize = (max_height*2-1) / blockSize +1;
+        poseidon2::Bn254Hasher hasher;
+        hasher.setInternalRoundConstants(internalRoundConstants);
+        hasher.setExternalRoundConstants(externalRoundConstants);
+        hasher.setMatInternalDiagM1(matInternalDiagM1);
+        merkle_tree_kernels_bn254_3::
+            absorbMatrices<<<gridSize, blockSize>>>(
+                hasher,
+                matrices,
+                nHeightMatrices,
+                nPresums,
+                heightOffsets,
+                log_max_height,
+                digests
+            );
+    }
 
     extern "C" void first_digest_layer_bn254(
         Matrix_t * tallestMatrices,

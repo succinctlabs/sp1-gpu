@@ -15,6 +15,31 @@ pub struct DeviceHasherBn254 {
 impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
     type Digest = [Bn254Fr; DIGEST_WIDTH];
 
+    unsafe fn absorb_matrices(
+            &self,
+            sorted_matrices: *const MatrixViewDevice<BabyBear>,
+            num_heights: *const usize,
+            num_presums: *const usize,
+            height_offs: *const usize,
+            log_max_height: usize,
+            max_height: usize,
+            digests: *mut Self::Digest,
+        ) {
+        poseidon2_bn254_3_kernels::absorb_matrices_bn254(
+            sorted_matrices,
+            num_heights,
+            num_presums,
+            height_offs,
+            log_max_height,
+            max_height,
+            digests,
+            self.internal_rounds_constats_device.as_slice().as_ptr(),
+            self.external_rounds_constats_device.as_slice().as_ptr(),
+            self.diffusion_matrix_m1_device.as_slice().as_ptr(),
+        )
+        
+    }
+
     unsafe fn first_digest_layer(
         &self,
         tallest_matrices: *const MatrixViewDevice<BabyBear>,
@@ -193,6 +218,19 @@ pub mod poseidon2_bn254_3_kernels {
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_bn254_16_gpu"]
     extern "C" {
+        pub fn absorb_matrices_bn254(
+            sorted_matrices: *const MatrixViewDevice<BabyBear>,
+            num_heights: *const usize,
+            num_presums: *const usize,
+            height_offs: *const usize,
+            log_max_height: usize,
+            max_height: usize,
+            digests: *mut [Bn254Fr; DIGEST_WIDTH],
+            internal_round_constants: *const Bn254Fr,
+            external_round_constants: *const [Bn254Fr; WIDTH],
+            diffusion_matrix_m1: *const Bn254Fr,
+        );
+
         pub fn first_digest_layer_bn254(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,

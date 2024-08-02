@@ -9,8 +9,7 @@ namespace poseidon2 {
 
 template<typename Params>
 struct __align__(16) FDW_t {
-    using F_t = typename Params::F_t;
-    F_t v[Params::DIGEST_WIDTH];
+    typename Params::F_t v[Params::DIGEST_WIDTH];
 };
 
 template<typename Params>

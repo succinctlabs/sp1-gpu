@@ -2,6 +2,7 @@ use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
+use crate::matrix;
 use crate::matrix::ColMajorMatrixDevice;
 
 use itertools::Itertools;
@@ -9,6 +10,7 @@ use p3_baby_bear::BabyBear;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
+use p3_util::log2_ceil_usize;
 use std::cmp::Reverse;
 use std::marker::PhantomData;
 
@@ -26,6 +28,60 @@ pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMat
 
 impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
     pub fn new(hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>, leaves: Vec<M>) -> Self {
+        let mut leaves_sorted: Vec<_> = leaves
+            .iter()
+            .map(|l| l.view())
+            .sorted_by_key(|l| Reverse(l.height))
+            .collect();
+
+        let heights: Vec<usize> = leaves_sorted.iter().map(|m| m.height).collect(); 
+        println!("heights = {:?}", heights);
+        let max_height = heights[0];
+        let log_max_height = log2_ceil_usize(max_height);
+
+        let mut num_heights: Vec<usize> = vec![0; log_max_height + 2];
+        let mut num_presums: Vec<usize> = Vec::with_capacity(log_max_height + 2);
+        let mut height_offs: Vec<usize> = Vec::with_capacity(log_max_height + 2);
+        let mut height_idx = 0;
+        let mut matrix_count = 0;
+        let mut sum_uniq_height = 0;
+        for log_h in (0..=log_max_height+1) {
+            num_presums.push(matrix_count);
+            height_offs.push(sum_uniq_height);
+            let height = 2usize.pow((log_max_height-log_h) as u32);
+            while height_idx < heights.len() && heights[height_idx] == height {
+                num_heights[log_h] += 1;
+                height_idx += 1;
+            }
+            matrix_count += num_heights[log_h];
+            sum_uniq_height += if num_heights[log_h] > 0 { height } else { 0 };
+        }
+        println!("num_heights = {:?}", num_heights);
+        println!("num_presums = {:?}", num_presums);
+        println!("height_offs = {:?}", height_offs);
+
+        let num_heights_device = num_heights.to_device().unwrap();
+        let num_presums_device = num_presums.to_device().unwrap();
+        let height_offs_device = height_offs.to_device().unwrap();
+        let leaves_sorted_device = leaves_sorted.to_device().unwrap();
+
+        let mut all_digest_layers = DeviceBuffer::with_capacity(sum_uniq_height).unwrap();
+        unsafe {
+            all_digest_layers.set_len(sum_uniq_height);
+            hasher.absorb_matrices(
+                leaves_sorted_device.as_ptr(), 
+                num_heights_device.as_ptr(), 
+                num_presums_device.as_ptr(), 
+                height_offs_device.as_ptr(), 
+                log_max_height, 
+                max_height, 
+                all_digest_layers.as_mut_ptr(),
+            );
+        }
+
+        // let all_digest_slice = all_digest_layers.as_slice_mut();
+        // let first_digest_layer = &mut all_digest_slice[0..max_height];
+
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| l.view())

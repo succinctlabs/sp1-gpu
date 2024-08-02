@@ -10,6 +10,27 @@ pub struct DeviceHasherBabyBear {}
 impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
     type Digest = [BabyBear; DIGEST_WIDTH];
 
+    unsafe fn absorb_matrices(
+            &self,
+            sorted_matrices: *const MatrixViewDevice<BabyBear>,
+            num_heights: *const usize,
+            num_presums: *const usize,
+            height_offs: *const usize,
+            log_max_height: usize,
+            max_height: usize,
+            digests: *mut Self::Digest,
+        ) {
+        poseidon2_baby_bear_16_kernels::absorb_matrices_baby_bear(
+            sorted_matrices,
+            num_heights,
+            num_presums,
+            height_offs,
+            log_max_height,
+            max_height,
+            digests,
+        )
+    }
+
     unsafe fn first_digest_layer(
         &self,
         tallest_matrices: *const MatrixViewDevice<BabyBear>,
@@ -157,6 +178,18 @@ pub mod poseidon2_baby_bear_16_kernels {
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_baby_bear_16_gpu"]
     extern "C" {
+
+        pub fn absorb_matrices_baby_bear(
+            sorted_matrices: *const MatrixViewDevice<BabyBear>,
+            num_heights: *const usize,
+            num_presums: *const usize,
+            height_offs: *const usize,
+            log_max_height: usize,
+            max_height: usize,
+            digests: *mut [BabyBear; DIGEST_WIDTH],
+        );
+
+
         pub fn first_digest_layer_baby_bear(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,

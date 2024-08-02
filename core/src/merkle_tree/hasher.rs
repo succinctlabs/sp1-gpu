@@ -5,6 +5,18 @@ use crate::matrix::MatrixViewDevice;
 pub trait FieldMerkleTreeHasher<F: Field> {
     type Digest: Copy;
 
+    unsafe fn absorb_matrices(
+        &self,
+        sorted_matrices: *const MatrixViewDevice<F>,
+        num_heights: *const usize,
+        num_presums: *const usize,
+        height_offs: *const usize,
+        log_max_height: usize,
+        max_height: usize,
+        digests: *mut Self::Digest,
+    );
+
+
     /// # Safety
     ///
     /// TODO
