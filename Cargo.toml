@@ -22,10 +22,10 @@ debug-assertions = true
 # sp1-core = { path = "../sp1/core" }
 # sp1-prover = { path = "../sp1/prover" }
 # sp1-recursion-core = { path = "../sp1/recursion/core" }
-sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/prover-server" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/prover-server" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/prover-server" }
-sp1-server = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/prover-server" }
+sp1-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-server = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 
 # p3
 p3-baby-bear = "0.1.3-succinct"
