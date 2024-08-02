@@ -1,9 +1,9 @@
 use crate::{
     cuda_runtime::stream::CudaStream,
-    device::{DeviceAllocator, TryAllocError},
+    device::{error::CudaError, DeviceAllocator, TryAllocError},
 };
 
-use super::RawPointer;
+use super::{CopyRawFrom, RawPointer};
 
 pub struct DeviceStreamPointer<T> {
     ptr: *mut T,
@@ -39,5 +39,37 @@ impl<T: Copy> DeviceAllocator<DeviceStreamPointer<T>> for CudaStream {
             ptr,
             stream: self.clone(),
         })
+    }
+}
+
+impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for DeviceStreamPointer<T> {
+    unsafe fn copy_from(
+        &mut self,
+        src: &DeviceStreamPointer<T>,
+        len: usize,
+    ) -> Result<(), CudaError> {
+        self.stream
+            .cuda_memcpy_device_to_device_async(self.ptr, src.ptr, len)?;
+        Ok(())
+    }
+}
+
+impl<T: Copy> CopyRawFrom<*mut T> for DeviceStreamPointer<T> {
+    unsafe fn copy_from(&mut self, src: &*mut T, len: usize) -> Result<(), CudaError> {
+        self.stream
+            .cuda_memcpy_host_to_device_async(self.ptr, *src, len)?;
+        Ok(())
+    }
+}
+
+impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for *mut T {
+    unsafe fn copy_from(
+        &mut self,
+        src: &DeviceStreamPointer<T>,
+        len: usize,
+    ) -> Result<(), CudaError> {
+        src.stream
+            .cuda_memcpy_device_to_host_async(*self, src.ptr, len)?;
+        Ok(())
     }
 }

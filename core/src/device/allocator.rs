@@ -20,7 +20,7 @@ pub struct TryAllocError(#[from] CudaError);
 
 #[derive(Debug, Clone, Error)]
 #[error(transparent)]
-pub struct AllocError(#[from] CudaError);
+pub struct AllocError(#[from] pub(crate) CudaError);
 
 #[derive(Debug, Clone, Error)]
 pub enum AllocTimeoutError {

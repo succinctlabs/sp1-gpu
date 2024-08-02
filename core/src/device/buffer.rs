@@ -4,12 +4,14 @@ use std::ops::{
 };
 use std::slice;
 
-use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_malloc};
+use crate::device::memory::{copy_device_to_host, copy_host_to_device};
 use crate::device::slice::DeviceSlice;
 
 use super::error::CudaError;
 use super::memory::{ToDevice, ToHost};
-use super::{DevicePointer, RawPointer};
+use super::{
+    AllocError, DeviceAllocator, DevicePointer, RawPointer, TryAllocError, DEFAULT_ALLOCATOR,
+};
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
@@ -26,6 +28,32 @@ unsafe impl<P: RawPointer> Sync for Buffer<P> {}
 pub type DeviceBuffer<T> = Buffer<DevicePointer<T>>;
 
 impl<P: RawPointer> Buffer<P> {
+    pub fn try_with_capacity_in(
+        capacity: usize,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<Self, TryAllocError> {
+        let buf = unsafe { alloc.try_alloc(capacity)? };
+
+        Ok(Self {
+            buf,
+            len: 0,
+            cap: capacity,
+        })
+    }
+
+    pub fn with_capacity_in(
+        capacity: usize,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<Self, AllocError> {
+        let buf = unsafe { alloc.alloc(capacity)? };
+
+        Ok(Self {
+            buf,
+            len: 0,
+            cap: capacity,
+        })
+    }
+
     /// Returns a new buffer from a pointer, length, and capacity.
     ///
     /// # Safety
@@ -92,13 +120,7 @@ impl<P: RawPointer> Buffer<P> {
 
 impl<T: Copy> DeviceBuffer<T> {
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        let ptr = DevicePointer::from_raw(unsafe { cuda_malloc(capacity) }?);
-
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-        })
+        Self::with_capacity_in(capacity, &DEFAULT_ALLOCATOR).map_err(|e| e.0)
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.

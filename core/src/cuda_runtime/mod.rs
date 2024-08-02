@@ -12,7 +12,7 @@ pub const DEFAULT_CAPACITY: usize = 100;
 pub mod event;
 pub(crate) mod ffi;
 pub mod scope;
-pub mod spawn;
+mod spawn;
 pub mod stream;
 pub mod task;
 

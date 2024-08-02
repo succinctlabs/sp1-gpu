@@ -10,12 +10,6 @@ pub trait ToDevice {
     fn to_device(&self) -> Result<Self::DeviceType, CudaError>;
 }
 
-pub trait ToDeviceAsync {
-    type DeviceType;
-
-    fn to_device_async(&self) -> Result<Self::DeviceType, CudaError>;
-}
-
 pub trait ToHost {
     type HostType;
 
@@ -27,6 +21,14 @@ pub trait ToHost {
     {
         self.to_host()
     }
+}
+
+pub trait CopyFrom<P> {
+    fn copy_from(&mut self, src: &P, len: usize) -> Result<(), CudaError>;
+}
+
+pub trait CopyTo<P> {
+    fn copy_to(&self, dst: &mut P, len: usize) -> Result<(), CudaError>;
 }
 
 impl<T: Copy> ToDevice for [T] {
