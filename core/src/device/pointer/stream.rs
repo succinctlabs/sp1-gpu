@@ -3,7 +3,7 @@ use crate::{
     device::{error::CudaError, DeviceAllocator, TryAllocError},
 };
 
-use super::{CopyRawFrom, RawPointer};
+use super::{CopyRawFrom, RawDevicePointer, RawPointer};
 
 pub struct DeviceStreamPointer<T> {
     ptr: *mut T,
@@ -29,6 +29,12 @@ impl<T: Copy> RawPointer for DeviceStreamPointer<T> {
 
     fn free(&mut self) {
         unsafe { self.stream.cuda_free_async(self.ptr).unwrap() }
+    }
+}
+
+impl<T: Copy> RawDevicePointer for DeviceStreamPointer<T> {
+    fn allocator(&self) -> &impl DeviceAllocator<Self> {
+        &self.stream
     }
 }
 

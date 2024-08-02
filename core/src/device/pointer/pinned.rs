@@ -1,9 +1,9 @@
 use crate::device::{
     memory::{cuda_free_host, cuda_host_unregister, cuda_malloc_host},
-    DefaultDeviceAllocator, DeviceAllocator, TryAllocError,
+    DefaultDeviceAllocator, DeviceAllocator, TryAllocError, DEFAULT_ALLOCATOR,
 };
 
-use super::RawPointer;
+use super::{RawDevicePointer, RawPointer};
 
 #[repr(transparent)]
 pub struct CudaHostPointer<T>(*mut T);
@@ -27,6 +27,12 @@ impl<T: Copy> RawPointer for CudaHostPointer<T> {
 
     fn free(&mut self) {
         unsafe { cuda_free_host(self.0).unwrap() }
+    }
+}
+
+impl<T: Copy> RawDevicePointer for CudaHostPointer<T> {
+    fn allocator(&self) -> &impl DeviceAllocator<Self> {
+        &DEFAULT_ALLOCATOR
     }
 }
 

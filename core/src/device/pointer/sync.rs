@@ -1,9 +1,10 @@
 use crate::device::{
     error::CudaError,
     memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device, cuda_free},
+    DeviceAllocator, DEFAULT_ALLOCATOR,
 };
 
-use super::{CopyRawFrom, RawPointer};
+use super::{CopyRawFrom, RawDevicePointer, RawPointer};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
@@ -22,6 +23,12 @@ impl<T> RawPointer for DevicePointer<T> {
 
     fn free(&mut self) {
         unsafe { cuda_free(self.0) }.unwrap()
+    }
+}
+
+impl<T: Copy> RawDevicePointer for DevicePointer<T> {
+    fn allocator(&self) -> &impl DeviceAllocator<Self> {
+        &DEFAULT_ALLOCATOR
     }
 }
 

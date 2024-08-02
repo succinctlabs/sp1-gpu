@@ -20,6 +20,8 @@ pub struct ColMajorMatrix<P: RawPointer> {
 
 pub type ColMajorMatrixDevice<T> = ColMajorMatrix<DevicePointer<T>>;
 
+impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {}
+
 impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     pub fn empty() -> Self {
         Self {

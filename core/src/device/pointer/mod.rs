@@ -6,15 +6,19 @@ pub use pinned::*;
 pub use stream::*;
 pub use sync::*;
 
-use super::error::CudaError;
+use super::{error::CudaError, DeviceAllocator};
 
-pub trait RawPointer {
+pub trait RawPointer: Sized {
     type Data;
 
     fn as_ptr(&self) -> *const Self::Data;
     fn as_mut_ptr(&mut self) -> *mut Self::Data;
 
     fn free(&mut self);
+}
+
+pub trait RawDevicePointer: RawPointer {
+    fn allocator(&self) -> &impl DeviceAllocator<Self>;
 }
 
 pub trait CopyRawFrom<P> {
