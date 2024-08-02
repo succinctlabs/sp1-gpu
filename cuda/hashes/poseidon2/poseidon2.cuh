@@ -8,6 +8,12 @@
 namespace poseidon2 {
 
 template<typename Params>
+struct __align__(16) FDW_t {
+    using F_t = typename Params::F_t;
+    F_t v[Params::DIGEST_WIDTH];
+};
+
+template<typename Params>
 struct RoundConstants {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
@@ -22,6 +28,7 @@ template<typename Params>
 class Hasher {
     using F_t = typename Params::F_t;
     using pF_t = typename Params::pF_t;
+    using FDW_t = FDW_t<Params>;
     using RoundConstants_t = RoundConstants<Params>;
 
   private:
@@ -51,7 +58,7 @@ class Hasher {
 
         Params::externalLinearLayer(state);
 
-        int rounds_f_half = Params::ROUNDS_F / 2;
+        int rounds_f_half = Params::ROUNDS_F >> 1;
         for (int i = 0; i < rounds_f_half; i++) {
             addExtRc(
                 state,
@@ -92,17 +99,14 @@ class Hasher {
         RoundConstants_t roundConstants
     ) {
         F_t state[Params::WIDTH];
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            state[i] = left[i];
-            state[i + Params::DIGEST_WIDTH] = right[i];
-        }
+        FDW_t* stateWidth = reinterpret_cast<FDW_t*>(state);
+        stateWidth[0] = *reinterpret_cast<FDW_t*>(left);
+        stateWidth[1] = *reinterpret_cast<FDW_t*>(right);
         for (int i = 2 * Params::DIGEST_WIDTH; i < Params::WIDTH; i++) {
             state[i].zero();
         }
         permute(state, state, roundConstants);
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = state[i];
-        }
+        *reinterpret_cast<FDW_t*>(out) = stateWidth[0];
     }
 
     __device__ static void hash(
@@ -125,9 +129,7 @@ class Hasher {
             permute(state, state, roundConstants);
         }
 
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = state[i];
-        }
+        *reinterpret_cast<FDW_t*>(out) = *reinterpret_cast<FDW_t*>(state);
     }
 };
 
@@ -209,6 +211,7 @@ class StaticHasher: public Hasher<Params> {
 template<typename Params, typename Hasher_t>
 struct HasherState {
     using F_t = typename Params::F_t;
+    using FDW_t = FDW_t<Params>;
 
     F_t data[Params::WIDTH];
     size_t index;
@@ -234,9 +237,7 @@ struct HasherState {
         if (index != 0) {
             hasher.permute(data, data);
         }
-        for (int i = 0; i < Params::DIGEST_WIDTH; i++) {
-            out[i] = data[i];
-        }
+        *reinterpret_cast<FDW_t*>(out) = *reinterpret_cast<FDW_t*>(data);
     }
 };
 
