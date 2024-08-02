@@ -3,8 +3,29 @@
 // CUDA runtime bindings.
 
 #include <cuda.h>
+#include <nvtx3/nvToolsExt.h>
 #include "exception.cuh"
 
+
+// Create an nvtx domain.
+extern "C" nvtxDomainHandle_t nvtxDomainCreateARust(char* name) {
+    return nvtxDomainCreateA(name);
+}
+
+// Destroy an nvtx domain.
+extern "C" void nvtxDomainDestroyARust(nvtxDomainHandle_t domain) {
+    nvtxDomainDestroy(domain);
+}
+
+// Create a global nvtx range.
+extern "C" uint64_t nvtx_range_start(char* message) {
+   return nvtxRangeStart(message);
+}
+
+// Destroy a global nvtx range.
+extern "C" void nvtx_range_end(uint64_t id) {
+   nvtxRangeEnd(id);
+}
 
 // Sync device 
 extern "C" rustCudaError_t cuda_device_synchronize() {

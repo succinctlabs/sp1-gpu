@@ -1,21 +1,22 @@
 # moongate
 
-# Setup For local development
-It is possible set up a local version of the dependencies `sp1` and `Plonky3`. This is found to be convenient as there is often a need to make things public or make other small changes. To set up for local developement, the user should set up local copies of Plonky3 and SP1.
+## Profiling
 
-### Plonky3 Dependency
-In the parent directory:
-```bash
-git clone https://github.com/Plonky3/Plonky3.git
-cd Plonky3
-git checkout sp1-v2
+### Jaeger
+
+Setup Jaeger:
+```
+sudo docker run -it --rm -d -p4318:4318 -p4317:4317 -p16686:16686 jaegertracing/all-in-one:latest
 ```
 
-### SP1 Dependency
-In the parent directory:
-```bash
-git clone https://github.com/succinctlabs/sp1.git
-cd sp1
-git checkout dev
+Run a benchmark:
 ```
-then move the plonky3 depencies to the ones for local development.
+RUST_LOG=debug cargo run --release -p moongate-perf -- --program fibonacci
+```
+
+### Nvidia Nsight Systems
+
+Run a benchmark:
+```
+RUST_LOG="debug" nsys profile --trace=cuda,nvtx cargo run --release -p moongate-perf -- --program fibonacci --trace nvtx 
+```

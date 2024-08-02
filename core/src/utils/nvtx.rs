@@ -1,0 +1,51 @@
+use tracing::{span, Subscriber};
+use tracing_subscriber::layer::Context;
+use tracing_subscriber::registry::LookupSpan;
+use tracing_subscriber::Layer;
+
+pub struct NvtxLayer;
+
+impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for NvtxLayer {
+    fn on_new_span(&self, _attrs: &span::Attributes<'_>, id: &span::Id, ctx: Context<'_, S>) {
+        let span = ctx.span(id).expect("Failed to get span");
+
+        // Attach start domain to the span
+        let range = start_range(span.name());
+        span.extensions_mut().insert(range);
+    }
+
+    fn on_close(&self, id: span::Id, ctx: Context<'_, S>) {
+        let span = ctx.span(&id).expect("Failed to get span");
+
+        // Retrieve start time and calculate the duration
+        let extensions = span.extensions();
+        if let Some(range) = extensions.get::<NvtxRangeId>() {
+            end_range(*range);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(transparent)]
+struct NvtxRangeId(u64);
+
+fn start_range(name: &str) -> NvtxRangeId {
+    let name = std::ffi::CString::new(name).unwrap();
+    unsafe { ffi::nvtx_range_start(name.as_ptr()) }
+}
+
+fn end_range(id: NvtxRangeId) {
+    unsafe { ffi::nvtx_range_end(id) }
+}
+
+mod ffi {
+    use std::ffi::c_char;
+
+    use super::NvtxRangeId;
+
+    extern "C" {
+        pub fn nvtx_range_start(name: *const c_char) -> NvtxRangeId;
+
+        pub fn nvtx_range_end(domain: NvtxRangeId);
+    }
+}

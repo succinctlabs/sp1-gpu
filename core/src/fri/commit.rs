@@ -2,29 +2,39 @@ use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
-use p3_field::Field;
-use p3_symmetric::Hash;
+use p3_field::{AbstractField, Field};
+use sp1_core::stark::Com;
 
 use crate::device::error::CudaError;
-use crate::device::CudaSync;
 use crate::dft::DeviceDft;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::FieldMerkleTreeGpu;
-use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
+use crate::merkle_tree::MmcsCommitter;
+use crate::stark::BabyBearFriConfig;
 
-pub struct TwoAdicFriCommitter<F, D, M = CudaSync<ColMajorMatrixDevice<F>>> {
-    dft: DeviceDft<F>,
-    log_blowup: usize,
-    _marker: std::marker::PhantomData<(D, M)>,
+pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
+    pub dft: DeviceDft<SC::Val>,
+    pub mmcs_committer: C,
+    pub log_blowup: usize,
 }
 
-impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
-    pub fn new(log_blowup: usize) -> Self {
+impl<
+        SC: BabyBearFriConfig,
+        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    > TwoAdicFriCommitter<SC, C>
+{
+    pub fn new(log_blowup: usize) -> Self
+    where
+        C: Default,
+    {
         Self {
             dft: DeviceDft::new(),
+            mmcs_committer: C::default(),
             log_blowup,
-            _marker: std::marker::PhantomData,
         }
+    }
+
+    pub fn mmcs_commit(&self, leaves: Vec<C::Matrix>) -> (Com<SC>, C::ProverData) {
+        self.mmcs_committer.commit(leaves)
     }
 
     pub const fn log_blowup(&self) -> usize {
@@ -53,33 +63,44 @@ impl TwoAdicFriCommitter<BabyBear, [BabyBear; DIGEST_WIDTH]> {
         }
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn commit<Matrix>(
+    pub fn get_evaluations_on_domain(
         &self,
-        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, Matrix)],
-    ) -> (
-        Hash<BabyBear, BabyBear, DIGEST_WIDTH>,
-        FieldMerkleTreeGpu<
-            BabyBear,
-            [BabyBear; DIGEST_WIDTH],
-            CudaSync<ColMajorMatrixDevice<BabyBear>>,
-        >,
-    )
+        src_domain: TwoAdicMultiplicativeCoset<BabyBear>,
+        dst_domain: TwoAdicMultiplicativeCoset<BabyBear>,
+        matrix: &ColMajorMatrixDevice<BabyBear>,
+    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        // Domain assertions for the current usage. The code is supposed to work regardless but we
+        // keep them here for now since other usages are untested.
+        debug_assert!(src_domain.shift.is_one());
+        debug_assert_eq!(dst_domain.shift, BabyBear::generator());
+
+        let shift = dst_domain.shift * BabyBear::generator().inverse() * src_domain.shift.inverse();
+        let log_blowup = dst_domain.log_n - src_domain.log_n;
+        unsafe {
+            let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
+            self.dft
+                .coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
+
+            Ok(lde_mat)
+        }
+    }
+
+    pub fn commit<M>(
+        &self,
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+    ) -> (Com<SC>, C::ProverData)
     where
-        Matrix: Send + Sync + Borrow<CudaSync<ColMajorMatrixDevice<BabyBear>>>,
+        M: Borrow<C::Matrix>,
     {
         let lde_evaluations = evaluations
             .iter()
             .map(|(domain, matrix)| {
                 let matrix = matrix.borrow();
-                CudaSync::new(self.encode(*domain, matrix, true).unwrap()).unwrap()
+                self.encode(*domain, matrix, true).unwrap()
             })
             .collect::<Vec<_>>();
 
-        let tree_device = FieldMerkleTreeGpu::new(lde_evaluations);
-        let root_device = tree_device.root().into();
-
-        (root_device, tree_device)
+        self.mmcs_commit(lde_evaluations)
     }
 }
 
@@ -95,6 +116,8 @@ mod tests {
     use p3_field::AbstractField;
 
     use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
+
+    use crate::merkle_tree::Poseidon2BabyBearCommitter;
 
     #[test]
     fn test_commit_device() {
@@ -124,13 +147,12 @@ mod tests {
         let evaluations = domains_and_traces
             .iter()
             .map(|(domain, trace)| {
-                let trace = trace.to_device().to_column_major();
-                let trace = CudaSync::new(trace).unwrap();
+                let trace = trace.to_device().unwrap().to_column_major();
                 (*domain, trace)
             })
             .collect::<Vec<_>>();
 
-        let pcs = TwoAdicFriCommitter::new(log_blowup);
+        let pcs = TwoAdicFriCommitter::<SC, Poseidon2BabyBearCommitter>::new(log_blowup);
         let time = CudaInstant::now().unwrap();
         let (commit, _) = pcs.commit(&evaluations);
         println!("time: {:?}", time.elapsed().unwrap());

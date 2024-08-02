@@ -4,6 +4,7 @@ use sp1_prover::{components::SP1ProverComponents, SP1Prover, SP1Stdin};
 
 pub mod programs;
 pub mod report;
+pub mod tracer;
 
 pub fn make_measurement<C: SP1ProverComponents>(
     prover: &SP1Prover<C>,

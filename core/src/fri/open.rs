@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use p3_challenger::FieldChallenger;
+use p3_commit::Mmcs;
 use p3_field::two_adic_coset_zerofier;
 use p3_field::Field;
+use sp1_core::stark::Com;
 use tracing::trace_span;
 
 use itertools::Itertools;
@@ -13,80 +15,63 @@ use p3_challenger::CanObserve;
 use p3_challenger::CanSample;
 use p3_challenger::CanSampleBits;
 use p3_challenger::GrindingChallenger;
-use p3_commit::{OpenedValues, Pcs};
-use p3_field::extension::BinomialExtensionField;
+use p3_commit::OpenedValues;
 use p3_field::AbstractExtensionField;
 use p3_field::AbstractField;
 use p3_field::TwoAdicField;
 use p3_fri::CommitPhaseProofStep;
-use p3_fri::FriConfig;
 use p3_fri::FriProof;
 use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
-use p3_symmetric::Hash;
-use p3_util::log2_ceil_usize;
 
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
-use sp1_core::stark::{OpeningProof, PcsProverData};
-use sp1_core::utils::baby_bear_poseidon2::ChallengeMmcs;
+use sp1_core::stark::OpeningProof;
 use sp1_core::utils::log2_strict_usize;
-use sp1_core::utils::BabyBearPoseidon2;
-use sp1_core::utils::{InnerVal, InnerValMmcs};
+use sp1_core::utils::InnerVal;
 
-use crate::device::buffer::DeviceBuffer;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
-use crate::device::CudaSync;
+use crate::device::DeviceBuffer;
+use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::DeviceMatrix;
 use crate::matrix::MatrixViewDevice;
-use crate::merkle_tree::FieldMerkleTreeGpu;
-use crate::poseidon2::poseidon2_bb31_16_kernels::DIGEST_WIDTH;
-use crate::stark::BabyBearPoseidon2Config;
-use crate::stark::GpuProverData;
-
-type F = BabyBear;
-type EF = BinomialExtensionField<BabyBear, 4>;
-type SC = BabyBearPoseidon2;
+use crate::merkle_tree::MmcsCommitter;
+use crate::merkle_tree::MmcsProverData;
+use crate::stark::BabyBearFriConfig;
+use crate::stark::FriMmcs;
+use crate::stark::PcsConfig;
 
 #[derive(Clone, Copy, Debug)]
-pub struct FriCpuOpeningProver<SC>(PhantomData<SC>);
+pub struct FriOpeningProver<SC>(PhantomData<SC>);
 
-impl<SC: BabyBearPoseidon2Config> FriCpuOpeningProver<SC> {
-    #[allow(clippy::type_complexity)]
-    pub fn open(
+pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> {
+    fn query_open_batch(
         &self,
-        pcs: &SC::Pcs,
-        rounds: Vec<(&PcsProverData<SC>, Vec<Vec<SC::Challenge>>)>,
-        challenger: &mut SC::Challenger,
-    ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>) {
-        <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::open(pcs, rounds, challenger)
-    }
+        query_indices: &[usize],
+        prover_data_slice: &[Self::ProverData],
+        log_global_max_height: usize,
+        is_answering: bool,
+    ) -> Vec<Vec<BatchOpening<F, ValMmcs>>>;
 }
 
-impl<SC: BabyBearPoseidon2Config> Default for FriCpuOpeningProver<SC> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct FriGpuOpeningProver<SC>(PhantomData<SC>);
-
-impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
+impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
-    pub fn open(
+    pub fn open<C>(
         &self,
+        committer: &TwoAdicFriCommitter<SC, C>,
         pcs: &SC::Pcs,
-        rounds: Vec<(&GpuProverData<SC>, Vec<Vec<SC::Challenge>>)>,
+        rounds: Vec<(C::ProverData, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
-    ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>) {
+    ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
+    where
+        C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    {
         let alpha: Challenge<SC> = challenger.sample();
 
         let mats_and_points = rounds
             .iter()
-            .map(|(data, points)| (data.leaves.iter().collect_vec(), points))
+            .map(|(data, points)| (data.matrices().iter().collect_vec(), points))
             .collect_vec();
         let mats = mats_and_points
             .iter()
@@ -134,8 +119,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let mut height_index_map = HashMap::new();
         let mut reduced_leaves = vec![];
 
-        let mut reduced_leaf =
-            ColMajorMatrixDevice::<F>::with_capacity(2 * <EF as AbstractExtensionField<F>>::D, 1);
+        let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+            2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+            1,
+        )
+        .unwrap();
         unsafe {
             reduced_leaf.set_max_width();
         }
@@ -152,10 +140,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         .or_insert_with_key(|log_height| {
                             let idx = reduced_leaves.len();
                             height_indices[*log_height] = idx;
-                            let mut reduced_leaf = ColMajorMatrixDevice::<F>::with_capacity(
-                                2 * <EF as AbstractExtensionField<F>>::D,
+                            let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+                                2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                                 1 << (log_height - 1),
-                            );
+                            )
+                            .unwrap();
                             unsafe {
                                 reduced_leaf.set_max_width();
                             }
@@ -170,7 +159,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                     total_polys += num_polys;
                     let coset_log_height = log2_strict_usize(coset_height);
                     let g = BabyBear::two_adic_generator(coset_log_height);
-                    let denominator = F::from_canonical_usize(coset_height)
+                    let denominator = SC::Val::from_canonical_usize(coset_height)
                         * shift.exp_u64(coset_height as u64 - 1);
 
                     g_values.extend((0..num_polys).flat_map(|_| g.powers().take(32)));
@@ -193,8 +182,11 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
                         shifts_for_inv.push(shift);
 
                         opening_points.extend((0..cols).map(|_| *point));
-                        let zerofier =
-                            two_adic_coset_zerofier(coset_log_height, EF::from_base(shift), *point);
+                        let zerofier = two_adic_coset_zerofier(
+                            coset_log_height,
+                            SC::Challenge::from_base(shift),
+                            *point,
+                        );
                         let barycentric_scalar = zerofier * denominator.inverse();
                         barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
 
@@ -227,15 +219,16 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
         // For each unique opening point z, we will find the largest degree bound
         // for that point, and precompute 1/(X - z) for the largest subgroup (in bitrev order).
-        let mut inv_denominators = DeviceBuffer::<EF>::with_capacity(inv_offset);
-        let inv_indices_device = inv_indices.to_device();
+        let mut inv_denominators =
+            DeviceBuffer::<SC::Challenge>::with_capacity(inv_offset).unwrap();
+        let inv_indices_device = inv_indices.to_device().unwrap();
         unsafe {
             inv_denominators.set_max_len();
-            let nums_rows = nums_rows.to_device();
-            let log_nums_rows = log_nums_rows.to_device();
-            let thread_generator_powers = thread_generator_powers.to_device();
-            let points_for_inv = points_for_inv.to_device();
-            let shifts_for_inv = shifts_for_inv.to_device();
+            let nums_rows = nums_rows.to_device().unwrap();
+            let log_nums_rows = log_nums_rows.to_device().unwrap();
+            let thread_generator_powers = thread_generator_powers.to_device().unwrap();
+            let points_for_inv = points_for_inv.to_device().unwrap();
+            let shifts_for_inv = shifts_for_inv.to_device().unwrap();
             opening_gpu::compute_inverse_denominators(
                 global_max_height,
                 num_points,
@@ -258,15 +251,16 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         assert_eq!(barycentric_scalars.len(), total_polys);
 
         let ys_output_buffer = {
-            let mut ys_output_buffer = DeviceBuffer::<EF>::with_capacity(total_polys);
+            let mut ys_output_buffer =
+                DeviceBuffer::<SC::Challenge>::with_capacity(total_polys).unwrap();
 
-            let poly_evals = poly_evals.to_device();
-            let coset_heights = coset_heights.to_device();
-            let coset_log_heights = coset_log_heights.to_device();
-            let shifts = shifts.to_device();
-            let g_values = g_values.to_device();
-            let opening_points = opening_points.to_device();
-            let barycentric_scalars = barycentric_scalars.to_device();
+            let poly_evals = poly_evals.to_device().unwrap();
+            let coset_heights = coset_heights.to_device().unwrap();
+            let coset_log_heights = coset_log_heights.to_device().unwrap();
+            let shifts = shifts.to_device().unwrap();
+            let g_values = g_values.to_device().unwrap();
+            let opening_points = opening_points.to_device().unwrap();
+            let barycentric_scalars = barycentric_scalars.to_device().unwrap();
 
             unsafe {
                 ys_output_buffer.set_max_len();
@@ -297,25 +291,28 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
         let compute_openings_span = tracing::trace_span!("Compute opened values").entered();
         let mut point_index = 0;
         let all_opened_values = {
-            let mut reduced_openings_device = DeviceBuffer::<EF>::with_capacity(inv_offset);
+            let mut reduced_openings_device =
+                DeviceBuffer::<SC::Challenge>::with_capacity(inv_offset).unwrap();
 
             // Compute openings fused.
             let compute_reduced_openings_span =
                 tracing::trace_span!("Compute reduced openings on device").entered();
-            let alpha_pow_offsets_device = alpha_pow_offsets.to_device();
+            let alpha_pow_offsets_device = alpha_pow_offsets.to_device().unwrap();
             let log_heights = matrices_for_openings
                 .iter()
                 .map(|mat| log2_strict_usize(mat.height))
                 .collect::<Vec<_>>()
-                .to_device();
-            let matrices_for_openings = matrices_for_openings.to_device();
-            let ys_indices = ys_indices.to_device();
+                .to_device()
+                .unwrap();
+            let matrices_for_openings = matrices_for_openings.to_device().unwrap();
+            let ys_indices = ys_indices.to_device().unwrap();
 
             let mut reduce_leaves_raw = reduced_leaves
                 .iter_mut()
                 .map(|mat| mat.view_mut())
                 .collect::<Vec<_>>()
-                .to_device();
+                .to_device()
+                .unwrap();
 
             unsafe {
                 reduced_openings_device.set_max_len();
@@ -337,7 +334,7 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
 
             compute_reduced_openings_span.exit();
 
-            let height_indices = height_indices.to_device();
+            let height_indices = height_indices.to_device().unwrap();
             unsafe {
                 opening_gpu::reduce_sums(
                     log_heights.as_ptr(),
@@ -390,28 +387,18 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
             .collect();
 
         let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
-            .in_scope(|| prove(pcs.fri_config(), leaves, challenger));
+            .in_scope(|| prove(committer, pcs.fri_config(), leaves, challenger));
 
         let query_openings_span = tracing::trace_span!("Compute query openings").entered();
-        let query_openings = query_indices
-            .into_iter()
-            .map(|index| {
-                rounds
-                    .iter()
-                    .map(|(data, _)| {
-                        let max_height = data.leaves.iter().map(|m| m.height()).max().unwrap();
-                        let log_max_height = log2_ceil_usize(max_height);
-                        let bits_reduced = log_global_max_height - log_max_height;
-                        let reduced_index = index >> bits_reduced;
-                        let (opened_values, opening_proof) = open_batch(reduced_index, data);
-                        BatchOpening::<SC::Val, InnerValMmcs> {
-                            opened_values,
-                            opening_proof,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+
+        let data = rounds.into_iter().map(|(data, _)| data).collect::<Vec<_>>();
+        let query_openings = committer.mmcs_committer.query_open_batch(
+            &query_indices,
+            &data,
+            log_global_max_height,
+            false,
+        );
+
         query_openings_span.exit();
 
         (
@@ -424,53 +411,200 @@ impl<SC: BabyBearPoseidon2Config> FriGpuOpeningProver<SC> {
     }
 }
 
-fn open_batch(
-    index: usize,
-    prover_data: &FieldMerkleTreeGpu<
-        BabyBear,
-        [BabyBear; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >,
-) -> (Vec<Vec<F>>, Vec<[F; DIGEST_WIDTH]>) {
-    let max_height = prover_data.leaves.iter().map(|m| m.height()).max().unwrap();
-    let log_max_height = log2_ceil_usize(max_height);
+pub(super) mod merkle_tree_opening_prover {
+    use p3_field::PackedField;
+    use serde::de::DeserializeOwned;
+    use serde::Serialize;
 
-    let openings = prover_data
-        .leaves
-        .iter()
-        .map(|matrix| {
-            let log2_height = log2_ceil_usize(matrix.height());
-            let bits_reduced = log_max_height - log2_height;
-            let reduced_index = index >> bits_reduced;
-            let mut output_device: DeviceBuffer<F> = DeviceBuffer::with_capacity(matrix.width());
+    use p3_baby_bear::BabyBear;
+    use p3_field::PackedValue;
+    use p3_fri::BatchOpening;
+    use p3_merkle_tree::FieldMerkleTreeMmcs;
+    use p3_symmetric::CryptographicHasher;
+    use p3_symmetric::PseudoCompressionFunction;
+    use p3_util::log2_ceil_usize;
+
+    use crate::device::memory::ToDevice;
+    use crate::matrix::MatrixViewDevice;
+    use crate::merkle_tree::FieldMerkleTreeDeviceCommitter;
+    use crate::merkle_tree::FieldMerkleTreeHasher;
+    use crate::merkle_tree::MmcsProverData;
+
+    use super::*;
+
+    impl<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>
+        FriQueryProver<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
+        for FieldMerkleTreeDeviceCommitter<Hasher>
+    where
+        Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
+        P: PackedField<Scalar = BabyBear>,
+        PW: PackedValue,
+        H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
+        H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
+        H: Sync,
+        C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
+        C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
+        C: Sync,
+        PW::Value: Eq,
+        [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
+    {
+        fn query_open_batch(
+            &self,
+            query_indices: &[usize],
+            prover_data_slice: &[Self::ProverData],
+            log_global_max_height: usize,
+            is_answering: bool,
+        ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
+        {
+            // Function runs one kernel for all query indices and all matrices.
+            //
+            // 1. Collect relevant data and calculate offsets based on matrix.width.
+            // 2. Run kernel that returns one output buffer full of data:
+            //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
+            // 3. Slice buffer to proper structure.
+            // 4. Calculate proofs for each data.
+            let total_matrices: usize = prover_data_slice
+                .iter()
+                .map(|data| data.matrices().len())
+                .sum();
+            let mut matrix_views: Vec<MatrixViewDevice<BabyBear>> =
+                Vec::with_capacity(total_matrices);
+            let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
+            let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+            let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+            let mut total_width = 0;
+            let mut data_matrix_offset = 0;
+            let mut max_width = 0;
+            prover_data_slice.iter().for_each(|data| {
+                let mut max_height = 0;
+                data_matrix_offsets.push(data_matrix_offset);
+                data_matrix_offset += data.matrices().len();
+
+                data.matrices().iter().for_each(|matrix| {
+                    matrix_views.push(matrix.view());
+                    width_offsets.push(total_width);
+                    let matrix_width = matrix.width();
+                    total_width += matrix_width;
+                    max_width = std::cmp::max(max_width, matrix_width);
+                    max_height = std::cmp::max(max_height, matrix.height());
+                });
+                log2_max_heights.push(log2_ceil_usize(max_height));
+            });
+            width_offsets.push(total_width);
+            assert_eq!(data_matrix_offset, total_matrices);
+
+            let matrix_views_device = matrix_views.to_device().unwrap();
+            let width_offsets_device = width_offsets.to_device().unwrap();
+            let query_indices_device = query_indices.to_vec().to_device().unwrap();
+
+            let total_query_indices = query_indices_device.len();
+            let output_capacity = total_width * total_query_indices;
+            let mut total_output_device: DeviceBuffer<BabyBear> =
+                DeviceBuffer::with_capacity(output_capacity).unwrap();
             unsafe {
-                output_device.set_len(matrix.width());
-                opening_gpu::fetch_row(matrix.view(), reduced_index, output_device.as_mut_ptr());
+                total_output_device.set_len(output_capacity);
+                opening_gpu::calculate_openings(
+                    matrix_views_device.as_ptr(),
+                    width_offsets_device.as_ptr(),
+                    query_indices_device.as_ptr(),
+                    total_matrices,
+                    total_width,
+                    max_width,
+                    total_query_indices,
+                    log_global_max_height,
+                    is_answering,
+                    total_output_device.as_mut_ptr(),
+                );
             }
-            output_device.to_host()
-        })
-        .collect_vec();
+            let total_output_host = total_output_device.to_host();
 
-    let proof = (0..log_max_height)
-        .map(|i| {
-            let start = (index >> i) ^ 1;
-            let end = start + 1;
-            prover_data.digest_layers[i][start..end].to_host()[0]
-        })
-        .collect();
+            query_indices
+                .iter()
+                .enumerate()
+                .map(|(index_i, &index)| {
+                    let index_offset = index_i * total_width;
+                    prover_data_slice
+                        .iter()
+                        .enumerate()
+                        .map(|(data_i, data)| {
+                            let data_offset = data_matrix_offsets[data_i];
+                            let openings: Vec<Vec<BabyBear>> = data
+                                .leaves
+                                .iter()
+                                .enumerate()
+                                .map(|(matrix_i, _)| {
+                                    let start =
+                                        index_offset + width_offsets[data_offset + matrix_i];
+                                    let end =
+                                        index_offset + width_offsets[data_offset + matrix_i + 1];
+                                    total_output_host[start..end].to_vec()
+                                })
+                                .collect();
 
-    (openings, proof)
+                            let log_max_height = log2_max_heights[data_i];
+                            let bits_reduced = if is_answering {
+                                data_i + 1
+                            } else {
+                                log_global_max_height - log_max_height
+                            };
+                            let data_index = index >> bits_reduced;
+                            let proof = (0..log_max_height)
+                                .map(|i| {
+                                    let start = (data_index >> i) ^ 1;
+                                    let end = start + 1;
+                                    data.digest_layers[i][start..end].to_host()[0]
+                                })
+                                .collect();
+
+                            BatchOpening {
+                                opened_values: openings,
+                                opening_proof: proof,
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        }
+    }
 }
 
-pub fn prove(
-    config: &FriConfig<ChallengeMmcs>,
-    input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+// /// Open a batch of queries for a FieldMerkleTreeMmcs.
+// fn query_open_batch_field_merkle_tree<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>(
+//     query_indices: &[usize],
+//     prover_data_slice: &[&C::ProverData],
+//     log_global_max_height: usize,
+//     is_answering: bool,
+// ) -> Vec<Vec<BatchOpening<BabyBear, SC::ValMmcs>>>
+// where
+//     Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
+//     P: PackedField<Scalar = BabyBear>,
+//     PW: PackedValue,
+//     H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
+//     H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
+//     H: Sync,
+//     C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
+//     C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
+//     C: Sync,
+//     PW::Value: Eq,
+//     [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
+// {
+
+#[allow(clippy::type_complexity)]
+pub fn prove<SC, C>(
+    committer: &TwoAdicFriCommitter<SC, C>,
+    config: &PcsConfig<SC>,
+    input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
     challenger: &mut Challenger<SC>,
-) -> (FriProof<EF, ChallengeMmcs, F>, Vec<usize>) {
+) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
+where
+    SC: BabyBearFriConfig,
+    C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+{
     let log_max_height = input.keys().max().copied().unwrap();
 
+    debug_assert_eq!(committer.log_blowup, config.log_blowup);
     let commit_phase_result = trace_span!("Commit phase")
-        .in_scope(|| commit_phase(config, input, log_max_height, challenger));
+        .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
@@ -480,10 +614,51 @@ pub fn prove(
         .collect();
 
     let query_proofs_span = trace_span!("Compute query proofs").entered();
-    let query_proofs = query_indices
-        .iter()
-        .map(|&index| answer_query(&commit_phase_result.data, index))
+
+    let query_proofs_data = committer.mmcs_committer.query_open_batch(
+        &query_indices,
+        &commit_phase_result.data,
+        log_max_height,
+        true,
+    );
+    let query_proofs = query_proofs_data
+        .into_iter()
+        .enumerate()
+        .map(|(q, per_query)| {
+            let commit_phase_openings = per_query
+                .into_iter()
+                .enumerate()
+                .map(|(i, batch_opening)| {
+                    let BatchOpening {
+                        opened_values,
+                        opening_proof,
+                    } = batch_opening;
+                    let index_i = query_indices[q] >> i;
+                    let index_i_sibling = index_i ^ 1;
+
+                    let (mut opened_rows, opening_proof) = (opened_values, opening_proof);
+                    assert_eq!(opened_rows.len(), 1);
+
+                    let opened_row = opened_rows.pop().unwrap();
+                    let opened_row_ext = (0..opened_row.len() / 4)
+                        .map(|j| SC::Challenge::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
+                        .collect::<Vec<_>>();
+                    assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
+                    let sibling_value = opened_row_ext[index_i_sibling % 2];
+
+                    CommitPhaseProofStep {
+                        sibling_value,
+                        opening_proof,
+                    }
+                })
+                .collect();
+
+            QueryProof {
+                commit_phase_openings,
+            }
+        })
         .collect::<Vec<_>>();
+
     query_proofs_span.exit();
 
     (
@@ -497,19 +672,19 @@ pub fn prove(
     )
 }
 
-pub fn fold_even_odd(
-    evaluations: &ColMajorMatrixDevice<F>,
-    input_leaves: Option<ColMajorMatrixDevice<F>>,
-    beta: EF,
-) -> ColMajorMatrixDevice<F> {
+pub fn fold_even_odd<SC: BabyBearFriConfig>(
+    evaluations: &ColMajorMatrixDevice<SC::Val>,
+    input_leaves: Option<ColMajorMatrixDevice<SC::Val>>,
+    beta: SC::Challenge,
+) -> ColMajorMatrixDevice<BabyBear> {
     let mut output =
-        ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2);
+        ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2).unwrap();
 
-    let g_inv = F::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
-    let one_half = F::two().inverse();
+    let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
+    let one_half = SC::Val::two().inverse();
     let half_beta = beta * one_half;
 
-    let mut powers = shifted_powers(g_inv, half_beta, evaluations.height());
+    let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height());
     powers.bit_reverse_rows().unwrap();
 
     unsafe {
@@ -531,15 +706,28 @@ pub fn fold_even_odd(
     output
 }
 
-pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
-    let mut output = ColMajorMatrixDevice::with_capacity(<EF as AbstractExtensionField<F>>::D, n);
+pub fn shifted_powers<SC: BabyBearFriConfig>(
+    g: SC::Val,
+    shift: SC::Challenge,
+    n: usize,
+) -> ColMajorMatrixDevice<SC::Val> {
+    let mut output = ColMajorMatrixDevice::with_capacity(
+        <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+        n,
+    )
+    .unwrap();
 
     let num_threads = 256;
     let num_blocks = n.div_ceil(num_threads);
 
     assert!(num_blocks > 0);
 
-    let block_powers = g.powers().take(num_threads).collect::<Vec<_>>().to_device();
+    let block_powers = g
+        .powers()
+        .take(num_threads)
+        .collect::<Vec<_>>()
+        .to_device()
+        .unwrap();
 
     unsafe {
         output.set_max_width();
@@ -556,39 +744,44 @@ pub fn shifted_powers(g: F, shift: EF, n: usize) -> ColMajorMatrixDevice<F> {
     output
 }
 
-pub fn commit_phase(
-    config: &FriConfig<ChallengeMmcs>,
-    mut input: BTreeMap<usize, ColMajorMatrixDevice<F>>,
+pub fn commit_phase<SC, C>(
+    committer: &TwoAdicFriCommitter<SC, C>,
+    mut input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
-) -> CommitPhaseResult {
+) -> CommitPhaseResult<SC, C>
+where
+    SC: BabyBearFriConfig,
+    C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+{
     let mut leaves = input.remove(&log_max_height).unwrap();
 
     let mut commits = vec![];
     let mut data = vec![];
 
-    for log_folded_height in (config.log_blowup..log_max_height).rev() {
+    for log_folded_height in (committer.log_blowup..log_max_height).rev() {
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
-        let tree = FieldMerkleTreeGpu::new(vec![CudaSync::new(temp).unwrap()]);
-        let commit: Hash<F, F, DIGEST_WIDTH> = tree.root().into();
-        challenger.observe(commit);
+        let (commit, prover_data) = committer.mmcs_commit(vec![temp]);
+        challenger.observe(commit.clone());
 
-        let beta: EF = challenger.sample();
+        let beta: SC::Challenge = challenger.sample();
 
         let injected_input = input.remove(&log_folded_height);
-        leaves = fold_even_odd(&tree.leaves[0], injected_input, beta);
+        leaves = fold_even_odd::<SC>(&prover_data.matrices()[0], injected_input, beta);
 
         commits.push(commit);
-        data.push(tree);
+        data.push(prover_data);
     }
 
     // We should be left with `blowup` evaluations of a constant polynomial.
     let leaves = leaves.to_host();
     assert_eq!(
         leaves.values.len(),
-        config.blowup() * <EF as AbstractExtensionField<F>>::D
+        (1 << committer.log_blowup) * <SC::Challenge as AbstractExtensionField<SC::Val>>::D
     );
-    let final_poly = EF::from_base_slice(&leaves.values[0..<EF as AbstractExtensionField<F>>::D]);
+    let final_poly = SC::Challenge::from_base_slice(
+        &leaves.values[0..<SC::Challenge as AbstractExtensionField<SC::Val>>::D],
+    );
     challenger.observe_ext_element(final_poly);
 
     CommitPhaseResult {
@@ -598,51 +791,17 @@ pub fn commit_phase(
     }
 }
 
-pub struct CommitPhaseResult {
-    commits: Vec<Hash<F, F, DIGEST_WIDTH>>,
-    data: Vec<FieldMerkleTreeGpu<F, [F; DIGEST_WIDTH], CudaSync<ColMajorMatrixDevice<BabyBear>>>>,
-    final_poly: EF,
+pub struct CommitPhaseResult<SC, C>
+where
+    SC: BabyBearFriConfig,
+    C: MmcsCommitter<SC::Val, SC::ValMmcs>,
+{
+    commits: Vec<Com<SC>>,
+    data: Vec<C::ProverData>,
+    final_poly: SC::Challenge,
 }
 
-#[allow(clippy::type_complexity)]
-pub fn answer_query(
-    commit_phase_commits: &[FieldMerkleTreeGpu<
-        F,
-        [F; DIGEST_WIDTH],
-        CudaSync<ColMajorMatrixDevice<BabyBear>>,
-    >],
-    index: usize,
-) -> QueryProof<EF, ChallengeMmcs> {
-    let commit_phase_openings = commit_phase_commits
-        .iter()
-        .enumerate()
-        .map(|(i, commit)| {
-            let index_i = index >> i;
-            let index_i_sibling = index_i ^ 1;
-            let index_pair = index_i >> 1;
-
-            let (mut opened_rows, opening_proof) = open_batch(index_pair, commit);
-            assert_eq!(opened_rows.len(), 1);
-            let opened_row = opened_rows.pop().unwrap();
-            let opened_row_ext = (0..opened_row.len() / 4)
-                .map(|j| EF::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
-                .collect::<Vec<_>>();
-            assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
-            let sibling_value = opened_row_ext[index_i_sibling % 2];
-
-            CommitPhaseProofStep {
-                sibling_value,
-                opening_proof,
-            }
-        })
-        .collect();
-
-    QueryProof {
-        commit_phase_openings,
-    }
-}
-
-impl<SC> Default for FriGpuOpeningProver<SC> {
+impl<SC> Default for FriOpeningProver<SC> {
     fn default() -> Self {
         Self(PhantomData)
     }
@@ -727,8 +886,19 @@ pub mod opening_gpu {
         #[link_name = "numBlocksSums"]
         pub fn num_block_sums(max_height: usize) -> usize;
 
-        #[link_name = "fetchRow"]
-        pub fn fetch_row(matrix: MatrixViewDevice<F>, index: usize, output: *mut F);
+        #[link_name = "calculateOpenings"]
+        pub fn calculate_openings(
+            matrix_ptr: *const MatrixViewDevice<F>,
+            width_offsets: *const usize,
+            query_indices: *const usize,
+            total_matrices: usize,
+            total_width: usize,
+            max_width: usize,
+            total_indices: usize,
+            log_max_height: usize,
+            is_answering: bool,
+            output: *mut F,
+        );
 
         #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);

@@ -6,3 +6,7 @@
 
 # CSV files
 *.csv
+
+# nvidia profiling files
+*.nsys-rep
+*.sqlite
