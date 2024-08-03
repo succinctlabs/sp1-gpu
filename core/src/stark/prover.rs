@@ -171,7 +171,7 @@ where
         // Copy the traces to device.
         let traces: Vec<_> = traces
             .iter()
-            .map(|trace| trace.to_device().unwrap().to_column_major())
+            .map(|trace| trace.to_device().unwrap())
             .collect();
 
         // Commit to the traces.
@@ -228,7 +228,7 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 (
                     (name.to_owned(), domain, trace.dimensions()),
-                    (domain, trace.to_device().unwrap().to_column_major()),
+                    (domain, trace.to_device().unwrap()),
                 )
             })
             .unzip();
@@ -641,7 +641,7 @@ where
                 let preprocessed_trace = pk
                     .chip_ordering
                     .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().unwrap().to_column_major());
+                    .map(|&index| pk.traces[index].to_device().unwrap());
 
                 self.permutation_trace_generator
                     .generate_flattened_permutation_trace(

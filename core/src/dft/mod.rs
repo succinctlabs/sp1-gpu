@@ -358,15 +358,19 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h
-                .to_device()
-                .unwrap()
-                .to_column_major_blowup(log_blowup);
+            let mut mat_d = unsafe {
+                mat_h
+                    .to_device()
+                    .unwrap()
+                    .embed_as_blowup(log_blowup)
+                    .unwrap()
+            };
 
             // Test the regulat version.
             let time = Instant::now();
             let shift = rng.gen::<BabyBear>();
-            unsafe { dft.coset_lde_batch(&mut mat_d, log_blowup, shift, false) }.unwrap();
+            dft.coset_lde_batch(&mut mat_d, log_blowup, shift, false)
+                .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -401,10 +405,13 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h
-                .to_device()
-                .unwrap()
-                .to_column_major_blowup(log_blowup);
+            let mut mat_d = unsafe {
+                mat_h
+                    .to_device()
+                    .unwrap()
+                    .embed_as_blowup(log_blowup)
+                    .unwrap()
+            };
 
             // Test the regulat version.
             let time = Instant::now();

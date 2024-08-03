@@ -5,9 +5,11 @@ use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
 use sp1_core::stark::Com;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
+use crate::device::RawDevicePointer;
 use crate::dft::{DeviceDft, Dft};
-use crate::matrix::ColMajorMatrixDevice;
+use crate::matrix::{ColMajorMatrix, ColMajorMatrixDevice};
 use crate::merkle_tree::MmcsCommitter;
 use crate::stark::BabyBearFriConfig;
 
@@ -41,12 +43,16 @@ impl<
         self.log_blowup
     }
 
-    pub fn encode(
+    pub fn encode<P>(
         &self,
         domain: TwoAdicMultiplicativeCoset<BabyBear>,
-        matrix: &ColMajorMatrixDevice<BabyBear>,
+        matrix: &ColMajorMatrix<P>,
         bit_reversed: bool,
-    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+    ) -> Result<ColMajorMatrix<P>, CudaError>
+    where
+        P: RawDevicePointer<Data = BabyBear>,
+        DeviceDft<BabyBear>: Dft<P>,
+    {
         assert_eq!(domain.size(), matrix.height());
 
         let shift = domain.shift.inverse();
@@ -143,7 +149,7 @@ mod tests {
         let evaluations = domains_and_traces
             .iter()
             .map(|(domain, trace)| {
-                let trace = trace.to_device().unwrap().to_column_major();
+                let trace = trace.to_device().unwrap();
                 (*domain, trace)
             })
             .collect::<Vec<_>>();

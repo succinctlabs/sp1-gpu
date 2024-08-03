@@ -562,7 +562,6 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
 #[cfg(test)]
 mod tests {
     use crate::device::memory::ToHost;
-    use crate::matrix::RowMajorMatrixDevice;
     use crate::time::CudaInstant;
 
     use super::*;
@@ -657,13 +656,9 @@ mod tests {
         }
 
         // Transfer perm and main traces to the device.
-        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
-        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
-        let prep_d = prep_d.to_column_major();
+        let prep_d = preprocessed_trace.to_device().unwrap();
 
-        let main_trace_d = main_trace.values.to_device().unwrap();
-        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
-        let main_d = main_d.to_column_major();
+        let main_d = main_trace.to_device().unwrap();
 
         // Get randomness.
         let alpha = rng.gen::<EF>();

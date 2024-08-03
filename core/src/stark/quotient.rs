@@ -130,7 +130,7 @@ where
             let preprocessed_on_quotient_domain = pk
                 .chip_ordering
                 .get(&chip.name())
-                .map(|&index| pk.traces[index].to_device().unwrap().to_column_major())
+                .map(|&index| pk.traces[index].to_device().unwrap())
                 .map(|trace| {
                     committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
                 })
@@ -390,11 +390,11 @@ mod tests {
     };
     use tracing::debug;
 
+    use crate::device::memory::ToDevice;
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
     use crate::utils::init_tracer;
-    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
     type F = BabyBear;
     const D: usize = 4;
@@ -518,33 +518,13 @@ mod tests {
             let quotient_domain_device = quotient_domain.to_device().unwrap();
 
             let preprocessed_trace_on_quotient_domain_device =
-                preprocessed_trace_on_quotient_domain
-                    .values
-                    .to_device()
-                    .unwrap();
-            let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-                preprocessed_trace_on_quotient_domain_device,
-                preprocessed_trace_on_quotient_domain.width(),
-            )
-            .to_column_major();
+                preprocessed_trace_on_quotient_domain.to_device().unwrap();
 
             let main_trace_on_quotient_domain_device =
-                main_trace_on_quotient_domain.values.to_device().unwrap();
-            let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-                main_trace_on_quotient_domain_device,
-                main_trace_on_quotient_domain.width(),
-            )
-            .to_column_major();
+                main_trace_on_quotient_domain.to_device().unwrap();
 
-            let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
-                .values
-                .to_device()
-                .unwrap();
-            let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-                permutation_trace_on_quotient_domain_device,
-                permutation_trace_on_quotient_domain.width(),
-            )
-            .to_column_major();
+            let permutation_trace_on_quotient_domain_device =
+                permutation_trace_on_quotient_domain.to_device().unwrap();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
 

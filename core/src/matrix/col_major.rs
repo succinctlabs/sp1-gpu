@@ -1,5 +1,6 @@
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
+use p3_matrix::Matrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
@@ -206,6 +207,29 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
     }
 }
 
+impl ToDevice for RowMajorMatrix<BabyBear> {
+    type DeviceType = ColMajorMatrixDevice<BabyBear>;
+
+    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+        let values = self.values.to_device()?;
+        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
+        unsafe {
+            let view = MatrixViewDevice {
+                values: values.as_ptr(),
+                width: self.width,
+                height: self.height(),
+                row_major: true,
+                _marker: std::marker::PhantomData,
+            };
+            transpose_naive(ret_values.as_mut_ptr(), view);
+            ret_values.set_max_len();
+        }
+
+        Ok(ColMajorMatrixDevice::new(ret_values, self.height()))
+        // Ok(RowMajorMatrixDevice::new(values, self.width))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use p3_baby_bear::BabyBear;
@@ -258,7 +282,7 @@ mod tests {
         let mut rng = thread_rng();
         let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
 
-        let mut device_matrix = host_matrix.to_device().unwrap().to_column_major();
+        let mut device_matrix = host_matrix.to_device().unwrap();
         device_matrix.bit_reverse_rows().unwrap();
 
         let host_matrix_reversed = host_matrix.bit_reverse_rows().to_row_major_matrix();
@@ -283,7 +307,7 @@ mod tests {
         let mut rng = thread_rng();
         let host_matrix = RowMajorMatrix::<BabyBear>::rand(&mut rng, height, width);
 
-        let device_matrix = host_matrix.to_device().unwrap().to_column_major();
+        let device_matrix = host_matrix.to_device().unwrap();
 
         for offset in 0..stride {
             let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();
