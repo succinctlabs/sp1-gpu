@@ -3,7 +3,7 @@ use crate::device::{
     DefaultDeviceAllocator, DeviceAllocator, TryAllocError, DEFAULT_ALLOCATOR,
 };
 
-use super::{RawDevicePointer, RawPointer};
+use super::{Offset, DefaultAllocatorPointer, RawPointer};
 
 #[repr(transparent)]
 pub struct CudaHostPointer<T>(*mut T);
@@ -30,7 +30,7 @@ impl<T: Copy> RawPointer for CudaHostPointer<T> {
     }
 }
 
-impl<T: Copy> RawDevicePointer for CudaHostPointer<T> {
+impl<T: Copy> DefaultAllocatorPointer for CudaHostPointer<T> {
     type Allocator = DefaultDeviceAllocator;
 
     fn allocator(&self) -> &Self::Allocator {
@@ -65,5 +65,21 @@ impl<T: Copy> DeviceAllocator<CudaHostPointer<T>> for DefaultDeviceAllocator {
         let ptr = cuda_malloc_host(len)?;
 
         Ok(CudaHostPointer(ptr))
+    }
+}
+
+impl<T: Copy> Offset for CudaHostPointer<T> {
+    unsafe fn add(&self, rhs: usize) -> Self {
+        CudaHostPointer(self.0.add(rhs))
+    }
+}
+
+impl<T: Copy> Offset for CudaRegisteredPointer<T> {
+    unsafe fn add(&self, rhs: usize) -> Self {
+        CudaRegisteredPointer {
+            ptr: self.ptr.add(rhs),
+            len: self.len,
+            capacity: self.capacity,
+        }
     }
 }

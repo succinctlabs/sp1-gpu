@@ -1,7 +1,7 @@
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
-use crate::device::{error::CudaRustError, CudaScan};
+use crate::device::{error::CudaRustError, Scan};
 
 type F = BabyBear;
 const D: usize = 4;
@@ -17,14 +17,14 @@ mod ffi {
     }
 }
 
-impl CudaScan for F {
-    unsafe fn cuda_scan(a: *mut Self, b: *const Self, n: usize) -> CudaRustError {
+impl Scan for F {
+    unsafe fn scan_raw(a: *mut Self, b: *const Self, n: usize) -> CudaRustError {
         ffi::scan_baby_bear(a, b, n)
     }
 }
 
-impl CudaScan for EF {
-    unsafe fn cuda_scan(a: *mut Self, b: *const Self, n: usize) -> CudaRustError {
+impl Scan for EF {
+    unsafe fn scan_raw(a: *mut Self, b: *const Self, n: usize) -> CudaRustError {
         ffi::scan_baby_bear_challenge(a, b, n)
     }
 }

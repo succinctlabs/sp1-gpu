@@ -3,7 +3,7 @@ use crate::{
     device::{error::CudaError, DeviceAllocator, TryAllocError},
 };
 
-use super::{CopyRawFrom, RawDevicePointer, RawPointer};
+use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawPointer};
 
 pub struct DeviceStreamPointer<T> {
     ptr: *mut T,
@@ -32,7 +32,7 @@ impl<T: Copy> RawPointer for DeviceStreamPointer<T> {
     }
 }
 
-impl<T: Copy> RawDevicePointer for DeviceStreamPointer<T> {
+impl<T: Copy> DefaultAllocatorPointer for DeviceStreamPointer<T> {
     type Allocator = CudaStream;
 
     fn allocator(&self) -> &Self::Allocator {
@@ -51,7 +51,7 @@ impl<T: Copy> DeviceAllocator<DeviceStreamPointer<T>> for CudaStream {
 }
 
 impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for DeviceStreamPointer<T> {
-    unsafe fn copy_from(
+    unsafe fn copy_raw_from(
         &mut self,
         src: &DeviceStreamPointer<T>,
         len: usize,
@@ -63,7 +63,7 @@ impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for DeviceStreamPointer<T> {
 }
 
 impl<T: Copy> CopyRawFrom<*const T> for DeviceStreamPointer<T> {
-    unsafe fn copy_from(&mut self, src: &*const T, len: usize) -> Result<(), CudaError> {
+    unsafe fn copy_raw_from(&mut self, src: &*const T, len: usize) -> Result<(), CudaError> {
         self.stream
             .cuda_memcpy_host_to_device_async(self.ptr, *src, len)?;
         Ok(())
@@ -71,7 +71,7 @@ impl<T: Copy> CopyRawFrom<*const T> for DeviceStreamPointer<T> {
 }
 
 impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for *mut T {
-    unsafe fn copy_from(
+    unsafe fn copy_raw_from(
         &mut self,
         src: &DeviceStreamPointer<T>,
         len: usize,
@@ -79,5 +79,14 @@ impl<T: Copy> CopyRawFrom<DeviceStreamPointer<T>> for *mut T {
         src.stream
             .cuda_memcpy_device_to_host_async(*self, src.ptr, len)?;
         Ok(())
+    }
+}
+
+impl<T> Offset for DeviceStreamPointer<T> {
+    unsafe fn add(&self, rhs: usize) -> Self {
+        DeviceStreamPointer {
+            ptr: self.ptr.add(rhs),
+            stream: self.stream.clone(),
+        }
     }
 }

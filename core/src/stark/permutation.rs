@@ -5,8 +5,9 @@ use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
+use crate::device::Scan;
 use crate::{
-    device::{error::CudaError, memory::ToDevice, slice::DeviceSlice, DeviceBuffer},
+    device::{error::CudaError, memory::ToDevice, DeviceBuffer},
     matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
 
@@ -429,9 +430,9 @@ impl DeviceInteractions<BabyBear> {
 
         // Collect the cumulative sums using a scan in place.
         unsafe {
-            let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-            cumulative_column.scan_inplace()
+            Scan::scan_raw(last_col_ptr, last_col_ptr, height);
         }
+        Ok(())
     }
 
     pub fn generate_flattened_permutation_trace(
@@ -468,8 +469,7 @@ impl DeviceInteractions<BabyBear> {
         // TODO: optimize with a single kernel call instead of scan for each column of the batch.
         unsafe {
             for last_col_ptr in last_col_ptrs {
-                let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-                cumulative_column.scan_inplace()?;
+                Scan::scan_raw(last_col_ptr, last_col_ptr, height);
             }
         }
         Ok(())

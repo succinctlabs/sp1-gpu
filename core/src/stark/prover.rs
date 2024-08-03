@@ -41,6 +41,8 @@ use std::cmp::Reverse;
 use air::P3EvalFolder;
 
 use crate::device::memory::cuda_mem_get_info;
+use crate::device::CopyRawTo;
+use crate::device::Offset;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
 use crate::merkle_tree::MmcsProverData;
@@ -371,7 +373,17 @@ where
                     trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
                 SC::Challenge::from_base_fn(|i| {
                     let index = (start_col_idx + i) * trace.height() + row_idx;
-                    let val = trace.values[index..index + 1].to_host();
+                    let mut val = Vec::<SC::Val>::with_capacity(1);
+                    unsafe {
+                        val.set_len(1);
+                        trace
+                            .values
+                            .buf_ptr()
+                            .add(index)
+                            .copy_raw_to(&mut val.as_mut_ptr(), 1)
+                            .unwrap();
+                    }
+                    // let val = trace.values[index..index + 1].to_host();
                     val[0]
                 })
             })

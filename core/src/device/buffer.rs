@@ -10,7 +10,7 @@ use crate::device::slice::DeviceSlice;
 use super::error::CudaError;
 use super::memory::{CopyFrom, ToDevice, ToHost};
 use super::{
-    AllocError, CopyRawFrom, DeviceAllocator, DevicePointer, RawDevicePointer, RawPointer,
+    AllocError, CopyRawFrom, DefaultAllocatorPointer, DeviceAllocator, DevicePointer, RawPointer,
     TryAllocError, DEFAULT_ALLOCATOR,
 };
 
@@ -29,6 +29,10 @@ unsafe impl<P: RawPointer> Sync for Buffer<P> {}
 pub type DeviceBuffer<T> = Buffer<DevicePointer<T>>;
 
 impl<P: RawPointer> Buffer<P> {
+    pub fn buf_ptr(&self) -> &P {
+        &self.buf
+    }
+
     pub fn try_with_capacity_in(
         capacity: usize,
         alloc: &impl DeviceAllocator<P>,
@@ -57,7 +61,7 @@ impl<P: RawPointer> Buffer<P> {
 
     pub fn allocator(&self) -> &P::Allocator
     where
-        P: RawDevicePointer,
+        P: DefaultAllocatorPointer,
     {
         self.buf.allocator()
     }
@@ -147,7 +151,7 @@ where
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { self.buf.copy_from(&src.as_ptr(), len) }
+        unsafe { self.buf.copy_raw_from(&src.as_ptr(), len) }
     }
 }
 

@@ -1,28 +1,28 @@
 use super::{
     error::{CudaError, CudaRustError},
-    Buffer, RawDevicePointer,
+    Buffer, DefaultAllocatorPointer,
 };
 
-pub trait CudaScan: Copy {
+pub trait Scan: Copy {
     /// # Safety
     ///
     /// TODO
-    unsafe fn cuda_scan(a: *mut Self, b: *const Self, n: usize) -> CudaRustError;
+    unsafe fn scan_raw(a: *mut Self, b: *const Self, n: usize) -> CudaRustError;
 }
 
-impl<P: RawDevicePointer> Buffer<P>
+impl<P: DefaultAllocatorPointer> Buffer<P>
 where
-    P::Data: CudaScan,
+    P::Data: Scan,
 {
     pub fn scan(&self) -> Result<Self, CudaError> {
         let mut result = Self::with_capacity_in(self.len(), self.allocator())?;
         unsafe { result.set_max_len() };
-        unsafe { P::Data::cuda_scan(result.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }?;
+        unsafe { P::Data::scan_raw(result.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }?;
         // self.scan_into(&mut result)?;
         Ok(result)
     }
 
     pub fn scan_inplace(&mut self) -> Result<(), CudaError> {
-        unsafe { P::Data::cuda_scan(self.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }
+        unsafe { P::Data::scan_raw(self.as_mut_ptr(), self.as_ptr(), self.len()).to_result() }
     }
 }

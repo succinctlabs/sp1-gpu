@@ -8,7 +8,11 @@ pub use sync::*;
 
 use super::{error::CudaError, DeviceAllocator};
 
-pub trait RawPointer: Sized {
+pub trait Offset {
+    unsafe fn add(&self, offset: usize) -> Self;
+}
+
+pub trait RawPointer: Sized + Offset {
     type Data;
 
     fn as_ptr(&self) -> *const Self::Data;
@@ -17,31 +21,35 @@ pub trait RawPointer: Sized {
     fn free(&mut self);
 }
 
-pub trait RawDevicePointer: RawPointer {
+pub trait DefaultAllocatorPointer: RawPointer {
     type Allocator: DeviceAllocator<Self>;
 
     fn allocator(&self) -> &Self::Allocator;
 }
 
+pub trait RawDevicePointer: DefaultAllocatorPointer + CopyRawFrom<Self> {}
+
+impl<P> RawDevicePointer for P where P: DefaultAllocatorPointer + CopyRawFrom<Self> {}
+
 pub trait CopyRawFrom<P> {
     /// # Safety
     ///
     /// The pointer must be valid, it must have allocated memory in the size of `len`
-    unsafe fn copy_from(&mut self, src: &P, len: usize) -> Result<(), CudaError>;
+    unsafe fn copy_raw_from(&mut self, src: &P, len: usize) -> Result<(), CudaError>;
 }
 
 pub trait CopyRawTo<P> {
     /// # Safety
     ///
     /// The pointer must be valid, it must have allocated memory in the size of `len`
-    unsafe fn copy_to(&self, dst: &mut P, len: usize) -> Result<(), CudaError>;
+    unsafe fn copy_raw_to(&self, dst: &mut P, len: usize) -> Result<(), CudaError>;
 }
 
 impl<T, S> CopyRawTo<S> for T
 where
     S: CopyRawFrom<T>,
 {
-    unsafe fn copy_to(&self, dst: &mut S, len: usize) -> Result<(), CudaError> {
-        dst.copy_from(self, len)
+    unsafe fn copy_raw_to(&self, dst: &mut S, len: usize) -> Result<(), CudaError> {
+        dst.copy_raw_from(self, len)
     }
 }

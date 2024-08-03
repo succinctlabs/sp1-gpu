@@ -4,7 +4,7 @@ use crate::device::{
     DefaultDeviceAllocator, DEFAULT_ALLOCATOR,
 };
 
-use super::{CopyRawFrom, RawDevicePointer, RawPointer};
+use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawPointer};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
@@ -26,7 +26,7 @@ impl<T> RawPointer for DevicePointer<T> {
     }
 }
 
-impl<T: Copy> RawDevicePointer for DevicePointer<T> {
+impl<T: Copy> DefaultAllocatorPointer for DevicePointer<T> {
     type Allocator = DefaultDeviceAllocator;
 
     fn allocator(&self) -> &Self::Allocator {
@@ -41,19 +41,33 @@ impl<T> DevicePointer<T> {
 }
 
 impl<T: Copy> CopyRawFrom<DevicePointer<T>> for DevicePointer<T> {
-    unsafe fn copy_from(&mut self, src: &DevicePointer<T>, len: usize) -> Result<(), CudaError> {
+    unsafe fn copy_raw_from(
+        &mut self,
+        src: &DevicePointer<T>,
+        len: usize,
+    ) -> Result<(), CudaError> {
         copy_device_to_device(self.0, src.0, len)
     }
 }
 
 impl<T: Copy> CopyRawFrom<*const T> for DevicePointer<T> {
-    unsafe fn copy_from(&mut self, src: &*const T, len: usize) -> Result<(), CudaError> {
+    unsafe fn copy_raw_from(&mut self, src: &*const T, len: usize) -> Result<(), CudaError> {
         copy_host_to_device(self.0, *src, len)
     }
 }
 
 impl<T: Copy> CopyRawFrom<DevicePointer<T>> for *mut T {
-    unsafe fn copy_from(&mut self, src: &DevicePointer<T>, len: usize) -> Result<(), CudaError> {
+    unsafe fn copy_raw_from(
+        &mut self,
+        src: &DevicePointer<T>,
+        len: usize,
+    ) -> Result<(), CudaError> {
         copy_device_to_host(*self, src.0, len)
+    }
+}
+
+impl<T> Offset for DevicePointer<T> {
+    unsafe fn add(&self, rhs: usize) -> Self {
+        DevicePointer(self.0.add(rhs))
     }
 }

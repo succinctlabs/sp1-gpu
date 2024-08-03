@@ -425,6 +425,8 @@ pub(super) mod merkle_tree_opening_prover {
     use p3_util::log2_ceil_usize;
 
     use crate::device::memory::ToDevice;
+    use crate::device::CopyRawTo;
+    use crate::device::Offset;
     use crate::matrix::MatrixViewDevice;
     use crate::merkle_tree::FieldMerkleTreeDeviceCommitter;
     use crate::merkle_tree::FieldMerkleTreeHasher;
@@ -445,7 +447,7 @@ pub(super) mod merkle_tree_opening_prover {
         C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
         C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
         C: Sync,
-        PW::Value: Eq,
+        PW::Value: Eq + Copy,
         [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
     {
         fn query_open_batch(
@@ -551,8 +553,19 @@ pub(super) mod merkle_tree_opening_prover {
                             let proof = (0..log_max_height)
                                 .map(|i| {
                                     let start = (data_index >> i) ^ 1;
-                                    let end = start + 1;
-                                    data.digest_layers[i][start..end].to_host()[0]
+                                    let data_out = unsafe {
+                                        let mut data_out =
+                                            Vec::<[PW::Value; DIGEST_ELEMS]>::with_capacity(1);
+                                        data_out.set_len(1);
+                                        let data_ptr = data.digest_layers[i].buf_ptr().add(start);
+                                        data_ptr
+                                            .copy_raw_to(&mut data_out.as_mut_ptr(), 1)
+                                            .unwrap();
+                                        data_out
+                                    };
+                                    data_out[0]
+
+                                    // data.digest_layers[i][start..end].to_host()[0]
                                 })
                                 .collect();
 

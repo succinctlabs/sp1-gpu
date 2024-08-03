@@ -1,5 +1,3 @@
-use core::alloc;
-
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
@@ -74,10 +72,12 @@ impl<P: RawPointer> ColMajorMatrix<P> {
 
         // Copy the columns from the source buffer into the correct place in the destination buffer.
         for j in 0..self.width() {
-            let src = &self.values[j * self.height..(j + 1) * self.height];
+            let len = self.height;
+            let src = self.values.buf_ptr().add(j * self.height);
             let dst = &mut blowup_values
-                [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
-            dst.copy_from_device(src)?;
+                .buf_ptr()
+                .add(j * blowup_height + blowup_height - self.height);
+            dst.copy_raw_from(&src, len)?;
         }
 
         Ok(Self::new(blowup_values, blowup_height))
