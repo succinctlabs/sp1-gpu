@@ -9,6 +9,9 @@ pub use sync::*;
 use super::{error::CudaError, DeviceAllocator};
 
 pub trait Offset {
+    /// # Safety
+    ///
+    /// The caller must guarantee that the offset is valid.
     unsafe fn add(&self, offset: usize) -> Self;
 }
 

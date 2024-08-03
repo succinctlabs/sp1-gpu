@@ -125,7 +125,7 @@ where
         let leaves_device = self
             .leaves
             .iter()
-            .map(|l| Ok(l.to_device()?))
+            .map(|l| l.to_device())
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         let digest_layers_device = self
