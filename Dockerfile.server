@@ -1,0 +1,31 @@
+# Start with a base image that includes CUDA
+FROM nvidia/cuda:12.5.1-devel-ubuntu20.04 AS builder
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy the Rust project files
+COPY . .
+
+# Build the Rust project
+RUN cargo build -p moongate-server --release
+
+# Runtime stage
+FROM nvidia/cuda:12.5.1-runtime-ubuntu20.04
+
+# Copy the binary from the builder stage
+COPY --from=builder /usr/src/app/target/release/moongate-server /usr/local/bin/moongate-server
+
+# Set the entrypoint to run the binary
+ENTRYPOINT ["moongate-server"]

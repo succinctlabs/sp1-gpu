@@ -75,7 +75,26 @@ namespace constants {
             bb31_t(510217063),  bb31_t(166444818),  bb31_t(1430745893),
             bb31_t(1376516190), bb31_t(1775891321)
     };
-
+#if 1
+    __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
+        bb31_t(125829121),  
+        bb31_t(943718400),  
+        bb31_t(1887436800),
+        bb31_t(1761607679),
+        bb31_t(1509949437),
+        bb31_t(1006632953),
+        bb31_t(2013265906),
+        bb31_t(2013265891),
+        bb31_t(2013265861),
+        bb31_t(2013265801),
+        bb31_t(2013265681),
+        bb31_t(2013265441),
+        bb31_t(2013264961),
+        bb31_t(2013264001),
+        bb31_t(2013262081),
+        bb31_t(2013250561)
+    };
+#else
     __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
         bb31_t(2013265919),
         bb31_t(1),
@@ -94,8 +113,8 @@ namespace constants {
         bb31_t(8192),
         bb31_t(32768)
     };
-
-    constexpr const bb31_t MONTY_INVERSE = bb31_t(943718400);
+#endif
+    __constant__ constexpr const bb31_t MONTY_INVERSE = bb31_t(943718400);
 
 }  // namespace constants
 
@@ -120,18 +139,11 @@ class BabyBear {
     static constexpr pF_t MONTY_INVERSE = constants::MONTY_INVERSE;
 
     __device__ static void internalLinearLayer(F_t state[WIDTH], pF_t*, F_t) {
-        matmulInternal(state);
+        uint64_t sum64 = 0;
         for (int i = 0; i < WIDTH; i++) {
-            state[i] = state[i] * MONTY_INVERSE;
+            sum64 += static_cast<uint64_t>(state[i].val);
         }
-    }
-
-    __device__ static void matmulInternal(F_t state[WIDTH]) {
-        F_t sum;
-        sum.zero();
-        for (int i = 0; i < WIDTH; i++) {
-            sum += state[i];
-        }
+        const F_t sum = bb31_t(static_cast<uint32_t>(sum64 % bb31_t::MOD)) * MONTY_INVERSE;
         for (int i = 0; i < WIDTH; i++) {
             state[i] *= MAT_INTERNAL_DIAG_M1[i];
             state[i] += sum;
@@ -150,7 +162,7 @@ class BabyBear {
             sums[3] += state[i + 3];
         }
         for (int i = 0; i < WIDTH; i++) {
-            state[i] += sums[i % 4];
+            state[i] += sums[i & 3];
         }
     }
 
