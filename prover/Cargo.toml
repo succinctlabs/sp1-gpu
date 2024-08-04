@@ -9,6 +9,7 @@ sp1-core = { workspace = true, features = ["programs"] }
 tracing = "0.1.40"
 
 moongate-core = { path = "../core" }
+sysinfo = "0.31.2"
 
 
 [dev-dependencies]
