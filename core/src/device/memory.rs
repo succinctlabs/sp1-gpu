@@ -1,8 +1,11 @@
 use std::{ffi::c_void, mem, ptr};
 
-use crate::{device::error::CudaError, device::ffi};
+use crate::{
+    cuda_runtime::stream::CudaStream,
+    device::{error::CudaError, ffi},
+};
 
-use super::buffer::DeviceBuffer;
+use super::{buffer::DeviceBuffer, DeviceBufferAsync};
 
 pub trait ToDevice {
     type DeviceType;
@@ -10,17 +13,16 @@ pub trait ToDevice {
     fn to_device(&self) -> Result<Self::DeviceType, CudaError>;
 }
 
+pub trait ToDeviceAsync {
+    type DeviceTypeAsync;
+
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError>;
+}
+
 pub trait ToHost {
     type HostType;
 
     fn to_host(&self) -> Self::HostType;
-
-    fn into_host(self) -> Self::HostType
-    where
-        Self: Sized,
-    {
-        self.to_host()
-    }
 }
 
 pub trait CopyFrom<P: ?Sized> {
@@ -36,6 +38,16 @@ impl<T: Copy> ToDevice for [T] {
 
     fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
         let mut buffer = DeviceBuffer::with_capacity(self.len())?;
+        buffer.extend_from_host_slice(self);
+        Ok(buffer)
+    }
+}
+
+impl<T: Copy> ToDeviceAsync for [T] {
+    type DeviceTypeAsync = DeviceBufferAsync<T>;
+
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError> {
+        let mut buffer = DeviceBufferAsync::with_capacity_in(self.len(), stream)?;
         buffer.extend_from_host_slice(self);
         Ok(buffer)
     }

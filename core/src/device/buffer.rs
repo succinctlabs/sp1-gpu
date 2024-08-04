@@ -1,10 +1,11 @@
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::memory::{copy_device_to_host, copy_host_to_device};
 
 use super::error::CudaError;
-use super::memory::{CopyFrom, ToDevice, ToHost};
+use super::memory::{CopyFrom, ToDevice, ToDeviceAsync, ToHost};
 use super::{
-    AllocError, CopyRawFrom, DefaultAllocatorPointer, DeviceAllocator, DevicePointer, RawPointer,
-    TryAllocError, DEFAULT_ALLOCATOR,
+    AllocError, CopyRawFrom, CopyRawTo, DefaultAllocatorPointer, DeviceAllocator, DevicePointer,
+    DeviceStreamPointer, RawPointer, TryAllocError, DEFAULT_ALLOCATOR,
 };
 
 /// Fixed-size device-side buffer.
@@ -20,6 +21,7 @@ unsafe impl<P: RawPointer> Send for Buffer<P> {}
 unsafe impl<P: RawPointer> Sync for Buffer<P> {}
 
 pub type DeviceBuffer<T> = Buffer<DevicePointer<T>>;
+pub type DeviceBufferAsync<T> = Buffer<DeviceStreamPointer<T>>;
 
 impl<P: RawPointer> Buffer<P> {
     pub fn buf_ptr(&self) -> &P {
@@ -108,10 +110,68 @@ impl<P: RawPointer> Buffer<P> {
         self.buf.as_mut_ptr()
     }
 
-    /// Calculates the offset to the current element.
-    #[inline]
-    unsafe fn offset(&self) -> *mut P::Data {
-        (self.buf.as_ptr() as *mut P::Data).add(self.len)
+    /// Appends all the elements from `src` into `self`, using a cudaMemcpy.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the resulting length will extend the buffer's capacity or if
+    /// cudaMalloc returned an error.
+    pub fn extend_from_host_slice(&mut self, src: &[P::Data])
+    where
+        P: CopyRawFrom<*const P::Data>,
+    {
+        // The panic code path was put into a cold function to not bloat the
+        // call site.
+        #[inline(never)]
+        #[cold]
+        #[track_caller]
+        fn capacity_fail(dst_len: usize, src_len: usize, cap: usize) -> ! {
+            panic!(
+                "source slice length ({}) too long for buffer of length ({}) and capacity ({})",
+                src_len, dst_len, cap
+            );
+        }
+
+        if self.len() + src.len() > self.cap {
+            capacity_fail(self.len(), src.len(), self.cap);
+        }
+
+        unsafe {
+            let mut offset = self.buf.add(self.len());
+            offset.copy_raw_from(&src.as_ptr(), src.len()).unwrap();
+        }
+
+        // Extend the length of the buffer to include the new elements.
+        self.len += src.len();
+    }
+
+    pub fn copy_to_host(&self, dst: &mut [P::Data])
+    where
+        P: CopyRawTo<*mut P::Data>,
+    {
+        // The panic code path was put into a cold function to not bloat the
+        // call site.
+        #[inline(never)]
+        #[cold]
+        #[track_caller]
+        fn len_mismatch_fail(dst_len: usize, src_len: usize) -> ! {
+            panic!(
+                "source slice length ({}) does not match destination slice length ({})",
+                src_len, dst_len,
+            );
+        }
+
+        if self.len() != dst.len() {
+            len_mismatch_fail(self.len(), dst.len());
+        }
+
+        unsafe {
+            self.buf
+                .copy_raw_to(&mut dst.as_mut_ptr(), dst.len())
+                .unwrap();
+        }
+
+        // unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf.as_ptr(), dst.len()) }.unwrap()
     }
 }
 
@@ -172,55 +232,6 @@ impl<T: Copy> DeviceBuffer<T> {
 
         unsafe { copy_host_to_device(self.buf.as_mut_ptr(), src.as_ptr(), src.len()) }.unwrap()
     }
-
-    pub fn copy_to_host(&self, dst: &mut [T]) {
-        // The panic code path was put into a cold function to not bloat the
-        // call site.
-        #[inline(never)]
-        #[cold]
-        #[track_caller]
-        fn len_mismatch_fail(dst_len: usize, src_len: usize) -> ! {
-            panic!(
-                "source slice length ({}) does not match destination slice length ({})",
-                src_len, dst_len,
-            );
-        }
-
-        if self.len() != dst.len() {
-            len_mismatch_fail(self.len(), dst.len());
-        }
-
-        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf.as_ptr(), dst.len()) }.unwrap()
-    }
-
-    /// Appends all the elements from `src` into `self`, using a cudaMemcpy.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if the resulting length will extend the buffer's capacity or if
-    /// cudaMalloc returned an error.
-    pub fn extend_from_host_slice(&mut self, src: &[T]) {
-        // The panic code path was put into a cold function to not bloat the
-        // call site.
-        #[inline(never)]
-        #[cold]
-        #[track_caller]
-        fn capacity_fail(dst_len: usize, src_len: usize, cap: usize) -> ! {
-            panic!(
-                "source slice length ({}) too long for buffer of length ({}) and capacity ({})",
-                src_len, dst_len, cap
-            );
-        }
-
-        if self.len() + src.len() > self.cap {
-            capacity_fail(self.len(), src.len(), self.cap);
-        }
-
-        unsafe { copy_host_to_device(self.offset(), src.as_ptr(), src.len()) }.unwrap();
-
-        // Extend the length of the buffer to include the new elements.
-        self.len += src.len();
-    }
 }
 
 impl<P: RawPointer> Drop for Buffer<P> {
@@ -239,10 +250,33 @@ impl<T: Copy> ToDevice for Vec<T> {
     }
 }
 
+impl<T: Copy> ToDeviceAsync for Vec<T> {
+    type DeviceTypeAsync = DeviceBufferAsync<T>;
+
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError> {
+        let mut buffer = DeviceBufferAsync::with_capacity_in(self.len(), stream)?;
+        buffer.extend_from_host_slice(self);
+        Ok(buffer)
+    }
+}
+
 impl<T: Copy> ToHost for DeviceBuffer<T> {
     type HostType = Vec<T>;
 
     fn to_host(&self) -> Vec<T> {
+        let mut host = Vec::with_capacity(self.len);
+        unsafe {
+            host.set_len(self.len);
+        }
+        self.copy_to_host(&mut host);
+        host
+    }
+}
+
+impl<T: Copy> ToHost for DeviceBufferAsync<T> {
+    type HostType = Vec<T>;
+
+    fn to_host(&self) -> Self::HostType {
         let mut host = Vec::with_capacity(self.len);
         unsafe {
             host.set_len(self.len);
@@ -282,32 +316,6 @@ mod tests {
         }
     }
 
-    // fn make_test_buffer_slice_index<T>(rng: &mut impl Rng, len: usize, slice_range: Range<usize>)
-    // where
-    //     T: Debug + Copy + Default + Eq,
-    //     Standard: Distribution<T>,
-    // {
-    //     let mut buffer = DeviceBuffer::<T>::with_capacity(len).unwrap();
-    //     assert_eq!(buffer.len(), 0);
-
-    //     // Initialize the buffer to zero.
-    //     buffer.extend_from_host_slice(&vec![T::default(); len]);
-    //     assert_eq!(buffer.len(), len);
-
-    //     let new_values = slice_range.clone().map(|_| rng.gen()).collect::<Vec<_>>();
-    //     let device_slice = &mut buffer[slice_range.clone()];
-    //     assert_eq!(device_slice.len(), slice_range.len());
-
-    //     device_slice.copy_from(&new_values);
-
-    //     let mut new_values_back = vec![T::default(); len];
-    //     device_slice.copy_into_host(&mut new_values_back[0..slice_range.len()]);
-
-    //     for (val, exp) in new_values_back.into_iter().zip(new_values) {
-    //         assert_eq!(val, exp);
-    //     }
-    // }
-
     #[test]
     fn test_buffer_init_and_copy() {
         let len = 10000;
@@ -316,14 +324,4 @@ mod tests {
         make_test_buffer_init_and_copy::<u32>(&mut rng, len);
         make_test_buffer_init_and_copy::<u64>(&mut rng, len);
     }
-
-    // #[test]
-    // fn test_buffer_slice_index() {
-    //     let len = 10000;
-    //     let range = 34..900;
-
-    //     let mut rng = thread_rng();
-    //     make_test_buffer_slice_index::<u32>(&mut rng, len, range.clone());
-    //     make_test_buffer_slice_index::<u64>(&mut rng, len, range);
-    // }
 }
