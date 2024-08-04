@@ -19,6 +19,8 @@ pub trait DeviceMatrix<T: Copy> {
 }
 
 pub(super) mod ffi {
+    use std::os::raw::c_void;
+
     use p3_baby_bear::BabyBear;
 
     use crate::device::error::CudaRustError;
@@ -28,13 +30,17 @@ pub(super) mod ffi {
     #[link_name = "matrix_transpose"]
     #[allow(unused_attributes)]
     extern "C" {
-        pub fn transpose_naive(output: *mut BabyBear, input: MatrixViewDevice<BabyBear>);
-
-        pub fn transpose_blowup_naive(
+        pub fn transpose_naive(
             output: *mut BabyBear,
             input: MatrixViewDevice<BabyBear>,
-            log_blowup: usize,
+            stream: *const c_void,
         );
+
+        // pub fn transpose_blowup_naive(
+        //     output: *mut BabyBear,
+        //     input: MatrixViewDevice<BabyBear>,
+        //     log_blowup: usize,
+        // );
     }
 
     #[link_name = "matrix_strided"]

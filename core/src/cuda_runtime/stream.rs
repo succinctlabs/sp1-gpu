@@ -25,6 +25,10 @@ impl CudaStream {
         Ok(Self(Arc::new(CudaStreamHandle(ptr))))
     }
 
+    pub(crate) fn raw(&self) -> *mut c_void {
+        self.0 .0
+    }
+
     pub fn synchronize(&self) -> Result<(), CudaError> {
         unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
     }

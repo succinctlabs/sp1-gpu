@@ -1,5 +1,5 @@
 use crate::cuda_runtime::stream::CudaStream;
-use crate::device::memory::{copy_device_to_host, copy_host_to_device};
+use crate::device::memory::copy_host_to_device;
 
 use super::error::CudaError;
 use super::memory::{CopyFrom, ToDevice, ToDeviceAsync, ToHost};

@@ -4,10 +4,13 @@ use p3_matrix::Matrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
+use crate::cuda_runtime::ffi::DEFAULT_STREAM;
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
-use crate::device::memory::{ToDevice, ToHost};
+use crate::device::memory::{ToDevice, ToDeviceAsync, ToHost};
 use crate::device::{
-    AllocError, Buffer, DeviceAllocator, DeviceBuffer, DevicePointer, RawDevicePointer, RawPointer,
+    AllocError, Buffer, DeviceAllocator, DeviceBuffer, DeviceBufferAsync, DevicePointer,
+    DeviceStreamPointer, RawDevicePointer, RawPointer,
 };
 
 use super::ffi::{self, transpose_naive};
@@ -22,6 +25,7 @@ pub struct ColMajorMatrix<P: RawPointer> {
 }
 
 pub type ColMajorMatrixDevice<T> = ColMajorMatrix<DevicePointer<T>>;
+pub type ColMajorMatrixAsyncDevice<T> = ColMajorMatrix<DeviceStreamPointer<T>>;
 
 impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     pub fn empty() -> Self {
@@ -183,7 +187,7 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
         let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
         unsafe {
             ret_values.set_max_len();
-            transpose_naive(ret_values.as_mut_ptr(), self.view())
+            transpose_naive(ret_values.as_mut_ptr(), self.view(), DEFAULT_STREAM)
         };
         RowMajorMatrix::new(ret_values.to_host(), self.width())
     }
@@ -221,12 +225,34 @@ impl ToDevice for RowMajorMatrix<BabyBear> {
                 row_major: true,
                 _marker: std::marker::PhantomData,
             };
-            transpose_naive(ret_values.as_mut_ptr(), view);
+            transpose_naive(ret_values.as_mut_ptr(), view, DEFAULT_STREAM);
             ret_values.set_max_len();
         }
 
         Ok(ColMajorMatrixDevice::new(ret_values, self.height()))
-        // Ok(RowMajorMatrixDevice::new(values, self.width))
+    }
+}
+
+impl ToDeviceAsync for RowMajorMatrix<BabyBear> {
+    type DeviceTypeAsync = ColMajorMatrixAsyncDevice<BabyBear>;
+
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError> {
+        let values = self.values.to_device_async(stream)?;
+        let mut ret_values =
+            DeviceBufferAsync::with_capacity_in(self.height() * self.width(), stream)?;
+        unsafe {
+            let view = MatrixViewDevice {
+                values: values.as_ptr(),
+                width: self.width,
+                height: self.height(),
+                row_major: true,
+                _marker: std::marker::PhantomData,
+            };
+            transpose_naive(ret_values.as_mut_ptr(), view, stream.raw());
+            ret_values.set_max_len();
+        }
+
+        Ok(ColMajorMatrixAsyncDevice::new(ret_values, self.height()))
     }
 }
 
