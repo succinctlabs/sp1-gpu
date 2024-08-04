@@ -140,7 +140,8 @@ extern "C" rustCudaError_t reverse_bits_batch(fr_t* d_out, fr_t* d_in, uint32_t 
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    gpu.sync();
+    // CUDA_UNWRAP(cudaDeviceSynchronize());
 
     for (size_t c = 0; c < poly_count; c++) {
       NTT::bit_rev(&d_out[c * domain_size], &d_in[c * domain_size], lg_domain_size, gpu);
@@ -163,7 +164,8 @@ extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, ui
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    gpu.sync();
+    // CUDA_UNWRAP(cudaDeviceSynchronize());
 
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(gpu,

@@ -5,7 +5,6 @@ use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
 use sp1_core::stark::Com;
 
-use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::RawDevicePointer;
 use crate::dft::{DeviceDft, Dft};
@@ -65,12 +64,16 @@ impl<
         }
     }
 
-    pub fn get_evaluations_on_domain(
+    pub fn get_evaluations_on_domain<P>(
         &self,
         src_domain: TwoAdicMultiplicativeCoset<BabyBear>,
         dst_domain: TwoAdicMultiplicativeCoset<BabyBear>,
-        matrix: &ColMajorMatrixDevice<BabyBear>,
-    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        matrix: &ColMajorMatrix<P>,
+    ) -> Result<ColMajorMatrix<P>, CudaError>
+    where
+        P: RawDevicePointer<Data = BabyBear>,
+        DeviceDft<BabyBear>: Dft<P>,
+    {
         // Domain assertions for the current usage. The code is supposed to work regardless but we
         // keep them here for now since other usages are untested.
         debug_assert!(src_domain.shift.is_one());

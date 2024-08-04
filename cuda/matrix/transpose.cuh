@@ -56,7 +56,8 @@ __global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
     }
  }
 
-extern "C" void transpose_naive(bb31_t *output, Matrix<bb31_t> input) {
+extern "C" void transpose_naive(
+  bb31_t *output, Matrix<bb31_t> input) {
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     if (input.row_major) {
@@ -67,7 +68,9 @@ extern "C" void transpose_naive(bb31_t *output, Matrix<bb31_t> input) {
     }
 }
 
-extern "C" void transpose_blowup_naive(bb31_t *output, Matrix<bb31_t> input, size_t log_blowup) {
+extern "C" void transpose_blowup_naive(bb31_t *output, 
+   Matrix<bb31_t> input, 
+   size_t log_blowup) {
     assert(input.row_major);
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);

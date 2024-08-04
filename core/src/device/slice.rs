@@ -1,10 +1,9 @@
-use crate::device::memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device};
 use core::slice;
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 
-use super::{error::CudaError, memory::ToHost, CopyRawTo, RawPointer};
+use super::RawPointer;
 
 #[derive(Debug)]
 #[repr(transparent)]
