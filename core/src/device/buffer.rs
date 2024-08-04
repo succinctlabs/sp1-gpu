@@ -1,9 +1,3 @@
-use std::ops::{
-    Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
-    RangeToInclusive,
-};
-use std::slice;
-
 use crate::device::memory::{copy_device_to_host, copy_host_to_device};
 
 use super::error::CudaError;
@@ -105,14 +99,6 @@ impl<P: RawPointer> Buffer<P> {
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
-
-    // pub fn as_slice(&self) -> &DeviceSlice<P> {
-    //     &self[..]
-    // }
-
-    // pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<P> {
-    //     &mut self[..]
-    // }
 
     pub fn as_ptr(&self) -> *const P::Data {
         self.buf.as_ptr()
@@ -243,45 +229,6 @@ impl<P: RawPointer> Drop for Buffer<P> {
     }
 }
 
-// macro_rules! impl_index {
-//     ($($t:ty)*) => {
-//         $(
-//             impl<P: RawPointer> Index<$t> for Buffer<P>
-//             {
-//                 type Output = DeviceSlice<P>;
-
-//                 fn index(&self, index: $t) -> &DeviceSlice<P> {
-//                     unsafe {
-//                         DeviceSlice::from_slice(
-//                          slice::from_raw_parts(self.buf.as_ptr(), self.len).index(index)
-//                     )
-//                   }
-//                 }
-//             }
-
-//             impl<P: RawPointer> IndexMut<$t> for Buffer<P>
-//             {
-//                 fn index_mut(&mut self, index: $t) -> &mut DeviceSlice<P> {
-//                     unsafe {
-//                         DeviceSlice::from_slice_mut(
-//                             slice::from_raw_parts_mut(self.buf.as_mut_ptr(), self.len).index_mut(index)
-//                         )
-//                     }
-//                 }
-//             }
-//         )*
-//     }
-// }
-
-// impl_index! {
-//     Range<usize>
-//     RangeFull
-//     RangeFrom<usize>
-//     RangeInclusive<usize>
-//     RangeTo<usize>
-//     RangeToInclusive<usize>
-// }
-
 impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
@@ -304,22 +251,6 @@ impl<T: Copy> ToHost for DeviceBuffer<T> {
         host
     }
 }
-
-// impl<P: RawPointer> Deref for Buffer<P> {
-//     type Target = DeviceSlice<P>;
-
-//     #[inline]
-//     fn deref(&self) -> &Self::Target {
-//         &self[..]
-//     }
-// }
-
-// impl<T: Copy> DerefMut for DeviceBuffer<T> {
-//     #[inline]
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self[..]
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
