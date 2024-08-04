@@ -3,7 +3,7 @@ use crate::{
     device::{error::CudaError, DeviceAllocator, TryAllocError},
 };
 
-use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawPointer};
+use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawDevicePointer, RawPointer};
 
 pub struct DeviceStreamPointer<T> {
     ptr: *mut T,
@@ -88,5 +88,11 @@ impl<T> Offset for DeviceStreamPointer<T> {
             ptr: self.ptr.add(rhs),
             stream: self.stream.clone(),
         }
+    }
+}
+
+impl<T: Copy> RawDevicePointer for DeviceStreamPointer<T> {
+    fn sync(&self) -> Result<(), CudaError> {
+        self.stream.synchronize()
     }
 }

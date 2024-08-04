@@ -3,7 +3,7 @@ use crate::device::{
     DefaultDeviceAllocator, DeviceAllocator, TryAllocError, DEFAULT_ALLOCATOR,
 };
 
-use super::{Offset, DefaultAllocatorPointer, RawPointer};
+use super::{DefaultAllocatorPointer, Offset, RawPointer};
 
 #[repr(transparent)]
 pub struct CudaHostPointer<T>(*mut T);

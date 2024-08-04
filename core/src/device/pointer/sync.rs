@@ -4,7 +4,7 @@ use crate::device::{
     DefaultDeviceAllocator, DEFAULT_ALLOCATOR,
 };
 
-use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawPointer};
+use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawDevicePointer, RawPointer};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
@@ -69,5 +69,11 @@ impl<T: Copy> CopyRawFrom<DevicePointer<T>> for *mut T {
 impl<T> Offset for DevicePointer<T> {
     unsafe fn add(&self, rhs: usize) -> Self {
         DevicePointer(self.0.add(rhs))
+    }
+}
+
+impl<T: Copy> RawDevicePointer for DevicePointer<T> {
+    fn sync(&self) -> Result<(), CudaError> {
+        Ok(())
     }
 }

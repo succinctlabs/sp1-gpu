@@ -30,9 +30,9 @@ pub trait DefaultAllocatorPointer: RawPointer {
     fn allocator(&self) -> &Self::Allocator;
 }
 
-pub trait RawDevicePointer: DefaultAllocatorPointer + CopyRawFrom<Self> {}
-
-impl<P> RawDevicePointer for P where P: DefaultAllocatorPointer + CopyRawFrom<Self> {}
+pub trait RawDevicePointer: DefaultAllocatorPointer + CopyRawFrom<Self> {
+    fn sync(&self) -> Result<(), CudaError>;
+}
 
 pub trait CopyRawFrom<P> {
     /// # Safety

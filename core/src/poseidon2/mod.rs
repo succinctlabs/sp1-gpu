@@ -211,7 +211,7 @@ pub mod tests {
                 hasher.compress(
                     left_device.as_ptr(),
                     right_device.as_ptr(),
-                    output_device.as_slice_mut().as_mut_ptr(),
+                    output_device.as_mut_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -261,9 +261,9 @@ pub mod tests {
             let hasher = DeviceHasherBabyBear::new();
             unsafe {
                 hasher.hash(
-                    input_device.as_slice().as_ptr(),
+                    input_device.as_ptr(),
                     N_INPUT,
-                    output_device.as_slice_mut().as_mut_ptr(),
+                    output_device.as_mut_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -422,7 +422,7 @@ pub mod tests {
                 hasher.compress(
                     left_device.as_ptr(),
                     right_device.as_ptr(),
-                    output_device.as_slice_mut().as_mut_ptr(),
+                    output_device.as_mut_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
@@ -471,9 +471,9 @@ pub mod tests {
             let hasher = DeviceHasherBn254::new();
             unsafe {
                 hasher.hash(
-                    input_device.as_slice().as_ptr(),
+                    input_device.as_ptr(),
                     N_INPUT,
-                    output_device.as_slice_mut().as_mut_ptr(),
+                    output_device.as_mut_ptr(),
                     n,
                     num_blocks,
                     threads_per_block,
