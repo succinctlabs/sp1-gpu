@@ -1763,6 +1763,7 @@ dependencies = [
  "serde",
  "sp1-core",
  "sp1-recursion-core",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
  "which 6.0.2",

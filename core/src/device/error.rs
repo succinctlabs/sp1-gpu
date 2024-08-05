@@ -1,14 +1,18 @@
-use std::{
-    error::Error,
-    ffi::{c_char, CStr},
-    fmt::Display,
-};
+use std::ffi::{c_char, CStr};
+
+use thiserror::Error;
 
 use crate::device::ffi::CUDA_SUCCESS_MOON;
 
-#[derive(Debug, Clone)]
+use super::ffi::CUDA_OUT_OF_MEMORY;
 
-pub struct CudaError(String);
+#[derive(Debug, Clone, Error)]
+pub enum CudaError {
+    #[error("Device out of memory: {0}")]
+    OutOfMemory(String),
+    #[error("Cuda error: {0}")]
+    Other(String),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
@@ -27,19 +31,15 @@ impl From<CudaRustError> for Result<(), CudaError> {
         unsafe {
             if value == CUDA_SUCCESS_MOON {
                 Ok(())
+            } else if value == CUDA_OUT_OF_MEMORY {
+                Err(CudaError::OutOfMemory(
+                    CStr::from_ptr(value.message).to_str().unwrap().to_string(),
+                ))
             } else {
-                Err(CudaError(
+                Err(CudaError::Other(
                     CStr::from_ptr(value.message).to_str().unwrap().to_string(),
                 ))
             }
         }
     }
 }
-
-impl Display for CudaError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl Error for CudaError {}
