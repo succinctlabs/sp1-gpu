@@ -2,11 +2,13 @@ use std::ops::{
     Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
 };
+use std::time::Duration;
 use std::{mem, slice};
 
 use p3_field::{ExtensionField, Field, PrimeField32};
 
-use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
+use crate::cuda_runtime::stream::{AllocTimeoutError, CudaStream};
+use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
 use super::error::CudaError;
@@ -19,12 +21,17 @@ pub struct DeviceBuffer<T: Copy> {
     buf: *mut T,
     len: usize,
     cap: usize,
+    stream: CudaStream,
 }
 
 unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
 unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will return an error if there is not enough memory available, or if any other
+    /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
         let ptr = unsafe { cuda_malloc(capacity) }?;
 
@@ -32,6 +39,56 @@ impl<T: Copy> DeviceBuffer<T> {
             buf: ptr,
             len: 0,
             cap: capacity,
+            stream: CudaStream::default(),
+        })
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will return an error if there is not enough memory available, or if any other
+    /// device error occurs.
+    pub fn try_with_capacity_in(capacity: usize, stream: CudaStream) -> Result<Self, CudaError> {
+        let ptr = unsafe { stream.try_alloc(capacity) }?;
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            stream: CudaStream::default(),
+        })
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will block until enough memory is available. The function will return an error
+    /// if another device error occurs.
+    pub fn with_capacity_in(capacity: usize, stream: CudaStream) -> Result<Self, CudaError> {
+        let ptr = unsafe { stream.alloc(capacity) }?;
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            stream: CudaStream::default(),
+        })
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will block until enough memory is available or the timeout is reached. The
+    /// function will return an error if another device error occurs.
+    pub fn with_capacity_in_timeout(
+        capacity: usize,
+        stream: CudaStream,
+        timeout: Duration,
+    ) -> Result<Self, AllocTimeoutError> {
+        let ptr = unsafe { stream.alloc_timeout(capacity, timeout) }?;
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            stream: CudaStream::default(),
         })
     }
 
@@ -42,11 +99,12 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The pointer must be valid, it must have allocated memory in the size of
     /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
     /// about to be initialized in a foreign CUDA call.
-    pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+    pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
         Self {
             buf: ptr,
             len: length,
             cap: capacity,
+            stream: CudaStream::default(),
         }
     }
 
@@ -223,7 +281,8 @@ impl<T: Copy> DeviceBuffer<T> {
 
 impl<T: Copy> Drop for DeviceBuffer<T> {
     fn drop(&mut self) {
-        unsafe { cuda_free(self.buf) }.unwrap()
+        unsafe { self.stream.cuda_free_async(self.buf).unwrap() }
+        // unsafe { cuda_free_async(self.buf, DEFAULT_STREAM) }.unwrap()
     }
 }
 

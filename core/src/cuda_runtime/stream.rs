@@ -1,20 +1,33 @@
+use std::hint;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{ffi::c_void, mem, ptr};
 
+use thiserror::Error;
+
 use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
 unsafe impl Send for CudaStreamHandle {}
 unsafe impl Sync for CudaStreamHandle {}
 
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct CudaStream(Arc<CudaStreamHandle>);
+
+#[derive(Debug, Clone, Error)]
+pub enum AllocTimeoutError {
+    #[error("Failed to allocate memory {0}")]
+    CudaError(#[from] CudaError),
+    #[error("Timeout")]
+    Timeout,
+}
 
 impl CudaStream {
     pub fn create() -> Result<Self, CudaError> {
@@ -55,7 +68,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
-    pub unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
+    unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
         let mut ptr: *mut c_void = ptr::null_mut();
         unsafe {
             ffi::cuda_malloc_async(
@@ -66,6 +79,56 @@ impl CudaStream {
         }
         .to_result()?;
         Ok(ptr as *mut T)
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn try_alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
+        self.cuda_malloc_async(len)
+    }
+
+    /// Allocate memory on the device.
+    ///
+    /// This function will block until the memory is available. The method will return an error if
+    /// the allocator failed for a reason other than out of memory.
+    ///
+    /// # Safety
+    /// See [Self::try_alloc]
+    pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
+        loop {
+            match self.try_alloc(len) {
+                Ok(ptr) => return Ok(ptr),
+                Err(CudaError::OutOfMemory(_)) => {
+                    hint::spin_loop();
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Trt to allocate memory on the device or return an error after a timeout.
+    ///
+    /// # Safety
+    /// See [Self::try_alloc]
+    pub unsafe fn alloc_timeout<T: Copy>(
+        &self,
+        len: usize,
+        timeout: Duration,
+    ) -> Result<*mut T, AllocTimeoutError> {
+        let start = std::time::Instant::now();
+        loop {
+            match self.try_alloc(len) {
+                Ok(ptr) => return Ok(ptr),
+                Err(CudaError::OutOfMemory(_)) => {
+                    if start.elapsed() > timeout {
+                        return Err(AllocTimeoutError::Timeout);
+                    }
+                    hint::spin_loop();
+                }
+                Err(e) => return Err(AllocTimeoutError::CudaError(e)),
+            }
+        }
     }
 
     /// # Safety
