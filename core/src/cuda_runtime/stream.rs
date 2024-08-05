@@ -10,16 +10,20 @@ use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
-unsafe impl Send for CudaStreamHandle {}
-unsafe impl Sync for CudaStreamHandle {}
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub struct CudaStreamOwned(CudaStreamHandle);
+
+unsafe impl Send for CudaStreamOwned {}
+unsafe impl Sync for CudaStreamOwned {}
 
 #[derive(Debug, Clone)]
 #[repr(transparent)]
-pub struct CudaStream(Arc<CudaStreamHandle>);
+pub struct CudaStream(Arc<CudaStreamOwned>);
 
 #[derive(Debug, Clone, Error)]
 pub enum AllocTimeoutError {
@@ -31,9 +35,9 @@ pub enum AllocTimeoutError {
 
 impl CudaStream {
     pub fn create() -> Result<Self, CudaError> {
-        let mut ptr: *mut c_void = ptr::null_mut();
-        unsafe { ffi::cuda_stream_create(&mut ptr as *mut *mut c_void) }.to_result()?;
-        Ok(Self(Arc::new(CudaStreamHandle(ptr))))
+        let mut ptr = CudaStreamHandle(ptr::null_mut());
+        unsafe { ffi::cuda_stream_create(&mut ptr as *mut CudaStreamHandle) }.to_result()?;
+        Ok(Self(Arc::new(CudaStreamOwned(ptr))))
     }
 
     pub fn synchronize(&self) -> Result<(), CudaError> {
@@ -134,7 +138,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
-    pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
+    pub unsafe fn free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
         unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
 
@@ -221,12 +225,12 @@ impl CudaStream {
 
 impl Default for CudaStream {
     fn default() -> Self {
-        let raw = CudaStreamHandle(unsafe { ffi::DEFAULT_STREAM });
+        let raw = CudaStreamOwned(unsafe { ffi::DEFAULT_STREAM });
         Self(Arc::new(raw))
     }
 }
 
-impl Drop for CudaStreamHandle {
+impl Drop for CudaStreamOwned {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
             unsafe { ffi::cuda_stream_destroy(self.0) }
@@ -237,7 +241,7 @@ impl Drop for CudaStreamHandle {
 }
 
 impl Deref for CudaStream {
-    type Target = CudaStreamHandle;
+    type Target = CudaStreamOwned;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -278,7 +282,7 @@ mod tests {
             stream
                 .cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len())
                 .unwrap();
-            stream.cuda_free_async(buf).unwrap();
+            stream.free_async(buf).unwrap();
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();
             let elapsed = stream.elapsed(&time).unwrap();

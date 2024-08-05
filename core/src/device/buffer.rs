@@ -33,14 +33,7 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        let ptr = unsafe { cuda_malloc(capacity) }?;
-
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-            stream: CudaStream::default(),
-        })
+        Self::try_with_capacity_in(capacity, CudaStream::default())
     }
 
     /// Allocate a new buffer on the device.
@@ -99,13 +92,22 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The pointer must be valid, it must have allocated memory in the size of
     /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
     /// about to be initialized in a foreign CUDA call.
-    pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+    pub unsafe fn from_raw_parts(
+        ptr: *mut T,
+        length: usize,
+        capacity: usize,
+        stream: CudaStream,
+    ) -> Self {
         Self {
             buf: ptr,
             len: length,
             cap: capacity,
-            stream: CudaStream::default(),
+            stream,
         }
+    }
+
+    pub const fn stream(&self) -> &CudaStream {
+        &self.stream
     }
 
     /// # Safety
@@ -252,7 +254,7 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap)
+        DeviceBuffer::from_raw_parts(buff, len, cap, CudaStream::default())
     }
 
     /// # Safety
@@ -275,14 +277,15 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap)
+        DeviceBuffer::from_raw_parts(buff, len, cap, CudaStream::default())
     }
 }
 
 impl<T: Copy> Drop for DeviceBuffer<T> {
     fn drop(&mut self) {
-        unsafe { self.stream.cuda_free_async(self.buf).unwrap() }
-        // unsafe { cuda_free_async(self.buf, DEFAULT_STREAM) }.unwrap()
+        unsafe { self.stream.free_async(self.buf).unwrap() }
+        // TODO: remove the need for this
+        self.stream.synchronize().unwrap();
     }
 }
 
