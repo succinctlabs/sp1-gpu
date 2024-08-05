@@ -8,7 +8,6 @@ use std::{mem, slice};
 use p3_field::{ExtensionField, Field, PrimeField32};
 
 use crate::cuda_runtime::stream::{AllocTimeoutError, CudaStream};
-use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_malloc};
 use crate::device::slice::DeviceSlice;
 
 use super::error::CudaError;
@@ -47,7 +46,7 @@ impl<T: Copy> DeviceBuffer<T> {
             buf: ptr,
             len: 0,
             cap: capacity,
-            stream: CudaStream::default(),
+            stream,
         })
     }
 
@@ -62,7 +61,7 @@ impl<T: Copy> DeviceBuffer<T> {
             buf: ptr,
             len: 0,
             cap: capacity,
-            stream: CudaStream::default(),
+            stream,
         })
     }
 
@@ -81,7 +80,7 @@ impl<T: Copy> DeviceBuffer<T> {
             buf: ptr,
             len: 0,
             cap: capacity,
-            stream: CudaStream::default(),
+            stream,
         })
     }
 
@@ -177,7 +176,12 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
+        unsafe {
+            self.stream
+                .cuda_memcpy_host_to_device_async(self.buf, src.as_ptr(), src.len())
+                .unwrap();
+            self.stream.synchronize().unwrap();
+        }
     }
 
     pub fn copy_to_host(&self, dst: &mut [T]) {
@@ -197,7 +201,12 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), dst.len());
         }
 
-        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf, dst.len()) }.unwrap()
+        unsafe {
+            self.stream
+                .cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.buf, dst.len())
+                .unwrap();
+            self.stream.synchronize().unwrap();
+        }
     }
 
     /// Calculates the offset to the current element.
@@ -229,7 +238,12 @@ impl<T: Copy> DeviceBuffer<T> {
             capacity_fail(self.len(), src.len(), self.cap);
         }
 
-        unsafe { copy_host_to_device(self.offset(), src.as_ptr(), src.len()) }.unwrap();
+        unsafe {
+            self.stream
+                .cuda_memcpy_host_to_device_async(self.offset(), src.as_ptr(), src.len())
+                .unwrap();
+            self.stream.synchronize().unwrap();
+        }
 
         // Extend the length of the buffer to include the new elements.
         self.len += src.len();
@@ -245,6 +259,8 @@ impl<T: Copy> DeviceBuffer<T> {
     {
         // Cast the device pointer to the base type.
         let buff = self.buf as *mut B;
+        // Clone the stream.
+        let stream = self.stream.clone();
 
         // The new length/capacity are the product of the old length/capacity and the extension
         // degree.
@@ -254,7 +270,7 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap, CudaStream::default())
+        DeviceBuffer::from_raw_parts(buff, len, cap, stream)
     }
 
     /// # Safety
@@ -267,6 +283,8 @@ impl<T: Copy> DeviceBuffer<T> {
     {
         // Cast the device pointer to the extension type.
         let buff = self.buf as *mut E;
+        // Clone the stream.
+        let stream = self.stream.clone();
 
         // The legth and capacity must be divisible by the degree.
         assert!(self.len % E::D == 0);
@@ -277,7 +295,7 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap, CudaStream::default())
+        DeviceBuffer::from_raw_parts(buff, len, cap, stream)
     }
 }
 

@@ -156,7 +156,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_device_to_device_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -176,7 +176,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_host_to_device_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -196,7 +196,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_device_to_host_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -216,7 +216,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_host_to_host_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
