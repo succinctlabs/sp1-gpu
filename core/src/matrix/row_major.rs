@@ -87,7 +87,13 @@ impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
 impl RowMajorMatrixDevice<BabyBear> {
     pub fn to_column_major(&self) -> ColMajorMatrixDevice<BabyBear> {
         let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
-        unsafe { transpose_naive(ret_values.as_mut_ptr(), self.view()) };
+        unsafe {
+            transpose_naive(
+                ret_values.as_mut_ptr(),
+                self.view(),
+                self.values.stream().handle(),
+            )
+        };
         unsafe { ret_values.set_max_len() };
 
         ColMajorMatrixDevice::new(ret_values, self.height())
@@ -95,7 +101,14 @@ impl RowMajorMatrixDevice<BabyBear> {
 
     pub fn to_column_major_blowup(&self, log_blowup: usize) -> ColMajorMatrixDevice<BabyBear> {
         let mut ret_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup).unwrap();
-        unsafe { transpose_blowup_naive(ret_values.as_mut_ptr(), self.view(), log_blowup) };
+        unsafe {
+            transpose_blowup_naive(
+                ret_values.as_mut_ptr(),
+                self.view(),
+                log_blowup,
+                self.values.stream().handle(),
+            )
+        };
         unsafe { ret_values.set_max_len() };
 
         ColMajorMatrixDevice::new(ret_values, self.height() << log_blowup)

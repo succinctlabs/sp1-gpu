@@ -3,6 +3,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 use crate::device::DeviceBuffer;
@@ -28,6 +29,10 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             values: DeviceBuffer::with_capacity(0).unwrap(),
             height: 1,
         }
+    }
+
+    pub const fn stream(&self) -> &CudaStream {
+        self.values.stream()
     }
 
     pub fn with_capacity(width: usize, height: usize) -> Result<Self, CudaError> {
@@ -164,7 +169,7 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
         let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
         unsafe {
             ret_values.set_max_len();
-            transpose_naive(ret_values.as_mut_ptr(), self.view())
+            transpose_naive(ret_values.as_mut_ptr(), self.view(), self.stream().handle())
         };
         RowMajorMatrix::new(ret_values.to_host(), self.width())
     }
