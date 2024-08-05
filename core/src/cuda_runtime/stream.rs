@@ -40,10 +40,12 @@ impl CudaStream {
         Ok(Self(Arc::new(CudaStreamOwned(ptr))))
     }
 
+    #[inline]
     pub fn synchronize(&self) -> Result<(), CudaError> {
         unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
     }
 
+    #[inline]
     pub fn handle(&self) -> CudaStreamHandle {
         self.0 .0
     }
@@ -70,6 +72,7 @@ impl CudaStream {
         Ok(Duration::from_secs_f64(s))
     }
 
+    #[inline]
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
         unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.handle()) }.to_result()
     }
@@ -93,6 +96,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn try_alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
         self.cuda_malloc_async(len)
     }
@@ -143,6 +147,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
         unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
