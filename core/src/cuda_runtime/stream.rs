@@ -44,6 +44,10 @@ impl CudaStream {
         unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
     }
 
+    pub fn handle(&self) -> CudaStreamHandle {
+        self.0 .0
+    }
+
     pub fn now(&self) -> Result<CudaInstant, CudaError> {
         let event = CudaEvent::new()?;
         self.record(&event)?;
