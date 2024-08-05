@@ -180,7 +180,6 @@ impl<T: Copy> DeviceBuffer<T> {
             self.stream
                 .cuda_memcpy_host_to_device_async(self.buf, src.as_ptr(), src.len())
                 .unwrap();
-            self.stream.synchronize().unwrap();
         }
     }
 
@@ -205,7 +204,6 @@ impl<T: Copy> DeviceBuffer<T> {
             self.stream
                 .cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.buf, dst.len())
                 .unwrap();
-            self.stream.synchronize().unwrap();
         }
     }
 
@@ -242,7 +240,6 @@ impl<T: Copy> DeviceBuffer<T> {
             self.stream
                 .cuda_memcpy_host_to_device_async(self.offset(), src.as_ptr(), src.len())
                 .unwrap();
-            self.stream.synchronize().unwrap();
         }
 
         // Extend the length of the buffer to include the new elements.
@@ -302,8 +299,6 @@ impl<T: Copy> DeviceBuffer<T> {
 impl<T: Copy> Drop for DeviceBuffer<T> {
     fn drop(&mut self) {
         unsafe { self.stream.free_async(self.buf).unwrap() }
-        // TODO: remove the need for this
-        self.stream.synchronize().unwrap();
     }
 }
 
