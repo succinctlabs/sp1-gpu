@@ -1,11 +1,13 @@
+use std::ffi::c_void;
+
 use crate::cuda_runtime::stream::CudaStream;
 use crate::device::memory::copy_host_to_device;
 
 use super::error::CudaError;
-use super::memory::{CopyFrom, ToDevice, ToDeviceAsync, ToHost};
+use super::memory::{CopyFrom, ToDevice, ToDeviceIn, ToHost};
 use super::{
     AllocError, CopyRawFrom, CopyRawTo, DefaultAllocatorPointer, DeviceAllocator, DevicePointer,
-    DeviceStreamPointer, RawPointer, TryAllocError, DEFAULT_ALLOCATOR,
+    DeviceStreamPointer, RawDevicePointer, RawPointer, TryAllocError, DEFAULT_ALLOCATOR,
 };
 
 /// Fixed-size device-side buffer.
@@ -52,6 +54,13 @@ impl<P: RawPointer> Buffer<P> {
             len: 0,
             cap: capacity,
         })
+    }
+
+    pub fn stream_raw(&self) -> *mut c_void
+    where
+        P: RawDevicePointer,
+    {
+        self.buf.stream_raw()
     }
 
     pub fn allocator(&self) -> &P::Allocator
@@ -118,7 +127,7 @@ impl<P: RawPointer> Buffer<P> {
     /// cudaMalloc returned an error.
     pub fn extend_from_host_slice(&mut self, src: &[P::Data])
     where
-        P: CopyRawFrom<*const P::Data>,
+        P: RawDevicePointer,
     {
         // The panic code path was put into a cold function to not bloat the
         // call site.
@@ -234,6 +243,12 @@ impl<T: Copy> DeviceBuffer<T> {
     }
 }
 
+impl<T: Copy> DeviceBufferAsync<T> {
+    pub fn stream(&self) -> &CudaStream {
+        self.buf.stream()
+    }
+}
+
 impl<P: RawPointer> Drop for Buffer<P> {
     fn drop(&mut self) {
         self.buf.free()
@@ -250,11 +265,14 @@ impl<T: Copy> ToDevice for Vec<T> {
     }
 }
 
-impl<T: Copy> ToDeviceAsync for Vec<T> {
-    type DeviceTypeAsync = DeviceBufferAsync<T>;
+impl<P: RawDevicePointer> ToDeviceIn<P> for Vec<P::Data> {
+    type DeviceTypeAsync = Buffer<P>;
 
-    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError> {
-        let mut buffer = DeviceBufferAsync::with_capacity_in(self.len(), stream)?;
+    fn to_device_in(
+        &self,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<Self::DeviceTypeAsync, CudaError> {
+        let mut buffer = Buffer::with_capacity_in(self.len(), alloc)?;
         buffer.extend_from_host_slice(self);
         Ok(buffer)
     }

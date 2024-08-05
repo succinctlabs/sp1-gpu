@@ -6,19 +6,25 @@ use p3_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    matrix::{ColMajorMatrixDevice, DeviceMatrix},
+    device::RawDevicePointer,
+    matrix::{ColMajorMatrix, ColMajorMatrixAsyncDevice, ColMajorMatrixDevice, DeviceMatrix},
     poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
 };
 
 use super::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
 
-pub type CommitterProverData<T, M, C> = <C as MmcsCommitter<T, M>>::ProverData;
+pub type CommitterProverData<T, M, C> =
+    <C as MmcsCommitter<T, M>>::ProverData<ColMajorMatrixDevice<T>>;
+pub type CommitterProverDataAsync<T, M, C> =
+    <C as MmcsCommitter<T, M>>::ProverData<ColMajorMatrixAsyncDevice<T>>;
 
-pub trait MmcsCommitter<T: Send + Sync, M: Mmcs<T>> {
-    type ProverData: MmcsProverData<Self::Matrix>;
-    type Matrix;
+pub trait MmcsCommitter<T: Copy + Send + Sync, M: Mmcs<T>> {
+    type ProverData<P: RawDevicePointer<Data = T>>: MmcsProverData<ColMajorMatrix<P>>;
 
-    fn commit(&self, matrices: Vec<Self::Matrix>) -> (M::Commitment, Self::ProverData);
+    fn commit<P: RawDevicePointer<Data = T>>(
+        &self,
+        matrices: Vec<ColMajorMatrix<P>>,
+    ) -> (M::Commitment, Self::ProverData<P>);
 }
 
 pub trait MmcsProverData<Matrix> {
@@ -53,14 +59,17 @@ where
     PW::Value: Eq,
     [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
 {
-    type Matrix = ColMajorMatrixDevice<BabyBear>;
-    type ProverData = FieldMerkleTreeGpu<BabyBear, [PW::Value; DIGEST_ELEMS], Self::Matrix>;
+    type ProverData<Ptr: RawDevicePointer<Data = BabyBear>> =
+        FieldMerkleTreeGpu<BabyBear, [PW::Value; DIGEST_ELEMS], ColMajorMatrix<Ptr>>;
 
     #[inline]
-    fn commit(
+    fn commit<Ptr: RawDevicePointer<Data = BabyBear>>(
         &self,
-        matrices: Vec<Self::Matrix>,
-    ) -> (Hash<P::Scalar, PW::Value, DIGEST_ELEMS>, Self::ProverData) {
+        matrices: Vec<ColMajorMatrix<Ptr>>,
+    ) -> (
+        Hash<P::Scalar, PW::Value, DIGEST_ELEMS>,
+        Self::ProverData<Ptr>,
+    ) {
         let merkle_tree = FieldMerkleTreeGpu::new(&self.hasher, matrices);
         let root = merkle_tree.root().into();
 

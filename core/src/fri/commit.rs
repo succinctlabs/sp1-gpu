@@ -18,11 +18,7 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
     pub log_blowup: usize,
 }
 
-impl<
-        SC: BabyBearFriConfig,
-        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-    > TwoAdicFriCommitter<SC, C>
-{
+impl<SC: BabyBearFriConfig, C: MmcsCommitter<BabyBear, SC::ValMmcs>> TwoAdicFriCommitter<SC, C> {
     pub fn new(log_blowup: usize) -> Self
     where
         C: Default,
@@ -34,7 +30,10 @@ impl<
         }
     }
 
-    pub fn mmcs_commit(&self, leaves: Vec<C::Matrix>) -> (Com<SC>, C::ProverData) {
+    pub fn mmcs_commit<P: RawDevicePointer<Data = SC::Val>>(
+        &self,
+        leaves: Vec<ColMajorMatrix<P>>,
+    ) -> (Com<SC>, C::ProverData<P>) {
         self.mmcs_committer.commit(leaves)
     }
 
@@ -90,18 +89,20 @@ impl<
         }
     }
 
-    pub fn commit<M>(
+    pub fn commit<P, M>(
         &self,
         evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
-    ) -> (Com<SC>, C::ProverData)
+    ) -> (Com<SC>, C::ProverData<P>)
     where
-        M: Borrow<C::Matrix>,
+        M: Borrow<ColMajorMatrix<P>>,
+        P: RawDevicePointer<Data = BabyBear>,
+        DeviceDft<BabyBear>: Dft<P>,
     {
         let lde_evaluations = evaluations
             .iter()
             .map(|(domain, matrix)| {
                 let matrix = matrix.borrow();
-                self.encode(*domain, matrix, true).unwrap()
+                self.encode::<P>(*domain, matrix, true).unwrap()
             })
             .collect::<Vec<_>>();
 

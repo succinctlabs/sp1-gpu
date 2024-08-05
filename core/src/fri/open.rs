@@ -23,6 +23,7 @@ use p3_fri::CommitPhaseProofStep;
 use p3_fri::FriProof;
 use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
+use p3_matrix::dense::RowMajorMatrix;
 
 use sp1_core::stark::Challenge;
 use sp1_core::stark::Challenger;
@@ -33,7 +34,9 @@ use sp1_core::utils::InnerVal;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
+use crate::device::RawDevicePointer;
 use crate::fri::TwoAdicFriCommitter;
+use crate::matrix::ColMajorMatrix;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::MmcsCommitter;
@@ -46,10 +49,10 @@ use crate::stark::PcsConfig;
 pub struct FriOpeningProver<SC>(PhantomData<SC>);
 
 pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> {
-    fn query_open_batch(
+    fn query_open_batch<Ptr: RawDevicePointer<Data = F>>(
         &self,
         query_indices: &[usize],
-        prover_data_slice: &[Self::ProverData],
+        prover_data_slice: &[Self::ProverData<Ptr>],
         log_global_max_height: usize,
         is_answering: bool,
     ) -> Vec<Vec<BatchOpening<F, ValMmcs>>>;
@@ -57,15 +60,15 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
 
 impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     #[allow(clippy::type_complexity)]
-    pub fn open<C>(
+    pub fn open<C, Ptr: RawDevicePointer<Data = SC::Val>>(
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
         pcs: &SC::Pcs,
-        rounds: Vec<(C::ProverData, Vec<Vec<SC::Challenge>>)>,
+        rounds: Vec<(C::ProverData<Ptr>, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
     ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
     where
-        C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        C: FriQueryProver<SC::Val, SC::ValMmcs>,
     {
         let alpha: Challenge<SC> = challenger.sample();
 
@@ -450,10 +453,10 @@ pub(super) mod merkle_tree_opening_prover {
         PW::Value: Eq + Copy,
         [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
     {
-        fn query_open_batch(
+        fn query_open_batch<Ptr: RawDevicePointer<Data = P::Scalar>>(
             &self,
             query_indices: &[usize],
-            prover_data_slice: &[Self::ProverData],
+            prover_data_slice: &[Self::ProverData<Ptr>],
             log_global_max_height: usize,
             is_answering: bool,
         ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
@@ -590,7 +593,7 @@ pub fn prove<SC, C>(
 ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
 where
     SC: BabyBearFriConfig,
-    C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    C: FriQueryProver<SC::Val, SC::ValMmcs>,
 {
     let log_max_height = input.keys().max().copied().unwrap();
 
@@ -664,13 +667,17 @@ where
     )
 }
 
-pub fn fold_even_odd<SC: BabyBearFriConfig>(
-    evaluations: &ColMajorMatrixDevice<SC::Val>,
-    input_leaves: Option<ColMajorMatrixDevice<SC::Val>>,
+pub fn fold_even_odd<SC: BabyBearFriConfig, P: RawDevicePointer<Data = SC::Val>>(
+    evaluations: &ColMajorMatrix<P>,
+    input_leaves: Option<ColMajorMatrix<P>>,
     beta: SC::Challenge,
-) -> ColMajorMatrixDevice<BabyBear> {
-    let mut output =
-        ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2).unwrap();
+) -> ColMajorMatrix<P> {
+    let mut output = ColMajorMatrix::with_capacity_in(
+        evaluations.width(),
+        evaluations.height() / 2,
+        evaluations.values.allocator(),
+    )
+    .unwrap();
 
     let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
     let one_half = SC::Val::two().inverse();
@@ -736,15 +743,17 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
     output
 }
 
-pub fn commit_phase<SC, C>(
+pub fn commit_phase<SC, C, P>(
     committer: &TwoAdicFriCommitter<SC, C>,
-    mut input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
+    mut input: BTreeMap<usize, ColMajorMatrix<P>>,
     log_max_height: usize,
     challenger: &mut Challenger<SC>,
-) -> CommitPhaseResult<SC, C>
+) -> CommitPhaseResult<SC, C, P>
 where
     SC: BabyBearFriConfig,
-    C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    C: MmcsCommitter<SC::Val, SC::ValMmcs>,
+    P: RawDevicePointer<Data = SC::Val>,
+    ColMajorMatrix<P>: ToHost<HostType = RowMajorMatrix<SC::Val>>,
 {
     let mut leaves = input.remove(&log_max_height).unwrap();
 
@@ -752,14 +761,16 @@ where
     let mut data = vec![];
 
     for log_folded_height in (committer.log_blowup..log_max_height).rev() {
-        let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::empty());
+        let alloc = leaves.values.allocator();
+        let empty = ColMajorMatrix::empty_in(alloc);
+        let temp = core::mem::replace(&mut leaves, empty);
         let (commit, prover_data) = committer.mmcs_commit(vec![temp]);
         challenger.observe(commit.clone());
 
         let beta: SC::Challenge = challenger.sample();
 
         let injected_input = input.remove(&log_folded_height);
-        leaves = fold_even_odd::<SC>(&prover_data.matrices()[0], injected_input, beta);
+        leaves = fold_even_odd::<SC, _>(&prover_data.matrices()[0], injected_input, beta);
 
         commits.push(commit);
         data.push(prover_data);
@@ -783,13 +794,14 @@ where
     }
 }
 
-pub struct CommitPhaseResult<SC, C>
+pub struct CommitPhaseResult<SC, C, P>
 where
     SC: BabyBearFriConfig,
     C: MmcsCommitter<SC::Val, SC::ValMmcs>,
+    P: RawDevicePointer<Data = SC::Val>,
 {
     commits: Vec<Com<SC>>,
-    data: Vec<C::ProverData>,
+    data: Vec<C::ProverData<P>>,
     final_poly: SC::Challenge,
 }
 

@@ -95,4 +95,8 @@ impl<T: Copy> RawDevicePointer for DeviceStreamPointer<T> {
     fn sync(&self) -> Result<(), CudaError> {
         self.stream.synchronize()
     }
+
+    fn stream_raw(&self) -> *mut std::ffi::c_void {
+        self.stream.raw()
+    }
 }

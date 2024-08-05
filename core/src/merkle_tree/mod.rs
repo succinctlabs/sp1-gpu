@@ -1,7 +1,11 @@
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
+use crate::device::memory::ToDeviceIn;
 use crate::device::memory::ToHost;
+use crate::device::DeviceAllocator;
 use crate::device::DeviceBuffer;
+use crate::device::RawDevicePointer;
+use crate::matrix::ColMajorMatrix;
 use crate::matrix::ColMajorMatrixDevice;
 
 use itertools::Itertools;
@@ -132,6 +136,40 @@ where
             .digest_layers
             .iter()
             .map(|l| l.to_device())
+            .collect::<Result<Vec<_>, CudaError>>()?;
+
+        Ok(FieldMerkleTreeGpu {
+            leaves: leaves_device,
+            digest_layers: digest_layers_device,
+            _marker: PhantomData,
+        })
+    }
+}
+
+impl<W, PF, PW, const DIGEST_ELEMS: usize> ToDeviceIn<P>
+    for FieldMerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
+where
+    BabyBear: Field,
+    W: Copy,
+    PF: RawDevicePointer<Data = BabyBear>,
+    PW: RawDevicePointer<Data = [W; DIGEST_ELEMS]>,
+{
+    type DeviceTypeAsync = FieldMerkleTreeGpu<BabyBear, [W; DIGEST_ELEMS], ColMajorMatrix<P>>;
+
+    fn to_device_in(
+        &self,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<Self::DeviceTypeAsync, CudaError> {
+        let leaves_device = self
+            .leaves
+            .iter()
+            .map(|l| l.to_device_in(alloc))
+            .collect::<Result<Vec<_>, CudaError>>()?;
+
+        let digest_layers_device = self
+            .digest_layers
+            .iter()
+            .map(|l| l.to_device_in(alloc))
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         Ok(FieldMerkleTreeGpu {

@@ -40,11 +40,16 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::memory::cuda_mem_get_info;
+use crate::device::memory::ToDeviceIn;
 use crate::device::CopyRawTo;
+use crate::device::DeviceStreamPointer;
 use crate::device::Offset;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
+use crate::matrix::ColMajorMatrix;
+use crate::matrix::ColMajorMatrixAsyncDevice;
 use crate::merkle_tree::MmcsProverData;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
@@ -77,15 +82,6 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     opening_prover: FriOpeningProver<SC>,
 }
 
-pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
-
-pub type GpuProverData<SC> =
-    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
-
-pub type CpuProverData<SC> = PcsProverData<SC>;
-
-pub type CpuMatrix<F> = RowMajorMatrix<F>;
-
 impl<SC, C, A> MachineProver<SC, A> for StarkGpuProver<SC, C, A>
 where
     SC: BabyBearFriConfig,
@@ -93,21 +89,20 @@ where
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
-    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
-        + 'static
-        + Send
-        + Sync
-        + Default,
-    C::ProverData: Send + ToHost<HostType = PcsProverData<SC>>,
-    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+    C: FriQueryProver<BabyBear, SC::ValMmcs> + 'static + Send + Sync + Default,
+    C::ProverData<DeviceStreamPointer<SC::Val>>: Send + ToHost<HostType = PcsProverData<SC>>,
+    PcsProverData<SC>: ToDeviceIn<
+        DeviceStreamPointer<BabyBear>,
+        DeviceTypeAsync = C::ProverData<DeviceStreamPointer<SC::Val>>,
+    >,
     Com<SC>: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
     SC::FriChallenger: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Commitment: Send + Sync,
     SC::RowMajorProverData: Send + Sync,
 {
-    type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
-    type DeviceProverData = C::ProverData;
+    type DeviceMatrix = ColMajorMatrixAsyncDevice<Val<SC>>;
+    type DeviceProverData = C::ProverData<DeviceStreamPointer<SC::Val>>;
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -171,7 +166,10 @@ where
         // Copy the traces to device.
         let traces: Vec<_> = traces
             .iter()
-            .map(|trace| trace.to_device().unwrap())
+            .map(|trace| {
+                let stream = CudaStream::default();
+                trace.to_device_in(&stream).unwrap()
+            })
             .collect();
 
         // Commit to the traces.
@@ -191,84 +189,84 @@ where
         }
     }
 
-    /// Setup the preprocessed data into a proving and verifying key.
-    fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
-        let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
-            .in_scope(|| {
-                self.machine()
-                    .chips()
-                    .iter()
-                    .map(|chip| {
-                        let prep_trace = chip.generate_preprocessed_trace(program);
-                        // Assert that the chip width data is correct.
-                        let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
-                        assert_eq!(
-                            expected_width,
-                            chip.preprocessed_width(),
-                            "Incorrect number of preprocessed columns for chip {}",
-                            chip.name()
-                        );
+    // /// Setup the preprocessed data into a proving and verifying key.
+    // fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+    //     let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
+    //         .in_scope(|| {
+    //             self.machine()
+    //                 .chips()
+    //                 .iter()
+    //                 .map(|chip| {
+    //                     let prep_trace = chip.generate_preprocessed_trace(program);
+    //                     // Assert that the chip width data is correct.
+    //                     let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+    //                     assert_eq!(
+    //                         expected_width,
+    //                         chip.preprocessed_width(),
+    //                         "Incorrect number of preprocessed columns for chip {}",
+    //                         chip.name()
+    //                     );
 
-                        (chip.name(), prep_trace)
-                    })
-                    .filter(|(_, prep_trace)| prep_trace.is_some())
-                    .map(|(name, prep_trace)| {
-                        let prep_trace = prep_trace.unwrap();
-                        (name, prep_trace)
-                    })
-                    .collect::<Vec<_>>()
-            });
+    //                     (chip.name(), prep_trace)
+    //                 })
+    //                 .filter(|(_, prep_trace)| prep_trace.is_some())
+    //                 .map(|(name, prep_trace)| {
+    //                     let prep_trace = prep_trace.unwrap();
+    //                     (name, prep_trace)
+    //                 })
+    //                 .collect::<Vec<_>>()
+    //         });
 
-        // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_preprocessed_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
+    //     // Order the chips and traces by trace size (biggest first), and get the ordering map.
+    //     named_preprocessed_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
 
-        let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
-            .iter()
-            .map(|(name, trace)| {
-                let domain = natural_domain_for_degree(self.config(), trace.height());
-                (
-                    (name.to_owned(), domain, trace.dimensions()),
-                    (domain, trace.to_device().unwrap()),
-                )
-            })
-            .unzip();
+    //     let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
+    //         .iter()
+    //         .map(|(name, trace)| {
+    //             let domain = natural_domain_for_degree(self.config(), trace.height());
+    //             (
+    //                 (name.to_owned(), domain, trace.dimensions()),
+    //                 (domain, trace.to_device().unwrap()),
+    //             )
+    //         })
+    //         .unzip();
 
-        // Commit to the batch of traces.
-        let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
-            .in_scope(|| self.committer.commit(&domains_and_traces));
-        let data = data.to_host();
+    //     // Commit to the batch of traces.
+    //     let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
+    //         .in_scope(|| self.committer.commit(&domains_and_traces));
+    //     let data = data.to_host();
 
-        // Get the chip ordering.
-        let chip_ordering = named_preprocessed_traces
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
-            .collect::<HashMap<_, _>>();
+    //     // Get the chip ordering.
+    //     let chip_ordering = named_preprocessed_traces
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(i, (name, _))| (name.to_owned(), i))
+    //         .collect::<HashMap<_, _>>();
 
-        // Get the preprocessed traces
-        let traces = named_preprocessed_traces
-            .into_iter()
-            .map(|(_, trace)| trace)
-            .collect::<Vec<_>>();
+    //     // Get the preprocessed traces
+    //     let traces = named_preprocessed_traces
+    //         .into_iter()
+    //         .map(|(_, trace)| trace)
+    //         .collect::<Vec<_>>();
 
-        let pc_start = program.pc_start();
+    //     let pc_start = program.pc_start();
 
-        (
-            StarkProvingKey {
-                commit: commit.clone(),
-                pc_start,
-                traces,
-                data,
-                chip_ordering: chip_ordering.clone(),
-            },
-            StarkVerifyingKey {
-                commit,
-                pc_start,
-                chip_information,
-                chip_ordering,
-            },
-        )
-    }
+    //     (
+    //         StarkProvingKey {
+    //             commit: commit.clone(),
+    //             pc_start,
+    //             traces,
+    //             data,
+    //             chip_ordering: chip_ordering.clone(),
+    //         },
+    //         StarkVerifyingKey {
+    //             commit,
+    //             pc_start,
+    //             chip_information,
+    //             chip_ordering,
+    //         },
+    //     )
+    // }
 
     fn open(
         &self,
@@ -470,7 +468,7 @@ where
             }
         }
 
-        let pk_data_device = pk.data.to_device().unwrap();
+        let pk_data_device = pk.data.to_device_in(&CudaStream::default()).unwrap();
 
         let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
             self.opening_prover.open(
@@ -631,9 +629,9 @@ where
         &self,
         pk: &StarkProvingKey<SC>,
         chips: &[&Chip<SC::Val, A>],
-        main_traces: &[GpuMatrix<SC::Val>],
+        main_traces: &[ColMajorMatrixAsyncDevice<SC::Val>],
         random_elements: &[SC::Challenge],
-    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
+    ) -> Result<Vec<ColMajorMatrixAsyncDevice<SC::Val>>, CudaError> {
         chips
             .iter()
             .zip(main_traces.iter())
@@ -641,7 +639,7 @@ where
                 let preprocessed_trace = pk
                     .chip_ordering
                     .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().unwrap());
+                    .map(|&index| pk.traces[index].to_device_in(main_trace.stream()).unwrap());
 
                 self.permutation_trace_generator
                     .generate_flattened_permutation_trace(

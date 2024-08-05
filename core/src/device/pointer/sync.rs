@@ -1,7 +1,12 @@
-use crate::device::{
-    error::CudaError,
-    memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device, cuda_free},
-    DefaultDeviceAllocator, DEFAULT_ALLOCATOR,
+use std::ffi::c_void;
+
+use crate::{
+    cuda_runtime::{ffi::DEFAULT_STREAM, stream::CudaStream},
+    device::{
+        error::CudaError,
+        memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device, cuda_free},
+        DefaultDeviceAllocator, DEFAULT_ALLOCATOR,
+    },
 };
 
 use super::{CopyRawFrom, DefaultAllocatorPointer, Offset, RawDevicePointer, RawPointer};
@@ -75,5 +80,9 @@ impl<T> Offset for DevicePointer<T> {
 impl<T: Copy> RawDevicePointer for DevicePointer<T> {
     fn sync(&self) -> Result<(), CudaError> {
         Ok(())
+    }
+
+    fn stream_raw(&self) -> *mut c_void {
+        unsafe { DEFAULT_STREAM }
     }
 }

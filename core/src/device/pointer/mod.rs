@@ -2,9 +2,13 @@ mod pinned;
 mod stream;
 mod sync;
 
+use std::ffi::c_void;
+
 pub use pinned::*;
 pub use stream::*;
 pub use sync::*;
+
+use crate::cuda_runtime::stream::CudaStream;
 
 use super::{error::CudaError, DeviceAllocator};
 
@@ -30,8 +34,15 @@ pub trait DefaultAllocatorPointer: RawPointer {
     fn allocator(&self) -> &Self::Allocator;
 }
 
-pub trait RawDevicePointer: DefaultAllocatorPointer + CopyRawFrom<Self> {
+pub trait RawDevicePointer:
+    DefaultAllocatorPointer
+    + CopyRawFrom<Self>
+    + CopyRawTo<*mut Self::Data>
+    + CopyRawFrom<*const Self::Data>
+{
     fn sync(&self) -> Result<(), CudaError>;
+
+    fn stream_raw(&self) -> *mut c_void;
 }
 
 pub trait CopyRawFrom<P> {

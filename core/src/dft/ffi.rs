@@ -14,15 +14,4 @@ extern "C" {
         is_bit_rev: bool,
     ) -> CudaRustError;
 
-    pub(crate) fn batch_NTT(
-        d_inout: *mut BabyBear,
-        lg_domain_size: u32,
-        poly_count: u32,
-    ) -> CudaRustError;
-
-    pub(crate) fn batch_iNTT(
-        d_inout: *mut BabyBear,
-        lg_domain_size: u32,
-        poly_count: u32,
-    ) -> CudaRustError;
 }

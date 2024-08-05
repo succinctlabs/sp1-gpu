@@ -7,7 +7,7 @@ use rand::Rng;
 use crate::cuda_runtime::ffi::DEFAULT_STREAM;
 use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
-use crate::device::memory::{ToDevice, ToDeviceAsync, ToHost};
+use crate::device::memory::{ToDevice, ToDeviceIn, ToHost};
 use crate::device::{
     AllocError, Buffer, DeviceAllocator, DeviceBuffer, DeviceBufferAsync, DevicePointer,
     DeviceStreamPointer, RawDevicePointer, RawPointer,
@@ -94,6 +94,13 @@ impl<P: RawPointer> ColMajorMatrix<P> {
         Self { values, height }
     }
 
+    pub fn empty_in(alloc: &impl DeviceAllocator<P>) -> Self {
+        Self {
+            values: Buffer::with_capacity_in(0, alloc).unwrap(),
+            height: 1,
+        }
+    }
+
     /// # Safety
     ///
     /// TODO
@@ -139,6 +146,25 @@ impl<P: RawPointer> ColMajorMatrix<P> {
     pub fn height(&self) -> usize {
         self.height
     }
+
+    pub fn vertically_strided(&self, stride: usize, offset: usize) -> Result<Self, CudaError>
+    where
+        P: RawDevicePointer<Data = BabyBear>,
+    {
+        assert_eq!(
+            self.height % stride,
+            0,
+            "height must be a multiple of stride"
+        );
+        let mut strided_values =
+            Buffer::with_capacity_in(self.values.len() / stride, self.values.allocator()).unwrap();
+        unsafe { strided_values.set_max_len() };
+
+        let mut output = ColMajorMatrix::new(strided_values, self.height / stride);
+        unsafe { ffi::strided_matrix(output.view_mut(), self.view(), stride, offset) };
+
+        Ok(output)
+    }
 }
 
 impl ColMajorMatrixDevice<BabyBear> {
@@ -158,24 +184,11 @@ impl ColMajorMatrixDevice<BabyBear> {
         }
         .to_result()
     }
+}
 
-    pub fn vertically_strided(
-        &self,
-        stride: usize,
-        offset: usize,
-    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
-        assert_eq!(
-            self.height % stride,
-            0,
-            "height must be a multiple of stride"
-        );
-        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride).unwrap();
-        unsafe { strided_values.set_max_len() };
-
-        let mut output = ColMajorMatrixDevice::new(strided_values, self.height / stride);
-        unsafe { ffi::strided_matrix(output.view_mut(), self.view(), stride, offset) };
-
-        Ok(output)
+impl<T: Copy> ColMajorMatrixAsyncDevice<T> {
+    pub fn stream(&self) -> &CudaStream {
+        self.values.stream()
     }
 }
 
@@ -193,7 +206,28 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
     }
 }
 
-impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T> {
+impl ToHost for ColMajorMatrixAsyncDevice<BabyBear> {
+    type HostType = RowMajorMatrix<BabyBear>;
+
+    fn to_host(&self) -> Self::HostType {
+        let mut ret_values =
+            Buffer::with_capacity_in(self.height() * self.width(), self.values.stream()).unwrap();
+        unsafe {
+            ret_values.set_max_len();
+            transpose_naive(
+                ret_values.as_mut_ptr(),
+                self.view(),
+                self.values.stream_raw(),
+            )
+        };
+        RowMajorMatrix::new(ret_values.to_host(), self.width())
+    }
+}
+
+impl<P: RawDevicePointer> DeviceMatrix<P::Data> for ColMajorMatrix<P>
+where
+    P::Data: Copy,
+{
     fn width(&self) -> usize {
         self.width()
     }
@@ -202,11 +236,11 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
         self.height()
     }
 
-    fn view(&self) -> MatrixViewDevice<T> {
+    fn view(&self) -> MatrixViewDevice<P::Data> {
         self.view()
     }
 
-    fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
+    fn view_mut(&mut self) -> MatrixViewMutDevice<P::Data> {
         self.view_mut()
     }
 }
@@ -233,13 +267,15 @@ impl ToDevice for RowMajorMatrix<BabyBear> {
     }
 }
 
-impl ToDeviceAsync for RowMajorMatrix<BabyBear> {
-    type DeviceTypeAsync = ColMajorMatrixAsyncDevice<BabyBear>;
+impl<P: RawDevicePointer<Data = BabyBear>> ToDeviceIn<P> for RowMajorMatrix<BabyBear> {
+    type DeviceTypeAsync = ColMajorMatrix<P>;
 
-    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceTypeAsync, CudaError> {
-        let values = self.values.to_device_async(stream)?;
-        let mut ret_values =
-            DeviceBufferAsync::with_capacity_in(self.height() * self.width(), stream)?;
+    fn to_device_in(
+        &self,
+        alloc: &impl DeviceAllocator<P>,
+    ) -> Result<ColMajorMatrix<P>, CudaError> {
+        let values = self.values.to_device_in(alloc)?;
+        let mut ret_values = Buffer::with_capacity_in(self.height() * self.width(), alloc)?;
         unsafe {
             let view = MatrixViewDevice {
                 values: values.as_ptr(),
@@ -248,11 +284,11 @@ impl ToDeviceAsync for RowMajorMatrix<BabyBear> {
                 row_major: true,
                 _marker: std::marker::PhantomData,
             };
-            transpose_naive(ret_values.as_mut_ptr(), view, stream.raw());
+            transpose_naive(ret_values.as_mut_ptr(), view, ret_values.stream_raw());
             ret_values.set_max_len();
         }
 
-        Ok(ColMajorMatrixAsyncDevice::new(ret_values, self.height()))
+        Ok(ColMajorMatrix::new(ret_values, self.height()))
     }
 }
 

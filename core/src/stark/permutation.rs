@@ -5,7 +5,8 @@ use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
-use crate::device::Scan;
+use crate::device::{Buffer, RawDevicePointer, Scan};
+use crate::matrix::ColMajorMatrix;
 use crate::{
     device::{error::CudaError, memory::ToDevice, DeviceBuffer},
     matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
@@ -70,13 +71,13 @@ where
         Ok(permutation_trace)
     }
 
-    pub fn generate_flattened_permutation_trace(
+    pub fn generate_flattened_permutation_trace<P: RawDevicePointer<Data = BabyBear>>(
         &self,
         chip: &Chip<BabyBear, A>,
-        preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
-        main_trace: &ColMajorMatrixDevice<BabyBear>,
+        preprocessed_trace: Option<&ColMajorMatrix<P>>,
+        main_trace: &ColMajorMatrix<P>,
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
-    ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+    ) -> Result<ColMajorMatrix<P>, CudaError> {
         const D: usize = 4;
         let device_interactions = HostInteractions::new(chip.sends(), chip.receives())
             .to_device()
@@ -84,12 +85,14 @@ where
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
+
+        let alloc = main_trace.values.allocator();
         let mut perm_buffer =
-            DeviceBuffer::<BabyBear>::with_capacity(perm_width * height * D).unwrap();
+            Buffer::<P>::with_capacity_in(perm_width * height * D, alloc).unwrap();
         unsafe {
             perm_buffer.set_max_len();
         }
-        let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
+        let mut permutation_trace = ColMajorMatrix::new(perm_buffer, height);
 
         let alpha = random_elements[0];
         let beta = random_elements[1];
