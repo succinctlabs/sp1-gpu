@@ -126,8 +126,11 @@ impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
 impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
     type DeviceType = RowMajorMatrixDevice<T>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
-        let values = self.values.to_device()?;
+    fn to_device_async(
+        &self,
+        stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
+        let values = self.values.to_device_async(stream)?;
         Ok(RowMajorMatrixDevice::new(values, self.width))
     }
 }

@@ -32,21 +32,21 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        Self::try_with_capacity_in(capacity, CudaStream::default())
+        Self::try_with_capacity_in(capacity, &CudaStream::default())
     }
 
     /// Allocate a new buffer on the device.
     ///
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
-    pub fn try_with_capacity_in(capacity: usize, stream: CudaStream) -> Result<Self, CudaError> {
+    pub fn try_with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
         let ptr = unsafe { stream.try_alloc(capacity) }?;
 
         Ok(Self {
             buf: ptr,
             len: 0,
             cap: capacity,
-            stream,
+            stream: stream.clone(),
         })
     }
 
@@ -54,14 +54,14 @@ impl<T: Copy> DeviceBuffer<T> {
     ///
     /// The function will block until enough memory is available. The function will return an error
     /// if another device error occurs.
-    pub fn with_capacity_in(capacity: usize, stream: CudaStream) -> Result<Self, CudaError> {
+    pub fn with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
         let ptr = unsafe { stream.alloc(capacity) }?;
 
         Ok(Self {
             buf: ptr,
             len: 0,
             cap: capacity,
-            stream,
+            stream: stream.clone(),
         })
     }
 
@@ -344,8 +344,8 @@ impl_index! {
 impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
-        let mut buffer = DeviceBuffer::with_capacity(self.len())?;
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError> {
+        let mut buffer = DeviceBuffer::with_capacity_in(self.len(), stream)?;
         buffer.extend_from_host_slice(self);
         Ok(buffer)
     }

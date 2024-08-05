@@ -218,7 +218,10 @@ where
 impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
     type DeviceType = TwoAdicMultiplicativeCosetDevice<BabyBear>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_async(
+        &self,
+        _stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType {
             log_n: self.log_n,
             shift: self.shift,
@@ -238,12 +241,15 @@ pub struct LagrangeSelectorsDevice<T: Field> {
 impl ToDevice for LagrangeSelectors<Vec<BabyBear>> {
     type DeviceType = LagrangeSelectorsDevice<BabyBear>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_async(
+        &self,
+        stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType {
-            is_first_row: self.is_first_row.to_device()?,
-            is_last_row: self.is_last_row.to_device()?,
-            is_transition: self.is_transition.to_device()?,
-            inv_zeroifier: self.inv_zeroifier.to_device()?,
+            is_first_row: self.is_first_row.to_device_async(stream)?,
+            is_last_row: self.is_last_row.to_device_async(stream)?,
+            is_transition: self.is_transition.to_device_async(stream)?,
+            inv_zeroifier: self.inv_zeroifier.to_device_async(stream)?,
         })
     }
 }
