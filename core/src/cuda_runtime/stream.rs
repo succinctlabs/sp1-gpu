@@ -10,7 +10,7 @@ use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
@@ -51,7 +51,7 @@ impl CudaStream {
     }
 
     pub fn record(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_event_record(event.0, self.0 .0) }.to_result()
+        unsafe { ffi::cuda_event_record(event.handle(), self.0 .0) }.to_result()
     }
 
     pub fn elapsed(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
@@ -59,14 +59,15 @@ impl CudaStream {
         self.record(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
-        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0 .0, end.0) }.to_result()?;
+        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0.handle(), end.handle()) }
+            .to_result()?;
 
         let s = ms as f64 * 1e-3;
         Ok(Duration::from_secs_f64(s))
     }
 
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.0) }.to_result()
+        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.handle()) }.to_result()
     }
 
     /// # Safety

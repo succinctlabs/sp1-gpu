@@ -4,20 +4,23 @@ use std::ffi::c_void;
 
 use crate::device::error::CudaRustError;
 
-use super::stream::CudaStreamHandle;
+use super::{event::CudaEventHandle, stream::CudaStreamHandle};
 
 extern "C" {
     pub(crate) static DEFAULT_STREAM: CudaStreamHandle;
 
     pub(crate) fn cuda_device_synchronize() -> CudaRustError;
-    pub(crate) fn cuda_event_create(event: *mut *mut c_void) -> CudaRustError;
-    pub(crate) fn cuda_event_destroy(event: *mut c_void) -> CudaRustError;
-    pub(crate) fn cuda_event_record(event: *mut c_void, stream: CudaStreamHandle) -> CudaRustError;
-    pub(crate) fn cuda_event_synchronize(event: *mut c_void) -> CudaRustError;
+    pub(crate) fn cuda_event_create(event: *mut CudaEventHandle) -> CudaRustError;
+    pub(crate) fn cuda_event_destroy(event: CudaEventHandle) -> CudaRustError;
+    pub(crate) fn cuda_event_record(
+        event: CudaEventHandle,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+    pub(crate) fn cuda_event_synchronize(event: CudaEventHandle) -> CudaRustError;
     pub(crate) fn cuda_event_elapsed_time(
         ms: *mut f32,
-        start: *mut c_void,
-        end: *mut c_void,
+        start: CudaEventHandle,
+        end: CudaEventHandle,
     ) -> CudaRustError;
 
     pub(crate) fn cuda_stream_create(stream: *mut CudaStreamHandle) -> CudaRustError;
@@ -26,7 +29,7 @@ extern "C" {
 
     pub(crate) fn cuda_stream_wait_event(
         stream: CudaStreamHandle,
-        event: *mut c_void,
+        event: CudaEventHandle,
     ) -> CudaRustError;
 
     // Async memory operations.
