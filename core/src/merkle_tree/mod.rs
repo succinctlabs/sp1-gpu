@@ -1,3 +1,4 @@
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
@@ -87,6 +88,12 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
 
     pub fn root(&self) -> D {
         self.digest_layers.last().unwrap().to_host()[0]
+    }
+}
+
+impl<D: Copy> FieldMerkleTreeGpu<BabyBear, D, ColMajorMatrixDevice<BabyBear>> {
+    pub fn stream(&self) -> &CudaStream {
+        self.leaves[0].stream()
     }
 }
 

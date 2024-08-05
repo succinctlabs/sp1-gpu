@@ -116,7 +116,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             let src = &self.values[j * self.height..(j + 1) * self.height];
             let dst = &mut blowup_values
                 [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
-            dst.copy_from_device(src)?;
+            dst.copy_from_device(src, self.stream())?;
         }
 
         Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))

@@ -388,6 +388,8 @@ mod tests {
     };
     use std::{fmt::Debug, ops::Range};
 
+    use crate::cuda_runtime::stream::CudaStream;
+
     use super::DeviceBuffer;
 
     fn make_test_buffer_init_and_copy<T>(rng: &mut impl Rng, len: usize)
@@ -426,10 +428,13 @@ mod tests {
         let device_slice = &mut buffer[slice_range.clone()];
         assert_eq!(device_slice.len(), slice_range.len());
 
-        device_slice.copy_from_host(&new_values);
+        device_slice.copy_from_host(&new_values, &CudaStream::default());
 
         let mut new_values_back = vec![T::default(); len];
-        device_slice.copy_into_host(&mut new_values_back[0..slice_range.len()]);
+        device_slice.copy_into_host(
+            &mut new_values_back[0..slice_range.len()],
+            &CudaStream::default(),
+        );
 
         for (val, exp) in new_values_back.into_iter().zip(new_values) {
             assert_eq!(val, exp);

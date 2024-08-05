@@ -40,6 +40,7 @@ use std::cmp::Reverse;
 
 use air::P3EvalFolder;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::memory::cuda_mem_get_info;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
@@ -169,7 +170,10 @@ where
         // Copy the traces to device.
         let traces: Vec<_> = traces
             .iter()
-            .map(|trace| trace.to_device().unwrap().to_column_major())
+            .map(|trace| {
+                let stream = CudaStream::create().unwrap();
+                trace.to_device_async(&stream).unwrap().to_column_major()
+            })
             .collect();
 
         // Commit to the traces.
@@ -371,7 +375,7 @@ where
                     trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
                 SC::Challenge::from_base_fn(|i| {
                     let index = (start_col_idx + i) * trace.height() + row_idx;
-                    let val = trace.values[index..index + 1].to_host();
+                    let val = trace.values[index..index + 1].as_host_vec(trace.stream());
                     val[0]
                 })
             })

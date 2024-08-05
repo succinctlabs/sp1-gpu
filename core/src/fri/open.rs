@@ -552,7 +552,7 @@ pub(super) mod merkle_tree_opening_prover {
                                 .map(|i| {
                                     let start = (data_index >> i) ^ 1;
                                     let end = start + 1;
-                                    data.digest_layers[i][start..end].to_host()[0]
+                                    data.digest_layers[i][start..end].as_host_vec(data.stream())[0]
                                 })
                                 .collect();
 
