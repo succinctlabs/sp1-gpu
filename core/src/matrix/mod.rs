@@ -1,8 +1,10 @@
 mod col_major;
+mod pinned;
 mod row_major;
 mod view;
 
 pub use col_major::*;
+pub use pinned::*;
 pub use row_major::*;
 pub use view::*;
 

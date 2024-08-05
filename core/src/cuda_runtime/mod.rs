@@ -11,13 +11,16 @@ pub const DEFAULT_CAPACITY: usize = 100;
 
 pub mod event;
 pub(crate) mod ffi;
+mod pinned;
 pub mod scope;
 pub mod spawn;
 pub mod stream;
 pub mod task;
 
+pub use pinned::*;
 pub use scope::*;
 pub use spawn::*;
+
 use task::TaskRef;
 
 pub fn sync_device() -> Result<(), CudaError> {
