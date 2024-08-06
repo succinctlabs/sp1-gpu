@@ -31,6 +31,22 @@ impl<T> PinBuffer<T> {
         unsafe { cuda_host_register(vec.as_ptr(), vec.capacity()) }?;
         Ok(Self::CudaRegistered(vec))
     }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        match self {
+            Self::CudaOwnned(vec) => vec.len(),
+            Self::CudaRegistered(vec) => vec.len(),
+        }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::CudaOwnned(vec) => vec.is_empty(),
+            Self::CudaRegistered(vec) => vec.is_empty(),
+        }
+    }
 }
 
 impl<T> Drop for PinBuffer<T> {

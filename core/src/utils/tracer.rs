@@ -1,5 +1,6 @@
 use std::sync::Once;
 
+use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
@@ -31,8 +32,9 @@ pub fn init_tracer() {
             .with_target(false)
             .with_thread_names(false)
             .with_env_filter(env_filter)
+            .with_span_events(FmtSpan::CLOSE)
             .finish()
-            .with(TimeLayer)
+            // .with(TimeLayer)
             .with(NvtxLayer)
             .init();
     });

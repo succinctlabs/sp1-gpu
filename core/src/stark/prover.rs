@@ -630,10 +630,12 @@ where
             .iter()
             .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
-                let preprocessed_trace = pk
-                    .chip_ordering
-                    .get(&chip.name())
-                    .map(|&index| pk.traces[index].to_device().unwrap().to_column_major());
+                let preprocessed_trace = pk.chip_ordering.get(&chip.name()).map(|&index| {
+                    pk.traces[index]
+                        .to_device_async(main_trace.stream())
+                        .unwrap()
+                        .to_column_major()
+                });
 
                 self.permutation_trace_generator
                     .generate_flattened_permutation_trace(

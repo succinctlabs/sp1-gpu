@@ -6,6 +6,7 @@ use p3_field::{extension::BinomialExtensionField, ExtensionField, Field};
 use sp1_core::{air::MachineAir, lookup::Interaction, stark::Chip};
 
 use crate::{
+    cuda_runtime::stream::CudaStream,
     device::{error::CudaError, memory::ToDevice, slice::DeviceSlice, DeviceBuffer},
     matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
@@ -76,15 +77,16 @@ where
         main_trace: &ColMajorMatrixDevice<BabyBear>,
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
     ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
+        let stream = main_trace.stream();
         const D: usize = 4;
         let device_interactions = HostInteractions::new(chip.sends(), chip.receives())
-            .to_device()
+            .to_device_async(stream)
             .unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
         let mut perm_buffer =
-            DeviceBuffer::<BabyBear>::with_capacity(perm_width * height * D).unwrap();
+            DeviceBuffer::<BabyBear>::with_capacity_in(perm_width * height * D, stream).unwrap();
         unsafe {
             perm_buffer.set_max_len();
         }
@@ -108,6 +110,7 @@ where
             batch_size,
             num_blocks,
             num_threads_per_block,
+            stream,
         )?;
 
         Ok(permutation_trace)
@@ -257,21 +260,6 @@ impl<F: Field> HostInteractions<F> {
         }
     }
 
-    pub fn to_device(&self) -> Result<DeviceInteractions<F>, CudaError> {
-        Ok(DeviceInteractions {
-            values_ptr: self.values_ptr.to_device()?,
-            values_col_weights_ptr: self.values_col_weights_ptr.to_device()?,
-            multiplicities_ptr: self.multiplicities_ptr.to_device()?,
-            values_col_weights: self.values_col_weights.to_device()?,
-            values_constants: self.values_constants.to_device()?,
-            mult_col_weights: self.mult_col_weights.to_device()?,
-            mult_constants: self.mult_constants.to_device()?,
-            arg_indices: self.arg_indices.to_device()?,
-            is_send: self.is_send.to_device()?,
-            num_interactions: self.num_interactions,
-        })
-    }
-
     pub fn populate_permutation_row<EF: ExtensionField<F>>(
         &self,
         row: &mut [EF],
@@ -387,6 +375,7 @@ impl DeviceInteractions<BabyBear> {
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
+        stream: &CudaStream,
     ) {
         self.view().populate_permutation_rows_flattened(
             permutation,
@@ -397,6 +386,7 @@ impl DeviceInteractions<BabyBear> {
             batch_size,
             num_blocks,
             num_threads_per_block,
+            stream,
         );
     }
 
@@ -429,7 +419,7 @@ impl DeviceInteractions<BabyBear> {
         unsafe {
             let last_col_ptr = permutation.values.add(col * height);
             let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-            cumulative_column.scan_inplace()
+            cumulative_column.scan_inplace(&CudaStream::default())
         }
     }
 
@@ -443,6 +433,7 @@ impl DeviceInteractions<BabyBear> {
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
         const D: usize = 4;
         // Populate the permutation rows.
@@ -455,6 +446,7 @@ impl DeviceInteractions<BabyBear> {
             batch_size,
             num_blocks,
             num_threads_per_block,
+            stream,
         );
 
         // Collect the cumulative sums using a scan in place.
@@ -466,7 +458,7 @@ impl DeviceInteractions<BabyBear> {
             for j in 0..4 {
                 let last_col_ptr = permutation.values.add((col + j) * height);
                 let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-                cumulative_column.scan_inplace()?;
+                cumulative_column.scan_inplace(stream)?;
             }
         }
         Ok(())
@@ -510,6 +502,7 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
+        stream: &CudaStream,
     ) {
         unsafe {
             ffi::populate_permutation_rows_flattened(
@@ -522,6 +515,7 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
                 batch_size,
                 num_blocks,
                 num_threads_per_block,
+                stream.handle(),
             );
         }
     }
@@ -553,6 +547,24 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
             is_preprocessed: self.is_preprocessed,
             weight: self.weight * rhs,
         }
+    }
+}
+
+impl<F: Field> ToDevice for HostInteractions<F> {
+    type DeviceType = DeviceInteractions<F>;
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError> {
+        Ok(DeviceInteractions {
+            values_ptr: self.values_ptr.to_device_async(stream)?,
+            values_col_weights_ptr: self.values_col_weights_ptr.to_device_async(stream)?,
+            multiplicities_ptr: self.multiplicities_ptr.to_device_async(stream)?,
+            values_col_weights: self.values_col_weights.to_device_async(stream)?,
+            values_constants: self.values_constants.to_device_async(stream)?,
+            mult_col_weights: self.mult_col_weights.to_device_async(stream)?,
+            mult_constants: self.mult_constants.to_device_async(stream)?,
+            arg_indices: self.arg_indices.to_device_async(stream)?,
+            is_send: self.is_send.to_device_async(stream)?,
+            num_interactions: self.num_interactions,
+        })
     }
 }
 

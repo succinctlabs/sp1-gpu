@@ -13,13 +13,21 @@ pub struct PinRowMajorMatrix<T> {
 }
 
 impl<T> PinRowMajorMatrix<T> {
-    pub const fn new(values: PinBuffer<T>, width: usize) -> Self {
+    pub fn new(values: PinBuffer<T>, width: usize) -> Self {
+        debug_assert!(values.len() % width == 0);
         Self { values, width }
     }
 
     pub fn register(matrix: RowMajorMatrix<T>) -> Result<Self, CudaError> {
         let values = PinBuffer::register(matrix.values)?;
         Ok(Self::new(values, matrix.width))
+    }
+
+    pub fn height(&self) -> usize {
+        if self.width == 0 {
+            return 0;
+        }
+        self.values.len() / self.width
     }
 }
 

@@ -1,7 +1,10 @@
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
-use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
+use crate::{
+    cuda_runtime::stream::CudaStreamHandle,
+    matrix::{MatrixViewDevice, MatrixViewMutDevice},
+};
 
 use super::DeviceInteractionsView;
 
@@ -28,6 +31,7 @@ extern "C" {
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
+        stream: CudaStreamHandle,
     );
 }
 
