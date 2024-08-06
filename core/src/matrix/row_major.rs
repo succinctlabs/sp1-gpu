@@ -4,6 +4,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 use crate::device::DeviceBuffer;
@@ -22,6 +23,10 @@ pub struct RowMajorMatrixDevice<T: Copy> {
 impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
     pub fn new(values: DeviceBuffer<T>, width: usize) -> Self {
         Self { values, width }
+    }
+
+    pub fn stream(&self) -> &CudaStream {
+        self.values.stream()
     }
 
     pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
@@ -86,14 +91,9 @@ impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
 
 impl RowMajorMatrixDevice<BabyBear> {
     pub fn to_column_major(&self) -> ColMajorMatrixDevice<BabyBear> {
-        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
-        unsafe {
-            transpose_naive(
-                ret_values.as_mut_ptr(),
-                self.view(),
-                self.values.stream().handle(),
-            )
-        };
+        let mut ret_values =
+            DeviceBuffer::with_capacity_in(self.height() * self.width(), self.stream()).unwrap();
+        unsafe { transpose_naive(ret_values.as_mut_ptr(), self.view(), self.stream().handle()) };
         unsafe { ret_values.set_max_len() };
 
         ColMajorMatrixDevice::new(ret_values, self.height())
