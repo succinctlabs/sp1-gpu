@@ -22,12 +22,16 @@ private:
         return a - (a >= M_31) * M_31;
     }
 
+    HD static inline uint64_t reduce64(uint64_t a) {
+        return reduce(reduce(a));
+    }
+
     HD static inline uint32_t mod(uint32_t a) {
         return sub(reduce(a));
     }
 
     HD static inline uint32_t mod(uint64_t a) {
-        return static_cast<uint32_t>(sub(reduce(reduce(a))));
+        return static_cast<uint32_t>(sub(reduce64(a)));
     }
 
 public:
@@ -69,15 +73,17 @@ public:
 
     HD inline mer31_t& operator^=(uint32_t p)
     {
-        mer31_t base = *this;
-        val = (p & 1u) * (val - 1) + 1;
+        uint64_t base = static_cast<uint64_t>(val);
+        uint64_t result = (p & 1u) * (base - 1) + 1;
 
         #pragma unroll
         while (p >>= 1) {
-            base *= base;
+            base = reduce64(base * base);
             if (p & 1u)
-                *this *= base;
+                result = reduce64(result * base);
         }
+
+        val = static_cast<uint32_t>(sub(result));
         return *this;
     }
     friend HD inline mer31_t operator^(mer31_t a, uint32_t p)
