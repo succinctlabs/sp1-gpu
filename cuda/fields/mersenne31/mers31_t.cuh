@@ -47,9 +47,13 @@ public:
     friend HD inline mer31_t operator+(mer31_t a, const mer31_t b)
     {   return a += b;   }
 
+    HD inline mer31_t operator-() const
+    {   
+        return mer31_t(M_31 - val, val_t{}); 
+    }
     HD inline mer31_t& operator-=(const mer31_t b)
     {
-        val = sub(val + M_31 - b.val);
+        *this += -b;
         return *this;
     }
     friend HD inline mer31_t operator-(mer31_t a, const mer31_t b)
@@ -78,4 +82,11 @@ public:
     }
     friend HD inline mer31_t operator^(mer31_t a, uint32_t p)
     {   return a ^= p;   }
+
+    HD inline mer31_t reciprocal() const
+    {   return *this ^= (M_31-2);   }
+    HD inline bb31_t& operator/=(const bb31_t a)
+    {   return *this *= a.reciprocal();   }
+    friend HD inline bb31_t operator/(bb31_t a, bb31_t b)
+    {   return a /= b;   }
 };
