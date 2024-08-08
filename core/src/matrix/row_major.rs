@@ -100,7 +100,8 @@ impl RowMajorMatrixDevice<BabyBear> {
     }
 
     pub fn to_column_major_blowup(&self, log_blowup: usize) -> ColMajorMatrixDevice<BabyBear> {
-        let mut ret_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup).unwrap();
+        let mut ret_values =
+            DeviceBuffer::with_capacity_in(self.values.len() << log_blowup, self.stream()).unwrap();
         unsafe {
             transpose_blowup_naive(
                 ret_values.as_mut_ptr(),
