@@ -46,6 +46,25 @@ public:
     friend HD inline mer31_complex_t operator-(mer31_complex_t a, const mer31_complex_t b)
     {   return a -= b;   }
 
+
+    HD inline mer31_complex_t& operator*=(const mer31_t b)
+    {
+        x *= b;
+        y *= b;
+        return *this;
+    }
+    friend HD inline mer31_complex_t operator*(mer31_complex_t a, const mer31_t b)
+    {   return a *= b;   }
+
+    HD inline mer31_complex_t& operator/=(const mer31_t b)
+    {   return *this * b.reciprocal();   }
+    friend HD inline mer31_complex_t operator/(mer31_complex_t a, const mer31_t b)
+    {   return a /= b;   }
+
+    HD inline mer31_t reciprocal() const
+    {   return mer31_complex_t(x, -y) / ((x * x) + (y * y));   }
+
+
     HD inline mer31_complex_t& operator*=(const mer31_complex_t b)
     {
         x = x * b.x - y * b.y;
@@ -55,11 +74,13 @@ public:
     friend HD inline mer31_complex_t operator*(mer31_complex_t a, const mer31_complex_t b)
     {   return a *= b;   }
 
+    HD inline mer31_complex_t& operator/=(const mer31_complex_t b)
+    {   return *this * b.reciprocal();   }
+    friend HD inline mer31_complex_t operator/(mer31_complex_t a, const mer31_complex_t b)
+    {   return a /= b;   }
+
     friend HD inline bool operator==(const bb31_extension_t& lhs, const bb31_extension_t& rhs) 
     {   return lhs.x == rhs.x && lhs.y == rhs.y;   }
     friend HD inline bool operator!=(const bb31_extension_t& lhs, const bb31_extension_t& rhs) 
     {   return !(lhs == rhs);   }
-
-    
-        
 };

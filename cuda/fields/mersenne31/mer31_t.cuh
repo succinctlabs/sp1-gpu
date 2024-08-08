@@ -95,4 +95,9 @@ public:
     {   return *this *= a.reciprocal();   }
     friend HD inline bb31_t operator/(bb31_t a, bb31_t b)
     {   return a /= b;   }
+
+    friend HD inline bool operator==(const bb31_t& lhs, const bb31_t& rhs) 
+    {   return lhs.val == rhs.val;   }
+    friend HD inline bool operator!=(const bb31_t& lhs, const bb31_t& rhs) 
+    {   return !(lhs == rhs);   }
 };
