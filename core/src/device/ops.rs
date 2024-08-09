@@ -1,4 +1,4 @@
-use crate::cuda_runtime::stream::{self, CudaStream};
+use crate::cuda_runtime::stream::CudaStream;
 
 use super::{
     buffer::DeviceBuffer,

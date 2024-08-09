@@ -40,6 +40,15 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         Ok(Self::new(buffer, height))
     }
 
+    pub fn with_capacity_in(
+        width: usize,
+        height: usize,
+        stream: &CudaStream,
+    ) -> Result<Self, CudaError> {
+        let buffer = DeviceBuffer::with_capacity_in(width * height, stream)?;
+        Ok(Self::new(buffer, height))
+    }
+
     pub fn to_host_naive(&self) -> RowMajorMatrix<T> {
         RowMajorMatrix::new(self.values.to_host(), self.height).transpose()
     }
@@ -106,7 +115,8 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         &self,
         log_blowup: usize,
     ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
-        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
+        let mut blowup_values =
+            DeviceBuffer::with_capacity_in(self.values.len() << log_blowup, self.stream())?;
         unsafe { blowup_values.set_max_len() };
 
         let blowup_height = self.height << log_blowup;
@@ -151,11 +161,20 @@ impl ColMajorMatrixDevice<BabyBear> {
             0,
             "height must be a multiple of stride"
         );
-        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride).unwrap();
+        let mut strided_values =
+            DeviceBuffer::with_capacity_in(self.values.len() / stride, self.stream()).unwrap();
         unsafe { strided_values.set_max_len() };
 
         let mut output = ColMajorMatrixDevice::new(strided_values, self.height / stride);
-        unsafe { ffi::strided_matrix(output.view_mut(), self.view(), stride, offset) };
+        unsafe {
+            ffi::strided_matrix(
+                output.view_mut(),
+                self.view(),
+                stride,
+                offset,
+                self.stream().handle(),
+            )
+        };
 
         Ok(output)
     }
@@ -166,7 +185,8 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
 
     /// Returns a host copy of the matrix in row major form.
     fn to_host(&self) -> Self::HostType {
-        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
+        let mut ret_values =
+            DeviceBuffer::with_capacity_in(self.height() * self.width(), self.stream()).unwrap();
         unsafe {
             ret_values.set_max_len();
             transpose_naive(ret_values.as_mut_ptr(), self.view(), self.stream().handle())

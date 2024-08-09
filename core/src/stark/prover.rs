@@ -174,6 +174,7 @@ where
             .map(|trace| {
                 let stream = CudaStream::create().unwrap();
                 trace.to_device_async(&stream).unwrap().to_column_major()
+                // trace.to_device().unwrap().to_column_major()
             })
             .collect();
 

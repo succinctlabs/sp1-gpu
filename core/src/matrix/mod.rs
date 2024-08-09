@@ -54,6 +54,7 @@ pub(super) mod ffi {
             input: MatrixViewDevice<BabyBear>,
             stride: usize,
             offset: usize,
+            stream: CudaStreamHandle,
         );
 
         #[allow(dead_code)]
@@ -61,6 +62,7 @@ pub(super) mod ffi {
             outputs: *mut MatrixViewMutDevice<BabyBear>,
             input: MatrixViewDevice<BabyBear>,
             stride: usize,
+            stream: CudaStreamHandle,
         );
     }
 

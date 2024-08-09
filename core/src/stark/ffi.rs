@@ -36,6 +36,7 @@ extern "C" {
 }
 
 pub(super) mod quotient_gpu {
+    use crate::cuda_runtime::stream::CudaStreamHandle;
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
     use crate::stark::quotient::TwoAdicMultiplicativeCosetDevice;
     use air::operation::Operation;
@@ -65,6 +66,7 @@ pub(super) mod quotient_gpu {
             quotient_values: MatrixViewMutDevice<BabyBear>,
             num_blocks: usize,
             num_threads_per_block: usize,
+            stream: CudaStreamHandle,
         );
     }
 }

@@ -122,6 +122,8 @@ where
             let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
             let trace_domain = *trace_domain;
 
+            let stream = permutation_trace.stream();
+
             // Get the quotient domain.
             let log_quotient_degree = chip.log_quotient_degree();
             let quotient_domain =
@@ -130,7 +132,12 @@ where
             let preprocessed_on_quotient_domain = pk
                 .chip_ordering
                 .get(&chip.name())
-                .map(|&index| pk.traces[index].to_device().unwrap().to_column_major())
+                .map(|&index| {
+                    pk.traces[index]
+                        .to_device_async(stream)
+                        .unwrap()
+                        .to_column_major()
+                })
                 .map(|trace| {
                     committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
                 })
@@ -150,13 +157,15 @@ where
             )?;
             evaluations_span.exit();
 
+            stream.synchronize().unwrap();
+
             // Move data to device and get generator powers.
             let generator_powers_span = trace_span!("Get generator powers").entered();
 
             let trace_domain_device = trace_domain.to_device().unwrap();
-            let quotient_domain_device = quotient_domain.to_device().unwrap();
+            let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
-            let operations_device = operations.to_device().unwrap();
+            let operations_device = operations.to_device_async(stream).unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -165,15 +174,16 @@ where
                 .powers()
                 .take(NUM_THREADS_PER_BLOCK)
                 .collect::<Vec<_>>()
-                .to_device()
+                .to_device_async(stream)
                 .unwrap();
             generator_powers_span.exit();
 
             // Compute quotient values.
             let quotient_flat = trace_span!("Compute quotient values").in_scope(|| unsafe {
-                let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+                let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity_in(
                     <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                     quotient_domain.size(),
+                    stream,
                 )
                 .unwrap();
                 quotient_flat.set_max_width();
@@ -195,6 +205,7 @@ where
                     quotient_flat.view_mut(),
                     quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
                     NUM_THREADS_PER_BLOCK,
+                    stream.handle(),
                 );
                 quotient_flat
             });
@@ -203,6 +214,9 @@ where
             let quotient_degree = 1 << log_quotient_degree;
             let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+
+            stream.synchronize().unwrap();
+
             split_values_span.exit();
 
             results.push(DeviceQuotientValues {
@@ -396,6 +410,7 @@ mod tests {
     };
     use tracing::debug;
 
+    use crate::cuda_runtime::ffi::DEFAULT_STREAM;
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
@@ -583,6 +598,7 @@ mod tests {
                     quotient_output.view_mut(),
                     (num_rows << pcs.fri_config().log_blowup) / 512,
                     512,
+                    DEFAULT_STREAM,
                 );
             }
             let data = quotient_output.to_host();
