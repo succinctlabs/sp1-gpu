@@ -69,6 +69,7 @@ const LDE_MEM_RATIO: f64 = 10.0 / 24.0;
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
+    chip_streams: Vec<CudaStream>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     lde_mem_threshold: usize,
@@ -115,6 +116,11 @@ where
         let (_, total) = cuda_mem_get_info().unwrap();
         let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
         tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
+        let chip_streams = machine
+            .chips()
+            .iter()
+            .map(|_| CudaStream::create().unwrap())
+            .collect();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
@@ -122,6 +128,7 @@ where
             opening_prover: FriOpeningProver::default(),
             lde_mem_threshold,
             quotient_generator,
+            chip_streams,
         }
     }
 
@@ -170,11 +177,8 @@ where
         // Copy the traces to device.
         let traces: Vec<_> = traces
             .iter()
-            .map(|trace| {
-                let stream = CudaStream::create().unwrap();
-                trace.to_device_async(&stream).unwrap().to_column_major()
-                // trace.to_device().unwrap().to_column_major()
-            })
+            .zip(self.chip_streams.iter())
+            .map(|(trace, stream)| trace.to_device_async(stream).unwrap().to_column_major())
             .collect();
 
         // Commit to the traces.
