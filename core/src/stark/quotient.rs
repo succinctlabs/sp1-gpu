@@ -162,63 +162,74 @@ where
                 evaluations_span.exit();
                 Ok((
                     trace_domain,
+                    quotient_domain,
                     preprocessed_on_quotient_domain,
                     main_on_quotient_domain,
                     perm_on_quotient_domain,
                 ))
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
-        drop(evaluations);
 
-        for (i, chip) in chips.iter().enumerate() {
+        for (i, (chip, evaluations)) in chips.iter().zip(evaluations).enumerate() {
             // Get the evaluations on the quotient domain.
-            let evaluations_span =
-                trace_span!("Get evaluations on quotient domain", chip = chip.name()).entered();
+            // let evaluations_span =
+            //     trace_span!("Get evaluations on quotient domain", chip = chip.name()).entered();
 
-            let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
-            let trace_domain = *trace_domain;
+            // let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
+            // let trace_domain = *trace_domain;
 
-            let stream = permutation_trace.stream();
+            // let stream = permutation_trace.stream();
 
-            // Get the quotient domain.
+            // // Get the quotient domain.
+            // let log_quotient_degree = chip.log_quotient_degree();
+            // let quotient_domain =
+            //     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+            // // Compute the evaluations of the traces on the quotient domain.
+            // let preprocessed_on_quotient_domain = pk
+            //     .chip_ordering
+            //     .get(&chip.name())
+            //     .map(|&index| {
+            //         pk.traces[index]
+            //             .to_device_async(stream)
+            //             .unwrap()
+            //             .to_column_major()
+            //     })
+            //     .map(|trace| {
+            //         committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
+            //     })
+            //     .transpose()?;
+            // let preprocessed_on_quotient_domain =
+            //     preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
+
+            // let main_on_quotient_domain = committer.get_evaluations_on_domain(
+            //     trace_domain,
+            //     quotient_domain,
+            //     &main_traces[i],
+            // )?;
+            // let perm_on_quotient_domain = committer.get_evaluations_on_domain(
+            //     trace_domain,
+            //     quotient_domain,
+            //     permutation_trace,
+            // )?;
+            // evaluations_span.exit();
+
             let log_quotient_degree = chip.log_quotient_degree();
-            let quotient_domain =
-                trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
-            // Compute the evaluations of the traces on the quotient domain.
-            let preprocessed_on_quotient_domain = pk
-                .chip_ordering
-                .get(&chip.name())
-                .map(|&index| {
-                    pk.traces[index]
-                        .to_device_async(stream)
-                        .unwrap()
-                        .to_column_major()
-                })
-                .map(|trace| {
-                    committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
-                })
-                .transpose()?;
-            let preprocessed_on_quotient_domain =
-                preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
-
-            let main_on_quotient_domain = committer.get_evaluations_on_domain(
+            let (
                 trace_domain,
                 quotient_domain,
-                &main_traces[i],
-            )?;
-            let perm_on_quotient_domain = committer.get_evaluations_on_domain(
-                trace_domain,
-                quotient_domain,
-                permutation_trace,
-            )?;
-            evaluations_span.exit();
+                preprocessed_on_quotient_domain,
+                main_on_quotient_domain,
+                perm_on_quotient_domain,
+            ) = evaluations;
 
-            stream.synchronize().unwrap();
+            let stream = main_on_quotient_domain.stream();
+
+            // stream.synchronize().unwrap();
 
             // Move data to device and get generator powers.
             let generator_powers_span = trace_span!("Get generator powers").entered();
 
-            let trace_domain_device = trace_domain.to_device().unwrap();
+            let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
             let operations_device = operations.to_device_async(stream).unwrap();
@@ -271,7 +282,7 @@ where
             let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
 
-            stream.synchronize().unwrap();
+            // stream.synchronize().unwrap();
 
             split_values_span.exit();
 
