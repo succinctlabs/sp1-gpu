@@ -114,6 +114,62 @@ where
 
         let permutation_challenges_device = permutation_challenges.to_device().unwrap();
         let public_values_device = public_values.to_device().unwrap();
+
+        let evaluations = chips
+            .iter()
+            .enumerate()
+            .map(|(i, chip)| {
+                // Get the evaluations on the quotient domain.
+                let evaluations_span =
+                    trace_span!("Get evaluations on quotient domain", chip = chip.name()).entered();
+
+                let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
+                let trace_domain = *trace_domain;
+
+                let stream = permutation_trace.stream();
+
+                // Get the quotient domain.
+                let log_quotient_degree = chip.log_quotient_degree();
+                let quotient_domain =
+                    trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+                // Compute the evaluations of the traces on the quotient domain.
+                let preprocessed_on_quotient_domain = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| {
+                        pk.traces[index]
+                            .to_device_async(stream)
+                            .unwrap()
+                            .to_column_major()
+                    })
+                    .map(|trace| {
+                        committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
+                    })
+                    .transpose()?;
+                let preprocessed_on_quotient_domain =
+                    preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
+
+                let main_on_quotient_domain = committer.get_evaluations_on_domain(
+                    trace_domain,
+                    quotient_domain,
+                    &main_traces[i],
+                )?;
+                let perm_on_quotient_domain = committer.get_evaluations_on_domain(
+                    trace_domain,
+                    quotient_domain,
+                    permutation_trace,
+                )?;
+                evaluations_span.exit();
+                Ok((
+                    trace_domain,
+                    preprocessed_on_quotient_domain,
+                    main_on_quotient_domain,
+                    perm_on_quotient_domain,
+                ))
+            })
+            .collect::<Result<Vec<_>, CudaError>>()?;
+        drop(evaluations);
+
         for (i, chip) in chips.iter().enumerate() {
             // Get the evaluations on the quotient domain.
             let evaluations_span =
