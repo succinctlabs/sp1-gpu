@@ -2,10 +2,10 @@
 
 #include "mer31_t.cuh"
 
-template <typename T>
-class mer31_extension_t {
+template <typename T, T W>
+class alignas(alignof(T) * 2) mer31_extension_t {
 
-private:
+protected:
     union {
         struct {
             T x;
@@ -35,9 +35,7 @@ public:
 
     HD inline mer31_extension_t operator-() const
     {   
-        x = -x;
-        y = -y;
-        return *this;
+        return mer31_extension_t(-x, -y);
     }
     HD inline mer31_extension_t& operator-=(const mer31_extension_t b)
     {
@@ -62,58 +60,45 @@ public:
     friend HD inline mer31_extension_t operator/(mer31_extension_t a, const T b)
     {   return a /= b;   }
 
-    HD virtual inline mer31_extension_t& operator*=(const mer31_extension_t b) = 0;
+    HD inline mer31_extension_t& operator*=(const mer31_extension_t b)
+    {
+        if constexpr (W == -T(1)) {
+            x = (x * b.x) - (y * b.y);
+            y = (x * b.y) + (y * b.x);
+        } else {
+            x = (x * b.x) + (y * b.y * W);
+            y = (x * b.y) + (y * b.x);
+        }
+        return *this;
+    }
     friend HD inline mer31_extension_t operator*(mer31_extension_t a, const mer31_extension_t b)
     {   return a *= b;   }
 
-    HD virtual inline mer31_extension_t reciprocal() const = 0;
+    HD inline mer31_extension_t reciprocal() const
+    {   
+        if constexpr (W == -T(1)) {
+            return mer31_extension_t(x, -y) / ((x * x) + (y * y));   
+        } else {
+            return mer31_extension_t(x, -y) / ((x * x) - (y * y * W));   
+        }
+    }
     HD inline mer31_extension_t& operator/=(const mer31_extension_t b)
     {   return *this * b.reciprocal();   }
     friend HD inline mer31_extension_t operator/(mer31_extension_t a, const mer31_extension_t b)
     {   return a /= b;   }
 
-    friend HD inline bool operator==(const bb31_extension_t& lhs, const bb31_extension_t& rhs) 
+    friend HD inline bool operator==(const mer31_extension_t& lhs, const mer31_extension_t& rhs) 
     {   return lhs.x == rhs.x && lhs.y == rhs.y;   }
-    friend HD inline bool operator!=(const bb31_extension_t& lhs, const bb31_extension_t& rhs) 
+    friend HD inline bool operator!=(const mer31_extension_t& lhs, const mer31_extension_t& rhs) 
     {   return !(lhs == rhs);   }
 };
 
 
 // Implementation of polynomial {x^2 + 1}
-class mer31_complex_t : public mer31_extension_t<mer31_t> {
+static constexpr mer31_t W_complex = -mer31_t(1, by_value{});
+using mer31_complex_t = mer31_extension_t<mer31_t, W_complex>;
 
-public:
-    using mer31_extension_t::mer31_extension_t;
-
-    HD inline mer31_complex_t reciprocal() const
-    {   
-        return mer31_complex_t(x, -y) / ((x * x) + (y * y));   
-    }
-
-    HD inline mer31_complex_t& operator*=(const mer31_complex_t b)
-    {
-        x = (x * b.x) - (y * b.y);
-        y = (x * b.y) + (y * b.x);
-        return *this;
-    }
-};
-
-// Implementation of polynomial {x^2 - x - 2}
-class mer31_ext128_t : public mer31_extension_t<mer31_complex_t> {
-
-public:
-    using mer31_extension_t::mer31_extension_t;
-
-    HD inline mer31_ext128_t reciprocal() const
-    {   
-        return mer31_complex_t(x + y, -y) / ((x * (x + y)) -  (y * (y + y)));  
-    }
-
-    HD inline mer31_ext128_t& operator*=(const mer31_ext128_t b)
-    {
-        x = (x * b.x) + (y * (b.y + b.y));
-        y = (x * b.y) + (y * (b.x + b.y));
-        return *this;
-    }
-};
+// Implementation of polynomial {x^2 - (2,1)}
+static constexpr mer31_complex_t W_ext128 = mer31_complex_t(mer31_t(2, by_value{}), mer31_t(1, by_value{}))
+using mer31_ext128_t = mer31_extension_t<mer31_complex_t, W_ext128>;
 

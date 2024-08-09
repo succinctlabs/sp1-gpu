@@ -7,7 +7,7 @@
     #define HD
 #endif
 
-class mer31_t {
+class alignas(32) mer31_t {
 
 private:
     static const uint32_t M_31 = (1u<<31) - 1;
@@ -37,10 +37,10 @@ private:
 public:
     uint32_t val;
 
-    struct val_t {};
+    struct by_value {};
 
     HD inline constexpr mer31_t(uint32_t v) : val(mod(v)) {}
-    HD inline constexpr mer31_t(uint32_t v, val_t) : val(v) {}
+    HD inline constexpr mer31_t(uint32_t v, by_value) : val(v) {}
     HD inline mer31_t(const mer31_t& m) : val(m.val) {}
 
     HD inline mer31_t& operator+=(const mer31_t b)
@@ -53,7 +53,7 @@ public:
 
     HD inline mer31_t operator-() const
     {   
-        return mer31_t(M_31 - val, val_t{}); 
+        return mer31_t(-(val != 0) & (M_31 - val), by_value{}); // do we need it?
     }
     HD inline mer31_t& operator-=(const mer31_t b)
     {
