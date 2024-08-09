@@ -15,17 +15,17 @@ template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n, c
        unsigned int * BlockCounter;
        unsigned int * flags;
        size_t flag_size = sizeof(unsigned int) * (num_blocks + 1);
-       CUDA_OK(cudaMalloc(&scanValues, sizeof(T) * (num_blocks + 1)));
-       CUDA_OK(cudaMemset(scanValues, 0, sizeof(T)));
-       CUDA_OK(cudaMalloc(&BlockCounter, sizeof(unsigned int)));
-       CUDA_OK(cudaMemset(BlockCounter, 0, sizeof(unsigned int)));
-       CUDA_OK(cudaMalloc(&flags, flag_size));
-       CUDA_OK(cudaMemset(flags, 0, flag_size));
-       CUDA_OK(cudaMemset(flags, 1, sizeof(unsigned int)));
+       CUDA_OK(cudaMallocAsync(&scanValues, sizeof(T) * (num_blocks + 1), stream));
+       CUDA_OK(cudaMemsetAsync(scanValues, 0, sizeof(T), stream));
+       CUDA_OK(cudaMallocAsync(&BlockCounter, sizeof(unsigned int), stream));
+       CUDA_OK(cudaMemsetAsync(BlockCounter, 0, sizeof(unsigned int), stream));
+       CUDA_OK(cudaMallocAsync(&flags, flag_size, stream));
+       CUDA_OK(cudaMemsetAsync(flags, 0, flag_size, stream));
+       CUDA_OK(cudaMemsetAsync(flags, 1, sizeof(unsigned int), stream));
        scan_kernels::Scan<<<num_blocks, block_dim, 0, stream>>>(d_out, d_in, n, scanValues, BlockCounter, flags);
-       CUDA_OK(cudaFree(scanValues));
-       CUDA_OK(cudaFree(BlockCounter));
-       CUDA_OK(cudaFree(flags));
+       CUDA_OK(cudaFreeAsync(scanValues, stream));
+       CUDA_OK(cudaFreeAsync(BlockCounter, stream));
+       CUDA_OK(cudaFreeAsync(flags, stream));
     }
     return CUDA_SUCCESS_MOON;
 }

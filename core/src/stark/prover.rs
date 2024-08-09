@@ -41,7 +41,6 @@ use std::cmp::Reverse;
 use air::P3EvalFolder;
 
 use crate::cuda_runtime::stream::CudaStream;
-use crate::cuda_runtime::sync_device;
 use crate::device::memory::cuda_mem_get_info;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
@@ -355,8 +354,6 @@ where
                 height,
             );
         }
-
-        sync_device().unwrap();
 
         // Commit to the permutation traces.
         let perm_domains_and_traces = domains
