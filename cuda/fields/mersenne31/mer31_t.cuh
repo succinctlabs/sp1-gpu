@@ -90,9 +90,13 @@ public:
     {   return a ^= p;   }
 
     HD inline mer31_t reciprocal() const
-    {   return *this ^= (M_31-2);   }
+    {   
+        return *this ^= (M_31-2);   
+    }
     HD inline bb31_t& operator/=(const bb31_t a)
-    {   return *this *= a.reciprocal();   }
+    {   
+        return *this *= a.reciprocal();   
+    }
     friend HD inline bb31_t operator/(bb31_t a, bb31_t b)
     {   return a /= b;   }
 
