@@ -2,7 +2,7 @@
 
 #include "mer31_t.cuh"
 
-template <typename T, T W>
+template <typename T, const T* W>
 class alignas(alignof(T) * 2) mer31_extension_t {
 
 protected:
@@ -56,19 +56,22 @@ public:
     {   return a *= b;   }
 
     HD inline mer31_extension_t& operator/=(const T b)
-    {   return *this * b.reciprocal();   }
+    {   
+        *this *= b.reciprocal();   
+        return *this;   
+    }
     friend HD inline mer31_extension_t operator/(mer31_extension_t a, const T b)
     {   return a /= b;   }
 
     HD inline mer31_extension_t& operator*=(const mer31_extension_t b)
     {
-        if constexpr (W == -T(1)) {
-            x = (x * b.x) - (y * b.y);
+        // if constexpr (*W == -T(1)) {
+        //     x = (x * b.x) - (y * b.y);
+        //     y = (x * b.y) + (y * b.x);
+        // } else {
+            x = (x * b.x) + (y * b.y * *W);
             y = (x * b.y) + (y * b.x);
-        } else {
-            x = (x * b.x) + (y * b.y * W);
-            y = (x * b.y) + (y * b.x);
-        }
+        // }
         return *this;
     }
     friend HD inline mer31_extension_t operator*(mer31_extension_t a, const mer31_extension_t b)
@@ -76,11 +79,11 @@ public:
 
     HD inline mer31_extension_t reciprocal() const
     {   
-        if constexpr (W == -T(1)) {
-            return mer31_extension_t(x, -y) / ((x * x) + (y * y));   
-        } else {
-            return mer31_extension_t(x, -y) / ((x * x) - (y * y * W));   
-        }
+        // if constexpr (*W == -T(1)) {
+        //     return mer31_extension_t(x, -y) / ((x * x) + (y * y));   
+        // } else {
+            return mer31_extension_t(x, -y) / ((x * x) - (y * y * *W));   
+        // }
     }
     HD inline mer31_extension_t& operator/=(const mer31_extension_t b)
     {   return *this * b.reciprocal();   }
@@ -95,10 +98,13 @@ public:
 
 
 // Implementation of polynomial {x^2 + 1}
-static constexpr mer31_t W_complex = -mer31_t(1, by_value{});
-using mer31_complex_t = mer31_extension_t<mer31_t, W_complex>;
+__device__ constexpr mer31_t W_complex = -mer31_t(1, mer31_t::by_value{});
+using mer31_complex_t = mer31_extension_t<mer31_t, &W_complex>;
 
-// Implementation of polynomial {x^2 - (2,1)}
-static constexpr mer31_complex_t W_ext128 = mer31_complex_t(mer31_t(2, by_value{}), mer31_t(1, by_value{}))
-using mer31_ext128_t = mer31_extension_t<mer31_complex_t, W_ext128>;
+// // Implementation of polynomial {x^2 - (2,1)}
+// __device__ constexpr mer31_complex_t W_ext128 = mer31_complex_t(
+//     mer31_t(2, mer31_t::by_value{}), 
+//     mer31_t(1, mer31_t::by_value{})
+// );
+// using mer31_ext128_t = mer31_extension_t<mer31_complex_t, &W_ext128>;
 

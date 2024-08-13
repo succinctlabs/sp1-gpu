@@ -37,7 +37,7 @@ public:
     inline size_t len() const                           { return 1;   }
 
     inline bb31_t() {}
-    inline bb31_t(const uint32_t a)         { val = a;  }
+    inline bb31_t(const uint32_t a)         { val = ((uint64_t)a << 32) % MOD;  }
     inline bb31_t(const uint32_t *p)        { val = *p; }
     // this is used in constant declaration, e.g. as bb31_t{11}
     inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}

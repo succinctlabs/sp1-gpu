@@ -17,6 +17,13 @@ class bb31_extension_t {
         }
     }
 
+    __device__ __forceinline__ bb31_extension_t(bb31_t v0, bb31_t v1, bb31_t v2, bb31_t v3) {
+        this->value[0] = v0;
+        this->value[1] = v1;
+        this->value[2] = v2;
+        this->value[3] = v3;
+    }
+
     __device__ __forceinline__ bb31_extension_t(bb31_t value) {
         this->value[0] = value;
         for (size_t i = 1; i < D; i++) {

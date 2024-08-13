@@ -7,11 +7,10 @@
     #define HD
 #endif
 
-class alignas(32) mer31_t {
-
-private:
+class /*alignas(4)*/ mer31_t {
+public:
     static const uint32_t M_31 = (1u<<31) - 1;
-
+private:
     template <typename T>
     HD static inline constexpr T reduce(T a) {
         return (a & M_31) + (a >> 31);
@@ -26,8 +25,8 @@ private:
         return reduce(reduce(a));
     }
 
-    HD static inline uint32_t mod(uint32_t a) {
-        return sub(reduce(a));
+    HD static inline constexpr uint32_t mod(uint32_t a) {
+        return a;//sub(reduce(a));
     }
 
     HD static inline uint32_t mod(uint64_t a) {
@@ -39,8 +38,8 @@ public:
 
     struct by_value {};
 
-    HD inline constexpr mer31_t(uint32_t v) : val(mod(v)) {}
-    HD inline constexpr mer31_t(uint32_t v, by_value) : val(v) {}
+    HD inline constexpr mer31_t(const uint32_t v) : val(mod(v)) {}
+    HD inline constexpr mer31_t(const uint32_t v, by_value) : val(v) {}
     HD inline mer31_t(const mer31_t& m) : val(m.val) {}
 
     HD inline mer31_t& operator+=(const mer31_t b)
@@ -51,9 +50,9 @@ public:
     friend HD inline mer31_t operator+(mer31_t a, const mer31_t b)
     {   return a += b;   }
 
-    HD inline mer31_t operator-() const
+    HD inline constexpr mer31_t operator-() const
     {   
-        return mer31_t(-(val != 0) & (M_31 - val), by_value{}); // do we need it?
+        return mer31_t(-(val != 0) & (M_31 - val), by_value{});
     }
     HD inline mer31_t& operator-=(const mer31_t b)
     {
@@ -91,17 +90,17 @@ public:
 
     HD inline mer31_t reciprocal() const
     {   
-        return *this ^= (M_31-2);   
+        return *this ^ (M_31-2);   
     }
-    HD inline bb31_t& operator/=(const bb31_t a)
+    HD inline mer31_t& operator/=(const mer31_t a)
     {   
         return *this *= a.reciprocal();   
     }
-    friend HD inline bb31_t operator/(bb31_t a, bb31_t b)
+    friend HD inline mer31_t operator/(mer31_t a, mer31_t b)
     {   return a /= b;   }
 
-    friend HD inline bool operator==(const bb31_t& lhs, const bb31_t& rhs) 
+    friend HD inline bool operator==(const mer31_t& lhs, const mer31_t& rhs) 
     {   return lhs.val == rhs.val;   }
-    friend HD inline bool operator!=(const bb31_t& lhs, const bb31_t& rhs) 
+    friend HD inline bool operator!=(const mer31_t& lhs, const mer31_t& rhs) 
     {   return !(lhs == rhs);   }
 };
