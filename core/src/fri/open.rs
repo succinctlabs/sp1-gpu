@@ -463,18 +463,23 @@ pub(super) mod merkle_tree_opening_prover {
             //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
             // 3. Slice buffer to proper structure.
             // 4. Calculate proofs for each data.
+            let total_data = prover_data_slice.len();
             let total_matrices: usize = prover_data_slice
                 .iter()
                 .map(|data| data.matrices().len())
                 .sum();
-            let mut matrix_views: Vec<MatrixViewDevice<BabyBear>> =
-                Vec::with_capacity(total_matrices);
+            let mut matrix_views: Vec<MatrixViewDevice<BabyBear>> = Vec::with_capacity(total_matrices);
             let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
-            let mut log2_max_heights: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
-            let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(prover_data_slice.len());
+            let mut log_max_heights: Vec<usize> = Vec::with_capacity(total_data);
+            let mut log_max_heights_offsets: Vec<usize> = Vec::with_capacity(total_data);
+            let mut data_matrix_offsets: Vec<usize> = Vec::with_capacity(total_data);
+            let mut digests = Vec::new();
             let mut total_width = 0;
             let mut data_matrix_offset = 0;
             let mut max_width = 0;
+            let mut log_max_height = 0;
+            let mut total_log_max_heights = 0;
+            
             prover_data_slice.iter().for_each(|data| {
                 let mut max_height = 0;
                 data_matrix_offsets.push(data_matrix_offset);
@@ -488,21 +493,35 @@ pub(super) mod merkle_tree_opening_prover {
                     max_width = std::cmp::max(max_width, matrix_width);
                     max_height = std::cmp::max(max_height, matrix.height());
                 });
-                log2_max_heights.push(log2_ceil_usize(max_height));
+                log_max_height = log2_ceil_usize(max_height);
+                log_max_heights.push(log_max_height);
+                log_max_heights_offsets.push(total_log_max_heights);
+                total_log_max_heights += log_max_height;
+
+                digests.extend(data.digest_layers[0..log_max_height].iter().map(|d| d.as_ptr()));
             });
+
             width_offsets.push(total_width);
             assert_eq!(data_matrix_offset, total_matrices);
+            assert_eq!(total_log_max_heights, digests.len());
 
             let matrix_views_device = matrix_views.to_device().unwrap();
             let width_offsets_device = width_offsets.to_device().unwrap();
             let query_indices_device = query_indices.to_vec().to_device().unwrap();
 
             let total_query_indices = query_indices_device.len();
-            let output_capacity = total_width * total_query_indices;
-            let mut total_output_device: DeviceBuffer<BabyBear> =
-                DeviceBuffer::with_capacity(output_capacity).unwrap();
+            let openings_capacity = total_width * total_query_indices;
+            let mut total_openings_device: DeviceBuffer<BabyBear> =
+                DeviceBuffer::with_capacity(openings_capacity).unwrap();
+
+            let log_max_heights_device = log_max_heights.to_device().unwrap();
+            let log_max_heights_offsets_device = log_max_heights_offsets.to_device().unwrap();
+            let digests_device = digests.to_device().unwrap();
+            let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> = 
+                DeviceBuffer::with_capacity(total_log_max_heights).unwrap();
+
             unsafe {
-                total_output_device.set_len(output_capacity);
+                total_openings_device.set_len(openings_capacity);
                 opening_gpu::calculate_openings(
                     matrix_views_device.as_ptr(),
                     width_offsets_device.as_ptr(),
@@ -513,10 +532,24 @@ pub(super) mod merkle_tree_opening_prover {
                     total_query_indices,
                     log_global_max_height,
                     is_answering,
-                    total_output_device.as_mut_ptr(),
+                    total_openings_device.as_mut_ptr(),
+                );
+                total_proofs_device.set_len(total_log_max_heights);
+                opening_gpu::calculate_proofs(
+                    query_indices_device.as_ptr(),
+                    log_max_heights_device.as_ptr(),
+                    log_max_heights_offsets_device.as_ptr(),
+                    total_query_indices,
+                    total_data,
+                    log_global_max_height,
+                    total_log_max_heights,
+                    digests_device.as_ptr(),
+                    total_proofs_device.as_mut_ptr(),
+                    is_answering,
                 );
             }
-            let total_output_host = total_output_device.to_host();
+            let total_openings_host = total_openings_device.to_host();
+            let total_proofs_host = total_proofs_device.to_host();
 
             query_indices
                 .iter()
@@ -537,11 +570,11 @@ pub(super) mod merkle_tree_opening_prover {
                                         index_offset + width_offsets[data_offset + matrix_i];
                                     let end =
                                         index_offset + width_offsets[data_offset + matrix_i + 1];
-                                    total_output_host[start..end].to_vec()
+                                    total_openings_host[start..end].to_vec()
                                 })
                                 .collect();
 
-                            let log_max_height = log2_max_heights[data_i];
+                            let log_max_height = log_max_heights[data_i];
                             let bits_reduced = if is_answering {
                                 data_i + 1
                             } else {
@@ -555,6 +588,12 @@ pub(super) mod merkle_tree_opening_prover {
                                     data.digest_layers[i][start..end].to_host()[0]
                                 })
                                 .collect();
+                            
+                            let proof_start = index_i * total_log_max_heights + log_max_heights_offsets[data_i];
+                            let proof_end = proof_start + log_max_height;
+                            let proof_new = total_proofs_host[proof_start..proof_end].to_vec();
+
+                            // println!("{:?} -> {:?}", proof, proof_new);
 
                             BatchOpening {
                                 opened_values: openings,
@@ -810,11 +849,13 @@ impl<SC> Default for FriOpeningProver<SC> {
 pub mod opening_gpu {
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::PackedValue;
 
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
 
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
+    type PW = PackedValue<Value = BabyBear>;
 
     #[link_name = "opening_gpu"]
     #[allow(unused_attributes)]
@@ -898,6 +939,20 @@ pub mod opening_gpu {
             log_max_height: usize,
             is_answering: bool,
             output: *mut F,
+        );
+
+        #[link_name = "calculateProof"]
+        pub fn calculate_proofs(
+            query_indices: *const usize,
+            log_max_heights: *const usize,
+            log_max_heights_offsets: *const usize,
+            total_indices: usize,
+            total_data: usize,
+            log_max_height: usize,
+            sum_log_max_height: usize,
+            digests: *const *const [PW::Value; 8],
+            output: *mut [PW::Value; 8],
+            is_answering: bool,
         );
 
         #[link_name = "batchMultiplicativeInverse"]
