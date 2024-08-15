@@ -294,32 +294,31 @@ __global__ void calculateOpenings(
     output[value_idx] = matrix.values[value_idx * matrix.height + (index >> bits_reduced)];
 }
 
-#if 0
-<template typename T>
+#if 1
+template<typename HashParams>
 __global__ void calculateProof(
     size_t *query_indices,
     size_t *log_max_heights,
-    size_t *offset,
-    size_t total_indices,
-    size_t total_data,
-    size_t log_global_max_height,
-    size_t sum_log_max_heights,
-    T **digest_layers,
-    T *output,
+    size_t *offsets,
+    const size_t total_indices,
+    const size_t total_data,
+    const size_t log_global_max_height,
+    const size_t sum_log_max_heights,
+    typename HashParams::F_t (**digest_layers) [HashParams::DIGEST_WIDTH],
+    typename HashParams::F_t (*output) [HashParams::DIGEST_WIDTH],
     bool is_answering
 ) {
     size_t index_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (index_idx >= total_indices) { return; }
     size_t index = query_indices[index_idx];
-    output += index * sum_log_max_heights;
+    size_t output_idx = index_idx * sum_log_max_heights;
 
     size_t data_idx = blockIdx.y * blockDim.y + threadIdx.y;
     if (data_idx >= total_data) { return; }
 
     size_t log_max_height = log_max_heights[data_idx];
     size_t offset = offsets[data_idx];
-    output += offset;
-    digest_layers += offset;
+    output_idx += offset;
 
     size_t i = blockIdx.z * blockDim.z + threadIdx.z;
     if (i >= log_max_height) { return; }
@@ -329,8 +328,8 @@ __global__ void calculateProof(
         (log_global_max_height - log_max_height);
     size_t curr_index = index >> bits_reduced;
 
-
-    output[i] = digest_layers[i][(curr_index >> i) ^ 1];
+    for (int ii = 0; ii < HashParams::DIGEST_WIDTH; ii++)
+        output[output_idx + i][ii] = digest_layers[offset + i][(curr_index >> i) ^ 1][ii];
 }
 #endif
 
@@ -345,7 +344,7 @@ __global__ void batchMultiplicativeInverse(
     }
     output[idx] = input[idx].reciprocal();
 }
-}  // namespace opening_kernels
+};  // namespace opening_kernels
 
 namespace opening_gpu {
 
@@ -526,31 +525,32 @@ extern "C" void calculateOpenings(
     );
 }
 
-#if 0
+#if 1
 extern "C" void calculateProof(
     size_t *query_indices,
     size_t *log_max_heights,
     size_t *offset,
-    size_t total_indices,
-    size_t total_data,
-    size_t log_global_max_height,   
-    size_t sum_log_max_heights,
-    *(poseidon2_bb31_16::BabyBear::F_t(*digests) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]),
-    poseidon2_bb31_16::BabyBear::F_t(*output) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],
+    const size_t total_indices,
+    const size_t total_data,
+    const size_t log_global_max_height,   
+    const size_t sum_log_max_heights,
+    poseidon2_bb31_16::BabyBear::F_t (**digests) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],
+    poseidon2_bb31_16::BabyBear::F_t (*output) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],  
     bool is_answering
 ) {
+
     dim3 blockDim(
         std::min(total_indices,         static_cast<size_t>(32)),
         std::min(total_data,            static_cast<size_t>(1)),
         std::min(log_global_max_height, static_cast<size_t>(32)) 
     );
     dim3 gridDim(
-        (total_indices  - 1) / blockDim.x + 1,
-        (total_data     - 1) / blockDim.y + 1,
+        (total_indices         - 1) / blockDim.x + 1,
+        (total_data            - 1) / blockDim.y + 1,
         (log_global_max_height - 1) / blockDim.z + 1
     );
 
-    opening_kernels::calculateProof<<<gridDim, blockDim>>>(
+    opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim>>>(
         query_indices,
         log_max_heights,
         offset,
@@ -564,42 +564,42 @@ extern "C" void calculateProof(
     );
 }
 
-extern "C" void calculateProof(
-    size_t *query_indices,
-    size_t *log_max_heights,
-    size_t *offset,
-    size_t total_indices,
-    size_t total_data,
-    size_t log_global_max_height,
-    size_t sum_log_max_heights,
-    *(poseidon2_bn254_3::Bn254::F_t(*digests) [poseidon2_bn254_3::Bn254::DIGEST_WIDTH]),    //?
-    poseidon2_bn254_3::Bn254::F_t(*output) [poseidon2_bn254_3::Bn254::DIGEST_WIDTH],
-    bool is_answering
-) {
-    dim3 blockDim(
-        std::min(total_indices,         static_cast<size_t>(32)),
-        std::min(total_data,            static_cast<size_t>(1)),
-        std::min(log_global_max_height, static_cast<size_t>(32)) 
-    );
-    dim3 gridDim(
-        (total_indices  - 1) / blockDim.x + 1,
-        (total_data     - 1) / blockDim.y + 1,
-        (log_global_max_height - 1) / blockDim.z + 1
-    );
+// extern "C" void calculateProof(
+//     size_t *query_indices,
+//     size_t *log_max_heights,
+//     size_t *offset,
+//     size_t total_indices,
+//     size_t total_data,
+//     size_t log_global_max_height,
+//     size_t sum_log_max_heights,
+//     poseidon2_bb31_16::BabyBear::F_t (*digests)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],    //?
+//     poseidon2_bn254_3::Bn254::F_t(*output) [poseidon2_bn254_3::Bn254::DIGEST_WIDTH],
+//     bool is_answering
+// ) {
+//     dim3 blockDim(
+//         std::min(total_indices,         static_cast<size_t>(32)),
+//         std::min(total_data,            static_cast<size_t>(1)),
+//         std::min(log_global_max_height, static_cast<size_t>(32)) 
+//     );
+//     dim3 gridDim(
+//         (total_indices  - 1) / blockDim.x + 1,
+//         (total_data     - 1) / blockDim.y + 1,
+//         (log_global_max_height - 1) / blockDim.z + 1
+//     );
 
-    opening_kernels::calculateProof<<<gridDim, blockDim>>>(
-        query_indices,
-        log_max_heights,
-        offset,
-        total_indices,
-        total_data,
-        log_global_max_height,
-        sum_log_max_heights,
-        digests,
-        output,
-        is_answering
-    );
-}
+//     opening_kernels::calculateProof<<<gridDim, blockDim>>>(
+//         query_indices,
+//         log_max_heights,
+//         offset,
+//         total_indices,
+//         total_data,
+//         log_global_max_height,
+//         sum_log_max_heights,
+//         digests,
+//         output,
+//         is_answering
+//     );
+// }
 #endif
 
 extern "C" void batchMultiplicativeInverse(
