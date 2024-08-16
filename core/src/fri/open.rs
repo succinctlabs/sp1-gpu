@@ -522,7 +522,7 @@ pub(super) mod merkle_tree_opening_prover {
             let log_max_heights_device = log_max_heights.to_device().unwrap();
             let log_max_heights_offsets_device = log_max_heights_offsets.to_device().unwrap();
             let digests_device = digests.to_device().unwrap();
-            let mut total_proofs_device: DeviceBuffer<[BabyBear; DIGEST_ELEMS]> = // ?
+            let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> = 
                 DeviceBuffer::with_capacity(total_log_max_heights * total_query_indices).unwrap();
 
             unsafe {
@@ -548,9 +548,10 @@ pub(super) mod merkle_tree_opening_prover {
                     total_data,
                     log_global_max_height,
                     total_log_max_heights,
-                    digests_device.as_ptr() as *const *const [BabyBear; 8],
-                    total_proofs_device.as_mut_ptr() as *mut [BabyBear; 8],
+                    digests_device.as_ptr() as *const *const *const std::ffi::c_void,
+                    total_proofs_device.as_mut_ptr() as *mut *mut std::ffi::c_void,
                     is_answering,
+                    std::any::TypeId::of::<PW::Value>() == std::any::TypeId::of::<BabyBear>()
                 );
             }
             let total_openings_host = total_openings_device.to_host();
@@ -580,24 +581,24 @@ pub(super) mod merkle_tree_opening_prover {
                                 .collect();
 
                             let log_max_height = log_max_heights[data_i];
-                            let bits_reduced = if is_answering {
-                                data_i + 1
-                            } else {
-                                log_global_max_height - log_max_height
-                            };
-                            let data_index = index >> bits_reduced;
-                            let proof: Vec<_> = (0..log_max_height)
-                                .map(|i| {
-                                    let start = (data_index >> i) ^ 1;
-                                    let end = start + 1;
-                                    data.digest_layers[i][start..end].to_host()[0]
-                                })
-                                .collect();
+                            // let bits_reduced = if is_answering {
+                            //     data_i + 1
+                            // } else {
+                            //     log_global_max_height - log_max_height
+                            // };
+                            // let data_index = index >> bits_reduced;
+                            // let proof_old: Vec<_> = (0..log_max_height)
+                            //     .map(|i| {
+                            //         let start = (data_index >> i) ^ 1;
+                            //         let end = start + 1;
+                            //         data.digest_layers[i][start..end].to_host()[0]
+                            //     })
+                            //     .collect();
 
                             let proof_start =
                                 index_i * total_log_max_heights + log_max_heights_offsets[data_i];
                             let proof_end = proof_start + log_max_height;
-                            let proof_new = total_proofs_host[proof_start..proof_end].to_vec(); 
+                            let proof = total_proofs_host[proof_start..proof_end].to_vec(); 
 
 
                             BatchOpening {
@@ -954,9 +955,10 @@ pub mod opening_gpu {
             total_data: usize,
             log_max_height: usize,
             sum_log_max_height: usize,
-            digests: *const *const [BabyBear; 8],
-            output: *mut [BabyBear; 8],
+            digests: *const *const *const std::ffi::c_void,
+            output: *mut *mut std::ffi::c_void,
             is_answering: bool,
+            is_babybear: bool,
         );
 
         #[link_name = "batchMultiplicativeInverse"]

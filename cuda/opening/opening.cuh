@@ -294,7 +294,7 @@ __global__ void calculateOpenings(
     output[value_idx] = matrix.values[value_idx * matrix.height + (index >> bits_reduced)];
 }
 
-#if 1
+
 template<typename HashParams>
 __global__ void calculateProof(
     size_t *query_indices,
@@ -331,7 +331,7 @@ __global__ void calculateProof(
     for (int ii = 0; ii < HashParams::DIGEST_WIDTH; ii++)
         output[output_idx + i][ii] = digest_layers[offset + i][(curr_index >> i) ^ 1][ii];
 }
-#endif
+
 
 __global__ void batchMultiplicativeInverse(
     bb31_extension_t* input,
@@ -525,7 +525,6 @@ extern "C" void calculateOpenings(
     );
 }
 
-#if 1
 extern "C" void calculateProof(
     size_t *query_indices,
     size_t *log_max_heights,
@@ -534,11 +533,11 @@ extern "C" void calculateProof(
     const size_t total_data,
     const size_t log_global_max_height,   
     const size_t sum_log_max_heights,
-    poseidon2_bb31_16::BabyBear::F_t (**digests) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],
-    poseidon2_bb31_16::BabyBear::F_t (*output) [poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],  
-    bool is_answering
+    void ***digests,
+    void **output,  
+    bool is_answering,
+    bool is_babybear
 ) {
-
     dim3 blockDim(
         std::min(total_indices,         static_cast<size_t>(32)),
         std::min(total_data,            static_cast<size_t>(1)),
@@ -550,57 +549,38 @@ extern "C" void calculateProof(
         (log_global_max_height - 1) / blockDim.z + 1
     );
 
-    opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim>>>(
-        query_indices,
-        log_max_heights,
-        offset,
-        total_indices,
-        total_data,
-        log_global_max_height,
-        sum_log_max_heights,
-        digests,
-        output,
-        is_answering
-    );
+    if (is_babybear) {
+        auto typed_digests = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (**)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(digests);
+        auto typed_output = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (*)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(output);
+        opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim>>>(
+            query_indices,
+            log_max_heights,
+            offset,
+            total_indices,
+            total_data,
+            log_global_max_height,
+            sum_log_max_heights,
+            typed_digests,
+            typed_output,
+            is_answering
+        );
+    } else {
+        auto typed_digests = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (**)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(digests);
+        auto typed_output = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (*)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(output);
+        opening_kernels::calculateProof<poseidon2_bn254_3::Bn254><<<gridDim, blockDim>>>(
+            query_indices,
+            log_max_heights,
+            offset,
+            total_indices,
+            total_data,
+            log_global_max_height,
+            sum_log_max_heights,
+            typed_digests,
+            typed_output,
+            is_answering
+        );
+    }
 }
-
-// extern "C" void calculateProof(
-//     size_t *query_indices,
-//     size_t *log_max_heights,
-//     size_t *offset,
-//     size_t total_indices,
-//     size_t total_data,
-//     size_t log_global_max_height,
-//     size_t sum_log_max_heights,
-//     poseidon2_bb31_16::BabyBear::F_t (*digests)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH],    //?
-//     poseidon2_bn254_3::Bn254::F_t(*output) [poseidon2_bn254_3::Bn254::DIGEST_WIDTH],
-//     bool is_answering
-// ) {
-//     dim3 blockDim(
-//         std::min(total_indices,         static_cast<size_t>(32)),
-//         std::min(total_data,            static_cast<size_t>(1)),
-//         std::min(log_global_max_height, static_cast<size_t>(32)) 
-//     );
-//     dim3 gridDim(
-//         (total_indices  - 1) / blockDim.x + 1,
-//         (total_data     - 1) / blockDim.y + 1,
-//         (log_global_max_height - 1) / blockDim.z + 1
-//     );
-
-//     opening_kernels::calculateProof<<<gridDim, blockDim>>>(
-//         query_indices,
-//         log_max_heights,
-//         offset,
-//         total_indices,
-//         total_data,
-//         log_global_max_height,
-//         sum_log_max_heights,
-//         digests,
-//         output,
-//         is_answering
-//     );
-// }
-#endif
 
 extern "C" void batchMultiplicativeInverse(
     bb31_extension_t* input,
