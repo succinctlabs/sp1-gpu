@@ -412,11 +412,14 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 }
 
 pub(super) mod merkle_tree_opening_prover {
-    use p3_field::PackedField;
+    use std::any::TypeId;
+
     use serde::de::DeserializeOwned;
     use serde::Serialize;
 
     use p3_baby_bear::BabyBear;
+    use p3_bn254_fr::Bn254Fr;
+    use p3_field::PackedField;
     use p3_field::PackedValue;
     use p3_fri::BatchOpening;
     use p3_merkle_tree::FieldMerkleTreeMmcs;
@@ -431,6 +434,11 @@ pub(super) mod merkle_tree_opening_prover {
     use crate::merkle_tree::MmcsProverData;
 
     use super::*;
+
+    pub enum FieldId {
+        BabyBear = 0,
+        Bn254 = 1,
+    }
 
     impl<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>
         FriQueryProver<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
@@ -522,7 +530,7 @@ pub(super) mod merkle_tree_opening_prover {
             let log_max_heights_device = log_max_heights.to_device().unwrap();
             let log_max_heights_offsets_device = log_max_heights_offsets.to_device().unwrap();
             let digests_device = digests.to_device().unwrap();
-            let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> = 
+            let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> =
                 DeviceBuffer::with_capacity(total_log_max_heights * total_query_indices).unwrap();
 
             unsafe {
@@ -540,6 +548,12 @@ pub(super) mod merkle_tree_opening_prover {
                     total_openings_device.as_mut_ptr(),
                 );
                 total_proofs_device.set_len(total_log_max_heights * total_query_indices);
+
+                let field_id = match TypeId::of::<PW::Value>() {
+                    x if x == TypeId::of::<BabyBear>() => FieldId::BabyBear,
+                    x if x == TypeId::of::<Bn254Fr>() => FieldId::Bn254,
+                    _ => panic!("Unsupported field"),
+                };
                 opening_gpu::calculate_proofs(
                     query_indices_device.as_ptr(),
                     log_max_heights_device.as_ptr(),
@@ -551,7 +565,7 @@ pub(super) mod merkle_tree_opening_prover {
                     digests_device.as_ptr() as *const *const *const std::ffi::c_void,
                     total_proofs_device.as_mut_ptr() as *mut *mut std::ffi::c_void,
                     is_answering,
-                    std::any::TypeId::of::<PW::Value>() == std::any::TypeId::of::<BabyBear>()
+                    field_id as usize,
                 );
             }
             let total_openings_host = total_openings_device.to_host();
@@ -560,7 +574,7 @@ pub(super) mod merkle_tree_opening_prover {
             query_indices
                 .iter()
                 .enumerate()
-                .map(|(index_i, &index)| {
+                .map(|(index_i, _)| {
                     let index_offset = index_i * total_width;
                     prover_data_slice
                         .iter()
@@ -581,25 +595,11 @@ pub(super) mod merkle_tree_opening_prover {
                                 .collect();
 
                             let log_max_height = log_max_heights[data_i];
-                            // let bits_reduced = if is_answering {
-                            //     data_i + 1
-                            // } else {
-                            //     log_global_max_height - log_max_height
-                            // };
-                            // let data_index = index >> bits_reduced;
-                            // let proof_old: Vec<_> = (0..log_max_height)
-                            //     .map(|i| {
-                            //         let start = (data_index >> i) ^ 1;
-                            //         let end = start + 1;
-                            //         data.digest_layers[i][start..end].to_host()[0]
-                            //     })
-                            //     .collect();
 
                             let proof_start =
                                 index_i * total_log_max_heights + log_max_heights_offsets[data_i];
                             let proof_end = proof_start + log_max_height;
-                            let proof = total_proofs_host[proof_start..proof_end].to_vec(); 
-
+                            let proof = total_proofs_host[proof_start..proof_end].to_vec();
 
                             BatchOpening {
                                 opened_values: openings,
@@ -612,27 +612,6 @@ pub(super) mod merkle_tree_opening_prover {
         }
     }
 }
-
-// /// Open a batch of queries for a FieldMerkleTreeMmcs.
-// fn query_open_batch_field_merkle_tree<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>(
-//     query_indices: &[usize],
-//     prover_data_slice: &[&C::ProverData],
-//     log_global_max_height: usize,
-//     is_answering: bool,
-// ) -> Vec<Vec<BatchOpening<BabyBear, SC::ValMmcs>>>
-// where
-//     Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
-//     P: PackedField<Scalar = BabyBear>,
-//     PW: PackedValue,
-//     H: CryptographicHasher<P::Scalar, [PW::Value; DIGEST_ELEMS]>,
-//     H: CryptographicHasher<P, [PW; DIGEST_ELEMS]>,
-//     H: Sync,
-//     C: PseudoCompressionFunction<[PW::Value; DIGEST_ELEMS], 2>,
-//     C: PseudoCompressionFunction<[PW; DIGEST_ELEMS], 2>,
-//     C: Sync,
-//     PW::Value: Eq,
-//     [PW::Value; DIGEST_ELEMS]: Serialize + DeserializeOwned,
-// {
 
 #[allow(clippy::type_complexity)]
 pub fn prove<SC, C>(
@@ -855,7 +834,6 @@ impl<SC> Default for FriOpeningProver<SC> {
 pub mod opening_gpu {
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
-    use p3_field::PackedValue;
 
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
 
@@ -958,7 +936,7 @@ pub mod opening_gpu {
             digests: *const *const *const std::ffi::c_void,
             output: *mut *mut std::ffi::c_void,
             is_answering: bool,
-            is_babybear: bool,
+            field_id: usize,
         );
 
         #[link_name = "batchMultiplicativeInverse"]

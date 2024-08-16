@@ -536,7 +536,7 @@ extern "C" void calculateProof(
     void ***digests,
     void **output,  
     bool is_answering,
-    bool is_babybear
+    size_t field_id
 ) {
     dim3 blockDim(
         std::min(total_indices,         static_cast<size_t>(32)),
@@ -549,7 +549,8 @@ extern "C" void calculateProof(
         (log_global_max_height - 1) / blockDim.z + 1
     );
 
-    if (is_babybear) {
+    // If field is BabyBear
+    if (field_id == 0) {
         auto typed_digests = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (**)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(digests);
         auto typed_output = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (*)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(output);
         opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim>>>(
@@ -564,7 +565,9 @@ extern "C" void calculateProof(
             typed_output,
             is_answering
         );
-    } else {
+    }  
+    // If field is Bn254
+    else if (field_id == 1) {
         auto typed_digests = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (**)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(digests);
         auto typed_output = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (*)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(output);
         opening_kernels::calculateProof<poseidon2_bn254_3::Bn254><<<gridDim, blockDim>>>(
@@ -579,6 +582,10 @@ extern "C" void calculateProof(
             typed_output,
             is_answering
         );
+    }
+    else {
+        // This is unreachable as the correct id should be passed.
+        assert(false);
     }
 }
 
