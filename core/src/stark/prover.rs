@@ -331,10 +331,11 @@ where
             .map(|_| challenger.sample_ext_element())
             .collect::<Vec<_>>();
         // Generate permutation traces.
+
+        let permutation_span =
+            tracing::trace_span!("generate and commit to permutation traces").entered();
         let permutation_traces =
-            tracing::debug_span!("generate permutation traces").in_scope(|| {
-                self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)
-            })?;
+            self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)?;
 
         info!(
             "Shard: [{}]",
@@ -367,6 +368,7 @@ where
             .collect::<Vec<_>>();
         let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
+        permutation_span.exit();
 
         // Observe the permutation commitment.
         challenger.observe(permutation_commit.clone());
@@ -397,20 +399,21 @@ where
 
         // Compute quotient values.
 
+        let quotient_span =
+            tracing::trace_span!("generate and commit to quotient values").entered();
+
         // Compute values
-        let quotient_values = tracing::debug_span!("quotient").in_scope(|| {
-            self.quotient_generator.generate_quotient_values(
-                &self.committer,
-                &shard_chips,
-                pk,
-                &traces,
-                &perm_domains_and_traces,
-                &permutation_challenges,
-                folding_challenge,
-                &public_values,
-                &cumulative_sums,
-            )
-        })?;
+        let quotient_values = self.quotient_generator.generate_quotient_values(
+            &self.committer,
+            &shard_chips,
+            pk,
+            &traces,
+            &perm_domains_and_traces,
+            &permutation_challenges,
+            folding_challenge,
+            &public_values,
+            &cumulative_sums,
+        )?;
 
         // Commit to the quotient values
         let quotient_domains_and_chunks = quotient_values
@@ -424,10 +427,11 @@ where
                 quotient_chunk_domains.into_iter().zip(quotient_chunks)
             })
             .collect::<Vec<_>>();
-        let (quotient_commit, quotient_prover_data) = tracing::debug_span!("commit to quotient")
-            .in_scope(|| self.committer.commit(&quotient_domains_and_chunks));
+        let (quotient_commit, quotient_prover_data) =
+            self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
         drop(quotient_domains_and_chunks);
+        quotient_span.exit();
         // Observe the quotient commitment.
         challenger.observe(quotient_commit.clone());
 
