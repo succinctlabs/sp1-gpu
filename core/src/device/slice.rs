@@ -1,10 +1,10 @@
-use crate::device::memory::{copy_device_to_device, copy_device_to_host, copy_host_to_device};
+use crate::cuda_runtime::stream::CudaStream;
 use core::slice;
 use std::ops::{
     Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
 };
 
-use super::{error::CudaError, memory::ToHost};
+use super::error::CudaError;
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -71,7 +71,7 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_from_host(&mut self, src: &[T]) {
+    pub fn copy_from_host(&mut self, src: &[T], stream: &CudaStream) {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -88,7 +88,10 @@ impl<T: Copy> DeviceSlice<T> {
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { copy_host_to_device(self.0.as_mut_ptr(), src.as_ptr(), src.len()) }.unwrap()
+        unsafe {
+            stream.cuda_memcpy_host_to_device_async(self.0.as_mut_ptr(), src.as_ptr(), src.len())
+        }
+        .unwrap()
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.
@@ -99,7 +102,7 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_into_host(&self, dst: &mut [T]) {
+    pub fn copy_into_host(&self, dst: &mut [T], stream: &CudaStream) {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -116,7 +119,19 @@ impl<T: Copy> DeviceSlice<T> {
             len_mismatch_fail(self.len(), dst.len());
         }
 
-        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.0.as_ptr(), dst.len()) }.unwrap()
+        unsafe {
+            stream.cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.0.as_ptr(), dst.len())
+        }
+        .unwrap()
+    }
+
+    pub fn as_host_vec(&self, stream: &CudaStream) -> Vec<T> {
+        let mut host = Vec::with_capacity(self.len());
+        unsafe {
+            host.set_len(self.len());
+        }
+        self.copy_into_host(&mut host, stream);
+        host
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.
@@ -127,7 +142,11 @@ impl<T: Copy> DeviceSlice<T> {
     ///
     /// This function will panic if the two slices have different lengths or if cudaMalloc
     /// returned an error.
-    pub fn copy_from_device(&mut self, src: &DeviceSlice<T>) -> Result<(), CudaError> {
+    pub fn copy_from_device(
+        &mut self,
+        src: &DeviceSlice<T>,
+        stream: &CudaStream,
+    ) -> Result<(), CudaError> {
         // The panic code path was put into a cold function to not bloat the
         // call site.
         #[inline(never)]
@@ -144,7 +163,9 @@ impl<T: Copy> DeviceSlice<T> {
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { copy_device_to_device(self.as_mut_ptr(), src.0.as_ptr(), src.len()) }
+        unsafe {
+            stream.cuda_memcpy_device_to_device_async(self.as_mut_ptr(), src.0.as_ptr(), src.len())
+        }
     }
 }
 
@@ -177,17 +198,4 @@ impl_index! {
     RangeInclusive<usize>
     RangeTo<usize>
     RangeToInclusive<usize>
-}
-
-impl<T: Copy> ToHost for DeviceSlice<T> {
-    type HostType = Vec<T>;
-
-    fn to_host(&self) -> Vec<T> {
-        let mut host = Vec::with_capacity(self.len());
-        unsafe {
-            host.set_len(self.len());
-        }
-        self.copy_into_host(&mut host);
-        host
-    }
 }

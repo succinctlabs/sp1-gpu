@@ -1,23 +1,14 @@
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
-use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
+use crate::{
+    cuda_runtime::stream::CudaStreamHandle,
+    matrix::{MatrixViewDevice, MatrixViewMutDevice},
+};
 
 use super::DeviceInteractionsView;
 
 extern "C" {
-    pub fn populate_permutation_rows(
-        interactions: DeviceInteractionsView<BabyBear>,
-        permutation: MatrixViewMutDevice<BinomialExtensionField<BabyBear, 4>>,
-        preprocessed: MatrixViewDevice<BabyBear>,
-        main: MatrixViewDevice<BabyBear>,
-        alpha: BinomialExtensionField<BabyBear, 4>,
-        beta: BinomialExtensionField<BabyBear, 4>,
-        batch_size: usize,
-        num_blocks: usize,
-        num_threads_per_block: usize,
-    );
-
     pub fn populate_permutation_rows_flattened(
         interactions: DeviceInteractionsView<BabyBear>,
         permutation: MatrixViewMutDevice<BabyBear>,
@@ -28,10 +19,12 @@ extern "C" {
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
+        stream: CudaStreamHandle,
     );
 }
 
 pub(super) mod quotient_gpu {
+    use crate::cuda_runtime::stream::CudaStreamHandle;
     use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
     use crate::stark::quotient::TwoAdicMultiplicativeCosetDevice;
     use air::operation::Operation;
@@ -61,6 +54,7 @@ pub(super) mod quotient_gpu {
             quotient_values: MatrixViewMutDevice<BabyBear>,
             num_blocks: usize,
             num_threads_per_block: usize,
+            stream: CudaStreamHandle,
         );
     }
 }

@@ -3,6 +3,7 @@ use p3_matrix::dense::RowMajorMatrix;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::memory::{ToDevice, ToHost};
 use crate::device::DeviceBuffer;
@@ -30,8 +31,21 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         }
     }
 
+    pub const fn stream(&self) -> &CudaStream {
+        self.values.stream()
+    }
+
     pub fn with_capacity(width: usize, height: usize) -> Result<Self, CudaError> {
         let buffer = DeviceBuffer::with_capacity(width * height)?;
+        Ok(Self::new(buffer, height))
+    }
+
+    pub fn with_capacity_in(
+        width: usize,
+        height: usize,
+        stream: &CudaStream,
+    ) -> Result<Self, CudaError> {
+        let buffer = DeviceBuffer::with_capacity_in(width * height, stream)?;
         Ok(Self::new(buffer, height))
     }
 
@@ -101,7 +115,8 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
         &self,
         log_blowup: usize,
     ) -> Result<ColMajorMatrixDevice<T>, CudaError> {
-        let mut blowup_values = DeviceBuffer::with_capacity(self.values.len() << log_blowup)?;
+        let mut blowup_values =
+            DeviceBuffer::with_capacity_in(self.values.len() << log_blowup, self.stream())?;
         unsafe { blowup_values.set_max_len() };
 
         let blowup_height = self.height << log_blowup;
@@ -111,7 +126,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
             let src = &self.values[j * self.height..(j + 1) * self.height];
             let dst = &mut blowup_values
                 [j * blowup_height + blowup_height - self.height..(j + 1) * blowup_height];
-            dst.copy_from_device(src)?;
+            dst.copy_from_device(src, self.stream())?;
         }
 
         Ok(ColMajorMatrixDevice::new(blowup_values, blowup_height))
@@ -146,11 +161,20 @@ impl ColMajorMatrixDevice<BabyBear> {
             0,
             "height must be a multiple of stride"
         );
-        let mut strided_values = DeviceBuffer::with_capacity(self.values.len() / stride).unwrap();
+        let mut strided_values =
+            DeviceBuffer::with_capacity_in(self.values.len() / stride, self.stream()).unwrap();
         unsafe { strided_values.set_max_len() };
 
         let mut output = ColMajorMatrixDevice::new(strided_values, self.height / stride);
-        unsafe { ffi::strided_matrix(output.view_mut(), self.view(), stride, offset) };
+        unsafe {
+            ffi::strided_matrix(
+                output.view_mut(),
+                self.view(),
+                stride,
+                offset,
+                self.stream().handle(),
+            )
+        };
 
         Ok(output)
     }
@@ -161,10 +185,11 @@ impl ToHost for ColMajorMatrixDevice<BabyBear> {
 
     /// Returns a host copy of the matrix in row major form.
     fn to_host(&self) -> Self::HostType {
-        let mut ret_values = DeviceBuffer::with_capacity(self.height() * self.width()).unwrap();
+        let mut ret_values =
+            DeviceBuffer::with_capacity_in(self.height() * self.width(), self.stream()).unwrap();
         unsafe {
             ret_values.set_max_len();
-            transpose_naive(ret_values.as_mut_ptr(), self.view())
+            transpose_naive(ret_values.as_mut_ptr(), self.view(), self.stream().handle())
         };
         RowMajorMatrix::new(ret_values.to_host(), self.width())
     }

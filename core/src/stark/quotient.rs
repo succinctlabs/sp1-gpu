@@ -1,5 +1,3 @@
-use tracing::trace_span;
-
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
@@ -114,49 +112,75 @@ where
 
         let permutation_challenges_device = permutation_challenges.to_device().unwrap();
         let public_values_device = public_values.to_device().unwrap();
-        for (i, chip) in chips.iter().enumerate() {
-            // Get the evaluations on the quotient domain.
-            let evaluations_span =
-                trace_span!("Get evaluations on quotient domain", chip = chip.name()).entered();
 
-            let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
-            let trace_domain = *trace_domain;
+        let evaluations = chips
+            .iter()
+            .enumerate()
+            .map(|(i, chip)| {
+                let (trace_domain, permutation_trace) = &domain_and_permutation_traces[i];
+                let trace_domain = *trace_domain;
 
-            // Get the quotient domain.
+                let stream = permutation_trace.stream();
+
+                // Get the quotient domain.
+                let log_quotient_degree = chip.log_quotient_degree();
+                let quotient_domain =
+                    trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+                // Compute the evaluations of the traces on the quotient domain.
+                let preprocessed_on_quotient_domain = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| {
+                        pk.traces[index]
+                            .to_device_async(stream)
+                            .unwrap()
+                            .to_column_major()
+                    })
+                    .map(|trace| {
+                        committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
+                    })
+                    .transpose()?;
+                let preprocessed_on_quotient_domain =
+                    preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
+
+                let main_on_quotient_domain = committer.get_evaluations_on_domain(
+                    trace_domain,
+                    quotient_domain,
+                    &main_traces[i],
+                )?;
+                let perm_on_quotient_domain = committer.get_evaluations_on_domain(
+                    trace_domain,
+                    quotient_domain,
+                    permutation_trace,
+                )?;
+                Ok((
+                    trace_domain,
+                    quotient_domain,
+                    preprocessed_on_quotient_domain,
+                    main_on_quotient_domain,
+                    perm_on_quotient_domain,
+                ))
+            })
+            .collect::<Result<Vec<_>, CudaError>>()?;
+
+        for (i, (chip, evaluations)) in chips.iter().zip(evaluations).enumerate() {
             let log_quotient_degree = chip.log_quotient_degree();
-            let quotient_domain =
-                trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
-            // Compute the evaluations of the traces on the quotient domain.
-            let preprocessed_on_quotient_domain = pk
-                .chip_ordering
-                .get(&chip.name())
-                .map(|&index| pk.traces[index].to_device().unwrap().to_column_major())
-                .map(|trace| {
-                    committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
-                })
-                .transpose()?;
-            let preprocessed_on_quotient_domain =
-                preprocessed_on_quotient_domain.unwrap_or_else(ColMajorMatrixDevice::null);
+            let (
+                trace_domain,
+                quotient_domain,
+                preprocessed_on_quotient_domain,
+                main_on_quotient_domain,
+                perm_on_quotient_domain,
+            ) = evaluations;
 
-            let main_on_quotient_domain = committer.get_evaluations_on_domain(
-                trace_domain,
-                quotient_domain,
-                &main_traces[i],
-            )?;
-            let perm_on_quotient_domain = committer.get_evaluations_on_domain(
-                trace_domain,
-                quotient_domain,
-                permutation_trace,
-            )?;
-            evaluations_span.exit();
+            let stream = main_on_quotient_domain.stream();
 
             // Move data to device and get generator powers.
-            let generator_powers_span = trace_span!("Get generator powers").entered();
 
-            let trace_domain_device = trace_domain.to_device().unwrap();
-            let quotient_domain_device = quotient_domain.to_device().unwrap();
+            let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
+            let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
-            let operations_device = operations.to_device().unwrap();
+            let operations_device = operations.to_device_async(stream).unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -165,15 +189,15 @@ where
                 .powers()
                 .take(NUM_THREADS_PER_BLOCK)
                 .collect::<Vec<_>>()
-                .to_device()
+                .to_device_async(stream)
                 .unwrap();
-            generator_powers_span.exit();
 
             // Compute quotient values.
-            let quotient_flat = trace_span!("Compute quotient values").in_scope(|| unsafe {
-                let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+            let quotient_flat = unsafe {
+                let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity_in(
                     <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                     quotient_domain.size(),
+                    stream,
                 )
                 .unwrap();
                 quotient_flat.set_max_width();
@@ -195,15 +219,14 @@ where
                     quotient_flat.view_mut(),
                     quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
                     NUM_THREADS_PER_BLOCK,
+                    stream.handle(),
                 );
                 quotient_flat
-            });
+            };
 
-            let split_values_span = trace_span!("Split quotient values").entered();
             let quotient_degree = 1 << log_quotient_degree;
             let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
-            split_values_span.exit();
 
             results.push(DeviceQuotientValues {
                 quotient_chunks,
@@ -218,7 +241,10 @@ where
 impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
     type DeviceType = TwoAdicMultiplicativeCosetDevice<BabyBear>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_async(
+        &self,
+        _stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType {
             log_n: self.log_n,
             shift: self.shift,
@@ -238,12 +264,15 @@ pub struct LagrangeSelectorsDevice<T: Field> {
 impl ToDevice for LagrangeSelectors<Vec<BabyBear>> {
     type DeviceType = LagrangeSelectorsDevice<BabyBear>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_async(
+        &self,
+        stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType {
-            is_first_row: self.is_first_row.to_device()?,
-            is_last_row: self.is_last_row.to_device()?,
-            is_transition: self.is_transition.to_device()?,
-            inv_zeroifier: self.inv_zeroifier.to_device()?,
+            is_first_row: self.is_first_row.to_device_async(stream)?,
+            is_last_row: self.is_last_row.to_device_async(stream)?,
+            is_transition: self.is_transition.to_device_async(stream)?,
+            inv_zeroifier: self.inv_zeroifier.to_device_async(stream)?,
         })
     }
 }
@@ -390,6 +419,7 @@ mod tests {
     };
     use tracing::debug;
 
+    use crate::cuda_runtime::ffi::DEFAULT_STREAM;
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
@@ -577,6 +607,7 @@ mod tests {
                     quotient_output.view_mut(),
                     (num_rows << pcs.fri_config().log_blowup) / 512,
                     512,
+                    DEFAULT_STREAM,
                 );
             }
             let data = quotient_output.to_host();

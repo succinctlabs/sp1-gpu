@@ -18,6 +18,9 @@ typedef struct RustCudaError rustCudaError_t;
 extern "C" const rustCudaError_t CUDA_SUCCESS_MOON =
 rustCudaError_t{message : cudaGetErrorString(cudaSuccess)};
 
+extern "C" const rustCudaError_t CUDA_OUT_OF_MEMORY =
+rustCudaError_t{message : cudaGetErrorString(cudaErrorMemoryAllocation)};
+
 #define CUDA_UNWRAP(expr)                                             \
     do {                                                              \
         cudaError_t code = expr;                                      \

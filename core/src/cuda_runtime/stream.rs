@@ -1,30 +1,55 @@
+use std::hint;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{ffi::c_void, mem, ptr};
 
+use thiserror::Error;
+
 use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
-unsafe impl Send for CudaStreamHandle {}
-unsafe impl Sync for CudaStreamHandle {}
-
+#[derive(Debug, Clone)]
 #[repr(transparent)]
-pub struct CudaStream(Arc<CudaStreamHandle>);
+pub struct CudaStreamOwned(CudaStreamHandle);
+
+unsafe impl Send for CudaStreamOwned {}
+unsafe impl Sync for CudaStreamOwned {}
+
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub struct CudaStream(Arc<CudaStreamOwned>);
+
+#[derive(Debug, Clone, Error)]
+pub enum AllocTimeoutError {
+    #[error("Failed to allocate memory {0}")]
+    CudaError(#[from] CudaError),
+    #[error("Timeout")]
+    Timeout,
+}
 
 impl CudaStream {
     pub fn create() -> Result<Self, CudaError> {
-        let mut ptr: *mut c_void = ptr::null_mut();
-        unsafe { ffi::cuda_stream_create(&mut ptr as *mut *mut c_void) }.to_result()?;
-        Ok(Self(Arc::new(CudaStreamHandle(ptr))))
+        let mut ptr = CudaStreamHandle(ptr::null_mut());
+        unsafe { ffi::cuda_stream_create(&mut ptr as *mut CudaStreamHandle) }.to_result()?;
+        Ok(Self(Arc::new(CudaStreamOwned(ptr))))
     }
 
+    #[inline]
     pub fn synchronize(&self) -> Result<(), CudaError> {
         unsafe { ffi::cuda_stream_synchronize(self.0 .0) }.to_result()
+    }
+
+    #[inline]
+    pub fn handle(&self) -> CudaStreamHandle {
+        self.0 .0
     }
 
     pub fn now(&self) -> Result<CudaInstant, CudaError> {
@@ -34,7 +59,7 @@ impl CudaStream {
     }
 
     pub fn record(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_event_record(event.0, self.0 .0) }.to_result()
+        unsafe { ffi::cuda_event_record(event.handle(), self.0 .0) }.to_result()
     }
 
     pub fn elapsed(&self, start: &CudaInstant) -> Result<Duration, CudaError> {
@@ -42,20 +67,22 @@ impl CudaStream {
         self.record(&end)?;
         end.synchronize()?;
         let mut ms: f32 = 0.0;
-        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0 .0, end.0) }.to_result()?;
+        unsafe { ffi::cuda_event_elapsed_time(&mut ms, start.0.handle(), end.handle()) }
+            .to_result()?;
 
         let s = ms as f64 * 1e-3;
         Ok(Duration::from_secs_f64(s))
     }
 
+    #[inline]
     pub fn wait_event(&self, event: &CudaEvent) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.0) }.to_result()
+        unsafe { ffi::cuda_stream_wait_event(self.0 .0, event.handle()) }.to_result()
     }
 
     /// # Safety
     ///
     /// TODO
-    pub unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
+    unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
         let mut ptr: *mut c_void = ptr::null_mut();
         unsafe {
             ffi::cuda_malloc_async(
@@ -71,7 +98,59 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
-    pub unsafe fn cuda_free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
+    #[inline]
+    pub unsafe fn try_alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
+        self.cuda_malloc_async(len)
+    }
+
+    /// Allocate memory on the device.
+    ///
+    /// This function will block until the memory is available. The method will return an error if
+    /// the allocator failed for a reason other than out of memory.
+    ///
+    /// # Safety
+    /// See [Self::try_alloc]
+    #[inline]
+    pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
+        self.alloc_timeout(len, DEFAULT_TIMEOUT)
+            .map_err(|e| match e {
+                AllocTimeoutError::CudaError(e) => e,
+                AllocTimeoutError::Timeout => {
+                    CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
+                }
+            })
+    }
+
+    /// Trt to allocate memory on the device or return an error after a timeout.
+    ///
+    /// # Safety
+    /// See [Self::try_alloc]
+    #[inline]
+    pub unsafe fn alloc_timeout<T: Copy>(
+        &self,
+        len: usize,
+        timeout: Duration,
+    ) -> Result<*mut T, AllocTimeoutError> {
+        let start = std::time::Instant::now();
+        loop {
+            match self.try_alloc(len) {
+                Ok(ptr) => return Ok(ptr),
+                Err(CudaError::OutOfMemory(_)) => {
+                    if start.elapsed() > timeout {
+                        return Err(AllocTimeoutError::Timeout);
+                    }
+                    hint::spin_loop();
+                }
+                Err(e) => return Err(AllocTimeoutError::CudaError(e)),
+            }
+        }
+    }
+
+    /// # Safety
+    ///
+    /// TODO
+    #[inline]
+    pub unsafe fn free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
         unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
 
@@ -88,7 +167,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_device_to_device_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -108,7 +187,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_host_to_device_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -118,6 +197,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn cuda_memcpy_device_to_host_async<T: Copy>(
         &self,
         dst: *mut T,
@@ -128,7 +208,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_device_to_host_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -138,6 +218,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
         &self,
         dst: *mut T,
@@ -148,7 +229,7 @@ impl CudaStream {
             ffi::cuda_mem_copy_host_to_host_async(
                 dst as *mut c_void,
                 src as *const c_void,
-                count,
+                count * mem::size_of::<T>(),
                 self.0 .0,
             )
         }
@@ -157,13 +238,14 @@ impl CudaStream {
 }
 
 impl Default for CudaStream {
+    #[inline]
     fn default() -> Self {
-        let raw = CudaStreamHandle(unsafe { ffi::DEFAULT_STREAM });
+        let raw = CudaStreamOwned(unsafe { ffi::DEFAULT_STREAM });
         Self(Arc::new(raw))
     }
 }
 
-impl Drop for CudaStreamHandle {
+impl Drop for CudaStreamOwned {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
             unsafe { ffi::cuda_stream_destroy(self.0) }
@@ -174,8 +256,9 @@ impl Drop for CudaStreamHandle {
 }
 
 impl Deref for CudaStream {
-    type Target = CudaStreamHandle;
+    type Target = CudaStreamOwned;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -215,7 +298,7 @@ mod tests {
             stream
                 .cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len())
                 .unwrap();
-            stream.cuda_free_async(buf).unwrap();
+            stream.free_async(buf).unwrap();
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();
             let elapsed = stream.elapsed(&time).unwrap();

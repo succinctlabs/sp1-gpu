@@ -47,19 +47,28 @@ namespace matrix_strided {
     }
   }
 
-  extern "C" void strided_matrix(Matrix<bb31_t> output, Matrix<bb31_t> input, size_t stride, size_t offset) {
+  extern "C" void strided_matrix(
+    Matrix<bb31_t> output, 
+    Matrix<bb31_t> input, 
+    size_t stride, 
+    size_t offset,
+    cudaStream_t stream) {
     dim3 dimGrid(ceil(output.height  /(double) TILE_DIM), ceil(output.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     assert(!input.row_major);
     assert(!output.row_major);
-    RowStrided<<<dimGrid, dimBlock>>>(output, input, stride, offset);
+    RowStrided<<<dimGrid, dimBlock, 0, stream>>>(output, input, stride, offset);
  }
 
-  extern "C" void split_rows(Matrix<bb31_t>* outputs, Matrix<bb31_t> input, size_t stride) {
+  extern "C" void split_rows(
+    Matrix<bb31_t>* outputs, 
+    Matrix<bb31_t> input, 
+    size_t stride,
+    cudaStream_t stream) {
     dim3 dimGrid(ceil(outputs[0].height  /(double) TILE_DIM), ceil(outputs[0].width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     assert(!input.row_major);
     assert(!outputs[0].row_major);
-    SplitRowsNaive<<<dimGrid, dimBlock>>>(outputs, input, stride);
+    SplitRowsNaive<<<dimGrid, dimBlock, 0, stream>>>(outputs, input, stride);
  }
 }  // namespace matrix_strided

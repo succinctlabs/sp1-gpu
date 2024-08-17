@@ -1,3 +1,4 @@
+use crate::cuda_runtime::stream::CudaStream;
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
@@ -90,6 +91,12 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
     }
 }
 
+impl<D: Copy> FieldMerkleTreeGpu<BabyBear, D, ColMajorMatrixDevice<BabyBear>> {
+    pub fn stream(&self) -> &CudaStream {
+        self.leaves[0].stream()
+    }
+}
+
 impl<F, W, M, const DIGEST_ELEMS: usize> ToHost for FieldMerkleTreeGpu<F, [W; DIGEST_ELEMS], M>
 where
     F: Field,
@@ -119,17 +126,20 @@ where
     type DeviceType =
         FieldMerkleTreeGpu<BabyBear, [W; DIGEST_ELEMS], ColMajorMatrixDevice<BabyBear>>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_async(
+        &self,
+        stream: &crate::cuda_runtime::stream::CudaStream,
+    ) -> Result<Self::DeviceType, CudaError> {
         let leaves_device = self
             .leaves
             .iter()
-            .map(|l| Ok(l.to_device()?.to_column_major()))
+            .map(|l| Ok(l.to_device_async(stream)?.to_column_major()))
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         let digest_layers_device = self
             .digest_layers
             .iter()
-            .map(|l| l.to_device())
+            .map(|l| l.to_device_async(stream))
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         Ok(FieldMerkleTreeGpu {

@@ -2,11 +2,12 @@ use std::ops::{
     Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
     RangeToInclusive,
 };
+use std::time::Duration;
 use std::{mem, slice};
 
 use p3_field::{ExtensionField, Field, PrimeField32};
 
-use crate::device::memory::{copy_device_to_host, copy_host_to_device, cuda_free, cuda_malloc};
+use crate::cuda_runtime::stream::{AllocTimeoutError, CudaStream};
 use crate::device::slice::DeviceSlice;
 
 use super::error::CudaError;
@@ -19,19 +20,67 @@ pub struct DeviceBuffer<T: Copy> {
     buf: *mut T,
     len: usize,
     cap: usize,
+    stream: CudaStream,
 }
 
 unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
 unsafe impl<T: Copy> Sync for DeviceBuffer<T> {}
 
 impl<T: Copy> DeviceBuffer<T> {
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will return an error if there is not enough memory available, or if any other
+    /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        let ptr = unsafe { cuda_malloc(capacity) }?;
+        Self::try_with_capacity_in(capacity, &CudaStream::default())
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will return an error if there is not enough memory available, or if any other
+    /// device error occurs.
+    pub fn try_with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
+        let ptr = unsafe { stream.try_alloc(capacity) }?;
 
         Ok(Self {
             buf: ptr,
             len: 0,
             cap: capacity,
+            stream: stream.clone(),
+        })
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will block until enough memory is available. The function will return an error
+    /// if another device error occurs.
+    pub fn with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
+        let ptr = unsafe { stream.alloc(capacity) }?;
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            stream: stream.clone(),
+        })
+    }
+
+    /// Allocate a new buffer on the device.
+    ///
+    /// The function will block until enough memory is available or the timeout is reached. The
+    /// function will return an error if another device error occurs.
+    pub fn with_capacity_in_timeout(
+        capacity: usize,
+        stream: CudaStream,
+        timeout: Duration,
+    ) -> Result<Self, AllocTimeoutError> {
+        let ptr = unsafe { stream.alloc_timeout(capacity, timeout) }?;
+
+        Ok(Self {
+            buf: ptr,
+            len: 0,
+            cap: capacity,
+            stream,
         })
     }
 
@@ -42,12 +91,23 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The pointer must be valid, it must have allocated memory in the size of
     /// capacity * size_of<T>, and the first `len` elements of the buffer must be initialized or
     /// about to be initialized in a foreign CUDA call.
-    pub const unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
+    pub unsafe fn from_raw_parts(
+        ptr: *mut T,
+        length: usize,
+        capacity: usize,
+        stream: CudaStream,
+    ) -> Self {
         Self {
             buf: ptr,
             len: length,
             cap: capacity,
+            stream,
         }
+    }
+
+    #[inline]
+    pub const fn stream(&self) -> &CudaStream {
+        &self.stream
     }
 
     /// # Safety
@@ -76,18 +136,22 @@ impl<T: Copy> DeviceBuffer<T> {
         self.len == 0
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &DeviceSlice<T> {
         &self[..]
     }
 
+    #[inline]
     pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<T> {
         &mut self[..]
     }
 
+    #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.buf
     }
 
+    #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.buf
     }
@@ -117,7 +181,11 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), src.len());
         }
 
-        unsafe { copy_host_to_device(self.buf, src.as_ptr(), src.len()) }.unwrap()
+        unsafe {
+            self.stream
+                .cuda_memcpy_host_to_device_async(self.buf, src.as_ptr(), src.len())
+                .unwrap();
+        }
     }
 
     pub fn copy_to_host(&self, dst: &mut [T]) {
@@ -137,7 +205,11 @@ impl<T: Copy> DeviceBuffer<T> {
             len_mismatch_fail(self.len(), dst.len());
         }
 
-        unsafe { copy_device_to_host(dst.as_mut_ptr(), self.buf, dst.len()) }.unwrap()
+        unsafe {
+            self.stream
+                .cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.buf, dst.len())
+                .unwrap();
+        }
     }
 
     /// Calculates the offset to the current element.
@@ -169,7 +241,11 @@ impl<T: Copy> DeviceBuffer<T> {
             capacity_fail(self.len(), src.len(), self.cap);
         }
 
-        unsafe { copy_host_to_device(self.offset(), src.as_ptr(), src.len()) }.unwrap();
+        unsafe {
+            self.stream
+                .cuda_memcpy_host_to_device_async(self.offset(), src.as_ptr(), src.len())
+                .unwrap();
+        }
 
         // Extend the length of the buffer to include the new elements.
         self.len += src.len();
@@ -185,6 +261,8 @@ impl<T: Copy> DeviceBuffer<T> {
     {
         // Cast the device pointer to the base type.
         let buff = self.buf as *mut B;
+        // Clone the stream.
+        let stream = self.stream.clone();
 
         // The new length/capacity are the product of the old length/capacity and the extension
         // degree.
@@ -194,7 +272,7 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap)
+        DeviceBuffer::from_raw_parts(buff, len, cap, stream)
     }
 
     /// # Safety
@@ -207,6 +285,8 @@ impl<T: Copy> DeviceBuffer<T> {
     {
         // Cast the device pointer to the extension type.
         let buff = self.buf as *mut E;
+        // Clone the stream.
+        let stream = self.stream.clone();
 
         // The legth and capacity must be divisible by the degree.
         assert!(self.len % E::D == 0);
@@ -217,13 +297,13 @@ impl<T: Copy> DeviceBuffer<T> {
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
-        DeviceBuffer::from_raw_parts(buff, len, cap)
+        DeviceBuffer::from_raw_parts(buff, len, cap, stream)
     }
 }
 
 impl<T: Copy> Drop for DeviceBuffer<T> {
     fn drop(&mut self) {
-        unsafe { cuda_free(self.buf) }.unwrap()
+        unsafe { self.stream.free_async(self.buf).unwrap() }
     }
 }
 
@@ -269,8 +349,8 @@ impl_index! {
 impl<T: Copy> ToDevice for Vec<T> {
     type DeviceType = DeviceBuffer<T>;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
-        let mut buffer = DeviceBuffer::with_capacity(self.len())?;
+    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError> {
+        let mut buffer = DeviceBuffer::with_capacity_in(self.len(), stream)?;
         buffer.extend_from_host_slice(self);
         Ok(buffer)
     }
@@ -313,6 +393,8 @@ mod tests {
     };
     use std::{fmt::Debug, ops::Range};
 
+    use crate::cuda_runtime::stream::CudaStream;
+
     use super::DeviceBuffer;
 
     fn make_test_buffer_init_and_copy<T>(rng: &mut impl Rng, len: usize)
@@ -351,10 +433,13 @@ mod tests {
         let device_slice = &mut buffer[slice_range.clone()];
         assert_eq!(device_slice.len(), slice_range.len());
 
-        device_slice.copy_from_host(&new_values);
+        device_slice.copy_from_host(&new_values, &CudaStream::default());
 
         let mut new_values_back = vec![T::default(); len];
-        device_slice.copy_into_host(&mut new_values_back[0..slice_range.len()]);
+        device_slice.copy_into_host(
+            &mut new_values_back[0..slice_range.len()],
+            &CudaStream::default(),
+        );
 
         for (val, exp) in new_values_back.into_iter().zip(new_values) {
             assert_eq!(val, exp);

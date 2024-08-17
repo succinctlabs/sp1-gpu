@@ -192,9 +192,10 @@ extern "C" void computeValues(
     bb31_t* generatorPowers,
     Matrix<bb31_t> quotientValues, 
     size_t numBlocks,
-    size_t numThreadsPerBlock) {
+    size_t numThreadsPerBlock,
+    cudaStream_t stream) {
     if (memorySize <= 32) {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
@@ -202,7 +203,7 @@ extern "C" void computeValues(
     }
     else if (memorySize <= 64)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
@@ -210,7 +211,7 @@ extern "C" void computeValues(
     }
     else if (memorySize <= 128)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
@@ -218,7 +219,7 @@ extern "C" void computeValues(
     }
     else if (memorySize <= 256)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
@@ -226,7 +227,7 @@ extern "C" void computeValues(
     }
     else if (memorySize <= 512)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
@@ -234,7 +235,7 @@ extern "C" void computeValues(
     }
     else if (memorySize <= 1024)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock>>>(  
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, cumulativeSum,        
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     

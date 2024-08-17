@@ -5,6 +5,8 @@ use crate::device::error::CudaRustError;
 extern "C" {
     pub(crate) static CUDA_SUCCESS_MOON: CudaRustError;
 
+    pub(crate) static CUDA_OUT_OF_MEMORY: CudaRustError;
+
     pub(crate) fn cuda_malloc(ptr: *mut *mut c_void, count: usize) -> CudaRustError;
 
     pub(crate) fn cuda_free(ptr: *const c_void) -> CudaRustError;
