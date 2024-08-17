@@ -116,7 +116,7 @@ impl CudaStream {
             .map_err(|e| match e {
                 AllocTimeoutError::CudaError(e) => e,
                 AllocTimeoutError::Timeout => {
-                    CudaError::OutOfMemory("cudaMallocAsyncTimeout".to_string())
+                    CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
                 }
             })
     }
