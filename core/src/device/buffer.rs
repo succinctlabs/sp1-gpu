@@ -105,6 +105,7 @@ impl<T: Copy> DeviceBuffer<T> {
         }
     }
 
+    #[inline]
     pub const fn stream(&self) -> &CudaStream {
         &self.stream
     }
@@ -135,18 +136,22 @@ impl<T: Copy> DeviceBuffer<T> {
         self.len == 0
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &DeviceSlice<T> {
         &self[..]
     }
 
+    #[inline]
     pub fn as_slice_mut(&mut self) -> &mut DeviceSlice<T> {
         &mut self[..]
     }
 
+    #[inline]
     pub fn as_ptr(&self) -> *const T {
         self.buf
     }
 
+    #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.buf
     }

@@ -10,6 +10,8 @@ use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
@@ -108,22 +110,22 @@ impl CudaStream {
     ///
     /// # Safety
     /// See [Self::try_alloc]
+    #[inline]
     pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
-        loop {
-            match self.try_alloc(len) {
-                Ok(ptr) => return Ok(ptr),
-                Err(CudaError::OutOfMemory(_)) => {
-                    hint::spin_loop();
+        self.alloc_timeout(len, DEFAULT_TIMEOUT)
+            .map_err(|e| match e {
+                AllocTimeoutError::CudaError(e) => e,
+                AllocTimeoutError::Timeout => {
+                    CudaError::OutOfMemory("cudaMallocAsyncTimeout".to_string())
                 }
-                Err(e) => return Err(e),
-            }
-        }
+            })
     }
 
     /// Trt to allocate memory on the device or return an error after a timeout.
     ///
     /// # Safety
     /// See [Self::try_alloc]
+    #[inline]
     pub unsafe fn alloc_timeout<T: Copy>(
         &self,
         len: usize,
@@ -195,6 +197,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn cuda_memcpy_device_to_host_async<T: Copy>(
         &self,
         dst: *mut T,
@@ -215,6 +218,7 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
     pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
         &self,
         dst: *mut T,
@@ -234,6 +238,7 @@ impl CudaStream {
 }
 
 impl Default for CudaStream {
+    #[inline]
     fn default() -> Self {
         let raw = CudaStreamOwned(unsafe { ffi::DEFAULT_STREAM });
         Self(Arc::new(raw))
@@ -253,6 +258,7 @@ impl Drop for CudaStreamOwned {
 impl Deref for CudaStream {
     type Target = CudaStreamOwned;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
