@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+hashbrown = { version = "0.14.5" }
 lazy_static = "1.4.0"
 p3-air = { workspace = true }
 sp1-core = { workspace = true }

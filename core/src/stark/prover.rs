@@ -24,6 +24,7 @@ use sp1_core::stark::Com;
 use sp1_core::stark::DebugConstraintBuilder;
 use sp1_core::stark::MachineProof;
 use sp1_core::stark::MachineProver;
+use sp1_core::stark::ProvePhase;
 use sp1_core::stark::ShardCommitment;
 use sp1_core::stark::ShardOpenedValues;
 use sp1_core::stark::ShardProof;
@@ -36,6 +37,7 @@ use sp1_core::{
         StarkProvingKey, Val,
     },
 };
+
 use std::cmp::Reverse;
 
 use air::P3EvalFolder;
@@ -588,19 +590,25 @@ where
         pk.observe_into(challenger);
 
         // Generate and commit the traces for each shard.
-        let shard_data: Vec<_> = records
+        let phase1_shard_data: Vec<_> = records
             .into_iter()
             .map(|record| {
-                let traces = self.generate_traces(&record);
-                self.commit(record, traces)
+                let traces = self.generate_traces(&record, ProvePhase::Phase1);
+                self.commit(&record, traces)
             })
             .collect();
 
         // Observe the challenges for each segment.
-        shard_data.iter().for_each(|data| {
+        phase1_shard_data.iter().for_each(|data| {
             challenger.observe(data.main_commit.clone());
             challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
         });
+
+        // Obtain the challenges used for the global permutation argument.
+        let mut global_permutation_challenges: Vec<SC::Challenge> = Vec::new();
+        for _ in 0..2 {
+            global_permutation_challenges.push(challenger.sample_ext_element());
+        }
 
         let shard_proofs = shard_data
             .into_iter()
