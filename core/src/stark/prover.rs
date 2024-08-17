@@ -333,7 +333,7 @@ where
         // Generate permutation traces.
 
         let permutation_span =
-            tracing::trace_span!("generate and commit to permutation traces").entered();
+            tracing::debug_span!("generate and commit to permutation traces").entered();
         let permutation_traces =
             self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)?;
 
@@ -400,7 +400,7 @@ where
         // Compute quotient values.
 
         let quotient_span =
-            tracing::trace_span!("generate and commit to quotient values").entered();
+            tracing::debug_span!("generate and commit to quotient values").entered();
 
         // Compute values
         let quotient_values = self.quotient_generator.generate_quotient_values(
