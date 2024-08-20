@@ -388,223 +388,224 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::stark::BabyBearPoseidon2;
-//     use itertools::Itertools;
-//     use p3_air::BaseAir;
-//     use p3_baby_bear::BabyBear;
-//     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
-//     use p3_field::extension::BinomialExtensionField;
-//     use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
-//     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-//     use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-//     use sp1_core_executor::Program;
-//     use sp1_core_machine::riscv::RiscvAir;
-//     use sp1_core_machine::utils::log2_strict_usize;
-//     use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
-//     use sp1_stark::StarkGenericConfig;
+#[cfg(test)]
+mod tests {
+    use crate::stark::BabyBearPoseidon2;
+    use itertools::Itertools;
+    use p3_air::BaseAir;
+    use p3_baby_bear::BabyBear;
+    use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
+    use p3_field::extension::BinomialExtensionField;
+    use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
+    use p3_matrix::{dense::RowMajorMatrix, Matrix};
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::utils::log2_strict_usize;
+    use sp1_stark::air::MachineAir;
+    use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
+    use sp1_stark::StarkGenericConfig;
 
-//     use rand::thread_rng;
+    use rand::thread_rng;
 
-//     use tracing::debug;
+    use tracing::debug;
 
-//     use crate::device::memory::ToHost;
-//     use crate::matrix::ColMajorMatrixDevice;
-//     use crate::stark::ffi::quotient_gpu;
-//     use crate::stark::quotient::quotient_values;
-//     use crate::utils::init_tracer;
-//     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
+    use crate::device::memory::ToHost;
+    use crate::matrix::ColMajorMatrixDevice;
+    use crate::stark::ffi::quotient_gpu;
+    use crate::stark::quotient::quotient_values;
+    use crate::utils::init_tracer;
+    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
-//     type F = BabyBear;
-//     const D: usize = 4;
-//     type EF = BinomialExtensionField<F, D>;
-//     type SC = BabyBearPoseidon2;
+    type F = BabyBear;
+    const D: usize = 4;
+    type EF = BinomialExtensionField<F, D>;
+    type SC = BabyBearPoseidon2;
 
-//     fn natural_domain_for_degree(degree: usize) -> TwoAdicMultiplicativeCoset<BabyBear> {
-//         TwoAdicMultiplicativeCoset {
-//             log_n: log2_strict_usize(degree),
-//             shift: F::one(),
-//         }
-//     }
+    fn natural_domain_for_degree(degree: usize) -> TwoAdicMultiplicativeCoset<BabyBear> {
+        TwoAdicMultiplicativeCoset {
+            log_n: log2_strict_usize(degree),
+            shift: F::one(),
+        }
+    }
 
-//     #[test]
-//     pub fn test_quotient_values() {
-//         let mut rng = thread_rng();
-//         init_tracer();
+    #[test]
+    pub fn test_quotient_values() {
+        let mut rng = thread_rng();
+        init_tracer();
 
-//         let config = BabyBearPoseidon2::compressed();
-//         let machine = RiscvAir::machine(config);
-//         let chips = machine.chips();
+        let config = BabyBearPoseidon2::compressed();
+        let machine = RiscvAir::machine(config);
+        let chips = machine.chips();
 
-//         for (i, chip) in chips.iter().enumerate() {
-//             debug!("Chip: {}", chip.name());
-//             debug!("Id: {}", i);
+        for (i, chip) in chips.iter().enumerate() {
+            debug!("Chip: {}", chip.name());
+            debug!("Id: {}", i);
 
-//             let program = Program::from(FIBONACCI_ELF);
-//             let config = BabyBearPoseidon2::default();
-//             let pcs = config.pcs();
+            let program = Program::from(FIBONACCI_ELF).unwrap();
+            let config = BabyBearPoseidon2::default();
+            let pcs = config.pcs();
 
-//             let prep = chip.generate_preprocessed_trace(&program);
-//             let num_rows = if let Some(prep) = prep.as_ref() {
-//                 prep.height()
-//             } else {
-//                 1 << 10
-//             };
+            let prep = chip.generate_preprocessed_trace(&program);
+            let num_rows = if let Some(prep) = prep.as_ref() {
+                prep.height()
+            } else {
+                1 << 10
+            };
 
-//             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+            let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
-//             let permutation_challenges = vec![EF::one(), EF::two()];
-//             let perm =
-//                 chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
+            let permutation_challenges = vec![EF::one(), EF::two()];
+            let perm =
+                chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
 
-//             let degree = main.height();
-//             let log_degree = log2_strict_usize(degree);
-//             let log_quotient_degree = chip.log_quotient_degree();
-//             let trace_domain = natural_domain_for_degree(degree);
-//             let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
+            let degree = main.height();
+            let log_degree = log2_strict_usize(degree);
+            let log_quotient_degree = chip.log_quotient_degree();
+            let trace_domain = natural_domain_for_degree(degree);
+            let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
 
-//             // Calculate evaluations on quotient domain.
+            // Calculate evaluations on quotient domain.
 
-//             let (_, main_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                 <SC as StarkGenericConfig>::Challenge,
-//                 <SC as StarkGenericConfig>::Challenger,
-//             >>::commit(pcs, vec![(trace_domain, main)]);
-//             let (_, perm_data) =
-//                 <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                     <SC as StarkGenericConfig>::Challenge,
-//                     <SC as StarkGenericConfig>::Challenger,
-//                 >>::commit(pcs, vec![(trace_domain, perm.flatten_to_base())]);
+            let (_, main_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
+                <SC as StarkGenericConfig>::Challenge,
+                <SC as StarkGenericConfig>::Challenger,
+            >>::commit(pcs, vec![(trace_domain, main)]);
+            let (_, perm_data) =
+                <<SC as StarkGenericConfig>::Pcs as Pcs<
+                    <SC as StarkGenericConfig>::Challenge,
+                    <SC as StarkGenericConfig>::Challenger,
+                >>::commit(pcs, vec![(trace_domain, perm.flatten_to_base())]);
 
-//             let quotient_domain =
-//                 trace_domain.create_disjoint_domain(1 << (log_degree + log_quotient_degree));
-//             let preprocessed_trace_on_quotient_domain = if let Some(prep) = prep {
-//                 let prep_domain = natural_domain_for_degree(prep.height());
-//                 let (_, prep_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                     <SC as StarkGenericConfig>::Challenge,
-//                     <SC as StarkGenericConfig>::Challenger,
-//                 >>::commit(pcs, vec![(prep_domain, prep)]);
-//                 <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                     <SC as StarkGenericConfig>::Challenge,
-//                     <SC as StarkGenericConfig>::Challenger,
-//                 >>::get_evaluations_on_domain(pcs, &prep_data, 0, quotient_domain)
-//                 .to_row_major_matrix()
-//             } else {
-//                 RowMajorMatrix::new_col(vec![BabyBear::zero(); quotient_domain.size() * 4])
-//             };
+            let quotient_domain =
+                trace_domain.create_disjoint_domain(1 << (log_degree + log_quotient_degree));
+            let preprocessed_trace_on_quotient_domain = if let Some(prep) = prep {
+                let prep_domain = natural_domain_for_degree(prep.height());
+                let (_, prep_data) = <<SC as StarkGenericConfig>::Pcs as Pcs<
+                    <SC as StarkGenericConfig>::Challenge,
+                    <SC as StarkGenericConfig>::Challenger,
+                >>::commit(pcs, vec![(prep_domain, prep)]);
+                <<SC as StarkGenericConfig>::Pcs as Pcs<
+                    <SC as StarkGenericConfig>::Challenge,
+                    <SC as StarkGenericConfig>::Challenger,
+                >>::get_evaluations_on_domain(pcs, &prep_data, 0, quotient_domain)
+                .to_row_major_matrix()
+            } else {
+                RowMajorMatrix::new_col(vec![BabyBear::zero(); quotient_domain.size() * 4])
+            };
 
-//             let main_trace_on_quotient_domain =
-//                 <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                     <SC as StarkGenericConfig>::Challenge,
-//                     <SC as StarkGenericConfig>::Challenger,
-//                 >>::get_evaluations_on_domain(pcs, &main_data, 0, quotient_domain)
-//                 .to_row_major_matrix();
+            let main_trace_on_quotient_domain =
+                <<SC as StarkGenericConfig>::Pcs as Pcs<
+                    <SC as StarkGenericConfig>::Challenge,
+                    <SC as StarkGenericConfig>::Challenger,
+                >>::get_evaluations_on_domain(pcs, &main_data, 0, quotient_domain)
+                .to_row_major_matrix();
 
-//             let permutation_trace_on_quotient_domain =
-//                 <<SC as StarkGenericConfig>::Pcs as Pcs<
-//                     <SC as StarkGenericConfig>::Challenge,
-//                     <SC as StarkGenericConfig>::Challenger,
-//                 >>::get_evaluations_on_domain(pcs, &perm_data, 0, quotient_domain)
-//                 .to_row_major_matrix();
+            let permutation_trace_on_quotient_domain =
+                <<SC as StarkGenericConfig>::Pcs as Pcs<
+                    <SC as StarkGenericConfig>::Challenge,
+                    <SC as StarkGenericConfig>::Challenger,
+                >>::get_evaluations_on_domain(pcs, &perm_data, 0, quotient_domain)
+                .to_row_major_matrix();
 
-//             let alpha = EF::from_base_slice(&[F::one(), F::one(), F::one(), F::one()]);
-//             let public_values = [F::zero(); SP1_PROOF_NUM_PV_ELTS * 2].to_vec();
+            let alpha = EF::from_base_slice(&[F::one(), F::one(), F::one(), F::one()]);
+            let public_values = [F::zero(); SP1_PROOF_NUM_PV_ELTS * 2].to_vec();
 
-//             let start = std::time::Instant::now();
-//             let result = quotient_values::<BabyBearPoseidon2, _, _>(
-//                 chip,
-//                 cumulative_sum,
-//                 trace_domain,
-//                 quotient_domain,
-//                 preprocessed_trace_on_quotient_domain.clone(),
-//                 main_trace_on_quotient_domain.clone(),
-//                 permutation_trace_on_quotient_domain.clone(),
-//                 &permutation_challenges,
-//                 alpha,
-//                 &public_values,
-//             );
-//             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
-//             debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
-//             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
-//             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
-//             let generator_powers = quotient_domain_generator
-//                 .powers()
-//                 .take(512)
-//                 .collect::<Vec<_>>()
-//                 .to_device()
-//                 .unwrap();
+            let start = std::time::Instant::now();
+            let result = quotient_values::<BabyBearPoseidon2, _, _>(
+                chip,
+                cumulative_sum,
+                trace_domain,
+                quotient_domain,
+                preprocessed_trace_on_quotient_domain.clone(),
+                main_trace_on_quotient_domain.clone(),
+                permutation_trace_on_quotient_domain.clone(),
+                &permutation_challenges,
+                alpha,
+                &public_values,
+            );
+            let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
+            debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
+            let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
+            let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
+            let generator_powers = quotient_domain_generator
+                .powers()
+                .take(512)
+                .collect::<Vec<_>>()
+                .to_device()
+                .unwrap();
 
-//             let trace_domain_device = trace_domain.to_device().unwrap();
-//             let quotient_domain_device = quotient_domain.to_device().unwrap();
+            let trace_domain_device = trace_domain.to_device().unwrap();
+            let quotient_domain_device = quotient_domain.to_device().unwrap();
 
-//             let preprocessed_trace_on_quotient_domain_device =
-//                 preprocessed_trace_on_quotient_domain
-//                     .values
-//                     .to_device()
-//                     .unwrap();
-//             let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-//                 preprocessed_trace_on_quotient_domain_device,
-//                 preprocessed_trace_on_quotient_domain.width(),
-//             )
-//             .to_column_major();
+            let preprocessed_trace_on_quotient_domain_device =
+                preprocessed_trace_on_quotient_domain
+                    .values
+                    .to_device()
+                    .unwrap();
+            let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
+                preprocessed_trace_on_quotient_domain_device,
+                preprocessed_trace_on_quotient_domain.width(),
+            )
+            .to_column_major();
 
-//             let main_trace_on_quotient_domain_device =
-//                 main_trace_on_quotient_domain.values.to_device().unwrap();
-//             let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-//                 main_trace_on_quotient_domain_device,
-//                 main_trace_on_quotient_domain.width(),
-//             )
-//             .to_column_major();
+            let main_trace_on_quotient_domain_device =
+                main_trace_on_quotient_domain.values.to_device().unwrap();
+            let main_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
+                main_trace_on_quotient_domain_device,
+                main_trace_on_quotient_domain.width(),
+            )
+            .to_column_major();
 
-//             let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
-//                 .values
-//                 .to_device()
-//                 .unwrap();
-//             let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
-//                 permutation_trace_on_quotient_domain_device,
-//                 permutation_trace_on_quotient_domain.width(),
-//             )
-//             .to_column_major();
-//             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
-//             let public_values_device = public_values.to_device().unwrap();
+            let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
+                .values
+                .to_device()
+                .unwrap();
+            let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
+                permutation_trace_on_quotient_domain_device,
+                permutation_trace_on_quotient_domain.width(),
+            )
+            .to_column_major();
+            let permutation_challenges_device = permutation_challenges.to_device().unwrap();
+            let public_values_device = public_values.to_device().unwrap();
 
-//             let mut quotient_output =
-//                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
+            let mut quotient_output =
+                ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-//             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
-//             let operations_device = operations.to_device().unwrap();
-//             debug!("> Eval Program Len: {}", operations.len());
-//             debug!("> Eval Program Register Count: {}", expr_ctr);
+            let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
+            let operations_device = operations.to_device().unwrap();
+            debug!("> Eval Program Len: {}", operations.len());
+            debug!("> Eval Program Register Count: {}", expr_ctr);
 
-//             let start = std::time::Instant::now();
-//             unsafe {
-//                 quotient_output.set_max_width();
-//                 quotient_gpu::compute_values(
-//                     operations_device.as_ptr(),
-//                     operations.len(),
-//                     expr_ctr,
-//                     cumulative_sum,
-//                     trace_domain_device,
-//                     quotient_domain_device,
-//                     preprocessed_trace_on_quotient_domain_device.view(),
-//                     main_trace_on_quotient_domain_device.view(),
-//                     permutation_trace_on_quotient_domain_device.view(),
-//                     permutation_challenges_device.as_ptr(),
-//                     alpha,
-//                     public_values_device.as_ptr(),
-//                     trace_domain_generator,
-//                     generator_powers.as_ptr(),
-//                     quotient_output.view_mut(),
-//                     (num_rows << pcs.fri_config().log_blowup) / 512,
-//                     512,
-//                 );
-//             }
-//             let data = quotient_output.to_host();
-//             debug!("> GPU Time: {:?} ms", start.elapsed().as_millis());
+            let start = std::time::Instant::now();
+            unsafe {
+                quotient_output.set_max_width();
+                quotient_gpu::compute_values(
+                    operations_device.as_ptr(),
+                    operations.len(),
+                    expr_ctr,
+                    cumulative_sum,
+                    trace_domain_device,
+                    quotient_domain_device,
+                    preprocessed_trace_on_quotient_domain_device.view(),
+                    main_trace_on_quotient_domain_device.view(),
+                    permutation_trace_on_quotient_domain_device.view(),
+                    permutation_challenges_device.as_ptr(),
+                    alpha,
+                    public_values_device.as_ptr(),
+                    trace_domain_generator,
+                    generator_powers.as_ptr(),
+                    quotient_output.view_mut(),
+                    (num_rows << pcs.fri_config().log_blowup) / 512,
+                    512,
+                );
+            }
+            let data = quotient_output.to_host();
+            debug!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-//             for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
-//                 assert_eq!(exp, res, "failed at index {}", i);
-//             }
-//         }
-//     }
-// }
+            for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
+                assert_eq!(exp, res, "failed at index {}", i);
+            }
+        }
+    }
+}

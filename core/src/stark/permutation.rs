@@ -556,199 +556,199 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::device::memory::ToHost;
-//     use crate::matrix::RowMajorMatrixDevice;
-//     use crate::time::CudaInstant;
+#[cfg(test)]
+mod tests {
+    use crate::device::memory::ToHost;
+    use crate::matrix::RowMajorMatrixDevice;
+    use crate::time::CudaInstant;
 
-//     use super::*;
-//     use p3_air::BaseAir;
-//     use p3_baby_bear::BabyBear;
-//     use p3_field::extension::BinomialExtensionField;
-//     use p3_field::AbstractField;
-//     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-//     use rand::thread_rng;
-//     use rand::Rng;
+    use super::*;
+    use p3_air::BaseAir;
+    use p3_baby_bear::BabyBear;
+    use p3_field::extension::BinomialExtensionField;
+    use p3_field::AbstractField;
+    use p3_matrix::{dense::RowMajorMatrix, Matrix};
+    use rand::thread_rng;
+    use rand::Rng;
 
-//     use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-//     use sp1_core_executor::Program;
-//     use sp1_core_machine::riscv::ByteChip;
-//     use sp1_stark::permutation_trace_width;
-//     use sp1_stark::populate_permutation_row;
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::ByteChip;
+    use sp1_stark::permutation_trace_width;
+    use sp1_stark::populate_permutation_row;
 
-//     type F = BabyBear;
-//     const D: usize = 4;
-//     type EF = BinomialExtensionField<F, D>;
+    type F = BabyBear;
+    const D: usize = 4;
+    type EF = BinomialExtensionField<F, D>;
 
-//     #[test]
-//     fn test_populate_permutation_row_host() {
-//         let mut rng = thread_rng();
+    #[test]
+    fn test_populate_permutation_row_host() {
+        let mut rng = thread_rng();
 
-//         let air = ByteChip::<F>::default();
-//         let chip = Chip::new(air);
+        let air = ByteChip::<F>::default();
+        let chip = Chip::new(air);
 
-//         let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
-//         let num_rows = 1 << 16;
-//         let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
+        let num_rows = 1 << 16;
+        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
 
-//         // Generate a random trace.
-//         let main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+        // Generate a random trace.
+        let main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
-//         // Get the host interactions.
-//         let host_interactions = HostInteractions::new(chip.sends(), chip.receives());
+        // Get the host interactions.
+        let host_interactions = HostInteractions::new(chip.sends(), chip.receives());
 
-//         // For every row, compute the permutation row and compare the values.
+        // For every row, compute the permutation row and compare the values.
 
-//         let batch_size = 2;
-//         let perm_width =
-//             permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
-//         let alpha = rng.gen::<EF>();
-//         let beta = rng.gen::<EF>();
-//         for i in 0..num_rows {
-//             let prep_row = preprocessed_trace.row_slice(i);
-//             let main_row = main_trace.row_slice(i);
+        let batch_size = 2;
+        let perm_width =
+            permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
+        let alpha = rng.gen::<EF>();
+        let beta = rng.gen::<EF>();
+        for i in 0..num_rows {
+            let prep_row = preprocessed_trace.row_slice(i);
+            let main_row = main_trace.row_slice(i);
 
-//             let mut expected_row = vec![EF::zero(); perm_width];
-//             populate_permutation_row(
-//                 &mut expected_row,
-//                 &prep_row,
-//                 &main_row,
-//                 chip.sends(),
-//                 chip.receives(),
-//                 alpha,
-//                 beta.powers(),
-//                 batch_size,
-//             );
+            let mut expected_row = vec![EF::zero(); perm_width];
+            populate_permutation_row(
+                &mut expected_row,
+                &prep_row,
+                &main_row,
+                chip.sends(),
+                chip.receives(),
+                alpha,
+                beta.powers(),
+                batch_size,
+            );
 
-//             let mut row = vec![EF::zero(); perm_width];
-//             host_interactions
-//                 .populate_permutation_row(&mut row, &prep_row, &main_row, alpha, beta, batch_size);
+            let mut row = vec![EF::zero(); perm_width];
+            host_interactions
+                .populate_permutation_row(&mut row, &prep_row, &main_row, alpha, beta, batch_size);
 
-//             for (exp, val) in expected_row.iter().zip(row.iter()) {
-//                 assert_eq!(exp, val, "row {} mismatch", i);
-//             }
-//         }
-//     }
+            for (exp, val) in expected_row.iter().zip(row.iter()) {
+                assert_eq!(exp, val, "row {} mismatch", i);
+            }
+        }
+    }
 
-//     #[test]
-//     fn test_generate_permutation_trace_device() {
-//         let mut rng = thread_rng();
+    #[test]
+    fn test_generate_permutation_trace_device() {
+        let mut rng = thread_rng();
 
-//         let air = ByteChip::<F>::default();
-//         let chip = Chip::new(air);
+        let air = ByteChip::<F>::default();
+        let chip = Chip::new(air);
 
-//         let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
-//         let num_rows = 1 << 16;
-//         let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
+        let num_rows = 1 << 16;
+        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
 
-//         // Generate a random trace.
-//         let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
-//         for val in main_trace.values.iter_mut() {
-//             *val = rng.gen::<F>();
-//         }
+        // Generate a random trace.
+        let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+        for val in main_trace.values.iter_mut() {
+            *val = rng.gen::<F>();
+        }
 
-//         // Transfer perm and main traces to the device.
-//         let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
-//         let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
-//         let prep_d = prep_d.to_column_major();
+        // Transfer perm and main traces to the device.
+        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
+        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
+        let prep_d = prep_d.to_column_major();
 
-//         let main_trace_d = main_trace.values.to_device().unwrap();
-//         let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
-//         let main_d = main_d.to_column_major();
+        let main_trace_d = main_trace.values.to_device().unwrap();
+        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
+        let main_d = main_d.to_column_major();
 
-//         // Get randomness.
-//         let alpha = rng.gen::<EF>();
-//         let beta = rng.gen::<EF>();
+        // Get randomness.
+        let alpha = rng.gen::<EF>();
+        let beta = rng.gen::<EF>();
 
-//         let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
-//         // Generate the permutation rows on device.
-//         let time = CudaInstant::now().unwrap();
-//         let perm_d = perm_generator
-//             .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
-//             .unwrap();
-//         let elapsed = time.elapsed().unwrap();
-//         println!("Device generate_permutation_trace: {:?}", elapsed);
+        let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
+        // Generate the permutation rows on device.
+        let time = CudaInstant::now().unwrap();
+        let perm_d = perm_generator
+            .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .unwrap();
+        let elapsed = time.elapsed().unwrap();
+        println!("Device generate_permutation_trace: {:?}", elapsed);
 
-//         let perm_h = perm_d.to_host_naive();
+        let perm_h = perm_d.to_host_naive();
 
-//         let time = std::time::Instant::now();
-//         let expected_perm_trace =
-//             chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
-//         println!("Host generate_permutation_trace: {:?}", time.elapsed());
+        let time = std::time::Instant::now();
+        let expected_perm_trace =
+            chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
+        println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
-//         // Compare the values to the host values.
-//         for (i, (exp, res)) in expected_perm_trace
-//             .values
-//             .iter()
-//             .zip(perm_h.values.iter())
-//             .enumerate()
-//         {
-//             assert_eq!(exp, res, "at index {}", i);
-//         }
-//     }
+        // Compare the values to the host values.
+        for (i, (exp, res)) in expected_perm_trace
+            .values
+            .iter()
+            .zip(perm_h.values.iter())
+            .enumerate()
+        {
+            assert_eq!(exp, res, "at index {}", i);
+        }
+    }
 
-//     #[test]
-//     fn test_generate_flatenned_permutation_trace_device() {
-//         let mut rng = thread_rng();
+    #[test]
+    fn test_generate_flatenned_permutation_trace_device() {
+        let mut rng = thread_rng();
 
-//         let air = ByteChip::<F>::default();
-//         let chip = Chip::new(air);
+        let air = ByteChip::<F>::default();
+        let chip = Chip::new(air);
 
-//         let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
-//         let num_rows = 1 << 16;
-//         let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
+        let num_rows = 1 << 16;
+        let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
 
-//         // Generate a random trace.
-//         let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
-//         for val in main_trace.values.iter_mut() {
-//             *val = rng.gen::<F>();
-//         }
+        // Generate a random trace.
+        let mut main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
+        for val in main_trace.values.iter_mut() {
+            *val = rng.gen::<F>();
+        }
 
-//         // Transfer perm and main traces to the device.
-//         let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
-//         let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
-//         let prep_d = prep_d.to_column_major();
+        // Transfer perm and main traces to the device.
+        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
+        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
+        let prep_d = prep_d.to_column_major();
 
-//         let main_trace_d = main_trace.values.to_device().unwrap();
-//         let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
-//         let main_d = main_d.to_column_major();
+        let main_trace_d = main_trace.values.to_device().unwrap();
+        let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
+        let main_d = main_d.to_column_major();
 
-//         // Get randomness.
-//         let alpha = rng.gen::<EF>();
-//         let beta = rng.gen::<EF>();
+        // Get randomness.
+        let alpha = rng.gen::<EF>();
+        let beta = rng.gen::<EF>();
 
-//         let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
-//         // Generate the permutation rows on device.
-//         let time = CudaInstant::now().unwrap();
-//         let perm_d = perm_generator
-//             .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
-//             .unwrap();
-//         let elapsed = time.elapsed().unwrap();
-//         println!("Device generate_permutation_trace: {:?}", elapsed);
+        let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
+        // Generate the permutation rows on device.
+        let time = CudaInstant::now().unwrap();
+        let perm_d = perm_generator
+            .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .unwrap();
+        let elapsed = time.elapsed().unwrap();
+        println!("Device generate_permutation_trace: {:?}", elapsed);
 
-//         let perm_h = perm_d.to_host();
+        let perm_h = perm_d.to_host();
 
-//         // print the dimensions
-//         println!("permutation trace: {:?}", perm_h.dimensions());
+        // print the dimensions
+        println!("permutation trace: {:?}", perm_h.dimensions());
 
-//         let time = std::time::Instant::now();
-//         let expected_perm_trace = chip
-//             .generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta])
-//             .flatten_to_base::<F>();
-//         println!("Host generate_permutation_trace: {:?}", time.elapsed());
+        let time = std::time::Instant::now();
+        let expected_perm_trace = chip
+            .generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta])
+            .flatten_to_base::<F>();
+        println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
-//         // Compare the values to the host values.
-//         for (i, (exp, res)) in expected_perm_trace
-//             .values
-//             .iter()
-//             .zip(perm_h.values.iter())
-//             .enumerate()
-//         {
-//             assert_eq!(exp, res, "at index {}", i);
-//         }
-//     }
-// }
+        // Compare the values to the host values.
+        for (i, (exp, res)) in expected_perm_trace
+            .values
+            .iter()
+            .zip(perm_h.values.iter())
+            .enumerate()
+        {
+            assert_eq!(exp, res, "at index {}", i);
+        }
+    }
+}

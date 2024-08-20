@@ -487,12 +487,8 @@ where
         });
 
         // Collect the opened values for each chip.
-        let [
-            preprocessed_values,
-            main_values,
-            permutation_values,
-            mut quotient_values,
-        ] = openings.try_into().unwrap();
+        let [preprocessed_values, main_values, permutation_values, mut quotient_values] =
+            openings.try_into().unwrap();
         assert!(main_values.len() == shard_chips.len());
         let preprocessed_opened_values = preprocessed_values
             .into_iter()
@@ -666,7 +662,9 @@ pub mod tests {
     use sp1_core_executor::ExecutionRecord;
     use sp1_core_executor::Executor;
     use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
     use sp1_core_machine::utils::run_test;
+    use sp1_core_machine::utils::tests::SSZ_WITHDRAWALS_ELF;
     use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
     use crate::{
@@ -684,74 +682,74 @@ pub mod tests {
         runtime.record
     }
 
-    // #[test]
-    // fn test_fibonacci_poseidon_2_baby_bear_prove() {
-    //     let program = Program::from(FIBONACCI_ELF);
+    #[test]
+    fn test_fibonacci_poseidon_2_baby_bear_prove() {
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
-    //     init_tracer();
-    //     run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-    //         program,
-    //     )
-    //     .unwrap();
-    // }
+        init_tracer();
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
+    }
 
-    // #[test]
-    // fn test_fibonacci_poseidon2_bn254_prove() {
-    //     use sp1_core::io::SP1Stdin;
-    //     use sp1_core::runtime::SP1Context;
+    #[test]
+    fn test_fibonacci_poseidon2_bn254_prove() {
+        use sp1_core_executor::SP1Context;
+        use sp1_core_machine::io::SP1Stdin;
 
-    //     let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
-    //     type SC = BabyBearPoseidon2Outer;
+        type SC = BabyBearPoseidon2Outer;
 
-    //     type P = StarkGpuProver<
-    //         SC,
-    //         FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
-    //         RiscvAir<BabyBear>,
-    //     >;
+        type P = StarkGpuProver<
+            SC,
+            FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+            RiscvAir<BabyBear>,
+        >;
 
-    //     init_tracer();
+        init_tracer();
 
-    //     let config = BabyBearPoseidon2Outer::new();
+        let config = BabyBearPoseidon2Outer::new();
 
-    //     // Execute the program.
-    //     let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-    //         let mut runtime = Runtime::new(program, SP1CoreOpts::default());
-    //         runtime.run().unwrap();
-    //         runtime
-    //     });
+        // Execute the program.
+        let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+            let mut runtime = Executor::new(program, SP1CoreOpts::default());
+            runtime.run().unwrap();
+            runtime
+        });
 
-    //     let machine = RiscvAir::machine(config);
-    //     let prover = P::new(machine);
-    //     let inputs = SP1Stdin::new();
-    //     let (pk, vk) = prover.setup(runtime.program.as_ref());
-    //     let (proof, _, _) = sp1_core::utils::prove_with_context(
-    //         &prover,
-    //         &pk,
-    //         Program::clone(&runtime.program),
-    //         &inputs,
-    //         SP1CoreOpts::default(),
-    //         SP1Context::default(),
-    //     )
-    //     .unwrap();
+        let machine = RiscvAir::machine(config);
+        let prover = P::new(machine);
+        let inputs = SP1Stdin::new();
+        let (pk, vk) = prover.setup(runtime.program.as_ref());
+        let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
+            &prover,
+            &pk,
+            Program::clone(&runtime.program),
+            &inputs,
+            SP1CoreOpts::default(),
+            SP1Context::default(),
+        )
+        .unwrap();
 
-    //     let mut challenger = prover.config().challenger();
-    //     prover
-    //         .machine()
-    //         .verify(&vk, &proof, &mut challenger)
-    //         .unwrap();
-    // }
+        let mut challenger = prover.config().challenger();
+        prover
+            .machine()
+            .verify(&vk, &proof, &mut challenger)
+            .unwrap();
+    }
 
-    // #[test]
-    // #[ignore]
-    // fn test_ssz_withdrawals_prove() {
-    //     let program = Program::from(SSZ_WITHDRAWALS_ELF);
+    #[test]
+    #[ignore]
+    fn test_ssz_withdrawals_prove() {
+        let program = Program::from(SSZ_WITHDRAWALS_ELF).unwrap();
 
-    //     init_tracer();
-    //     // Execute the program.
-    //     run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-    //         program,
-    //     )
-    //     .unwrap();
-    // }
+        init_tracer();
+        // Execute the program.
+        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+            program,
+        )
+        .unwrap();
+    }
 }
