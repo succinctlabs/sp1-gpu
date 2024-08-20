@@ -115,6 +115,7 @@ mod tests {
 
     use super::DeviceDft;
     use crate::{
+        cuda_runtime::stream::CudaStream,
         device::{
             memory::{ToDevice, ToHost},
             DeviceBuffer,
@@ -308,7 +309,7 @@ mod tests {
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
 
             let mut values_back = vec![BabyBear::zero(); ext_d];
-            d_values[0..ext_d].copy_into_host(&mut values_back);
+            d_values[0..ext_d].copy_into_host(&mut values_back, &CudaStream::default());
 
             for (val, exp) in values_back.into_iter().zip(expected_value) {
                 assert_eq!(val, exp);

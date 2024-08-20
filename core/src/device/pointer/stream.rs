@@ -17,6 +17,6 @@ impl<T: Copy> RawPointer<T> for DeviceStreamPointer<T> {
     }
 
     fn free(&mut self) {
-        unsafe { self.stream.cuda_free_async(self.ptr).unwrap() }
+        unsafe { self.stream.free_async(self.ptr).unwrap() }
     }
 }

@@ -18,9 +18,9 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
 }
 
 impl<
-    SC: BabyBearFriConfig,
-    C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-> TwoAdicFriCommitter<SC, C>
+        SC: BabyBearFriConfig,
+        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    > TwoAdicFriCommitter<SC, C>
 {
     pub fn new(log_blowup: usize) -> Self
     where
@@ -63,6 +63,39 @@ impl<
         }
     }
 
+    pub fn encode_batch<M>(
+        &self,
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+        bit_reversed: bool,
+    ) -> Result<Vec<ColMajorMatrixDevice<BabyBear>>, CudaError>
+    where
+        M: Borrow<C::Matrix>,
+    {
+        let lde_evals = evaluations
+            .iter()
+            .map(|(domain, matrix)| {
+                let matrix = matrix.borrow();
+                let lde = unsafe { matrix.embed_as_blowup(self.log_blowup) }?;
+                Ok((*domain, lde))
+            })
+            .collect::<Result<Vec<_>, CudaError>>()?;
+
+        lde_evals
+            .into_iter()
+            .map(|(domain, mut lde)| unsafe {
+                let shift = domain.shift.inverse();
+                self.dft.coset_lde_batch_device(
+                    lde.view_mut(),
+                    self.log_blowup,
+                    shift,
+                    bit_reversed,
+                )?;
+
+                Ok(lde)
+            })
+            .collect()
+    }
+
     pub fn get_evaluations_on_domain(
         &self,
         src_domain: TwoAdicMultiplicativeCoset<BabyBear>,
@@ -92,17 +125,8 @@ impl<
     where
         M: Borrow<C::Matrix>,
     {
-        let lde_evaluations = tracing::debug_span!("lde evaluations").in_scope(|| {
-            evaluations
-                .iter()
-                .map(|(domain, matrix)| {
-                    let matrix = matrix.borrow();
-                    self.encode(*domain, matrix, true).unwrap()
-                })
-                .collect::<Vec<_>>()
-        });
-
-        tracing::debug_span!("mmcs commit").in_scope(|| self.mmcs_commit(lde_evaluations))
+        let lde_evaluations = self.encode_batch(evaluations, true).unwrap();
+        self.mmcs_commit(lde_evaluations)
     }
 }
 

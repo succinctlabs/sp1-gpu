@@ -56,22 +56,29 @@ __global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
     }
  }
 
-extern "C" void transpose_naive(bb31_t *output, Matrix<bb31_t> input) {
+extern "C" void transpose_naive(
+  bb31_t *output, 
+  Matrix<bb31_t> input,
+  cudaStream_t stream) {
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     if (input.row_major) {
-        TransposeNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input);
+        TransposeNaiveRowToCol<<<dimGrid, dimBlock, 0, stream>>>(output, input);
     }
     else {
-       TransposeNaiveColToRow<<<dimGrid, dimBlock>>>(output, input);
+       TransposeNaiveColToRow<<<dimGrid, dimBlock, 0, stream>>>(output, input);
     }
 }
 
-extern "C" void transpose_blowup_naive(bb31_t *output, Matrix<bb31_t> input, size_t log_blowup) {
+extern "C" void transpose_blowup_naive(
+  bb31_t *output, 
+  Matrix<bb31_t> input, 
+  size_t log_blowup,
+  cudaStream_t stream) {
     assert(input.row_major);
     dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
-    TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock>>>(output, input, log_blowup);
+    TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock, 0, stream>>>(output, input, log_blowup);
 }
 
 }  // namespace matrix_kernels

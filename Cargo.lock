@@ -1612,6 +1612,7 @@ dependencies = [
  "sp1-core-machine",
  "sp1-recursion-core",
  "sp1-stark",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
  "which 6.0.2",
