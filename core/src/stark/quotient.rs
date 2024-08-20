@@ -211,19 +211,6 @@ where
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
             split_values_span.exit();
 
-            std::thread::spawn(move || {
-                drop(operations_device);
-                // drop(trace_domain_device);
-                // drop(quotient_domain_device);
-                drop(preprocessed_on_quotient_domain);
-                drop(main_on_quotient_domain);
-                drop(perm_on_quotient_domain);
-                // drop(permutation_challenges_device);
-                // drop(public_values_device);
-                drop(generator_powers);
-                drop(quotient_flat);
-            });
-
             results.push(DeviceQuotientValues {
                 quotient_chunks,
                 quotient_chunk_domains,
