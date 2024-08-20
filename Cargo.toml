@@ -1,5 +1,5 @@
 [workspace]
-members = ["air", "core", "perf", "prover"]
+members = ["air", "core", "perf", "prover", "server"]
 
 exclude = ["sppark/poc/ntt-cuda", "sppark/rust"]
 
@@ -29,7 +29,7 @@ sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = 
 sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-server = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 
 # p3

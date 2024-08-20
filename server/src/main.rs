@@ -3,9 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use moongate_core::utils::init_tracer;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
-use sp1_core::runtime::SP1Context;
+use sp1_core_executor::SP1Context;
+use sp1_cuda::{CompressRequestPayload, ProveCoreRequestPayload};
 use sp1_prover::SP1Prover;
-use sp1_server::{CompressRequestPayload, ProveCoreRequestPayload};
 use twirp::{axum, Router};
 
 struct MoongateProverServer {
@@ -13,12 +13,12 @@ struct MoongateProverServer {
 }
 
 #[async_trait]
-impl sp1_server::proto::api::ProverService for MoongateProverServer {
+impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
     async fn prove_core(
         &self,
         _: twirp::Context,
-        req: sp1_server::proto::api::ProveCoreRequest,
-    ) -> Result<sp1_server::proto::api::ProveCoreResponse, twirp::TwirpErrorResponse> {
+        req: sp1_cuda::proto::api::ProveCoreRequest,
+    ) -> Result<sp1_cuda::proto::api::ProveCoreResponse, twirp::TwirpErrorResponse> {
         let payload: ProveCoreRequestPayload = bincode::deserialize(&req.data).unwrap();
         let result = self
             .prover
@@ -30,14 +30,14 @@ impl sp1_server::proto::api::ProverService for MoongateProverServer {
             )
             .unwrap();
         let result = bincode::serialize(&result).unwrap();
-        Ok(sp1_server::proto::api::ProveCoreResponse { result })
+        Ok(sp1_cuda::proto::api::ProveCoreResponse { result })
     }
 
     async fn compress(
         &self,
         _: twirp::Context,
-        req: sp1_server::proto::api::CompressRequest,
-    ) -> Result<sp1_server::proto::api::CompressResponse, twirp::TwirpErrorResponse> {
+        req: sp1_cuda::proto::api::CompressRequest,
+    ) -> Result<sp1_cuda::proto::api::CompressResponse, twirp::TwirpErrorResponse> {
         let payload: CompressRequestPayload = bincode::deserialize(&req.data).unwrap();
         let result = self
             .prover
@@ -49,7 +49,7 @@ impl sp1_server::proto::api::ProverService for MoongateProverServer {
             )
             .unwrap();
         let result = bincode::serialize(&result).unwrap();
-        Ok(sp1_server::proto::api::CompressResponse { result })
+        Ok(sp1_cuda::proto::api::CompressResponse { result })
     }
 }
 
@@ -62,8 +62,8 @@ pub async fn main() {
     let server = Arc::new(server);
 
     let twirp_routes = Router::new().nest(
-        sp1_server::proto::api::SERVICE_FQN,
-        sp1_server::proto::api::router(server),
+        sp1_cuda::proto::api::SERVICE_FQN,
+        sp1_cuda::proto::api::router(server),
     );
 
     let app = Router::new()
