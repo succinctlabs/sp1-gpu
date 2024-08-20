@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sp1-prover = { workspace = true }
-sp1-core = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true, features = ["programs"] }
 sp1-server = { workspace = true }
 moongate-core = { path = "../core" }
 moongate-prover = { path = "../prover" }
@@ -18,4 +18,4 @@ bincode = "1.3.3"
 
 [dev-dependencies]
 sp1-prover = { workspace = true, features = ["export-tests"] }
-sp1-core = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true, features = ["programs"] }

@@ -6,7 +6,10 @@ use p3_challenger::FieldChallenger;
 use p3_commit::Mmcs;
 use p3_field::two_adic_coset_zerofier;
 use p3_field::Field;
-use sp1_core::stark::Com;
+use sp1_core_machine::utils::log2_strict_usize;
+use sp1_stark::Challenge;
+use sp1_stark::Com;
+use sp1_stark::OpeningProof;
 use tracing::trace_span;
 
 use itertools::Itertools;
@@ -23,12 +26,8 @@ use p3_fri::CommitPhaseProofStep;
 use p3_fri::FriProof;
 use p3_fri::QueryProof;
 use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
-
-use sp1_core::stark::Challenge;
-use sp1_core::stark::Challenger;
-use sp1_core::stark::OpeningProof;
-use sp1_core::utils::log2_strict_usize;
-use sp1_core::utils::InnerVal;
+use sp1_stark::Challenger;
+use sp1_stark::InnerVal;
 
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;

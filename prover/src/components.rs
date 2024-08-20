@@ -3,11 +3,12 @@ use moongate_core::stark::StarkGpuProver;
 use moongate_core::{
     merkle_tree::FieldMerkleTreeDeviceCommitter, poseidon2::baby_bear::DeviceHasherBabyBear,
 };
-use sp1_core::stark::{RiscvAir, StarkGenericConfig};
 
+use sp1_core_machine::riscv::RiscvAir;
 use sp1_prover::{
     components::SP1ProverComponents, CompressAir, CoreSC, InnerSC, OuterSC, ShrinkAir, WrapAir,
 };
+use sp1_stark::StarkGenericConfig;
 
 #[derive(Debug, Clone, Copy)]
 pub struct GpuProverComponents;

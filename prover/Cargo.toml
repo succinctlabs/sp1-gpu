@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 sp1-prover = { workspace = true }
-sp1-core = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true, features = ["programs"] }
+sp1-core-machine = { workspace = true }
+sp1-stark = { workspace = true }
 tracing = "0.1.40"
 
 moongate-core = { path = "../core" }
@@ -14,4 +16,4 @@ sysinfo = "0.31.2"
 
 [dev-dependencies]
 sp1-prover = { workspace = true, features = ["export-tests"] }
-sp1-core = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true, features = ["programs"] }

@@ -11,11 +11,11 @@ use p3_air::Air;
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_core::stark::PROOF_MAX_NUM_PVS;
-use sp1_core::{
-    air::MachineAir,
-    stark::{AirOpenedValues, Chip, GenericVerifierConstraintFolder},
-};
+use sp1_stark::air::MachineAir;
+use sp1_stark::AirOpenedValues;
+use sp1_stark::Chip;
+use sp1_stark::GenericVerifierConstraintFolder;
+use sp1_stark::PROOF_MAX_NUM_PVS;
 use symbolic_folder_expr::SymbolicFolderExpr;
 use symbolic_folder_var::SymbolicFolderVar;
 
@@ -132,9 +132,9 @@ pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
 
 #[cfg(test)]
 mod tests {
-    use sp1_core::air::MachineAir;
-    use sp1_core::stark::RiscvAir;
-    use sp1_core::utils::BabyBearPoseidon2;
+
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2};
 
     use crate::{codegen_cuda_eval, optimizer};
 

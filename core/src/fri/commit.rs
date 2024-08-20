@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
-use sp1_core::stark::Com;
+use sp1_stark::Com;
 
 use crate::device::error::CudaError;
 use crate::dft::DeviceDft;
@@ -18,9 +18,9 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
 }
 
 impl<
-        SC: BabyBearFriConfig,
-        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-    > TwoAdicFriCommitter<SC, C>
+    SC: BabyBearFriConfig,
+    C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+> TwoAdicFriCommitter<SC, C>
 {
     pub fn new(log_blowup: usize) -> Self
     where
@@ -92,15 +92,17 @@ impl<
     where
         M: Borrow<C::Matrix>,
     {
-        let lde_evaluations = evaluations
-            .iter()
-            .map(|(domain, matrix)| {
-                let matrix = matrix.borrow();
-                self.encode(*domain, matrix, true).unwrap()
-            })
-            .collect::<Vec<_>>();
+        let lde_evaluations = tracing::debug_span!("lde evaluations").in_scope(|| {
+            evaluations
+                .iter()
+                .map(|(domain, matrix)| {
+                    let matrix = matrix.borrow();
+                    self.encode(*domain, matrix, true).unwrap()
+                })
+                .collect::<Vec<_>>()
+        });
 
-        self.mmcs_commit(lde_evaluations)
+        tracing::debug_span!("mmcs commit").in_scope(|| self.mmcs_commit(lde_evaluations))
     }
 }
 
@@ -114,8 +116,7 @@ mod tests {
     use rand::thread_rng;
 
     use p3_field::AbstractField;
-
-    use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
+    use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, StarkGenericConfig};
 
     use crate::merkle_tree::Poseidon2BabyBearCommitter;
 
