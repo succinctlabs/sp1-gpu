@@ -10,32 +10,34 @@ use p3_commit::PolynomialSpace;
 use p3_field::AbstractExtensionField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
-use sp1_core::stark::AirOpenedValues;
+use sp1_stark::air::MachineAir;
+use sp1_stark::air::MachineProgram;
+use sp1_stark::AirOpenedValues;
+use sp1_stark::Chip;
+use sp1_stark::ChipOpenedValues;
+use sp1_stark::Com;
+use sp1_stark::DebugConstraintBuilder;
+use sp1_stark::MachineProof;
+use sp1_stark::MachineProver;
+use sp1_stark::MachineRecord;
+use sp1_stark::PcsProverData;
+use sp1_stark::ProverConstraintFolder;
+use sp1_stark::SP1CoreOpts;
+use sp1_stark::ShardCommitment;
+use sp1_stark::ShardMainData;
+use sp1_stark::ShardOpenedValues;
+use sp1_stark::ShardProof;
+use sp1_stark::StarkGenericConfig;
+use sp1_stark::StarkMachine;
+use sp1_stark::StarkProvingKey;
+use sp1_stark::StarkVerifyingKey;
+
+use sp1_stark::Val;
 
 use itertools::Itertools;
 
-use sp1_core::stark::ShardMainData;
 use tracing::info;
 
-use sp1_core::air::MachineProgram;
-use sp1_core::stark::Chip;
-use sp1_core::stark::ChipOpenedValues;
-use sp1_core::stark::Com;
-use sp1_core::stark::DebugConstraintBuilder;
-use sp1_core::stark::MachineProof;
-use sp1_core::stark::MachineProver;
-use sp1_core::stark::ShardCommitment;
-use sp1_core::stark::ShardOpenedValues;
-use sp1_core::stark::ShardProof;
-use sp1_core::stark::StarkVerifyingKey;
-use sp1_core::utils::SP1CoreOpts;
-use sp1_core::{
-    air::MachineAir,
-    stark::{
-        MachineRecord, PcsProverData, ProverConstraintFolder, StarkGenericConfig, StarkMachine,
-        StarkProvingKey, Val,
-    },
-};
 use std::cmp::Reverse;
 
 use air::P3EvalFolder;
@@ -187,15 +189,23 @@ where
             .copied()
             .zip(traces.iter())
             .collect::<Vec<_>>();
-        let (commit, data) = self.committer.commit(&domains_and_traces);
+        let (commit, data) =
+            tracing::debug_span!("commit").in_scope(|| self.committer.commit(&domains_and_traces));
 
-        ShardMainData {
+        let data = tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values: shard.public_values(),
-        }
+            public_values: tracing::debug_span!("compute public values")
+                .in_scope(|| shard.public_values()),
+        });
+
+        std::thread::spawn(move || {
+            drop(shard);
+        });
+
+        data
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
@@ -660,15 +670,14 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use sp1_core::{
-        runtime::{ExecutionRecord, Program, Runtime},
-        stark::RiscvAir,
-        utils::{
-            run_test,
-            tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
-            SP1CoreOpts,
-        },
-    };
+
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::ExecutionRecord;
+    use sp1_core_executor::Executor;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::utils::run_test;
+    use sp1_core_machine::utils::tests::SSZ_WITHDRAWALS_ELF;
     use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
     use crate::{
@@ -681,14 +690,14 @@ pub mod tests {
 
     pub fn execute_core(program: Program) -> ExecutionRecord {
         let opts = SP1CoreOpts::default();
-        let mut runtime = Runtime::new(program, opts);
+        let mut runtime = Executor::new(program, opts);
         runtime.run().unwrap();
         runtime.record
     }
 
     #[test]
     fn test_fibonacci_poseidon_2_baby_bear_prove() {
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
         init_tracer();
         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
@@ -699,10 +708,10 @@ pub mod tests {
 
     #[test]
     fn test_fibonacci_poseidon2_bn254_prove() {
-        use sp1_core::io::SP1Stdin;
-        use sp1_core::runtime::SP1Context;
+        use sp1_core_executor::SP1Context;
+        use sp1_core_machine::io::SP1Stdin;
 
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
         type SC = BabyBearPoseidon2Outer;
 
@@ -718,7 +727,7 @@ pub mod tests {
 
         // Execute the program.
         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-            let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+            let mut runtime = Executor::new(program, SP1CoreOpts::default());
             runtime.run().unwrap();
             runtime
         });
@@ -727,7 +736,7 @@ pub mod tests {
         let prover = P::new(machine);
         let inputs = SP1Stdin::new();
         let (pk, vk) = prover.setup(runtime.program.as_ref());
-        let (proof, _, _) = sp1_core::utils::prove_with_context(
+        let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
             &prover,
             &pk,
             Program::clone(&runtime.program),
@@ -747,7 +756,7 @@ pub mod tests {
     #[test]
     #[ignore]
     fn test_ssz_withdrawals_prove() {
-        let program = Program::from(SSZ_WITHDRAWALS_ELF);
+        let program = Program::from(SSZ_WITHDRAWALS_ELF).unwrap();
 
         init_tracer();
         // Execute the program.

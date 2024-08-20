@@ -1,8 +1,20 @@
+use sp1_stark::StarkGenericConfig;
+use tracing::trace_span;
+
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::AbstractExtensionField;
 use p3_field::{Field, TwoAdicField};
+use sp1_stark::air::MachineAir;
+use sp1_stark::quotient_values;
+use sp1_stark::Chip;
+use sp1_stark::Dom;
+use sp1_stark::PackedChallenge;
+use sp1_stark::PcsProverData;
+use sp1_stark::ProverConstraintFolder;
+use sp1_stark::StarkMachine;
+use sp1_stark::StarkProvingKey;
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
@@ -15,12 +27,6 @@ use air::P3EvalFolder;
 
 use std::collections::HashMap;
 use std::marker::PhantomData;
-
-use sp1_core::stark::{quotient_values, PcsProverData, StarkMachine, StarkProvingKey};
-use sp1_core::{
-    air::MachineAir,
-    stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
-};
 
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
@@ -400,6 +406,7 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::stark::BabyBearPoseidon2;
     use itertools::Itertools;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
@@ -407,22 +414,23 @@ mod tests {
     use p3_field::extension::BinomialExtensionField;
     use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-    use sp1_core::air::SP1_PROOF_NUM_PV_ELTS;
-    use sp1_core::utils::BabyBearPoseidon2;
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::utils::log2_strict_usize;
+    use sp1_stark::air::MachineAir;
+    use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
+    use sp1_stark::StarkGenericConfig;
 
     use rand::thread_rng;
-    use sp1_core::stark::{quotient_values, RiscvAir, StarkGenericConfig};
-    use sp1_core::{
-        air::MachineAir,
-        runtime::Program,
-        utils::{log2_strict_usize, tests::FIBONACCI_ELF},
-    };
+
     use tracing::debug;
 
     use crate::cuda_runtime::ffi::DEFAULT_STREAM;
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
+    use crate::stark::quotient::quotient_values;
     use crate::utils::init_tracer;
     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
@@ -451,7 +459,7 @@ mod tests {
             debug!("Chip: {}", chip.name());
             debug!("Id: {}", i);
 
-            let program = Program::from(FIBONACCI_ELF);
+            let program = Program::from(FIBONACCI_ELF).unwrap();
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 

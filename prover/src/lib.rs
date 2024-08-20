@@ -2,8 +2,8 @@ use std::env;
 
 use components::GpuProverComponents;
 use moongate_core::device::memory::cuda_mem_get_info;
-use sp1_core::{runtime::SplitOpts, utils::SP1ProverOpts};
 use sp1_prover::SP1Prover;
+use sp1_stark::{SP1ProverOpts, SplitOpts};
 
 pub mod components;
 
@@ -68,7 +68,7 @@ mod tests {
     use std::env;
 
     use moongate_core::utils::init_tracer;
-    use sp1_core::utils::tests::FIBONACCI_ELF;
+    use sp1_core_machine::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
     use sp1_prover::tests::Test;
 

@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
-use sp1_core::stark::Com;
+use sp1_stark::Com;
 
 use crate::device::error::CudaError;
 use crate::dft::DeviceDft;
@@ -140,8 +140,7 @@ mod tests {
     use rand::thread_rng;
 
     use p3_field::AbstractField;
-
-    use sp1_core::{stark::StarkGenericConfig, utils::BabyBearPoseidon2};
+    use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, StarkGenericConfig};
 
     use crate::merkle_tree::Poseidon2BabyBearCommitter;
 

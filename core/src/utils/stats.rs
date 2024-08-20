@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use p3_air::BaseAir;
 use p3_field::{ExtensionField, Field};
-use sp1_core::{air::MachineAir, stark::Chip};
+use sp1_stark::{air::MachineAir, Chip};
 
 #[derive(Debug, Clone)]
 pub struct ChipStatistics<F> {
