@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use moongate_core::utils::init_tracer;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use sp1_core_executor::SP1Context;
-use sp1_cuda::{CompressRequestPayload, ProveCoreRequestPayload};
+use sp1_cuda::{CompressRequestPayload, ProveCoreRequestPayload, ShrinkRequestPayload};
 use sp1_prover::SP1Prover;
 use twirp::{axum, Router};
 
@@ -50,6 +50,27 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .unwrap();
         let result = bincode::serialize(&result).unwrap();
         Ok(sp1_cuda::proto::api::CompressResponse { result })
+    }
+
+    async fn shrink(
+        &self,
+        _: twirp::Context,
+        req: sp1_cuda::proto::api::ShrinkRequest,
+    ) -> Result<sp1_cuda::proto::api::ShrinkResponse, twirp::TwirpErrorResponse> {
+        let payload: ShrinkRequestPayload = bincode::deserialize(&req.data).unwrap();
+        let result = self
+            .prover
+            .shrink(payload.reduced_proof, gpu_prover_opts())
+            .unwrap();
+        let result = bincode::serialize(&result).unwrap();
+        Ok(sp1_cuda::proto::api::ShrinkResponse { result })
+    }
+
+    async fn wrap(
+        &self,
+        _: twirp::Context,
+        req: sp1_cuda::proto::api::WrapRequest,
+    ) -> Result<sp1_cuda::proto::api::WrapResponse, twirp::TwirpErrorResponse> {
     }
 }
 
