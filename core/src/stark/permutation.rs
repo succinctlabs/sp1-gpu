@@ -3,7 +3,7 @@ use std::{marker::PhantomData, ops::Mul};
 use hashbrown::HashMap;
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, ExtensionField, Field};
+use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
 use sp1_core::{
     air::{InteractionScope, MachineAir},
     lookup::Interaction,
@@ -51,9 +51,13 @@ where
         let (grouped_sends, grouped_receives, grouped_widths) =
             get_grouped_maps(chip.sends(), chip.receives(), batch_size);
 
-        let device_interactions = HostInteractions::new(grouped_sends, grouped_receives)
-            .to_device_async(stream)
-            .unwrap();
+        let device_interactions = HostInteractions::new(
+            grouped_sends,
+            grouped_receives,
+            *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0),
+        )
+        .to_device_async(stream)
+        .unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
@@ -139,10 +143,10 @@ pub struct HostInteractions<F: Field> {
 
     pub arg_indices: Vec<F>,
     pub is_sends: Vec<bool>,
-    pub is_globals: Vec<bool>,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
+    pub global_width: usize,
 }
 
 #[derive(Debug)]
@@ -160,10 +164,10 @@ pub struct DeviceInteractions<F: Field> {
 
     pub arg_indices: DeviceBuffer<F>,
     pub is_sends: DeviceBuffer<bool>,
-    pub is_globals: DeviceBuffer<bool>,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
+    pub global_width: usize,
 }
 
 #[derive(Debug)]
@@ -181,10 +185,10 @@ pub struct DeviceInteractionsView<'a, F: Field> {
 
     pub arg_indices: *const F,
     pub is_sends: *const bool,
-    pub is_globals: *const bool,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
+    pub global_width: usize,
 
     _marker: PhantomData<&'a F>,
 }
@@ -203,13 +207,13 @@ impl<F: Field> HostInteractions<F> {
     pub fn new(
         sends: HashMap<InteractionScope, Vec<Interaction<F>>>,
         receives: HashMap<InteractionScope, Vec<Interaction<F>>>,
+        global_width: usize,
     ) -> Self {
         let mut values_ptr = vec![];
         let mut values_col_weights_ptr = vec![];
         let mut multiplicities_ptr = vec![];
         let mut arg_indices = vec![];
         let mut is_sends = vec![];
-        let mut is_globals = vec![];
         let mut mult_col_weights = vec![];
         let mut mult_constants = vec![];
         let mut values_col_weights = vec![];
@@ -230,20 +234,20 @@ impl<F: Field> HostInteractions<F> {
                     .unwrap_or(&empty_vec)
                     .clone()
                     .into_iter()
-                    .map(move |i| (i, scope, true));
+                    .map(move |i| (i, true));
                 let receives = receives
                     .get(&scope)
                     .unwrap_or(&empty_vec)
                     .clone()
                     .into_iter()
-                    .map(move |i| (i, scope, false));
+                    .map(move |i| (i, false));
 
                 sends.chain(receives)
             })
             .into_iter()
             .flatten();
 
-        for (interaction, scope, is_send) in interactions {
+        for (interaction, is_send) in interactions {
             // Register the values
             values_ptr.push(curr_values_ptr);
             for value in interaction.values.iter() {
@@ -269,7 +273,6 @@ impl<F: Field> HostInteractions<F> {
             arg_indices.push(F::from_canonical_usize(interaction.argument_index()));
 
             is_sends.push(is_send);
-            is_globals.push(scope == InteractionScope::Global);
         }
 
         values_col_weights_ptr.push(curr_values_col_weight_ptr);
@@ -304,9 +307,9 @@ impl<F: Field> HostInteractions<F> {
             mult_constants,
             arg_indices,
             is_sends,
-            is_globals,
             num_global_interactions,
             num_local_interactions,
+            global_width,
         }
     }
 
@@ -395,10 +398,10 @@ impl<F: Field> DeviceInteractions<F> {
 
             arg_indices: self.arg_indices.as_ptr(),
             is_sends: self.is_sends.as_ptr(),
-            is_globals: self.is_globals.as_ptr(),
 
             num_global_interactions: self.num_global_interactions,
             num_local_interactions: self.num_local_interactions,
+            global_width: self.global_width,
             _marker: PhantomData,
         }
     }
@@ -562,9 +565,9 @@ impl<F: Field> ToDevice for HostInteractions<F> {
             mult_constants: self.mult_constants.to_device_async(stream)?,
             arg_indices: self.arg_indices.to_device_async(stream)?,
             is_sends: self.is_sends.to_device_async(stream)?,
-            is_globals: self.is_globals.to_device_async(stream)?,
             num_global_interactions: self.num_global_interactions,
             num_local_interactions: self.num_local_interactions,
+            global_width: self.global_width,
         })
     }
 }

@@ -59,8 +59,8 @@ template<typename F> struct Interactions {
 
     F * arg_indices;
     bool * is_sends;
-    bool * is_globals;
 
     size_t num_global_interactions;
     size_t num_local_interactions;
+    size_t global_width;
 };
