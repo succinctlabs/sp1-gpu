@@ -3,10 +3,9 @@ images:
     platform: "linux"
     arch: "x64"
     owner: "898082745236" # AWS
-    name: "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.3 (Ubuntu 20.04)*"
+    name: "Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*"
 
 runners:
-  gpu-nvidia-2:
-    cpu: [32, 64]
+  gpu-nvidia:
     family: ["g6"]
-    spot: false
+    image: dlami-x64
