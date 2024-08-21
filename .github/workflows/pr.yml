@@ -16,6 +16,7 @@ on:
       - "sppark/**"
       - "Cargo.toml"
       - ".github/workflows/**"
+      - ".github/runs-on.yml"
   merge_group:
 
 concurrency:
