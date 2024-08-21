@@ -33,9 +33,7 @@ pub fn init(resource: Resource) {
             .with_trace_config(trace::config().with_resource(resource.clone()))
             .install_batch(runtime::Tokio)
             .unwrap();
-        let telemetry = tracing_opentelemetry::layer()
-            .with_tracer(tracer)
-            .with_filter(env_filter);
+        let telemetry = tracing_opentelemetry::layer().with_tracer(tracer).with_filter(env_filter);
         let env_filter = build_env_filter(None);
         let fmt_layer = tracing_subscriber::fmt::layer()
             .compact()

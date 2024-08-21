@@ -29,10 +29,7 @@ pub mod tests {
                 .map(|vec| vec[0])
                 .collect::<Vec<_>>();
             let external_round_constants = round_constants;
-            (
-                external_round_constants[0..ROUNDS_F].to_vec(),
-                internal_round_constants,
-            )
+            (external_round_constants[0..ROUNDS_F].to_vec(), internal_round_constants)
         }
 
         pub fn poseidon2_baby_bear_16_perm(
@@ -129,9 +126,7 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n)
-                .map(|_| [rng.gen::<BabyBear>(); WIDTH])
-                .collect::<Vec<_>>();
+            let input = (0..n).map(|_| [rng.gen::<BabyBear>(); WIDTH]).collect::<Vec<_>>();
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -177,12 +172,8 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let left = (0..n)
-                .map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH])
-                .collect::<Vec<_>>();
-            let right = (0..n)
-                .map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH])
-                .collect::<Vec<_>>();
+            let left = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
+            let right = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
             output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
 
@@ -237,9 +228,8 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n)
-                .flat_map(|_| [rng.gen::<BabyBear>(); N_INPUT].to_vec())
-                .collect::<Vec<_>>();
+            let input =
+                (0..n).flat_map(|_| [rng.gen::<BabyBear>(); N_INPUT].to_vec()).collect::<Vec<_>>();
             let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
             output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
 
@@ -340,9 +330,7 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n)
-                .map(|_| [rng.gen::<Bn254Fr>(); WIDTH])
-                .collect::<Vec<_>>();
+            let input = (0..n).map(|_| [rng.gen::<Bn254Fr>(); WIDTH]).collect::<Vec<_>>();
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -388,12 +376,8 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let left = (0..n)
-                .map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH])
-                .collect::<Vec<_>>();
-            let right = (0..n)
-                .map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH])
-                .collect::<Vec<_>>();
+            let left = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
+            let right = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
             output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
 
@@ -448,9 +432,8 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n)
-                .flat_map(|_| [rng.gen::<Bn254Fr>(); N_INPUT].to_vec())
-                .collect::<Vec<_>>();
+            let input =
+                (0..n).flat_map(|_| [rng.gen::<Bn254Fr>(); N_INPUT].to_vec()).collect::<Vec<_>>();
             let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
             output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
 

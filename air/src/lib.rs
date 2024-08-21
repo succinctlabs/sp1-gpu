@@ -65,31 +65,20 @@ where
     let permutation_width = chip.permutation_width();
 
     let preprocessed = AirOpenedValues {
-        local: (0..preprocessed_width)
-            .map(SymbolicFolderVar::preprocessed_local)
-            .collect(),
-        next: (0..preprocessed_width)
-            .map(SymbolicFolderVar::preprocessed_next)
-            .collect(),
+        local: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_local).collect(),
+        next: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_next).collect(),
     };
     let main = AirOpenedValues {
         local: (0..width).map(SymbolicFolderVar::main_local).collect(),
         next: (0..width).map(SymbolicFolderVar::main_next).collect(),
     };
     let perm = AirOpenedValues {
-        local: (0..permutation_width)
-            .map(SymbolicFolderVar::permutation_local)
-            .collect(),
-        next: (0..permutation_width)
-            .map(SymbolicFolderVar::permutation_next)
-            .collect(),
+        local: (0..permutation_width).map(SymbolicFolderVar::permutation_local).collect(),
+        next: (0..permutation_width).map(SymbolicFolderVar::permutation_next).collect(),
     };
-    let public_values = (0..PROOF_MAX_NUM_PVS)
-        .map(SymbolicFolderVar::public_value)
-        .collect::<Vec<_>>();
-    let perm_challenges = (0..2)
-        .map(SymbolicFolderVar::permutation_challenge)
-        .collect::<Vec<_>>();
+    let public_values =
+        (0..PROOF_MAX_NUM_PVS).map(SymbolicFolderVar::public_value).collect::<Vec<_>>();
+    let perm_challenges = (0..2).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
 
     let accumulator = SymbolicFolderExpr::alloc();
     let mut folder = P3EvalFolder {

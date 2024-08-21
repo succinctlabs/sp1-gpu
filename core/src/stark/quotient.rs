@@ -77,10 +77,7 @@ where
             let (operations, max) = air::codegen_cuda_eval(chip);
             eval_programs.insert(chip.name().to_owned(), (operations, max));
         }
-        Self {
-            eval_programs,
-            _marker: PhantomData,
-        }
+        Self { eval_programs, _marker: PhantomData }
     }
 
     pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &(Vec<Operation>, usize) {
@@ -92,9 +89,7 @@ where
         num_chunks: usize,
         evals: &ColMajorMatrixDevice<SC::Val>,
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        (0..num_chunks)
-            .map(|i| evals.vertically_strided(num_chunks, i))
-            .collect()
+        (0..num_chunks).map(|i| evals.vertically_strided(num_chunks, i)).collect()
     }
 
     #[allow(clippy::type_complexity)]
@@ -136,10 +131,7 @@ where
                     .chip_ordering
                     .get(&chip.name())
                     .map(|&index| {
-                        pk.traces[index]
-                            .to_device_async(stream)
-                            .unwrap()
-                            .to_column_major()
+                        pk.traces[index].to_device_async(stream).unwrap().to_column_major()
                     })
                     .map(|trace| {
                         committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
@@ -233,10 +225,7 @@ where
             let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
 
-            results.push(DeviceQuotientValues {
-                quotient_chunks,
-                quotient_chunk_domains,
-            });
+            results.push(DeviceQuotientValues { quotient_chunks, quotient_chunk_domains });
         }
 
         Ok(results)
@@ -250,10 +239,7 @@ impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
         &self,
         _stream: &crate::cuda_runtime::stream::CudaStream,
     ) -> Result<Self::DeviceType, CudaError> {
-        Ok(Self::DeviceType {
-            log_n: self.log_n,
-            shift: self.shift,
-        })
+        Ok(Self::DeviceType { log_n: self.log_n, shift: self.shift })
     }
 }
 
@@ -390,10 +376,7 @@ where
         let quotient_chunks = quotient_domain.split_evals(quotient_degree, quotient_flat);
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
 
-        QuotientValues {
-            quotient_chunks,
-            quotient_chunk_domains,
-        }
+        QuotientValues { quotient_chunks, quotient_chunk_domains }
     }
 }
 
@@ -439,10 +422,7 @@ mod tests {
     type SC = BabyBearPoseidon2;
 
     fn natural_domain_for_degree(degree: usize) -> TwoAdicMultiplicativeCoset<BabyBear> {
-        TwoAdicMultiplicativeCoset {
-            log_n: log2_strict_usize(degree),
-            shift: F::one(),
-        }
+        TwoAdicMultiplicativeCoset { log_n: log2_strict_usize(degree), shift: F::one() }
     }
 
     #[test]
@@ -463,11 +443,7 @@ mod tests {
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() {
-                prep.height()
-            } else {
-                1 << 10
-            };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 10 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
@@ -555,10 +531,7 @@ mod tests {
             let quotient_domain_device = quotient_domain.to_device().unwrap();
 
             let preprocessed_trace_on_quotient_domain_device =
-                preprocessed_trace_on_quotient_domain
-                    .values
-                    .to_device()
-                    .unwrap();
+                preprocessed_trace_on_quotient_domain.values.to_device().unwrap();
             let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 preprocessed_trace_on_quotient_domain_device,
                 preprocessed_trace_on_quotient_domain.width(),
@@ -573,10 +546,8 @@ mod tests {
             )
             .to_column_major();
 
-            let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
-                .values
-                .to_device()
-                .unwrap();
+            let permutation_trace_on_quotient_domain_device =
+                permutation_trace_on_quotient_domain.values.to_device().unwrap();
             let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 permutation_trace_on_quotient_domain_device,
                 permutation_trace_on_quotient_domain.width(),

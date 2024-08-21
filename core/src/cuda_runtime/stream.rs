@@ -112,13 +112,12 @@ impl CudaStream {
     /// See [Self::try_alloc]
     #[inline]
     pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
-        self.alloc_timeout(len, DEFAULT_TIMEOUT)
-            .map_err(|e| match e {
-                AllocTimeoutError::CudaError(e) => e,
-                AllocTimeoutError::Timeout => {
-                    CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
-                }
-            })
+        self.alloc_timeout(len, DEFAULT_TIMEOUT).map_err(|e| match e {
+            AllocTimeoutError::CudaError(e) => e,
+            AllocTimeoutError::Timeout => {
+                CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
+            }
+        })
     }
 
     /// Trt to allocate memory on the device or return an error after a timeout.
@@ -248,9 +247,7 @@ impl Default for CudaStream {
 impl Drop for CudaStreamOwned {
     fn drop(&mut self) {
         if self.0 != unsafe { ffi::DEFAULT_STREAM } {
-            unsafe { ffi::cuda_stream_destroy(self.0) }
-                .to_result()
-                .unwrap();
+            unsafe { ffi::cuda_stream_destroy(self.0) }.to_result().unwrap();
         }
     }
 }
@@ -295,9 +292,7 @@ mod tests {
         let time = stream.now().unwrap();
         unsafe {
             let buf = stream.cuda_malloc_async::<u32>(data.len()).unwrap();
-            stream
-                .cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len())
-                .unwrap();
+            stream.cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len()).unwrap();
             stream.free_async(buf).unwrap();
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();

@@ -17,9 +17,7 @@ struct MoongateProverServer {
 impl MoongateProverServer {
     /// Create a new [MoongateProverServer].
     pub fn new() -> Self {
-        let server = Self {
-            prover: Arc::new(Mutex::new(None)),
-        };
+        let server = Self { prover: Arc::new(Mutex::new(None)) };
         server.init();
         server
     }
@@ -44,9 +42,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         _: twirp::Context,
         _: sp1_cuda::proto::api::ReadyRequest,
     ) -> Result<sp1_cuda::proto::api::ReadyResponse, twirp::TwirpErrorResponse> {
-        Ok(sp1_cuda::proto::api::ReadyResponse {
-            ready: self.prover.lock().unwrap().is_some(),
-        })
+        Ok(sp1_cuda::proto::api::ReadyResponse { ready: self.prover.lock().unwrap().is_some() })
     }
 
     async fn prove_core(
@@ -63,12 +59,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .unwrap()
             .as_ref()
             .ok_or_else(|| internal("prover not ready".to_string()))?
-            .prove_core(
-                &payload.pk,
-                &payload.stdin,
-                gpu_prover_opts(),
-                SP1Context::default(),
-            )
+            .prove_core(&payload.pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
             .map_err(|e| internal(format!("failed to prove core {}", e)))?;
 
         let result = bincode::serialize(&result)
@@ -91,12 +82,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .unwrap()
             .as_ref()
             .ok_or_else(|| internal("prover not ready".to_string()))?
-            .compress(
-                &payload.vk,
-                payload.proof,
-                payload.deferred_proofs,
-                gpu_prover_opts(),
-            )
+            .compress(&payload.vk, payload.proof, payload.deferred_proofs, gpu_prover_opts())
             .map_err(|e| internal(format!("failed to prove compress {}", e)))?;
 
         let result = bincode::serialize(&result)
@@ -159,14 +145,10 @@ pub async fn main() {
     let server = MoongateProverServer::new();
     let server = Arc::new(server);
 
-    let twirp_routes = Router::new().nest(
-        sp1_cuda::proto::api::SERVICE_FQN,
-        sp1_cuda::proto::api::router(server),
-    );
+    let twirp_routes =
+        Router::new().nest(sp1_cuda::proto::api::SERVICE_FQN, sp1_cuda::proto::api::router(server));
 
-    let app = Router::new()
-        .nest("/twirp", twirp_routes)
-        .fallback(twirp::server::not_found_handler);
+    let app = Router::new().nest("/twirp", twirp_routes).fallback(twirp::server::not_found_handler);
 
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     if let Err(e) = axum::serve(tcp_listener, app).await {

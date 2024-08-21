@@ -26,11 +26,7 @@ impl<
     where
         C: Default,
     {
-        Self {
-            dft: DeviceDft::new(),
-            mmcs_committer: C::default(),
-            log_blowup,
-        }
+        Self { dft: DeviceDft::new(), mmcs_committer: C::default(), log_blowup }
     }
 
     pub fn mmcs_commit(&self, leaves: Vec<C::Matrix>) -> (Com<SC>, C::ProverData) {
@@ -111,8 +107,7 @@ impl<
         let log_blowup = dst_domain.log_n - src_domain.log_n;
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
-            self.dft
-                .coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
+            self.dft.coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
 
             Ok(lde_mat)
         }

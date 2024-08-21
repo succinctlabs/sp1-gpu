@@ -20,11 +20,6 @@ pub struct MatrixViewMutDevice<T> {
 
 impl<T> MatrixViewDevice<T> {
     pub fn null(row_major: bool) -> Self {
-        Self {
-            values: std::ptr::null(),
-            width: 0,
-            height: 0,
-            row_major,
-        }
+        Self { values: std::ptr::null(), width: 0, height: 0, row_major }
     }
 }

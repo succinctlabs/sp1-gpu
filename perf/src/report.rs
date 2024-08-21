@@ -44,13 +44,7 @@ impl Measurement {
         core_time: Duration,
         compress_time: Duration,
     ) -> Self {
-        Self {
-            name: name.to_string(),
-            cycles,
-            num_shards,
-            core_time,
-            compress_time,
-        }
+        Self { name: name.to_string(), cycles, num_shards, core_time, compress_time }
     }
 
     fn to_csv_record(&self) -> (String, usize, usize, f64, f64, f64, f64, f64) {

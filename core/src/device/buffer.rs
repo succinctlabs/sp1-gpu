@@ -42,12 +42,7 @@ impl<T: Copy> DeviceBuffer<T> {
     pub fn try_with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
         let ptr = unsafe { stream.try_alloc(capacity) }?;
 
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-            stream: stream.clone(),
-        })
+        Ok(Self { buf: ptr, len: 0, cap: capacity, stream: stream.clone() })
     }
 
     /// Allocate a new buffer on the device.
@@ -57,12 +52,7 @@ impl<T: Copy> DeviceBuffer<T> {
     pub fn with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
         let ptr = unsafe { stream.alloc(capacity) }?;
 
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-            stream: stream.clone(),
-        })
+        Ok(Self { buf: ptr, len: 0, cap: capacity, stream: stream.clone() })
     }
 
     /// Allocate a new buffer on the device.
@@ -76,12 +66,7 @@ impl<T: Copy> DeviceBuffer<T> {
     ) -> Result<Self, AllocTimeoutError> {
         let ptr = unsafe { stream.alloc_timeout(capacity, timeout) }?;
 
-        Ok(Self {
-            buf: ptr,
-            len: 0,
-            cap: capacity,
-            stream,
-        })
+        Ok(Self { buf: ptr, len: 0, cap: capacity, stream })
     }
 
     /// Returns a new buffer from a pointer, length, and capacity.
@@ -97,12 +82,7 @@ impl<T: Copy> DeviceBuffer<T> {
         capacity: usize,
         stream: CudaStream,
     ) -> Self {
-        Self {
-            buf: ptr,
-            len: length,
-            cap: capacity,
-            stream,
-        }
+        Self { buf: ptr, len: length, cap: capacity, stream }
     }
 
     #[inline]
@@ -436,10 +416,8 @@ mod tests {
         device_slice.copy_from_host(&new_values, &CudaStream::default());
 
         let mut new_values_back = vec![T::default(); len];
-        device_slice.copy_into_host(
-            &mut new_values_back[0..slice_range.len()],
-            &CudaStream::default(),
-        );
+        device_slice
+            .copy_into_host(&mut new_values_back[0..slice_range.len()], &CudaStream::default());
 
         for (val, exp) in new_values_back.into_iter().zip(new_values) {
             assert_eq!(val, exp);

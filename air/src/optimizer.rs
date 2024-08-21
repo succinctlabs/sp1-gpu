@@ -17,11 +17,7 @@ impl RegisterAllocator {
         let mut vreg2phys_map = HashMap::new();
         vreg2phys_map.insert(SymbolicFolderExpr(0), SymbolicFolderExpr(0));
 
-        Self {
-            used,
-            vreg2phys_map,
-            max: 0,
-        }
+        Self { used, vreg2phys_map, max: 0 }
     }
 
     pub fn vreg2phys(&mut self, vreg: SymbolicFolderExpr) -> SymbolicFolderExpr {

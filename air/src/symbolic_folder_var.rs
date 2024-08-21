@@ -38,30 +38,15 @@ pub struct SymbolicFolderVar {
 
 impl SymbolicFolderVar {
     pub fn empty() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::Empty,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::Empty, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn base(f: F) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::Base,
-            f,
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::Base, f, ef: EF::zero(), idx: 0 }
     }
 
     pub fn extension(ef: EF) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::Extension,
-            f: F::zero(),
-            ef,
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::Extension, f: F::zero(), ef, idx: 0 }
     }
 
     pub fn preprocessed_local(idx: usize) -> Self {
@@ -74,48 +59,23 @@ impl SymbolicFolderVar {
     }
 
     pub fn preprocessed_next(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::PreprocessedNext,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::PreprocessedNext, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn main_local(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::MainLocal,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::MainLocal, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn main_next(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::MainNext,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::MainNext, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn permutation_local(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::PermutationLocal,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::PermutationLocal, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn permutation_next(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::PermutationNext,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::PermutationNext, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn permutation_challenge(idx: usize) -> Self {
@@ -128,66 +88,31 @@ impl SymbolicFolderVar {
     }
 
     pub fn cumulative_sum() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::CumulativeSum,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::CumulativeSum, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn public_value(idx: usize) -> Self {
-        Self {
-            variant: SymbolicFolderVarType::PublicValue,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx,
-        }
+        Self { variant: SymbolicFolderVarType::PublicValue, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn is_first_row() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::IsFirstRow,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::IsFirstRow, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn is_last_row() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::IsLastRow,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::IsLastRow, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn is_transition() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::IsTransition,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::IsTransition, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn alpha() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::Alpha,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::Alpha, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 
     pub fn accumulator() -> Self {
-        Self {
-            variant: SymbolicFolderVarType::Accumulator,
-            f: F::zero(),
-            ef: EF::zero(),
-            idx: 0,
-        }
+        Self { variant: SymbolicFolderVarType::Accumulator, f: F::zero(), ef: EF::zero(), idx: 0 }
     }
 }
 
