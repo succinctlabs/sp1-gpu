@@ -26,7 +26,7 @@ template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue
 
                 // Add the interaction values.
                 for (size_t k = interactions.values_ptr[index]; k < interactions.values_ptr[index + 1]; k++) {
-                    beta_power *= beta
+                    beta_power *= beta;
                     EF acc = EF(interactions.values_constants[k]);
                     for (size_t l = interactions.values_col_weights_ptr[k]; l < interactions.values_col_weights_ptr[k + 1]; l++) {
                         acc += EF(interactions.values_col_weights[l].get(preprocessed, main, RowIdx));
@@ -115,15 +115,15 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
         EF local_row_cumulative_sum = EF::zero();
 
         for (size_t scope = 0; scope < 2; scope ++) {
-            let is_global = scope == 0;
-            let start_idx = is_global ? 0 : interactions.num_global_interactions;
-            let end_idx = is_global ? interactions.num_global_interactions : num_interactions;
+            bool is_global = scope == 0;
+            size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
+            size_t end_idx = is_global ? interactions.num_global_interactions : num_interactions;
 
-            for (usize_t i = start_idx; i < end_idx; i+=batch_size) {
+            for (size_t i = start_idx; i < end_idx; i+=batch_size) {
                 EF alpha = is_global ? global_alpha : local_alpha;
                 EF beta = is_global ? global_beta : local_beta;
 
-                EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta batch_size);
+                EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size);
 
                 // Accumulate the sum of values.
                 if (is_global) {
