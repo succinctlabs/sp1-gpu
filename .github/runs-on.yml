@@ -8,3 +8,4 @@ runners:
   gpu-nvidia:
     cpu: [32, 64]
     family: ["g6"]
+    hdd: 200
