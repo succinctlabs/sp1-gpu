@@ -76,7 +76,6 @@ where
         local: (0..width).map(SymbolicFolderVar::main_local).collect(),
         next: (0..width).map(SymbolicFolderVar::main_next).collect(),
     };
-
     let perm = AirOpenedValues {
         local: (0..permutation_width)
             .map(SymbolicFolderVar::permutation_local)

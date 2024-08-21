@@ -36,7 +36,6 @@ use sp1_core::{
         StarkProvingKey, Val,
     },
 };
-
 use std::cmp::Reverse;
 
 use air::P3EvalFolder;
