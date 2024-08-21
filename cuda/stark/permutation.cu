@@ -36,7 +36,7 @@ template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue
                 }
 
                 // Calculate the multiplicity values.
-                bool is_send = interactions.is_send[index];
+                bool is_send = interactions.is_sends[index];
                 F mult = interactions.mult_constants[index];
 
                 for (size_t k = interactions.multiplicities_ptr[index]; k < interactions.multiplicities_ptr[index + 1]; k++) {
@@ -67,8 +67,9 @@ template<typename F, typename EF> __global__ void PopulatePermutationRows(
         }
 
         EF row_cumulative_sum = EF::zero();
+        size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
         for (size_t i = 0; i < interactions.num_interactions; i+=batch_size) {
-            EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, global_alpha, global_beta, batch_size);
+            EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, global_alpha, global_beta, local_alpha, local_beta, batch_size);
             // Accumulate the sum of values.
             row_cumulative_sum += value;
             // Assign the value to the row.

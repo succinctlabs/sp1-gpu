@@ -5,7 +5,7 @@
 
 extern "C" void populate_permutation_rows(Interactions<bb31_t> const interactions,
                     Matrix<bb31_extension_t> permutation, Matrix<bb31_t> const preprocessed, 
-                    Matrix<bb31_t> const main, bb31_extension_t const global_alpha, bb31_extension_t const global_beta
+                    Matrix<bb31_t> const main, bb31_extension_t const global_alpha, bb31_extension_t const global_beta,
                     bb31_extension_t const local_alpha, bb31_extension_t const local_beta,
                     size_t const batch_size, size_t const nBlocks, size_t const nThreadsPerBlock) {
                         assert(!permutation.row_major);

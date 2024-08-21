@@ -8,7 +8,7 @@ struct ConstraintFolder {
     Val* publicValues;
     Matrix<Val> perm;
     Challenge* permChallenges;
-    Challenge cumulativeSums;
+    Challenge* cumulativeSums;
     Val isFirstRow;
     Val isLastRow;
     Val isTransition;
