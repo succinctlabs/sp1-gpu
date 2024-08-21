@@ -37,7 +37,7 @@ template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue
                 }
 
                 // Calculate the multiplicity values.
-                bool is_send = interactions.is_sends[index];
+                bool is_send = interactions.is_send[index];
                 F mult = interactions.mult_constants[index];
 
                 for (size_t k = interactions.multiplicities_ptr[index]; k < interactions.multiplicities_ptr[index + 1]; k++) {
