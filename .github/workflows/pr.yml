@@ -25,7 +25,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: [runs-on,runner=gpu-nvidia]
+    runs-on: [runs-on,runner=gpu-nvidia,"run-id=${{ github.run_id }}"]
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
