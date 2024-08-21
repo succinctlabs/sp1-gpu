@@ -139,6 +139,7 @@ impl DeviceHasherBn254 {
     }
 }
 
+#[allow(improper_ctypes)]
 pub mod poseidon2_bn254_3_kernels {
     use crate::matrix::MatrixViewDevice;
     use p3_baby_bear::BabyBear;

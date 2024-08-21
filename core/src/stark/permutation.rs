@@ -452,6 +452,7 @@ mod tests {
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::AbstractExtensionField;
     use p3_field::AbstractField;
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use rand::thread_rng;
@@ -553,7 +554,7 @@ mod tests {
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
         let perm_d = perm_generator
-            .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
             .unwrap();
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
@@ -563,11 +564,15 @@ mod tests {
         let time = std::time::Instant::now();
         let expected_perm_trace =
             chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
+        let flattened_perm_trace: Vec<BabyBear> = expected_perm_trace
+            .values
+            .into_iter()
+            .flat_map(|v| v.as_base_slice().to_vec())
+            .collect::<Vec<_>>();
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.
-        for (i, (exp, res)) in expected_perm_trace
-            .values
+        for (i, (exp, res)) in flattened_perm_trace
             .iter()
             .zip(perm_h.values.iter())
             .enumerate()

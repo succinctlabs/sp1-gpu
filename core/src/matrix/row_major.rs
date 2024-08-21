@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_row_major_to_column_major() {
-        let height = 1 << 22;
+        let height = 1 << 21;
         let width = 600;
 
         let (mat_h, mat_d) = RowMajorMatrixDevice::<BabyBear>::dummy(width, height);

@@ -1,5 +1,4 @@
 use sp1_stark::StarkGenericConfig;
-use tracing::trace_span;
 
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
