@@ -142,7 +142,7 @@ pub struct HostInteractions<F: Field> {
     pub mult_constants: Vec<F>,
 
     pub arg_indices: Vec<F>,
-    pub is_sends: Vec<bool>,
+    pub is_send: Vec<bool>,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
@@ -163,7 +163,7 @@ pub struct DeviceInteractions<F: Field> {
     pub mult_constants: DeviceBuffer<F>,
 
     pub arg_indices: DeviceBuffer<F>,
-    pub is_sends: DeviceBuffer<bool>,
+    pub is_send: DeviceBuffer<bool>,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
@@ -184,7 +184,7 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub mult_constants: *const F,
 
     pub arg_indices: *const F,
-    pub is_sends: *const bool,
+    pub is_send: *const bool,
 
     pub num_global_interactions: usize,
     pub num_local_interactions: usize,
@@ -213,7 +213,7 @@ impl<F: Field> HostInteractions<F> {
         let mut values_col_weights_ptr = vec![];
         let mut multiplicities_ptr = vec![];
         let mut arg_indices = vec![];
-        let mut is_sends = vec![];
+        let mut is_send = vec![];
         let mut mult_col_weights = vec![];
         let mut mult_constants = vec![];
         let mut values_col_weights = vec![];
@@ -247,7 +247,7 @@ impl<F: Field> HostInteractions<F> {
             .into_iter()
             .flatten();
 
-        for (interaction, is_send) in interactions {
+        for (interaction, is_send_flag) in interactions {
             // Register the values
             values_ptr.push(curr_values_ptr);
             for value in interaction.values.iter() {
@@ -272,7 +272,7 @@ impl<F: Field> HostInteractions<F> {
 
             arg_indices.push(F::from_canonical_usize(interaction.argument_index()));
 
-            is_sends.push(is_send);
+            is_send.push(is_send_flag);
         }
 
         values_col_weights_ptr.push(curr_values_col_weight_ptr);
@@ -306,7 +306,7 @@ impl<F: Field> HostInteractions<F> {
             mult_col_weights,
             mult_constants,
             arg_indices,
-            is_sends,
+            is_send,
             num_global_interactions,
             num_local_interactions,
             global_width,
@@ -397,7 +397,7 @@ impl<F: Field> DeviceInteractions<F> {
             mult_constants: self.mult_constants.as_ptr(),
 
             arg_indices: self.arg_indices.as_ptr(),
-            is_sends: self.is_sends.as_ptr(),
+            is_send: self.is_send.as_ptr(),
 
             num_global_interactions: self.num_global_interactions,
             num_local_interactions: self.num_local_interactions,
@@ -558,7 +558,7 @@ impl<F: Field> ToDevice for HostInteractions<F> {
             mult_col_weights: self.mult_col_weights.to_device_async(stream)?,
             mult_constants: self.mult_constants.to_device_async(stream)?,
             arg_indices: self.arg_indices.to_device_async(stream)?,
-            is_sends: self.is_sends.to_device_async(stream)?,
+            is_send: self.is_send.to_device_async(stream)?,
             num_global_interactions: self.num_global_interactions,
             num_local_interactions: self.num_local_interactions,
             global_width: self.global_width,
