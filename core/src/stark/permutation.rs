@@ -652,14 +652,21 @@ mod tests {
         let main_d = main_d.to_column_major();
 
         // Get randomness.
-        let alpha = rng.gen::<EF>();
-        let beta = rng.gen::<EF>();
+        let global_alpha = rng.gen::<EF>();
+        let global_beta = rng.gen::<EF>();
+        let local_alpha = rng.gen::<EF>();
+        let local_beta = rng.gen::<EF>();
 
         let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
         let (perm_d, _) = perm_generator
-            .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .generate_flattened_permutation_trace(
+                &chip,
+                Some(&prep_d),
+                &main_d,
+                &[global_alpha, global_beta, local_alpha, local_beta],
+            )
             .unwrap();
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
