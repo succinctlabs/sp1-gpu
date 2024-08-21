@@ -6,6 +6,6 @@ images:
     name: "Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*"
 
 runners:
-  gpu-nvidia:
+  gpu-nvidia-2:
     family: ["g6.16xlarge"]
     image: dlami-x64
