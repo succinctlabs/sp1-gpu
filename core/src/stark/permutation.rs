@@ -471,6 +471,12 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
         num_threads_per_block: usize,
         stream: &CudaStream,
     ) {
+        println!("!permutation.row_major: {}", !permutation.row_major);
+        println!("!main.row_major: {}", !main.row_major);
+        println!("!preprocessed.row_major: {}", !preprocessed.row_major);
+        println!("permutation.height: {}", permutation.height);
+        println!("permutation.width: {}", permutation.width);
+
         unsafe {
             ffi::populate_permutation_rows_flattened(
                 self,
