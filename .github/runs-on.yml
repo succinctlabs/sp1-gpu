@@ -9,4 +9,3 @@ runners:
   gpu-nvidia:
     cpu: [32, 64]
     family: ["g6"]
-    image: dlami-x64
