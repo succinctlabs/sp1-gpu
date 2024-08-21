@@ -27,11 +27,8 @@ pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMat
 
 impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
     pub fn new(hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>, leaves: Vec<M>) -> Self {
-        let mut leaves_largest_first = leaves
-            .iter()
-            .map(|l| l.view())
-            .sorted_by_key(|l| Reverse(l.height))
-            .peekable();
+        let mut leaves_largest_first =
+            leaves.iter().map(|l| l.view()).sorted_by_key(|l| Reverse(l.height)).peekable();
 
         let max_height = leaves_largest_first.peek().unwrap().height;
         let tallest_matrices = leaves_largest_first
@@ -79,11 +76,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             digest_layers.push(next_digests);
         }
 
-        Self {
-            leaves,
-            digest_layers,
-            _marker: std::marker::PhantomData,
-        }
+        Self { leaves, digest_layers, _marker: std::marker::PhantomData }
     }
 
     pub fn root(&self) -> D {
@@ -107,11 +100,7 @@ where
 
     fn to_host(&self) -> Self::HostType {
         let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
-        let digest_layers = self
-            .digest_layers
-            .iter()
-            .map(|l| l.to_host())
-            .collect::<Vec<_>>();
+        let digest_layers = self.digest_layers.iter().map(|l| l.to_host()).collect::<Vec<_>>();
 
         FieldMerkleTree::from_parts(leaves, digest_layers)
     }
@@ -178,9 +167,8 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()]
-                .to_device()
-                .unwrap();
+            let tallest_matrices =
+                vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
             let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
@@ -338,9 +326,8 @@ mod tests {
 
             let (matrix_host_1, matrix_device_1) = RowMajorMatrixDevice::<BabyBear>::dummy(9, n);
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
-            let tallest_matrices = vec![matrix_device_1.view(), matrix_device_2.view()]
-                .to_device()
-                .unwrap();
+            let tallest_matrices =
+                vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
             let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {

@@ -139,6 +139,7 @@ impl DeviceHasherBn254 {
     }
 }
 
+#[allow(improper_ctypes)]
 pub mod poseidon2_bn254_3_kernels {
     use crate::matrix::MatrixViewDevice;
     use p3_baby_bear::BabyBear;
@@ -227,15 +228,9 @@ pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Ve
     let mut round_constants = bn254_poseidon2_rc3();
     let internal_start = ROUNDS_F / 2;
     let internal_end = (ROUNDS_F / 2) + ROUNDS_P;
-    let internal_round_constants = round_constants
-        .drain(internal_start..internal_end)
-        .map(|vec| vec[0])
-        .collect::<Vec<_>>();
+    let internal_round_constants =
+        round_constants.drain(internal_start..internal_end).map(|vec| vec[0]).collect::<Vec<_>>();
     let external_round_constants = round_constants;
     let diffusion_matrix_m1 = [Bn254Fr::one(), Bn254Fr::one(), Bn254Fr::two()].to_vec();
-    (
-        internal_round_constants,
-        external_round_constants,
-        diffusion_matrix_m1,
-    )
+    (internal_round_constants, external_round_constants, diffusion_matrix_m1)
 }

@@ -35,9 +35,8 @@ where
     ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
         let stream = main_trace.stream();
         const D: usize = 4;
-        let device_interactions = HostInteractions::new(chip.sends(), chip.receives())
-            .to_device_async(stream)
-            .unwrap();
+        let device_interactions =
+            HostInteractions::new(chip.sends(), chip.receives()).to_device_async(stream).unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
@@ -57,9 +56,7 @@ where
         let num_blocks = height.div_ceil(num_threads_per_block);
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
-            preprocessed_trace
-                .map(|mat| mat.view())
-                .unwrap_or(MatrixViewDevice::null(false)),
+            preprocessed_trace.map(|mat| mat.view()).unwrap_or(MatrixViewDevice::null(false)),
             main_trace.view(),
             alpha,
             beta,
@@ -398,16 +395,12 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
 impl<F: Field> From<PairCol> for PairColDevice<F> {
     fn from(value: PairCol) -> Self {
         match value {
-            PairCol::Preprocessed(column_idx) => Self {
-                column_idx,
-                is_preprocessed: true,
-                weight: F::one(),
-            },
-            PairCol::Main(column_idx) => Self {
-                column_idx,
-                is_preprocessed: false,
-                weight: F::one(),
-            },
+            PairCol::Preprocessed(column_idx) => {
+                Self { column_idx, is_preprocessed: true, weight: F::one() }
+            }
+            PairCol::Main(column_idx) => {
+                Self { column_idx, is_preprocessed: false, weight: F::one() }
+            }
         }
     }
 }
@@ -452,6 +445,7 @@ mod tests {
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use p3_field::AbstractExtensionField;
     use p3_field::AbstractField;
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use rand::thread_rng;
@@ -553,7 +547,7 @@ mod tests {
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
         let perm_d = perm_generator
-            .generate_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
+            .generate_flattened_permutation_trace(&chip, Some(&prep_d), &main_d, &[alpha, beta])
             .unwrap();
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
@@ -563,15 +557,15 @@ mod tests {
         let time = std::time::Instant::now();
         let expected_perm_trace =
             chip.generate_permutation_trace(Some(&preprocessed_trace), &main_trace, &[alpha, beta]);
+        let flattened_perm_trace: Vec<BabyBear> = expected_perm_trace
+            .values
+            .into_iter()
+            .flat_map(|v| v.as_base_slice().to_vec())
+            .collect::<Vec<_>>();
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.
-        for (i, (exp, res)) in expected_perm_trace
-            .values
-            .iter()
-            .zip(perm_h.values.iter())
-            .enumerate()
-        {
+        for (i, (exp, res)) in flattened_perm_trace.iter().zip(perm_h.values.iter()).enumerate() {
             assert_eq!(exp, res, "at index {}", i);
         }
     }
@@ -628,11 +622,8 @@ mod tests {
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.
-        for (i, (exp, res)) in expected_perm_trace
-            .values
-            .iter()
-            .zip(perm_h.values.iter())
-            .enumerate()
+        for (i, (exp, res)) in
+            expected_perm_trace.values.iter().zip(perm_h.values.iter()).enumerate()
         {
             assert_eq!(exp, res, "at index {}", i);
         }

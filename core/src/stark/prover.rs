@@ -118,11 +118,7 @@ where
         let (_, total) = cuda_mem_get_info().unwrap();
         let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
         tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
-        let chip_streams = machine
-            .chips()
-            .iter()
-            .map(|_| CudaStream::create().unwrap())
-            .collect();
+        let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
@@ -158,11 +154,8 @@ where
         named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
 
         // Get the chip ordering.
-        let chip_ordering = named_traces
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
-            .collect();
+        let chip_ordering =
+            named_traces.iter().enumerate().map(|(i, (name, _))| (name.to_owned(), i)).collect();
 
         // Get the domains.
         let config = self.machine.config();
@@ -184,11 +177,7 @@ where
             .collect();
 
         // Commit to the traces.
-        let domains_and_traces = domains
-            .iter()
-            .copied()
-            .zip(traces.iter())
-            .collect::<Vec<_>>();
+        let domains_and_traces = domains.iter().copied().zip(traces.iter()).collect::<Vec<_>>();
         let (commit, data) =
             tracing::debug_span!("commit").in_scope(|| self.committer.commit(&domains_and_traces));
 
@@ -263,10 +252,8 @@ where
             .collect::<HashMap<_, _>>();
 
         // Get the preprocessed traces
-        let traces = named_preprocessed_traces
-            .into_iter()
-            .map(|(_, trace)| trace)
-            .collect::<Vec<_>>();
+        let traces =
+            named_preprocessed_traces.into_iter().map(|(_, trace)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
 
@@ -278,12 +265,7 @@ where
                 data,
                 chip_ordering: chip_ordering.clone(),
             },
-            StarkVerifyingKey {
-                commit,
-                pc_start,
-                chip_information,
-                chip_ordering,
-            },
+            StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
         )
     }
 
@@ -297,18 +279,10 @@ where
         let _span = span.enter();
         let span = tracing::Span::current();
         let _span = span.enter();
-        let ShardMainData {
-            traces,
-            main_commit,
-            mut main_data,
-            chip_ordering,
-            public_values,
-        } = data;
+        let ShardMainData { traces, main_commit, mut main_data, chip_ordering, public_values } =
+            data;
 
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&chip_ordering)
-            .collect::<Vec<_>>();
+        let shard_chips = self.machine.shard_chips_ordered(&chip_ordering).collect::<Vec<_>>();
 
         let domains = traces
             .iter()
@@ -337,9 +311,8 @@ where
         }
 
         // Get the permutation challenges.
-        let permutation_challenges = (0..2)
-            .map(|_| challenger.sample_ext_element())
-            .collect::<Vec<_>>();
+        let permutation_challenges =
+            (0..2).map(|_| challenger.sample_ext_element()).collect::<Vec<_>>();
         // Generate permutation traces.
 
         let permutation_span =
@@ -347,14 +320,7 @@ where
         let permutation_traces =
             self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)?;
 
-        info!(
-            "Shard: [{}]",
-            shard_chips
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        info!("Shard: [{}]", shard_chips.iter().map(|c| c.name()).collect::<Vec<_>>().join(", "));
 
         for (i, chip) in shard_chips.iter().enumerate() {
             let width = traces[i].width();
@@ -371,11 +337,8 @@ where
         }
 
         // Commit to the permutation traces.
-        let perm_domains_and_traces = domains
-            .iter()
-            .copied()
-            .zip(permutation_traces)
-            .collect::<Vec<_>>();
+        let perm_domains_and_traces =
+            domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
         let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         permutation_span.exit();
@@ -429,10 +392,7 @@ where
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
             .flat_map(|values| {
-                let DeviceQuotientValues {
-                    quotient_chunks,
-                    quotient_chunk_domains,
-                } = values;
+                let DeviceQuotientValues { quotient_chunks, quotient_chunk_domains } = values;
 
                 quotient_chunk_domains.into_iter().zip(quotient_chunks)
             })
@@ -465,9 +425,8 @@ where
             .collect::<Vec<_>>();
 
         // Compute quotient openning points, open every chunk at zeta.
-        let quotient_opening_points = (0..num_quotient_chunks)
-            .map(|_| vec![zeta])
-            .collect::<Vec<_>>();
+        let quotient_opening_points =
+            (0..num_quotient_chunks).map(|_| vec![zeta]).collect::<Vec<_>>();
 
         // Recompute main and permutation LDE and insert into the prover data.
         if recompute_ldes {
@@ -540,38 +499,27 @@ where
             .zip_eq(cumulative_sums)
             .zip_eq(shard_chips.iter())
             .enumerate()
-            .map(
-                |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
-                    let preprocessed = pk
-                        .chip_ordering
-                        .get(&chip.name())
-                        .map(|&index| preprocessed_opened_values[index].clone())
-                        .unwrap_or(AirOpenedValues {
-                            local: vec![],
-                            next: vec![],
-                        });
-                    let log_degree = domains[i].size().ilog2() as usize;
-                    ChipOpenedValues {
-                        preprocessed,
-                        main,
-                        permutation,
-                        quotient,
-                        cumulative_sum,
-                        log_degree,
-                    }
-                },
-            )
+            .map(|(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                let preprocessed = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| preprocessed_opened_values[index].clone())
+                    .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
+                let log_degree = domains[i].size().ilog2() as usize;
+                ChipOpenedValues {
+                    preprocessed,
+                    main,
+                    permutation,
+                    quotient,
+                    cumulative_sum,
+                    log_degree,
+                }
+            })
             .collect::<Vec<_>>();
 
         Ok(ShardProof::<SC> {
-            commitment: ShardCommitment {
-                main_commit,
-                permutation_commit,
-                quotient_commit,
-            },
-            opened_values: ShardOpenedValues {
-                chips: opened_values,
-            },
+            commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
+            opened_values: ShardOpenedValues { chips: opened_values },
             opening_proof,
             chip_ordering,
             public_values,
@@ -650,19 +598,15 @@ where
             .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk.chip_ordering.get(&chip.name()).map(|&index| {
-                    pk.traces[index]
-                        .to_device_async(main_trace.stream())
-                        .unwrap()
-                        .to_column_major()
+                    pk.traces[index].to_device_async(main_trace.stream()).unwrap().to_column_major()
                 });
 
-                self.permutation_trace_generator
-                    .generate_flattened_permutation_trace(
-                        chip,
-                        preprocessed_trace.as_ref(),
-                        main_trace,
-                        random_elements,
-                    )
+                self.permutation_trace_generator.generate_flattened_permutation_trace(
+                    chip,
+                    preprocessed_trace.as_ref(),
+                    main_trace,
+                    random_elements,
+                )
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
@@ -747,10 +691,7 @@ pub mod tests {
         .unwrap();
 
         let mut challenger = prover.config().challenger();
-        prover
-            .machine()
-            .verify(&vk, &proof, &mut challenger)
-            .unwrap();
+        prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
     }
 
     #[test]

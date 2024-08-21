@@ -22,10 +22,7 @@ impl TaskRef {
         T: Task,
     {
         // erase types:
-        TaskRef {
-            pointer: data as *const (),
-            execute_fn: <T as Task>::execute,
-        }
+        TaskRef { pointer: data as *const (), execute_fn: <T as Task>::execute }
     }
 
     // /// Returns an opaque handle that can be saved and compared,

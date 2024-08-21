@@ -22,10 +22,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
     let shard_size_log = (total as f64 * SHARD_MEM_RATIO).log2().ceil() as usize;
     let default_shard_size = 1 << shard_size_log;
-    let shard_size = env::var("SHARD_SIZE").map_or_else(
-        |_| default_shard_size,
-        |s| s.parse::<usize>().unwrap_or(default_shard_size),
-    );
+    let shard_size = env::var("SHARD_SIZE")
+        .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
     let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
     opts.core_opts.shard_size = shard_size;
     tracing::info!("Shard size set to {}", shard_size);
@@ -35,15 +33,9 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
     let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
     let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
-        .map(|s| {
-            s.parse::<usize>()
-                .unwrap_or(default_deferred_split_threshold)
-        })
+        .map(|s| s.parse::<usize>().unwrap_or(default_deferred_split_threshold))
         .unwrap_or(default_deferred_split_threshold);
-    tracing::info!(
-        "Deffered split threshold set to {}",
-        deferred_split_threshold
-    );
+    tracing::info!("Deffered split threshold set to {}", deferred_split_threshold);
     opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
 
     opts.core_opts.records_and_traces_channel_capacity = 4;

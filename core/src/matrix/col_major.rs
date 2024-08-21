@@ -25,10 +25,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     }
 
     pub fn null() -> Self {
-        Self {
-            values: DeviceBuffer::with_capacity(0).unwrap(),
-            height: 1,
-        }
+        Self { values: DeviceBuffer::with_capacity(0).unwrap(), height: 1 }
     }
 
     pub const fn stream(&self) -> &CudaStream {
@@ -135,11 +132,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
 
 impl ColMajorMatrixDevice<BabyBear> {
     pub fn bit_reverse_rows(&mut self) -> Result<(), CudaError> {
-        assert_eq!(
-            self.height,
-            1 << self.height.ilog2(),
-            "height must be a power of 2"
-        );
+        assert_eq!(self.height, 1 << self.height.ilog2(), "height must be a power of 2");
         unsafe {
             ffi::reverse_bits_batch(
                 self.values.as_mut_ptr(),
@@ -156,11 +149,7 @@ impl ColMajorMatrixDevice<BabyBear> {
         stride: usize,
         offset: usize,
     ) -> Result<ColMajorMatrixDevice<BabyBear>, CudaError> {
-        assert_eq!(
-            self.height % stride,
-            0,
-            "height must be a multiple of stride"
-        );
+        assert_eq!(self.height % stride, 0, "height must be a multiple of stride");
         let mut strided_values =
             DeviceBuffer::with_capacity_in(self.values.len() / stride, self.stream()).unwrap();
         unsafe { strided_values.set_max_len() };
@@ -271,11 +260,7 @@ mod tests {
 
         let device_matrix_back = device_matrix.to_host();
 
-        for (val, exp) in host_matrix_reversed
-            .values
-            .into_iter()
-            .zip(device_matrix_back.values)
-        {
+        for (val, exp) in host_matrix_reversed.values.into_iter().zip(device_matrix_back.values) {
             assert_eq!(val, exp);
         }
     }
@@ -294,16 +279,12 @@ mod tests {
         for offset in 0..stride {
             let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();
             let mat_h = host_matrix.clone();
-            let host_matrix_strided = mat_h
-                .vertically_strided(stride, offset)
-                .to_row_major_matrix();
+            let host_matrix_strided =
+                mat_h.vertically_strided(stride, offset).to_row_major_matrix();
 
             let device_matrix_back = strided_d.to_host();
 
-            for (val, exp) in host_matrix_strided
-                .values
-                .into_iter()
-                .zip(device_matrix_back.values)
+            for (val, exp) in host_matrix_strided.values.into_iter().zip(device_matrix_back.values)
             {
                 assert_eq!(val, exp);
             }

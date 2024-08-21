@@ -41,11 +41,5 @@ pub fn make_measurement<C: SP1ProverComponents>(
     tracing::info!("verify compressed");
     prover.verify_compressed(&compressed_proof, &vk).unwrap();
 
-    Measurement {
-        name: name.to_string(),
-        num_shards,
-        cycles,
-        core_time,
-        compress_time,
-    }
+    Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
 }

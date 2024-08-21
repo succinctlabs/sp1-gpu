@@ -137,15 +137,9 @@ mod tests {
             (((x as u64) << MONTY_BITS) % P as u64) as u32
         }
 
-        assert_eq!(
-            0xfffffbe,
-            to_monty(BabyBear::generator().as_canonical_u32())
-        );
+        assert_eq!(0xfffffbe, to_monty(BabyBear::generator().as_canonical_u32()));
 
-        assert_eq!(
-            0x17bdef7c,
-            to_monty(BabyBear::generator().inverse().as_canonical_u32())
-        );
+        assert_eq!(0x17bdef7c, to_monty(BabyBear::generator().inverse().as_canonical_u32()));
 
         for i in 0..28 {
             println!(
@@ -332,10 +326,7 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h
-                .to_device()
-                .unwrap()
-                .to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h.to_device().unwrap().to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();
@@ -376,10 +367,7 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h
-                .to_device()
-                .unwrap()
-                .to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h.to_device().unwrap().to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();

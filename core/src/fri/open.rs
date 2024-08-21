@@ -72,10 +72,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .iter()
             .map(|(data, points)| (data.matrices().iter().collect_vec(), points))
             .collect_vec();
-        let mats = mats_and_points
-            .iter()
-            .flat_map(|(mats, _)| mats)
-            .collect_vec();
+        let mats = mats_and_points.iter().flat_map(|(mats, _)| mats).collect_vec();
 
         let global_max_height = mats.iter().map(|m| m.height).max().unwrap();
         let log_global_max_height = log2_strict_usize(global_max_height);
@@ -130,82 +127,77 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 
         let get_data_for_device_span = tracing::trace_span!("Get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
-            mats.iter()
-                .zip(points.iter())
-                .for_each(|(mat, points_for_mat)| {
-                    let log_height = log2_strict_usize(mat.height);
-                    height_index_map
-                        .entry(log_height)
-                        .or_insert_with_key(|log_height| {
-                            let idx = reduced_leaves.len();
-                            height_indices[*log_height] = idx;
-                            let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
-                                2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
-                                1 << (log_height - 1),
-                            )
-                            .unwrap();
-                            unsafe {
-                                reduced_leaf.set_max_width();
-                            }
-                            reduced_leaves.push(reduced_leaf);
-
-                            idx
-                        });
-                    // Use Barycentric interpolation to evaluate the matrix at the given point.
-                    let coset_height = mat.height() >> pcs.fri_config().log_blowup;
-                    let cols = mat.width();
-                    let num_polys = cols * points_for_mat.len();
-                    total_polys += num_polys;
-                    let coset_log_height = log2_strict_usize(coset_height);
-                    let g = BabyBear::two_adic_generator(coset_log_height);
-                    let denominator = SC::Val::from_canonical_usize(coset_height)
-                        * shift.exp_u64(coset_height as u64 - 1);
-
-                    g_values.extend((0..num_polys).flat_map(|_| g.powers().take(32)));
-                    shifts.extend((0..num_polys).map(|_| shift));
-                    coset_log_heights.extend((0..num_polys).map(|_| coset_log_height));
-                    coset_heights.extend((0..num_polys).map(|_| coset_height));
-
-                    let log_height = log2_strict_usize(mat.height());
-                    let height_g = BabyBear::two_adic_generator(log_height);
-                    let g_thread_gen = height_g.powers().take(1024).collect::<Vec<_>>();
-
-                    for point in points_for_mat {
-                        nums_rows.push(mat.height());
-                        log_nums_rows.push(log_height);
-                        inv_indices.push(inv_offset);
-                        inv_offset += mat.height();
-                        points_for_inv.push(*point);
-                        num_points += 1;
-                        thread_generator_powers.extend_from_slice(&g_thread_gen);
-                        shifts_for_inv.push(shift);
-
-                        opening_points.extend((0..cols).map(|_| *point));
-                        let zerofier = two_adic_coset_zerofier(
-                            coset_log_height,
-                            SC::Challenge::from_base(shift),
-                            *point,
-                        );
-                        let barycentric_scalar = zerofier * denominator.inverse();
-                        barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
-
-                        let num_reduced_at_height = num_reduced[log_height];
-                        num_reduced[log_height] += mat.width();
-                        let alpha_pow_offset = alpha.exp_u64(num_reduced_at_height as u64);
-                        alpha_pow_offsets.push(alpha_pow_offset);
-                        matrices_for_openings.push(mat.view());
-
-                        ys_indices.push(ys_index);
-                        ys_index += mat.width();
+            mats.iter().zip(points.iter()).for_each(|(mat, points_for_mat)| {
+                let log_height = log2_strict_usize(mat.height);
+                height_index_map.entry(log_height).or_insert_with_key(|log_height| {
+                    let idx = reduced_leaves.len();
+                    height_indices[*log_height] = idx;
+                    let mut reduced_leaf = ColMajorMatrixDevice::<SC::Val>::with_capacity(
+                        2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                        1 << (log_height - 1),
+                    )
+                    .unwrap();
+                    unsafe {
+                        reduced_leaf.set_max_width();
                     }
+                    reduced_leaves.push(reduced_leaf);
 
-                    for _ in 0..points_for_mat.len() {
-                        let poly_evals_iter = unsafe {
-                            (0..cols).map(|col| mat.values.as_ptr().add(col * mat.height))
-                        };
-                        poly_evals.extend(poly_evals_iter);
-                    }
-                })
+                    idx
+                });
+                // Use Barycentric interpolation to evaluate the matrix at the given point.
+                let coset_height = mat.height() >> pcs.fri_config().log_blowup;
+                let cols = mat.width();
+                let num_polys = cols * points_for_mat.len();
+                total_polys += num_polys;
+                let coset_log_height = log2_strict_usize(coset_height);
+                let g = BabyBear::two_adic_generator(coset_log_height);
+                let denominator = SC::Val::from_canonical_usize(coset_height)
+                    * shift.exp_u64(coset_height as u64 - 1);
+
+                g_values.extend((0..num_polys).flat_map(|_| g.powers().take(32)));
+                shifts.extend((0..num_polys).map(|_| shift));
+                coset_log_heights.extend((0..num_polys).map(|_| coset_log_height));
+                coset_heights.extend((0..num_polys).map(|_| coset_height));
+
+                let log_height = log2_strict_usize(mat.height());
+                let height_g = BabyBear::two_adic_generator(log_height);
+                let g_thread_gen = height_g.powers().take(1024).collect::<Vec<_>>();
+
+                for point in points_for_mat {
+                    nums_rows.push(mat.height());
+                    log_nums_rows.push(log_height);
+                    inv_indices.push(inv_offset);
+                    inv_offset += mat.height();
+                    points_for_inv.push(*point);
+                    num_points += 1;
+                    thread_generator_powers.extend_from_slice(&g_thread_gen);
+                    shifts_for_inv.push(shift);
+
+                    opening_points.extend((0..cols).map(|_| *point));
+                    let zerofier = two_adic_coset_zerofier(
+                        coset_log_height,
+                        SC::Challenge::from_base(shift),
+                        *point,
+                    );
+                    let barycentric_scalar = zerofier * denominator.inverse();
+                    barycentric_scalars.extend((0..cols).map(|_| barycentric_scalar));
+
+                    let num_reduced_at_height = num_reduced[log_height];
+                    num_reduced[log_height] += mat.width();
+                    let alpha_pow_offset = alpha.exp_u64(num_reduced_at_height as u64);
+                    alpha_pow_offsets.push(alpha_pow_offset);
+                    matrices_for_openings.push(mat.view());
+
+                    ys_indices.push(ys_index);
+                    ys_index += mat.width();
+                }
+
+                for _ in 0..points_for_mat.len() {
+                    let poly_evals_iter =
+                        unsafe { (0..cols).map(|col| mat.values.as_ptr().add(col * mat.height)) };
+                    poly_evals.extend(poly_evals_iter);
+                }
+            })
         });
         get_data_for_device_span.exit();
 
@@ -400,13 +392,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 
         query_openings_span.exit();
 
-        (
-            all_opened_values,
-            TwoAdicFriPcsProof {
-                fri_proof,
-                query_openings,
-            },
-        )
+        (all_opened_values, TwoAdicFriPcsProof { fri_proof, query_openings })
     }
 }
 
@@ -471,10 +457,8 @@ pub(super) mod merkle_tree_opening_prover {
             // 3. Slice buffer to proper structure.
             // 4. Calculate proofs for each data.
             let total_data = prover_data_slice.len();
-            let total_matrices: usize = prover_data_slice
-                .iter()
-                .map(|data| data.matrices().len())
-                .sum();
+            let total_matrices: usize =
+                prover_data_slice.iter().map(|data| data.matrices().len()).sum();
             let mut matrix_views: Vec<MatrixViewDevice<BabyBear>> =
                 Vec::with_capacity(total_matrices);
             let mut width_offsets: Vec<usize> = Vec::with_capacity(total_matrices + 1);
@@ -506,11 +490,7 @@ pub(super) mod merkle_tree_opening_prover {
                 log_max_heights_offsets.push(total_log_max_heights);
                 total_log_max_heights += log_max_height;
 
-                digests.extend(
-                    data.digest_layers[0..log_max_height]
-                        .iter()
-                        .map(|d| d.as_ptr()),
-                );
+                digests.extend(data.digest_layers[0..log_max_height].iter().map(|d| d.as_ptr()));
             });
 
             width_offsets.push(total_width);
@@ -600,10 +580,7 @@ pub(super) mod merkle_tree_opening_prover {
                             let proof_end = proof_start + log_max_height;
                             let proof = total_proofs_host[proof_start..proof_end].to_vec();
 
-                            BatchOpening {
-                                opened_values: openings,
-                                opening_proof: proof,
-                            }
+                            BatchOpening { opened_values: openings, opening_proof: proof }
                         })
                         .collect::<Vec<_>>()
                 })
@@ -632,9 +609,8 @@ where
     let pow_witness =
         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
 
-    let query_indices: Vec<usize> = (0..config.num_queries)
-        .map(|_| challenger.sample_bits(log_max_height))
-        .collect();
+    let query_indices: Vec<usize> =
+        (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
 
     let query_proofs_span = trace_span!("Compute query proofs").entered();
 
@@ -652,10 +628,7 @@ where
                 .into_iter()
                 .enumerate()
                 .map(|(i, batch_opening)| {
-                    let BatchOpening {
-                        opened_values,
-                        opening_proof,
-                    } = batch_opening;
+                    let BatchOpening { opened_values, opening_proof } = batch_opening;
                     let index_i = query_indices[q] >> i;
                     let index_i_sibling = index_i ^ 1;
 
@@ -669,16 +642,11 @@ where
                     assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
                     let sibling_value = opened_row_ext[index_i_sibling % 2];
 
-                    CommitPhaseProofStep {
-                        sibling_value,
-                        opening_proof,
-                    }
+                    CommitPhaseProofStep { sibling_value, opening_proof }
                 })
                 .collect();
 
-            QueryProof {
-                commit_phase_openings,
-            }
+            QueryProof { commit_phase_openings }
         })
         .collect::<Vec<_>>();
 
@@ -745,12 +713,7 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
 
     assert!(num_blocks > 0);
 
-    let block_powers = g
-        .powers()
-        .take(num_threads)
-        .collect::<Vec<_>>()
-        .to_device()
-        .unwrap();
+    let block_powers = g.powers().take(num_threads).collect::<Vec<_>>().to_device().unwrap();
 
     unsafe {
         output.set_max_width();
@@ -807,11 +770,7 @@ where
     );
     challenger.observe_ext_element(final_poly);
 
-    CommitPhaseResult {
-        commits,
-        data,
-        final_poly,
-    }
+    CommitPhaseResult { commits, data, final_poly }
 }
 
 pub struct CommitPhaseResult<SC, C>

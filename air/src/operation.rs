@@ -323,24 +323,18 @@ impl Debug for Operation {
             OperationType::AddVV => {
                 write!(f, "AddVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
             }
-            OperationType::AddVE => write!(
-                f,
-                "AddVE({:?}, {:?}, {:?})",
-                self.a, self.b_var, self.c_expr
-            ),
+            OperationType::AddVE => {
+                write!(f, "AddVE({:?}, {:?}, {:?})", self.a, self.b_var, self.c_expr)
+            }
             OperationType::AddEF => {
                 write!(f, "AddEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
             }
-            OperationType::AddEV => write!(
-                f,
-                "AddEV({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_var
-            ),
-            OperationType::AddEE => write!(
-                f,
-                "AddEE({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_expr
-            ),
+            OperationType::AddEV => {
+                write!(f, "AddEV({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_var)
+            }
+            OperationType::AddEE => {
+                write!(f, "AddEE({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_expr)
+            }
             OperationType::AddAssignE => write!(f, "AddAssignE({:?}, {:?})", self.a, self.b_expr),
 
             OperationType::SubVF => {
@@ -349,24 +343,18 @@ impl Debug for Operation {
             OperationType::SubVV => {
                 write!(f, "SubVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
             }
-            OperationType::SubVE => write!(
-                f,
-                "SubVE({:?}, {:?}, {:?})",
-                self.a, self.b_var, self.c_expr
-            ),
+            OperationType::SubVE => {
+                write!(f, "SubVE({:?}, {:?}, {:?})", self.a, self.b_var, self.c_expr)
+            }
             OperationType::SubEF => {
                 write!(f, "SubEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
             }
-            OperationType::SubEV => write!(
-                f,
-                "SubEV({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_var
-            ),
-            OperationType::SubEE => write!(
-                f,
-                "SubEE({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_expr
-            ),
+            OperationType::SubEV => {
+                write!(f, "SubEV({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_var)
+            }
+            OperationType::SubEE => {
+                write!(f, "SubEE({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_expr)
+            }
             OperationType::SubAssignE => write!(f, "SubAssignE({:?}, {:?})", self.a, self.b_expr),
 
             OperationType::MulVF => {
@@ -375,24 +363,18 @@ impl Debug for Operation {
             OperationType::MulVV => {
                 write!(f, "MulVV({:?}, {:?}, {:?})", self.a, self.b_var, self.c_var)
             }
-            OperationType::MulVE => write!(
-                f,
-                "MulVE({:?}, {:?}, {:?})",
-                self.a, self.b_var, self.c_expr
-            ),
+            OperationType::MulVE => {
+                write!(f, "MulVE({:?}, {:?}, {:?})", self.a, self.b_var, self.c_expr)
+            }
             OperationType::MulEF => {
                 write!(f, "MulEF({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_f)
             }
-            OperationType::MulEV => write!(
-                f,
-                "MulEV({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_var
-            ),
-            OperationType::MulEE => write!(
-                f,
-                "MulEE({:?}, {:?}, {:?})",
-                self.a, self.b_expr, self.c_expr
-            ),
+            OperationType::MulEV => {
+                write!(f, "MulEV({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_var)
+            }
+            OperationType::MulEE => {
+                write!(f, "MulEE({:?}, {:?}, {:?})", self.a, self.b_expr, self.c_expr)
+            }
             OperationType::MulAssignE => write!(f, "MulAssignE({:?}, {:?})", self.a, self.b_expr),
             OperationType::MulAssignEF => {
                 write!(f, "MulAssignEF({:?}, {:?})", self.a, self.b_ef)
