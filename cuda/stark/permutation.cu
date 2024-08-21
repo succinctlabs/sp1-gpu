@@ -69,6 +69,8 @@ template<typename F, typename EF> __global__ void PopulatePermutationRows(
         EF row_cumulative_sum = EF::zero();
         size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
         for (size_t i = 0; i < num_interactions;) {
+            size_t interaction_value_batch_size = 0;
+
             for (size_t j = 0; j < batch_size; j++) {
                 if (i + j >= num_interactions) {
                     break;
@@ -129,7 +131,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
             EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, global_alpha, global_beta, local_alpha, local_beta, interaction_value_batch_size);
 
             // Accumulate the sum of values.
-            usize_t is_global = i < interactions.num_global_interactions;
+            bool is_global = i < interactions.num_global_interactions;
             if (is_global) {
                 global_row_cumulative_sum += value;
             } else {
