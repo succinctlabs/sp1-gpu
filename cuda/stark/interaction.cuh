@@ -63,5 +63,4 @@ template<typename F> struct Interactions {
 
     size_t num_global_interactions;
     size_t num_local_interactions;
-    size_t global_perm_width;
 };

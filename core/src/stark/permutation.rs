@@ -140,7 +140,9 @@ pub struct HostInteractions<F: Field> {
     pub arg_indices: Vec<F>,
     pub is_sends: Vec<bool>,
     pub is_globals: Vec<bool>,
-    pub num_interactions: usize,
+
+    pub num_global_interactions: usize,
+    pub num_local_interactions: usize,
 }
 
 #[derive(Debug)]
@@ -159,7 +161,9 @@ pub struct DeviceInteractions<F: Field> {
     pub arg_indices: DeviceBuffer<F>,
     pub is_sends: DeviceBuffer<bool>,
     pub is_globals: DeviceBuffer<bool>,
-    pub num_interactions: usize,
+
+    pub num_global_interactions: usize,
+    pub num_local_interactions: usize,
 }
 
 #[derive(Debug)]
@@ -178,7 +182,9 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub arg_indices: *const F,
     pub is_sends: *const bool,
     pub is_globals: *const bool,
-    pub num_interactions: usize,
+
+    pub num_global_interactions: usize,
+    pub num_local_interactions: usize,
 
     _marker: PhantomData<&'a F>,
 }
@@ -208,8 +214,6 @@ impl<F: Field> HostInteractions<F> {
         let mut mult_constants = vec![];
         let mut values_col_weights = vec![];
         let mut values_constants = vec![];
-
-        let num_interactions = sends.len() + receives.len();
 
         let mut curr_values_ptr = 0;
         let mut curr_values_col_weight_ptr = 0;
@@ -272,6 +276,24 @@ impl<F: Field> HostInteractions<F> {
         values_ptr.push(curr_values_ptr);
         multiplicities_ptr.push(curr_mult_ptr);
 
+        let num_global_interactions = sends
+            .get(&InteractionScope::Global)
+            .map(|v| v.len())
+            .unwrap_or(0)
+            + receives
+                .get(&InteractionScope::Global)
+                .map(|v| v.len())
+                .unwrap_or(0);
+
+        let num_local_interactions = sends
+            .get(&InteractionScope::Local)
+            .map(|v| v.len())
+            .unwrap_or(0)
+            + receives
+                .get(&InteractionScope::Local)
+                .map(|v| v.len())
+                .unwrap_or(0);
+
         Self {
             values_ptr,
             values_col_weights_ptr,
@@ -283,79 +305,79 @@ impl<F: Field> HostInteractions<F> {
             arg_indices,
             is_sends,
             is_globals,
-
-            num_interactions,
+            num_global_interactions,
+            num_local_interactions,
         }
     }
 
-    pub fn populate_permutation_row<EF: ExtensionField<F>>(
-        &self,
-        row: &mut [EF],
-        preprocessed_row: &[F],
-        main_row: &[F],
-        global_alpha: EF,
-        global_beta: EF,
-        local_alpha: EF,
-        local_beta: EF,
-        batch_size: usize,
-    ) where
-        F: Field,
-    {
-        for i in (0..self.num_interactions).step_by(batch_size) {
-            let mut value = EF::zero();
-            for j in 0..batch_size {
-                // Calculate the interaction index.
-                let index = i + j;
+    // pub fn populate_permutation_row<EF: ExtensionField<F>>(
+    //     &self,
+    //     row: &mut [EF],
+    //     preprocessed_row: &[F],
+    //     main_row: &[F],
+    //     global_alpha: EF,
+    //     global_beta: EF,
+    //     local_alpha: EF,
+    //     local_beta: EF,
+    //     batch_size: usize,
+    // ) where
+    //     F: Field,
+    // {
+    //     for i in (0..self.num_interactions).step_by(batch_size) {
+    //         let mut value = EF::zero();
+    //         for j in 0..batch_size {
+    //             // Calculate the interaction index.
+    //             let index = i + j;
 
-                if index >= self.num_interactions {
-                    break;
-                }
+    //             if index >= self.num_interactions {
+    //                 break;
+    //             }
 
-                // Initialize the denominator and beta powers.
-                let mut denominator = if self.is_globals[index] {
-                    global_alpha
-                } else {
-                    local_alpha
-                };
-                let mut beta_power = EF::one();
+    //             // Initialize the denominator and beta powers.
+    //             let mut denominator = if self.is_globals[index] {
+    //                 global_alpha
+    //             } else {
+    //                 local_alpha
+    //             };
+    //             let mut beta_power = EF::one();
 
-                // Add argument index to the denominator.
-                let argument_index = self.arg_indices[index];
-                denominator += beta_power * EF::from_base(argument_index);
+    //             // Add argument index to the denominator.
+    //             let argument_index = self.arg_indices[index];
+    //             denominator += beta_power * EF::from_base(argument_index);
 
-                // Add the interaction values.
-                for k in self.values_ptr[index]..self.values_ptr[index + 1] {
-                    beta_power *= if self.is_globals[index] {
-                        global_beta
-                    } else {
-                        local_beta
-                    };
-                    let mut acc = self.values_constants[k];
-                    for l in self.values_col_weights_ptr[k]..self.values_col_weights_ptr[k + 1] {
-                        acc += self.values_col_weights[l].get(preprocessed_row, main_row);
-                    }
-                    denominator += beta_power * acc;
-                }
+    //             // Add the interaction values.
+    //             for k in self.values_ptr[index]..self.values_ptr[index + 1] {
+    //                 beta_power *= if self.is_globals[index] {
+    //                     global_beta
+    //                 } else {
+    //                     local_beta
+    //                 };
+    //                 let mut acc = self.values_constants[k];
+    //                 for l in self.values_col_weights_ptr[k]..self.values_col_weights_ptr[k + 1] {
+    //                     acc += self.values_col_weights[l].get(preprocessed_row, main_row);
+    //                 }
+    //                 denominator += beta_power * acc;
+    //             }
 
-                // Calculate the multiplicity values.
-                let is_send = self.is_sends[index];
-                let mut mult = self.mult_constants[index];
-                for k in self.multiplicities_ptr[index]..self.multiplicities_ptr[index + 1] {
-                    mult += self.mult_col_weights[k].get(preprocessed_row, main_row);
-                }
+    //             // Calculate the multiplicity values.
+    //             let is_send = self.is_sends[index];
+    //             let mut mult = self.mult_constants[index];
+    //             for k in self.multiplicities_ptr[index]..self.multiplicities_ptr[index + 1] {
+    //                 mult += self.mult_col_weights[k].get(preprocessed_row, main_row);
+    //             }
 
-                if !is_send {
-                    mult = -mult;
-                }
+    //             if !is_send {
+    //                 mult = -mult;
+    //             }
 
-                // Add `mult/ denominator` to the sum.
-                value += EF::from_base(mult) / denominator;
-            }
-            // Assign the value to the row.
-            let row_index = i / batch_size;
-            row[row_index] = value;
-        }
-    }
+    //             // Add `mult/ denominator` to the sum.
+    //             value += EF::from_base(mult) / denominator;
+    //         }
+    //         // Assign the value to the row.
+    //         let row_index = i / batch_size;
+    //         row[row_index] = value;
+    //     }
+    // }
 }
 
 impl<F: Field> DeviceInteractions<F> {
@@ -374,7 +396,9 @@ impl<F: Field> DeviceInteractions<F> {
             arg_indices: self.arg_indices.as_ptr(),
             is_sends: self.is_sends.as_ptr(),
             is_globals: self.is_globals.as_ptr(),
-            num_interactions: self.num_interactions,
+
+            num_global_interactions: self.num_global_interactions,
+            num_local_interactions: self.num_local_interactions,
             _marker: PhantomData,
         }
     }
@@ -539,7 +563,8 @@ impl<F: Field> ToDevice for HostInteractions<F> {
             arg_indices: self.arg_indices.to_device_async(stream)?,
             is_sends: self.is_sends.to_device_async(stream)?,
             is_globals: self.is_globals.to_device_async(stream)?,
-            num_interactions: self.num_interactions,
+            num_global_interactions: self.num_global_interactions,
+            num_local_interactions: self.num_local_interactions,
         })
     }
 }
