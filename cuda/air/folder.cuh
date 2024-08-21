@@ -8,7 +8,7 @@ struct ConstraintFolder {
     Val* publicValues;
     Matrix<Val> perm;
     Challenge* permChallenges;
-    Challenge cumulativeSum;
+    Challenge cumulativeSums;
     Val isFirstRow;
     Val isLastRow;
     Val isTransition;
@@ -60,7 +60,7 @@ struct ConstraintFolder {
             case SymbolicFolderVarType::PermutationChallenge:
                 return permChallenges[var.idx];
             case SymbolicFolderVarType::CumulativeSum:
-                return cumulativeSum;
+                return cumulativeSums[var.idx];
             case SymbolicFolderVarType::PublicValue:
                 return publicValues[var.idx];
             case SymbolicFolderVarType::IsFirstRow:

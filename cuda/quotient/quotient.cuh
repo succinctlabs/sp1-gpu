@@ -10,7 +10,7 @@ namespace quotient_kernels {
 template <typename Val, typename Challenge, size_t MEMORY_SIZE>
 __global__ void computeValues(Operation *evalProgram,
                               size_t evalProgramLen, 
-                              Challenge cumulativeSum,
+                              Challenge *cumulativeSums,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
                               Matrix<Val> preprocessedTraceOnQuotientDomain,
@@ -54,7 +54,7 @@ __global__ void computeValues(Operation *evalProgram,
     folder.publicValues = publicValues;
     folder.perm = permutationTraceOnQuotientDomain;
     folder.permChallenges = permChallenges;
-    folder.cumulativeSum = cumulativeSum;
+    folder.cumulativeSums = cumulativeSums;
     folder.isFirstRow = isFirstRow;
     folder.isLastRow = isLastRow;
     folder.isTransition = isTransition;

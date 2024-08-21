@@ -5,14 +5,12 @@ pub mod symbolic_folder_var;
 
 use std::{marker::PhantomData, sync::Mutex};
 
-use hashbrown::HashMap;
 use lazy_static::lazy_static;
 use operation::Operation;
 use p3_air::Air;
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_core::air::InteractionScope;
 use sp1_core::stark::PROOF_MAX_NUM_PVS;
 use sp1_core::{
     air::MachineAir,
@@ -64,8 +62,7 @@ where
 
     let preprocessed_width = chip.preprocessed_width();
     let width = chip.width();
-    let global_permutation_width = chip.permutation_width(InteractionScope::Global);
-    let local_permutation_width = chip.permutation_width(InteractionScope::Local);
+    let permutation_width = chip.permutation_width();
 
     let preprocessed = AirOpenedValues {
         local: (0..preprocessed_width)
@@ -79,19 +76,12 @@ where
         local: (0..width).map(SymbolicFolderVar::main_local).collect(),
         next: (0..width).map(SymbolicFolderVar::main_next).collect(),
     };
-    let global_perm = AirOpenedValues {
-        local: (0..global_permutation_width)
+
+    let perm = AirOpenedValues {
+        local: (0..permutation_width)
             .map(SymbolicFolderVar::permutation_local)
             .collect(),
-        next: (0..global_permutation_width)
-            .map(SymbolicFolderVar::permutation_next)
-            .collect(),
-    };
-    let local_perm = AirOpenedValues {
-        local: (0..local_permutation_width)
-            .map(SymbolicFolderVar::permutation_local)
-            .collect(),
-        next: (0..local_permutation_width)
+        next: (0..permutation_width)
             .map(SymbolicFolderVar::permutation_next)
             .collect(),
     };
@@ -107,27 +97,21 @@ where
 
     let accumulator = SymbolicFolderExpr::alloc();
 
-    let mut perms = HashMap::new();
-    perms.insert(InteractionScope::Global, global_perm.view());
-    perms.insert(InteractionScope::Local, local_perm.view());
-
-    let mut perm_challenges = HashMap::new();
-    perm_challenges.insert(InteractionScope::Global, global_perm_challenges.as_slice());
-    perm_challenges.insert(InteractionScope::Local, local_perm_challenges.as_slice());
-
-    let mut cumulative_sums = HashMap::new();
-    cumulative_sums.insert(
-        InteractionScope::Global,
-        SymbolicFolderVar::cumulative_sum(),
-    );
-    cumulative_sums.insert(InteractionScope::Local, SymbolicFolderVar::cumulative_sum());
+    let perm_challenges = global_perm_challenges
+        .iter()
+        .chain(local_perm_challenges.iter())
+        .copied()
+        .collect::<Vec<_>>();
 
     let mut folder = P3EvalFolder {
         preprocessed: preprocessed.view(),
         main: main.view(),
-        perms,
-        perm_challenges,
-        cumulative_sums,
+        perm: perm.view(),
+        perm_challenges: &perm_challenges,
+        cumulative_sums: &[
+            SymbolicFolderVar::cumulative_sum(),
+            SymbolicFolderVar::cumulative_sum(),
+        ],
         public_values: &public_values,
         is_first_row: SymbolicFolderVar::is_first_row(),
         is_last_row: SymbolicFolderVar::is_last_row(),

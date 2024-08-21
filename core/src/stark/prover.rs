@@ -7,7 +7,6 @@ use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::Mmcs;
 use p3_commit::PolynomialSpace;
-use p3_field::AbstractExtensionField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
 use sp1_core::stark::AirOpenedValues;
@@ -138,9 +137,17 @@ where
         &self.machine
     }
 
-    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        let shard_chips = self.machine.shard_chips(record).collect::<Vec<_>>();
-        shard_chips
+    fn generate_traces(
+        &self,
+        record: &A::Record,
+        phase: ProvePhase,
+    ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+        let chips = match phase {
+            ProvePhase::Phase1 => self.phase1_chips(),
+            ProvePhase::Phase2 => self.shard_chips(record),
+        };
+
+        chips
             .par_iter()
             .map(|chip| {
                 let trace = chip.generate_trace(record, &mut A::Record::default());
@@ -151,7 +158,7 @@ where
 
     fn commit(
         &self,
-        shard: A::Record,
+        shard: &A::Record,
         mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
@@ -284,6 +291,8 @@ where
         pk: &StarkProvingKey<SC>,
         data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut <SC as StarkGenericConfig>::Challenger,
+        phase1_main_commit: Com<SC>,
+        global_permutation_challenges: &[SC::Challenge],
     ) -> Result<ShardProof<SC>, Self::Error> {
         let span = tracing::Span::current();
         let _span = span.enter();
@@ -328,16 +337,26 @@ where
             main_data.clear_matrices();
         }
 
+        // Observe the main commitment.
+        challenger.observe(main_commit.clone());
+
         // Get the permutation challenges.
-        let permutation_challenges = (0..2)
+        let local_permutation_challenges = (0..2)
             .map(|_| challenger.sample_ext_element())
             .collect::<Vec<_>>();
-        // Generate permutation traces.
+        let permutation_challenges = global_permutation_challenges
+            .iter()
+            .chain(local_permutation_challenges.iter())
+            .copied()
+            .collect::<Vec<_>>();
 
+        // Generate permutation traces.
         let permutation_span =
             tracing::debug_span!("generate and commit to permutation traces").entered();
-        let permutation_traces =
+        let permutation_traces_and_cumulative_sums =
             self.generate_permutation_traces(pk, &shard_chips, &traces, &permutation_challenges)?;
+        let (permutation_traces, cumulative_sums): (Vec<_>, Vec<_>) =
+            permutation_traces_and_cumulative_sums.into_iter().unzip();
 
         info!(
             "Shard: [{}]",
@@ -375,20 +394,6 @@ where
         // Observe the permutation commitment.
         challenger.observe(permutation_commit.clone());
 
-        // Get the cumulative sums from device.
-        let cumulative_sums = perm_domains_and_traces
-            .iter()
-            .map(|(_, trace)| {
-                let row_idx = trace.height() - 1;
-                let start_col_idx =
-                    trace.width() - <SC::Challenge as AbstractExtensionField<SC::Val>>::D;
-                SC::Challenge::from_base_fn(|i| {
-                    let index = (start_col_idx + i) * trace.height() + row_idx;
-                    let val = trace.values[index..index + 1].as_host_vec(trace.stream());
-                    val[0]
-                })
-            })
-            .collect::<Vec<_>>();
         // Delete the ldes of the permutation prover data.
         if recompute_ldes {
             perm_prover_data.clear_matrices();
@@ -411,7 +416,7 @@ where
             pk,
             &traces,
             &perm_domains_and_traces,
-            &permutation_challenges,
+            &local_permutation_challenges,
             folding_challenge,
             &public_values,
             &cumulative_sums,
@@ -548,7 +553,8 @@ where
                         main,
                         permutation,
                         quotient,
-                        cumulative_sum,
+                        global_cumulative_sum: cumulative_sum[0],
+                        local_cumulative_sum: cumulative_sum[1],
                         log_degree,
                     }
                 },
@@ -557,6 +563,7 @@ where
 
         Ok(ShardProof::<SC> {
             commitment: ShardCommitment {
+                phase1_main_commit,
                 main_commit,
                 permutation_commit,
                 quotient_commit,
@@ -591,10 +598,10 @@ where
 
         // Generate and commit the traces for each shard.
         let phase1_shard_data: Vec<_> = records
-            .into_iter()
+            .iter()
             .map(|record| {
-                let traces = self.generate_traces(&record, ProvePhase::Phase1);
-                self.commit(&record, traces)
+                let traces = self.generate_traces(record, ProvePhase::Phase1);
+                self.commit(record, traces)
             })
             .collect();
 
@@ -610,13 +617,22 @@ where
             global_permutation_challenges.push(challenger.sample_ext_element());
         }
 
-        let shard_proofs = shard_data
-            .into_iter()
-            .map(|data| {
-                let mut challenger = challenger.clone();
+        let shard_proofs = records
+            .iter()
+            .zip(phase1_shard_data.into_iter())
+            .map(|(record, phase1_data)| {
+                let traces = self.generate_traces(record, ProvePhase::Phase2);
+                let phase2_data = self.commit(record, traces);
+
                 let span = tracing::Span::current();
                 let _span = span.enter();
-                self.open(pk, data, &mut challenger)
+                self.open(
+                    pk,
+                    phase2_data,
+                    &mut challenger.clone(),
+                    phase1_data.main_commit,
+                    &global_permutation_challenges,
+                )
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
 
@@ -636,13 +652,14 @@ where
         self.machine.config().pcs()
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn generate_permutation_traces(
         &self,
         pk: &StarkProvingKey<SC>,
         chips: &[&Chip<SC::Val, A>],
         main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
-    ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
+    ) -> Result<Vec<(GpuMatrix<SC::Val>, Vec<SC::Challenge>)>, CudaError> {
         chips
             .iter()
             .zip(main_traces.iter())
