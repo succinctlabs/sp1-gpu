@@ -621,7 +621,6 @@ pub mod tests {
     use sp1_core_executor::Program;
     use sp1_core_machine::riscv::RiscvAir;
     use sp1_core_machine::utils::run_test;
-    use sp1_core_machine::utils::tests::SSZ_WITHDRAWALS_ELF;
     use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
     use crate::{
@@ -692,18 +691,5 @@ pub mod tests {
 
         let mut challenger = prover.config().challenger();
         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    fn test_ssz_withdrawals_prove() {
-        let program = Program::from(SSZ_WITHDRAWALS_ELF).unwrap();
-
-        init_tracer();
-        // Execute the program.
-        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-            program,
-        )
-        .unwrap();
     }
 }
