@@ -7,5 +7,5 @@ images:
 
 runners:
   gpu-nvidia:
-    family: ["g4dn.xlarge"]
+    family: ["g6.16xlarge"]
     image: dlami-x64
