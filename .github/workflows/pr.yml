@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   test:
-    name: Test (fast-experimental)
+    name: Test
     runs-on: [runs-on,runner=gpu-nvidia]
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
