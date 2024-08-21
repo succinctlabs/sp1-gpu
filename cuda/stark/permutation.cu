@@ -7,6 +7,8 @@ template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue
     Matrix<F> const preprocessed,  Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
         EF value = EF::zero(); 
 
+        printf("Entered InteractionValue\n");
+
         size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
         for (size_t j = 0; j < batch_size; j++) {
                 // Calculate the interaction index.
@@ -102,8 +104,6 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
     Matrix<F> permutation, Matrix<F> const preprocessed, 
     Matrix<F> const main, EF const global_alpha, EF const global_beta, EF const local_alpha,
     EF const local_beta, size_t const batch_size) {
-        printf("PopulatePermutationRowsFlattened and batch_size is %d\n", batch_size);
-
         size_t RowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
 
         if (RowIdx >= permutation.height) {
@@ -111,9 +111,6 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
         }
 
         size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
-        printf("Num interactions: %d\n", num_interactions);
-        printf("Num global interactions: %d\n", interactions.num_global_interactions);
-        printf("Num local interactions: %d\n", interactions.num_local_interactions);
 
         EF global_row_cumulative_sum = EF::zero();
         EF local_row_cumulative_sum = EF::zero();
@@ -122,11 +119,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
             bool is_global = scope == 0;
             size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
             size_t end_idx = is_global ? interactions.num_global_interactions : num_interactions;
-
-            printf("Scope: %d\n", scope);
-            printf("Start index: %d\n", start_idx);
-            printf("End index: %d\n", end_idx);
-
+    
             for (size_t i = start_idx; i < end_idx; i+=batch_size) {
                 EF alpha = is_global ? global_alpha : local_alpha;
                 EF beta = is_global ? global_beta : local_beta;
