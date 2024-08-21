@@ -7,5 +7,7 @@ images:
 
 runners:
   gpu-nvidia-2:
-    family: ["g6.16xlarge"]
+    cpu: [32, 64]
+    family: ["g6"]
     image: dlami-x64
+    spot: false
