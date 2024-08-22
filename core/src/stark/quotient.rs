@@ -587,6 +587,7 @@ mod tests {
             .to_column_major();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
+            let cumulative_sums_device = cumulative_sums.to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -603,7 +604,7 @@ mod tests {
                     operations_device.as_ptr(),
                     operations.len(),
                     expr_ctr,
-                    cumulative_sums.as_ptr(),
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),
