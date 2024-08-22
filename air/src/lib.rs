@@ -87,20 +87,11 @@ where
     let public_values = (0..PROOF_MAX_NUM_PVS)
         .map(SymbolicFolderVar::public_value)
         .collect::<Vec<_>>();
-    let global_perm_challenges = (0..2)
-        .map(SymbolicFolderVar::permutation_challenge)
-        .collect::<Vec<_>>();
-    let local_perm_challenges = (0..2)
+    let perm_challenges = (0..4)
         .map(SymbolicFolderVar::permutation_challenge)
         .collect::<Vec<_>>();
 
     let accumulator = SymbolicFolderExpr::alloc();
-
-    let perm_challenges = global_perm_challenges
-        .iter()
-        .chain(local_perm_challenges.iter())
-        .copied()
-        .collect::<Vec<_>>();
 
     let cumulative_sums = (0..2)
         .map(SymbolicFolderVar::cumulative_sum)
