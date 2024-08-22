@@ -7,8 +7,6 @@ template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue
     Matrix<F> const preprocessed,  Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
         EF value = EF::zero(); 
 
-        printf("Entered InteractionValue\n");
-
         size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
         for (size_t j = 0; j < batch_size; j++) {
                 // Calculate the interaction index.
