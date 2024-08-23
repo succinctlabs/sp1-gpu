@@ -62,6 +62,7 @@ mod tests {
     use moongate_core::utils::init_tracer;
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
+    use sp1_prover::tests::test_e2e_with_deferred_proofs_prover;
     use sp1_prover::tests::Test;
 
     use crate::components::GpuProverComponents;
@@ -83,6 +84,13 @@ mod tests {
 
         let opts = gpu_prover_opts();
         test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    fn test_deferred_e2e() {
+        init_tracer();
+        let opts = gpu_prover_opts();
+        test_e2e_with_deferred_proofs_prover::<GpuProverComponents>(opts).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
