@@ -86,6 +86,7 @@ where
             local_alpha,
             local_beta,
             batch_size,
+            *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0),
             num_blocks,
             num_threads_per_block,
             stream,
@@ -447,6 +448,7 @@ impl DeviceInteractions<BabyBear> {
         local_alpha: BinomialExtensionField<BabyBear, 4>,
         local_beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
+        global_perm_width: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
         stream: &CudaStream,
@@ -479,6 +481,18 @@ impl DeviceInteractions<BabyBear> {
                 cumulative_column.scan_inplace(stream)?;
             }
         }
+
+        if global_perm_width > 0 {
+            let col = (global_perm_width - 1) * D;
+            unsafe {
+                for j in 0..4 {
+                    let last_col_ptr = permutation.values.add((col + j) * height);
+                    let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
+                    cumulative_column.scan_inplace(stream)?;
+                }
+            }
+        }
+
         Ok(())
     }
 }
