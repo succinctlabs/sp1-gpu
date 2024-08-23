@@ -113,6 +113,8 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
         EF global_row_cumulative_sum = EF::zero();
         EF local_row_cumulative_sum = EF::zero();
 
+        bool has_global = interactions.num_global_interactions > 0;
+
         for (size_t scope = 0; scope < 2; scope ++) {
             bool is_global = scope == 0;
             size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
@@ -135,7 +137,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
                 size_t perm_index = (i / batch_size) * EF::D;
 
                 // Need local interactions, need to account for the global cumulative sum.
-                if (!is_global) {
+                if (!is_global && has_global) {
                     perm_index += EF::D;
                 }
 
@@ -148,8 +150,8 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
         }
 
         // Assign the global cumulative sum of values to the last column of the global permutation trace.
-        if (interactions.num_global_interactions > 0) {
-            size_t last_col_index = permutation.width - (interactions.global_width + 1) * EF::D;
+        if (has_global) {
+            size_t last_col_index = (interactions.global_width - 1) * EF::D;
             #pragma unroll
             for (size_t k = 0; k < EF::D; k++) {
                 size_t flatten_perm_index = last_col_index + k;
