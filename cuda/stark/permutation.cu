@@ -136,6 +136,9 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
 
                 // Assign the value to the row.
                 size_t perm_index = (i / batch_size) * EF::D;
+                if (!is_global) {
+                    perm_index += interactions.global_width * EF::D;
+                }
 
                 // Need local interactions, need to account for the global cumulative sum.
                 if (!is_global && has_global) {

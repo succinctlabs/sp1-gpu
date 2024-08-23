@@ -100,6 +100,10 @@ where
         let mut global_cumulative_sum = Default::default();
         let mut local_cumulative_sum = Default::default();
         for (scope, width) in grouped_widths {
+            if width == 0 {
+                continue;
+            }
+
             let (start_col_idx, scope_cumulative_sum) = match scope {
                 InteractionScope::Global => ((width - 1) * D, &mut global_cumulative_sum),
                 InteractionScope::Local => {
