@@ -10,3 +10,6 @@ pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
     include_bytes!("../programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
 
 pub const RETH_ELF: &[u8] = include_bytes!("../programs/reth/riscv32im-succinct-zkvm-elf");
+
+pub const KEYSPACE_ELF: &[u8] = include_bytes!("../programs/keyspace/riscv32im-succinct-zkvm-elf");
+pub const KEYSPACE_STDIN: &[u8] = include_bytes!("../programs/keyspace/stdin.bin");

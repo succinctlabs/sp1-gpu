@@ -1,4 +1,5 @@
 use moongate_core::utils::init_tracer;
+use moongate_perf::programs::KEYSPACE_ELF;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
@@ -29,6 +30,7 @@ enum Program {
     Sha2Chain,
     Tendermint,
     Reth,
+    Keyspace,
     All,
 }
 
@@ -66,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             vec![("Tendermint Benchmark", TENDERMINT_BENCHMARK_ELF)]
         }
         Program::Reth => vec![("Reth", RETH_ELF)],
+        Program::Keyspace => vec![("Keyspace", KEYSPACE_ELF)],
     };
 
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
@@ -73,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut measurements = vec![];
     for (name, elf) in named_programs {
+        let measurement = make_measurement(&prover, name, elf, opts);
         let measurement = make_measurement(&prover, name, elf, opts);
         println!("{}", measurement);
         measurements.push(measurement);
