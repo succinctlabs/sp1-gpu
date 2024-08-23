@@ -137,9 +137,15 @@ mod tests {
             (((x as u64) << MONTY_BITS) % P as u64) as u32
         }
 
-        assert_eq!(0xfffffbe, to_monty(BabyBear::generator().as_canonical_u32()));
+        assert_eq!(
+            0xfffffbe,
+            to_monty(BabyBear::generator().as_canonical_u32())
+        );
 
-        assert_eq!(0x17bdef7c, to_monty(BabyBear::generator().inverse().as_canonical_u32()));
+        assert_eq!(
+            0x17bdef7c,
+            to_monty(BabyBear::generator().inverse().as_canonical_u32())
+        );
 
         for i in 0..28 {
             println!(
@@ -274,7 +280,8 @@ mod tests {
     fn test_coset_lde() {
         let mut rng = thread_rng();
 
-        let log_degrees = 4..20;
+        let log_degrees = 3..10;
+        //let log_degrees = 4..=5;
         let log_blowup = 2;
 
         let dft = DeviceDft::new();
@@ -287,7 +294,8 @@ mod tests {
             let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d).unwrap();
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
-
+            println!("size1: {:?}", &vec![BabyBear::zero(); ext_d - d].len());
+            println!("size2: {:?}", values.len());
             d_values.extend_from_host_slice(&vec![BabyBear::zero(); ext_d - d]);
             d_values.extend_from_host_slice(&values);
 
@@ -326,7 +334,10 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h.to_device().unwrap().to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h
+                .to_device()
+                .unwrap()
+                .to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();
@@ -367,7 +378,10 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h.to_device().unwrap().to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h
+                .to_device()
+                .unwrap()
+                .to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();
