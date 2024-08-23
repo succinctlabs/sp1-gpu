@@ -2,7 +2,7 @@ use std::hint;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{ffi::c_void, mem, ptr};
+use std::{ffi::c_void, ptr};
 
 use thiserror::Error;
 
