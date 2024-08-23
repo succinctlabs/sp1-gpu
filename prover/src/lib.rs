@@ -49,8 +49,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
         opts.recursion_opts.records_and_traces_channel_capacity = 1;
         opts.recursion_opts.trace_gen_workers = 1;
     } else {
-        opts.recursion_opts.records_and_traces_channel_capacity = 4;
-        opts.recursion_opts.trace_gen_workers = 4;
+        opts.recursion_opts.records_and_traces_channel_capacity = 2;
+        opts.recursion_opts.trace_gen_workers = 2;
     }
     opts
 }
