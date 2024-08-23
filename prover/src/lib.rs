@@ -82,7 +82,7 @@ mod tests {
         }
 
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Shrink).unwrap()
+        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Wrap).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
