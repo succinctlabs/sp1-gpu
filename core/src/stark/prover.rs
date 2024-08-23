@@ -118,7 +118,7 @@ where
         let (_, total) = cuda_mem_get_info().unwrap();
         let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
         tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
-        let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
+        let chip_streams = machine.chips().iter().map(|_| CudaStream::default()).collect();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),

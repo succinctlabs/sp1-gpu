@@ -6,6 +6,8 @@ use std::{ffi::c_void, mem, ptr};
 
 use thiserror::Error;
 
+use crate::device::memory::{copy_device_to_device, copy_host_to_device, cuda_malloc};
+use crate::device::memory::{copy_device_to_host, cuda_free};
 use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
@@ -83,16 +85,17 @@ impl CudaStream {
     ///
     /// TODO
     unsafe fn cuda_malloc_async<T: Copy>(&self, size: usize) -> Result<*mut T, CudaError> {
-        let mut ptr: *mut c_void = ptr::null_mut();
-        unsafe {
-            ffi::cuda_malloc_async(
-                &mut ptr as *mut *mut c_void,
-                size * mem::size_of::<T>(),
-                self.0 .0,
-            )
-        }
-        .to_result()?;
-        Ok(ptr as *mut T)
+        cuda_malloc(size)
+        // let mut ptr: *mut c_void = ptr::null_mut();
+        // unsafe {
+        //     ffi::cuda_malloc_async(
+        //         &mut ptr as *mut *mut c_void,
+        //         size * mem::size_of::<T>(),
+        //         self.0 .0,
+        //     )
+        // }
+        // .to_result()?;
+        // Ok(ptr as *mut T)
     }
 
     /// # Safety
@@ -150,7 +153,8 @@ impl CudaStream {
     /// TODO
     #[inline]
     pub unsafe fn free_async<T: Copy>(&self, ptr: *mut T) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
+        unsafe { cuda_free(ptr) }
+        // unsafe { ffi::cuda_free_async(ptr as *mut c_void, self.0 .0) }.to_result()
     }
 
     /// # Safety
@@ -162,15 +166,16 @@ impl CudaStream {
         src: *const T,
         count: usize,
     ) -> Result<(), CudaError> {
-        unsafe {
-            ffi::cuda_mem_copy_device_to_device_async(
-                dst as *mut c_void,
-                src as *const c_void,
-                count * mem::size_of::<T>(),
-                self.0 .0,
-            )
-        }
-        .to_result()
+        copy_device_to_device(dst, src, count)
+        // unsafe {
+        //     ffi::cuda_mem_copy_device_to_device_async(
+        //         dst as *mut c_void,
+        //         src as *const c_void,
+        //         count * mem::size_of::<T>(),
+        //         self.0 .0,
+        //     )
+        // }
+        // .to_result()
     }
 
     /// # Safety
@@ -182,15 +187,16 @@ impl CudaStream {
         src: *const T,
         count: usize,
     ) -> Result<(), CudaError> {
-        unsafe {
-            ffi::cuda_mem_copy_host_to_device_async(
-                dst as *mut c_void,
-                src as *const c_void,
-                count * mem::size_of::<T>(),
-                self.0 .0,
-            )
-        }
-        .to_result()
+        copy_host_to_device(dst, src, count)
+        // unsafe {
+        //     ffi::cuda_mem_copy_host_to_device_async(
+        //         dst as *mut c_void,
+        //         src as *const c_void,
+        //         count * mem::size_of::<T>(),
+        //         self.0 .0,
+        //     )
+        // }
+        // .to_result()
     }
 
     /// # Safety
@@ -203,37 +209,38 @@ impl CudaStream {
         src: *const T,
         count: usize,
     ) -> Result<(), CudaError> {
-        unsafe {
-            ffi::cuda_mem_copy_device_to_host_async(
-                dst as *mut c_void,
-                src as *const c_void,
-                count * mem::size_of::<T>(),
-                self.0 .0,
-            )
-        }
-        .to_result()
+        copy_device_to_host(dst, src, count)
+        // unsafe {
+        //     ffi::cuda_mem_copy_device_to_host_async(
+        //         dst as *mut c_void,
+        //         src as *const c_void,
+        //         count * mem::size_of::<T>(),
+        //         self.0 .0,
+        //     )
+        // }
+        // .to_result()
     }
 
-    /// # Safety
-    ///
-    /// TODO
-    #[inline]
-    pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
-        &self,
-        dst: *mut T,
-        src: *const T,
-        count: usize,
-    ) -> Result<(), CudaError> {
-        unsafe {
-            ffi::cuda_mem_copy_host_to_host_async(
-                dst as *mut c_void,
-                src as *const c_void,
-                count * mem::size_of::<T>(),
-                self.0 .0,
-            )
-        }
-        .to_result()
-    }
+    // /// # Safety
+    // ///
+    // /// TODO
+    // #[inline]
+    // pub unsafe fn cuda_memcpy_host_to_host_async<T: Copy>(
+    //     &self,
+    //     dst: *mut T,
+    //     src: *const T,
+    //     count: usize,
+    // ) -> Result<(), CudaError> {
+    //     unsafe {
+    //         ffi::cuda_mem_copy_host_to_host_async(
+    //             dst as *mut c_void,
+    //             src as *const c_void,
+    //             count * mem::size_of::<T>(),
+    //             self.0 .0,
+    //         )
+    //     }
+    //     .to_result()
+    // }
 }
 
 impl Default for CudaStream {
