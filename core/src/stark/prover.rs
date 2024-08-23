@@ -349,6 +349,11 @@ where
             .copied()
             .collect::<Vec<_>>();
 
+        println!(
+            "Prover Permutation challenges: {:?}",
+            permutation_challenges
+        );
+
         // Generate permutation traces.
         let permutation_span =
             tracing::debug_span!("generate and commit to permutation traces").entered();
@@ -538,6 +543,11 @@ where
             .enumerate()
             .map(
                 |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                    println!(
+                        "Chip: {} and cumulative sums are {:?}",
+                        chip.name(),
+                        cumulative_sum
+                    );
                     let preprocessed = pk
                         .chip_ordering
                         .get(&chip.name())
@@ -670,13 +680,36 @@ where
                         .to_column_major()
                 });
 
-                self.permutation_trace_generator
+                let res = self
+                    .permutation_trace_generator
                     .generate_flattened_permutation_trace(
                         chip,
                         preprocessed_trace.as_ref(),
                         main_trace,
                         random_elements,
-                    )
+                    );
+
+                let (mat, cumulative_sums) = res.unwrap();
+
+                let index = pk.chip_ordering.get(&chip.name());
+                let preprocessing_trace = index.map(|index| &pk.traces[*index]);
+                let main_trace = main_trace.to_host();
+
+                let expected_perm_trace = chip
+                    .generate_permutation_trace(preprocessing_trace, &main_trace, random_elements)
+                    .0
+                    .flatten_to_base::<BabyBear>();
+
+                for (i, (exp, res)) in expected_perm_trace
+                    .values
+                    .iter()
+                    .zip(mat.to_host().values.iter())
+                    .enumerate()
+                {
+                    assert_eq!(exp, res, "chip: {}, at index {}", chip.name(), i);
+                }
+
+                Ok((mat, cumulative_sums))
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }

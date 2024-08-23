@@ -75,6 +75,8 @@ where
 
         let num_threads_per_block = 256;
         let num_blocks = height.div_ceil(num_threads_per_block);
+        let global_perm_width = *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0);
+        let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
             preprocessed_trace
@@ -86,7 +88,8 @@ where
             local_alpha,
             local_beta,
             batch_size,
-            *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0),
+            global_perm_width,
+            has_local_perm,
             num_blocks,
             num_threads_per_block,
             stream,
@@ -449,6 +452,7 @@ impl DeviceInteractions<BabyBear> {
         local_beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
         global_perm_width: usize,
+        has_local_perm: bool,
         num_blocks: usize,
         num_threads_per_block: usize,
         stream: &CudaStream,
@@ -472,13 +476,15 @@ impl DeviceInteractions<BabyBear> {
         // Collect the cumulative sums using a scan in place.
 
         // TODO: optimize with a single kernel call instead of scan for each column of the batch.
-        let col = permutation.width - D;
         let height = permutation.height;
-        unsafe {
-            for j in 0..4 {
-                let last_col_ptr = permutation.values.add((col + j) * height);
-                let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-                cumulative_column.scan_inplace(stream)?;
+        if has_local_perm {
+            let col = permutation.width - D;
+            unsafe {
+                for j in 0..4 {
+                    let last_col_ptr = permutation.values.add((col + j) * height);
+                    let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
+                    cumulative_column.scan_inplace(stream)?;
+                }
             }
         }
 
@@ -702,7 +708,7 @@ mod tests {
         let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
-        let (perm_d, _) = perm_generator
+        let (perm_d, cumulative_sums) = perm_generator
             .generate_flattened_permutation_trace(
                 &chip,
                 Some(&prep_d),
@@ -712,6 +718,8 @@ mod tests {
             .unwrap();
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
+
+        println!("cumulative_sums: {:?}", cumulative_sums);
 
         let perm_h = perm_d.to_host();
 
