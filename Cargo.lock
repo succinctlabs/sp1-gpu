@@ -3323,6 +3323,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3357,6 +3358,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3421,6 +3423,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3440,6 +3443,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3459,6 +3463,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3468,6 +3473,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3480,6 +3486,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3518,6 +3525,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3541,6 +3549,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3578,6 +3587,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3606,6 +3616,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3642,6 +3653,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3681,6 +3693,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3690,6 +3703,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3715,6 +3729,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3745,6 +3760,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/small-program-opts#88f8ffefdad14c926fd527a1a67093ce9b472f9b"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
