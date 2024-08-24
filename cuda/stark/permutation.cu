@@ -4,15 +4,14 @@
 
 template<typename F, typename EF> __device__ __forceinline__ EF InteractionValue(
     size_t i, size_t RowIdx, Interactions<F> const interactions,
-    Matrix<F> const preprocessed,  Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size) {
+    Matrix<F> const preprocessed,  Matrix<F> const main, EF const alpha, EF const beta, size_t const batch_size, size_t const max_idx) {
         EF value = EF::zero(); 
 
-        size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
         for (size_t j = 0; j < batch_size; j++) {
                 // Calculate the interaction index.
                 size_t index = i + j;
 
-                if (index >= num_interactions) {
+                if (index >= max_idx) {
                     break;
                 }
 
@@ -120,12 +119,13 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
             bool is_global = scope == 0;
             size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
             size_t end_idx = is_global ? interactions.num_global_interactions : num_interactions;
+            size_t max_idx = is_global ? interactions.num_global_interactions : interactions.num_local_interactions;
+            size_t perm_start_idx = is_global ? 0 : interactions.global_width;
+            EF alpha = is_global ? global_alpha : local_alpha;
+            EF beta = is_global ? global_beta : local_beta;
     
             for (size_t i = start_idx; i < end_idx; i+=batch_size) {
-                EF alpha = is_global ? global_alpha : local_alpha;
-                EF beta = is_global ? global_beta : local_beta;
-
-                EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size);
+                EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size, max_idx);
 
                 // Accumulate the sum of values.
                 if (is_global) {
@@ -135,15 +135,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
                 }
 
                 // Assign the value to the row.
-                size_t perm_index = (i / batch_size) * EF::D;
-                if (!is_global) {
-                    perm_index += interactions.global_width * EF::D;
-                }
-
-                // Need local interactions, need to account for the global cumulative sum.
-                if (!is_global && has_global) {
-                    perm_index += EF::D;
-                }
+                size_t perm_index = perm_start_idx + (i / batch_size) * EF::D;
 
                 #pragma unroll
                 for (size_t k = 0; k < EF::D; k++) {

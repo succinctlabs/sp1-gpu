@@ -51,6 +51,14 @@ where
         let (grouped_sends, grouped_receives, grouped_widths) =
             get_grouped_maps(chip.sends(), chip.receives(), batch_size);
 
+        if chip.name() == "CPU" {
+            println!("sends for cpu: {:?}", chip.sends());
+            println!("receives for cpu: {:?}", chip.receives());
+            println!("grouped_sends for cpu: {:?}", grouped_sends);
+            println!("grouped_receives for cpu: {:?}", grouped_receives);
+            println!("grouped_widths for cpu: {:?}", grouped_widths);
+        }
+
         let device_interactions = HostInteractions::new(
             grouped_sends,
             grouped_receives,
@@ -77,6 +85,10 @@ where
         let num_blocks = height.div_ceil(num_threads_per_block);
         let global_perm_width = *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0);
         let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
+        if chip.name() == "CPU" {
+            println!("global_perm_width for CPU: {}", global_perm_width);
+            println!("has_local_perm for CPU: {}", has_local_perm);
+        }
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
             preprocessed_trace
@@ -253,7 +265,14 @@ impl<F: Field> HostInteractions<F> {
                 sends.chain(receives)
             })
             .into_iter()
-            .flatten();
+            .flatten()
+            .collect::<Vec<_>>();
+
+        println!("flattened interactions: {:?}", interactions);
+        println!(
+            "first interaction's multiplicity info: {:?}",
+            interactions[0].0.multiplicity
+        );
 
         for (interaction, is_send_flag) in interactions {
             // Register the values
@@ -304,6 +323,10 @@ impl<F: Field> HostInteractions<F> {
                 .get(&InteractionScope::Local)
                 .map(|v| v.len())
                 .unwrap_or(0);
+
+        println!("num_global_interactions: {:?}", num_global_interactions);
+        println!("num_local_interactions: {:?}", num_local_interactions);
+        println!("global_width: {:?}", global_width);
 
         Self {
             values_ptr,
