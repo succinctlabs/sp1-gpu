@@ -413,6 +413,12 @@ where
         let quotient_span =
             tracing::debug_span!("generate and commit to quotient values").entered();
 
+        let permutation_challenges = global_permutation_challenges
+            .iter()
+            .chain(local_permutation_challenges.iter())
+            .copied()
+            .collect::<Vec<_>>();
+
         // Compute values
         let quotient_values = self.quotient_generator.generate_quotient_values(
             &self.committer,
@@ -420,7 +426,7 @@ where
             pk,
             &traces,
             &perm_domains_and_traces,
-            &local_permutation_challenges,
+            &permutation_challenges,
             folding_challenge,
             &public_values,
             &cumulative_sums,
