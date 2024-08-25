@@ -121,13 +121,6 @@ where
             *scope_cumulative_sum = cumulative_sum;
         }
 
-        println!(
-            "for chip {:?}, global_cumulative_sum: {:?}, local_cumulative_sum: {:?}",
-            chip.name(),
-            global_cumulative_sum,
-            local_cumulative_sum
-        );
-
         Ok((
             permutation_trace,
             vec![global_cumulative_sum, local_cumulative_sum],
