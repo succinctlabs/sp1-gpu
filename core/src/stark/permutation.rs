@@ -51,14 +51,6 @@ where
         let (grouped_sends, grouped_receives, grouped_widths) =
             get_grouped_maps(chip.sends(), chip.receives(), batch_size);
 
-        if chip.name() == "CPU" {
-            println!("sends for cpu: {:?}", chip.sends());
-            println!("receives for cpu: {:?}", chip.receives());
-            println!("grouped_sends for cpu: {:?}", grouped_sends);
-            println!("grouped_receives for cpu: {:?}", grouped_receives);
-            println!("grouped_widths for cpu: {:?}", grouped_widths);
-        }
-
         let device_interactions = HostInteractions::new(
             grouped_sends,
             grouped_receives,
@@ -85,10 +77,6 @@ where
         let num_blocks = height.div_ceil(num_threads_per_block);
         let global_perm_width = *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0);
         let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
-        if chip.name() == "CPU" {
-            println!("global_perm_width for CPU: {}", global_perm_width);
-            println!("has_local_perm for CPU: {}", has_local_perm);
-        }
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
             preprocessed_trace
@@ -132,6 +120,13 @@ where
 
             *scope_cumulative_sum = cumulative_sum;
         }
+
+        println!(
+            "for chip {:?}, global_cumulative_sum: {:?}, local_cumulative_sum: {:?}",
+            chip.name(),
+            global_cumulative_sum,
+            local_cumulative_sum
+        );
 
         Ok((
             permutation_trace,
@@ -268,12 +263,6 @@ impl<F: Field> HostInteractions<F> {
             .flatten()
             .collect::<Vec<_>>();
 
-        println!("flattened interactions: {:?}", interactions);
-        println!(
-            "first interaction's multiplicity info: {:?}",
-            interactions[0].0.multiplicity
-        );
-
         for (interaction, is_send_flag) in interactions {
             // Register the values
             values_ptr.push(curr_values_ptr);
@@ -324,10 +313,6 @@ impl<F: Field> HostInteractions<F> {
                 .map(|v| v.len())
                 .unwrap_or(0);
 
-        println!("num_global_interactions: {:?}", num_global_interactions);
-        println!("num_local_interactions: {:?}", num_local_interactions);
-        println!("global_width: {:?}", global_width);
-
         Self {
             values_ptr,
             values_col_weights_ptr,
@@ -343,75 +328,6 @@ impl<F: Field> HostInteractions<F> {
             global_width,
         }
     }
-
-    // pub fn populate_permutation_row<EF: ExtensionField<F>>(
-    //     &self,
-    //     row: &mut [EF],
-    //     preprocessed_row: &[F],
-    //     main_row: &[F],
-    //     global_alpha: EF,
-    //     global_beta: EF,
-    //     local_alpha: EF,
-    //     local_beta: EF,
-    //     batch_size: usize,
-    // ) where
-    //     F: Field,
-    // {
-    //     for i in (0..self.num_interactions).step_by(batch_size) {
-    //         let mut value = EF::zero();
-    //         for j in 0..batch_size {
-    //             // Calculate the interaction index.
-    //             let index = i + j;
-
-    //             if index >= self.num_interactions {
-    //                 break;
-    //             }
-
-    //             // Initialize the denominator and beta powers.
-    //             let mut denominator = if self.is_globals[index] {
-    //                 global_alpha
-    //             } else {
-    //                 local_alpha
-    //             };
-    //             let mut beta_power = EF::one();
-
-    //             // Add argument index to the denominator.
-    //             let argument_index = self.arg_indices[index];
-    //             denominator += beta_power * EF::from_base(argument_index);
-
-    //             // Add the interaction values.
-    //             for k in self.values_ptr[index]..self.values_ptr[index + 1] {
-    //                 beta_power *= if self.is_globals[index] {
-    //                     global_beta
-    //                 } else {
-    //                     local_beta
-    //                 };
-    //                 let mut acc = self.values_constants[k];
-    //                 for l in self.values_col_weights_ptr[k]..self.values_col_weights_ptr[k + 1] {
-    //                     acc += self.values_col_weights[l].get(preprocessed_row, main_row);
-    //                 }
-    //                 denominator += beta_power * acc;
-    //             }
-
-    //             // Calculate the multiplicity values.
-    //             let is_send = self.is_sends[index];
-    //             let mut mult = self.mult_constants[index];
-    //             for k in self.multiplicities_ptr[index]..self.multiplicities_ptr[index + 1] {
-    //                 mult += self.mult_col_weights[k].get(preprocessed_row, main_row);
-    //             }
-
-    //             if !is_send {
-    //                 mult = -mult;
-    //             }
-
-    //             // Add `mult/ denominator` to the sum.
-    //             value += EF::from_base(mult) / denominator;
-    //         }
-    //         // Assign the value to the row.
-    //         let row_index = i / batch_size;
-    //         row[row_index] = value;
-    //     }
-    // }
 }
 
 impl<F: Field> DeviceInteractions<F> {
@@ -623,81 +539,21 @@ mod tests {
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
-    use p3_field::AbstractField;
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use rand::thread_rng;
     use rand::Rng;
 
-    use sp1_core::stark::permutation_trace_width;
     use sp1_core::utils::tests::FIBONACCI_ELF;
 
     use sp1_core::{
         air::MachineAir,
         runtime::Program,
-        stark::{populate_permutation_row, ByteChip, Chip},
+        stark::{ByteChip, Chip},
     };
 
     type F = BabyBear;
     const D: usize = 4;
     type EF = BinomialExtensionField<F, D>;
-
-    // #[test]
-    // fn test_populate_permutation_row_host() {
-    //     let mut rng = thread_rng();
-
-    //     let air = ByteChip::<F>::default();
-    //     let chip = Chip::new(air);
-
-    //     let program = Program::from(FIBONACCI_ELF);
-
-    //     let num_rows = 1 << 16;
-    //     let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
-
-    //     let batch_size = chip.logup_batch_size();
-    //     let (grouped_sends, grouped_receives, grouped_widths) =
-    //         get_grouped_maps(chip.sends(), chip.receives(), batch_size);
-
-    //     // Generate a random trace.
-    //     let main_trace = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
-
-    //     // Get the host interactions.
-    //     let host_interactions = HostInteractions::new(grouped_sends, grouped_receives);
-
-    //     // For every row, compute the permutation row and compare the values.
-
-    //     let batch_size = 2;
-    //     let perm_width =
-    //         permutation_trace_width(chip.sends().len() + chip.receives().len(), batch_size);
-    //     let global_alpha = rng.gen::<EF>();
-    //     let global_beta = rng.gen::<EF>();
-    //     let local_alpha = rng.gen::<EF>();
-    //     let local_beta = rng.gen::<EF>();
-    //     for i in 0..num_rows {
-    //         let prep_row = preprocessed_trace.row_slice(i);
-    //         let main_row = main_trace.row_slice(i);
-
-    //         let mut expected_row = vec![EF::zero(); perm_width];
-    //         populate_permutation_row(
-    //             &mut expected_row,
-    //             &prep_row,
-    //             &main_row,
-    //             chip.sends(),
-    //             chip.receives(),
-    //             alpha,
-    //             beta.powers(),
-
-    //             batch_size,
-    //         );
-
-    //         let mut row = vec![EF::zero(); perm_width];
-    //         host_interactions
-    //             .populate_permutation_row(&mut row, &prep_row, &main_row, alpha, beta, batch_size);
-
-    //         for (exp, val) in expected_row.iter().zip(row.iter()) {
-    //             assert_eq!(exp, val, "row {} mismatch", i);
-    //         }
-    //     }
-    // }
 
     #[test]
     fn test_generate_flatenned_permutation_trace_device() {
