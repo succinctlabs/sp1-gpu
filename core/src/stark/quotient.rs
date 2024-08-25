@@ -172,12 +172,14 @@ where
                 main_on_quotient_domain,
                 perm_on_quotient_domain,
             ) = evaluations;
-            let cumulative_sums = cumulative_sums[i].to_device().unwrap();
 
             let stream = main_on_quotient_domain.stream();
 
             // Move data to device and get generator powers.
-
+            let cumulative_sums_device = cumulative_sums[i]
+                .as_slice()
+                .to_device_async(stream)
+                .unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
@@ -206,7 +208,7 @@ where
                     operations_device.as_ptr(),
                     operations.len(),
                     *memory_size,
-                    cumulative_sums.as_ptr(),
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_on_quotient_domain.view(),
