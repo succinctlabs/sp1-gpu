@@ -119,7 +119,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
             bool is_global = scope == 0;
             size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
             size_t end_idx = is_global ? interactions.num_global_interactions : num_interactions;
-            size_t max_idx = is_global ? interactions.num_global_interactions : interactions.num_local_interactions;
+            size_t max_idx = is_global ? interactions.num_global_interactions : num_interactions;
             size_t perm_start_idx = is_global ? 0 : (interactions.global_width * EF::D);
             EF alpha = is_global ? global_alpha : local_alpha;
             EF beta = is_global ? global_beta : local_beta;
