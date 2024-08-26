@@ -22,6 +22,10 @@ T bit_rev(T i, unsigned int nbits)
 __launch_bounds__(1024) __global__
 void bit_rev_permutation(fr_t* d_out, const fr_t *d_in, uint32_t lg_domain_size)
 {
+    size_t column = blockIdx.y;    // [0..poly_count)
+    d_in += column << lg_domain_size;
+    d_out += column << lg_domain_size;
+    
     if (gridDim.x == 1 && blockDim.x == (1 << lg_domain_size)) {
         uint32_t idx = threadIdx.x;
         uint32_t rev = bit_rev(idx, lg_domain_size);
@@ -188,6 +192,10 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
            (stride & (stride-1)) == 0);
 
     bool overlapping_data = false;
+
+    size_t column = blockIdx.y;    // [0..poly_count)
+    in += column << (lg_domain_size + lg_blowup);
+    out += column << (lg_domain_size + lg_blowup);
 
     if ((in < out && (in + domain_size) > out)
      || (in >= out && (out + domain_size * blowup) > in))

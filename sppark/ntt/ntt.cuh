@@ -24,7 +24,7 @@ public:
 
 public:
     static void bit_rev(fr_t* d_out, const fr_t* d_inp,
-                        uint32_t lg_domain_size, stream_t& stream)
+                        uint32_t lg_domain_size, stream_t& stream, size_t poly_count = 1)
     {
         assert(lg_domain_size <= MAX_LG_DOMAIN_SIZE);
 
@@ -34,20 +34,20 @@ public:
         const uint32_t bsize = Z_COUNT>WARP_SZ ? Z_COUNT : WARP_SZ;
 
         if (domain_size <= 1024)
-            bit_rev_permutation<<<1, domain_size, 0, stream>>>
+            bit_rev_permutation<<<dim3(1, poly_count), domain_size, 0, stream>>>
                                (d_out, d_inp, lg_domain_size);
         else if (domain_size < bsize * Z_COUNT)
-            bit_rev_permutation<<<domain_size / WARP_SZ, WARP_SZ, 0, stream>>>
+            bit_rev_permutation<<<dim3(domain_size / WARP_SZ, poly_count), WARP_SZ, 0, stream>>>
                                (d_out, d_inp, lg_domain_size);
         else if (Z_COUNT > WARP_SZ || lg_domain_size <= 32)
-            bit_rev_permutation_z<Z_COUNT><<<domain_size / Z_COUNT / bsize, bsize,
+            bit_rev_permutation_z<Z_COUNT><<<dim3(domain_size / Z_COUNT / bsize, poly_count), bsize,
                                              bsize * Z_COUNT * sizeof(fr_t),
                                              stream>>>
                                  (d_out, d_inp, lg_domain_size);
         else
             // Those GPUs that can reserve 96KB of shared memory can
             // schedule 2 blocks to each SM...
-            bit_rev_permutation_z<Z_COUNT><<<stream.sm_count()*2, 192,
+            bit_rev_permutation_z<Z_COUNT><<<dim3(stream.sm_count()*2, poly_count), 192,
                                              192 * Z_COUNT * sizeof(fr_t),
                                              stream>>>
                                  (d_out, d_inp, lg_domain_size);
@@ -79,9 +79,9 @@ private:
 
     static void CT_NTT(fr_t* d_inout, const int lg_domain_size, bool intt,
                        const NTTParameters& ntt_parameters,
-                       const stream_t& stream)
+                       const stream_t& stream, size_t poly_count = 1)
     {
-        CT_launcher params{d_inout, lg_domain_size, intt, ntt_parameters, stream};
+        CT_launcher params{d_inout, lg_domain_size, intt, ntt_parameters, stream, poly_count};
 
         if (lg_domain_size <= 10) {
             params.step(lg_domain_size);
@@ -109,9 +109,9 @@ private:
 
     static void GS_NTT(fr_t* d_inout, const int lg_domain_size, const bool is_intt,
                        const NTTParameters& ntt_parameters,
-                       const stream_t& stream)
+                       const stream_t& stream, size_t poly_count = 1)
     {
-        GS_launcher params{d_inout, lg_domain_size, is_intt, ntt_parameters, stream};
+        GS_launcher params{d_inout, lg_domain_size, is_intt, ntt_parameters, stream, poly_count};
 
         if (lg_domain_size <= 10) {
             params.step(lg_domain_size);
@@ -138,6 +138,30 @@ private:
     }
 
 protected:
+    static void NTT_internal(fr_t* d_inout, uint32_t lg_domain_size,
+                             InputOutputOrder order, Direction direction,
+                             Type type, stream_t& stream, uint32_t poly_count)
+    {
+        if (poly_count > 1) {
+            const bool intt = direction == Direction::inverse;
+            const auto& ntt_parameters = NTTParameters::all(intt)[stream];
+
+            switch (order) {
+                case InputOutputOrder::NR:
+                    GS_NTT(d_inout, lg_domain_size, intt, ntt_parameters, stream, poly_count);
+                    break;
+                case InputOutputOrder::RN:
+                    CT_NTT(d_inout, lg_domain_size, intt, ntt_parameters, stream, poly_count);
+                    break;
+                default:
+                    assert(false);
+            }
+        } else {
+            NTT_internal(d_inout, lg_domain_size, order, direction, type, stream);
+        }
+    }
+
+
     static void NTT_internal(fr_t* d_inout, uint32_t lg_domain_size,
                              InputOutputOrder order, Direction direction,
                              Type type, stream_t& stream)
@@ -228,7 +252,7 @@ public:
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],
                            uint32_t lg_domain_size, uint32_t lg_blowup,
-                           bool perform_shift = true, fr_t shift = fr_t{1} ,bool ext_pow = false)
+                           bool perform_shift = true, fr_t shift = fr_t{1}, size_t poly_count = 1, bool ext_pow = false)
     {
         assert(lg_domain_size + lg_blowup <= MAX_LG_DOMAIN_SIZE);
         size_t domain_size = (size_t)1 << lg_domain_size;
@@ -253,7 +277,7 @@ public:
         }
 
         stream.launch_coop(LDE_spread_distribute_powers,
-                        {dim3(num_blocks), dim3(block_size),
+                        {dim3(num_blocks, poly_count), dim3(block_size),
                          sizeof(fr_t) * block_size},
                         ext_domain_data, domain_data, gen_powers,
                         lg_domain_size, lg_blowup, perform_shift, shift, ext_pow);
@@ -323,10 +347,10 @@ public:
 
     static void Base_dev_ptr(stream_t& stream, fr_t* d_inout,
                              uint32_t lg_domain_size, InputOutputOrder order,
-                             Direction direction, Type type)
+                             Direction direction, Type type, uint32_t poly_count = 1)
     {
         NTT_internal(&d_inout[0], lg_domain_size, order, direction, type,
-                     stream);
+                     stream, poly_count);
     }
 
     static void LDE_powers(stream_t& stream, fr_t* d_inout,

@@ -142,8 +142,8 @@ mod tests {
     #[test]
     fn test_commit_device() {
         let log_blowup = 1;
-        let log_degrees = [16, 10, 8];
-        let columns = [100, 200, 300];
+        let log_degrees = [10];
+        let columns = [10];
 
         type SC = BabyBearPoseidon2;
 

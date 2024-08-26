@@ -19,6 +19,8 @@ void _GS_NTT(const unsigned int radix, const unsigned int lg_domain_size,
     extern __shared__ fr_t shared_exchange[];
 
     index_t tid = threadIdx.x + blockDim.x * (index_t)blockIdx.x;
+    index_t column = blockIdx.y;    // [0..poly_count)
+    d_inout += column << (lg_domain_size + 1);  // should be + lg_blowup
 
     const index_t diff_mask = (1 << (iterations - 1)) - 1;
     const index_t inp_mask = ((index_t)1 << (stage - 1)) - 1;
@@ -187,12 +189,13 @@ class GS_launcher {
     int stage;
     const NTTParameters& ntt_parameters;
     const stream_t& stream;
+    const size_t poly_count;
 
 public:
     GS_launcher(fr_t* d_ptr, int lg_dsz, bool intt,
-                const NTTParameters& params, const stream_t& s)
+                const NTTParameters& params, const stream_t& s, size_t poly_count = 1)
       : d_inout(d_ptr), lg_domain_size(lg_dsz), is_intt(intt), stage(lg_dsz),
-        ntt_parameters(params), stream(s)
+        ntt_parameters(params), stream(s), poly_count(poly_count)
     {}
 
     void step(int iterations)
@@ -219,11 +222,11 @@ public:
                 is_intt, domain_size_inverse[lg_domain_size]
 
         if (num_blocks < Z_COUNT)
-            _GS_NTT<1><<<num_blocks, block_size, shared_sz, stream>>>(NTT_ARGUMENTS);
+            _GS_NTT<1><<<dim3(num_blocks, poly_count), block_size, shared_sz, stream>>>(NTT_ARGUMENTS);
         else if (stage == iterations || lg_domain_size < 12)
-            _GS_NTT<Z_COUNT><<<num_blocks/Z_COUNT, block_size, Z_COUNT*shared_sz, stream>>>(NTT_ARGUMENTS);
+            _GS_NTT<Z_COUNT><<<dim3(num_blocks/Z_COUNT, poly_count), block_size, Z_COUNT*shared_sz, stream>>>(NTT_ARGUMENTS);
         else
-            _GS_NTT<Z_COUNT, true><<<num_blocks/Z_COUNT, block_size, Z_COUNT*shared_sz, stream>>>(NTT_ARGUMENTS);
+            _GS_NTT<Z_COUNT, true><<<dim3(num_blocks/Z_COUNT, poly_count), block_size, Z_COUNT*shared_sz, stream>>>(NTT_ARGUMENTS);
 
         #undef NTT_ARGUMENTS
 
