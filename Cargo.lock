@@ -3321,8 +3321,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3356,8 +3356,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3421,8 +3421,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3441,8 +3441,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3461,8 +3461,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3471,8 +3471,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3484,8 +3484,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3523,8 +3523,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3547,8 +3547,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit-v2"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3585,8 +3585,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3614,8 +3614,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3651,8 +3651,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core-v2"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3691,8 +3691,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3701,8 +3701,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3727,8 +3727,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-program"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3758,8 +3758,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "1.1.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#cd8fbf695e8bd88fc36abdb273918ab068fc396f"
+version = "1.2.0-rc1"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-v2#66c1fa48871b741b61096bebe95f6dcc85a87df4"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
