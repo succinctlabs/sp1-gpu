@@ -18,5 +18,4 @@ pub const KEYSPACE_STDIN: &[u8] = include_bytes!("../programs/keyspace-record/st
 pub const KEYSPACE_BATCHER_ELF: &[u8] =
     include_bytes!("../programs/keyspace-batcher/riscv32im-succinct-zkvm-elf");
 
-pub const KEYSPACE_BATCHER_STDIN: &[u8] =
-    include_bytes!("../programs/keyspace-batcher/batch_proof.bin");
+pub const KEYSPACE_BATCHER_STDIN: &[u8] = include_bytes!("../programs/keyspace-batcher/stdin.bin");
