@@ -19,6 +19,7 @@ use sp1_stark::Com;
 use sp1_stark::DebugConstraintBuilder;
 use sp1_stark::MachineProof;
 use sp1_stark::MachineProver;
+use sp1_stark::MachineProvingKey;
 use sp1_stark::MachineRecord;
 use sp1_stark::PcsProverData;
 use sp1_stark::ProverConstraintFolder;
@@ -38,7 +39,9 @@ use itertools::Itertools;
 
 use tracing::info;
 
+use p3_field::AbstractField;
 use std::cmp::Reverse;
+use std::marker::PhantomData;
 
 use air::P3EvalFolder;
 
@@ -79,6 +82,85 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     opening_prover: FriOpeningProver<SC>,
 }
 
+/// A proving key for a STARK.
+#[derive(Clone)]
+pub struct StarkProvingKeyDevice<SC, C>
+where
+    SC: BabyBearFriConfig,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+{
+    /// The commitment to the preprocessed traces.
+    pub commit: Com<SC>,
+    /// The start pc of the program.
+    pub pc_start: Val<SC>,
+    /// The preprocessed traces.
+    pub traces: Vec<RowMajorMatrix<Val<SC>>>,
+    /// The pcs data for the preprocessed traces.
+    pub data: C::ProverData,
+    /// The preprocessed chip ordering.
+    pub chip_ordering: HashMap<String, usize>,
+    pub phantom: PhantomData<C>,
+}
+
+impl<SC, C> MachineProvingKey<SC> for StarkProvingKeyDevice<SC, C>
+where
+    SC: BabyBearFriConfig,
+    Com<SC>: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
+    SC::FriChallenger: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Commitment: Send + Sync,
+    SC::RowMajorProverData: Send + Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+    C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
+    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+{
+    fn commit(&self) -> Com<SC> {
+        self.commit.clone()
+    }
+
+    fn pc_start(&self) -> Val<SC> {
+        self.pc_start
+    }
+
+    fn to_host(&self) -> StarkProvingKey<SC> {
+        StarkProvingKey {
+            commit: self.commit.clone(),
+            pc_start: self.pc_start,
+            data: self.data.to_host(),
+            traces: self.traces.clone(),
+            chip_ordering: self.chip_ordering.clone(),
+        }
+    }
+
+    fn from_host(host: StarkProvingKey<SC>) -> Self {
+        StarkProvingKeyDevice {
+            commit: host.commit,
+            pc_start: host.pc_start,
+            traces: host.traces,
+            data: host.data.to_device().unwrap(),
+            chip_ordering: host.chip_ordering,
+            phantom: PhantomData,
+        }
+    }
+
+    fn observe_into(&self, challenger: &mut sp1_stark::Challenger<SC>) {
+        challenger.observe(self.commit.clone());
+        challenger.observe(self.pc_start);
+        let zero = Val::<SC>::zero();
+        for _ in 0..7 {
+            challenger.observe(zero);
+        }
+    }
+}
+
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
 
 pub type GpuProverData<SC> =
@@ -100,7 +182,7 @@ where
         + Send
         + Sync
         + Default,
-    C::ProverData: Send + ToHost<HostType = PcsProverData<SC>>,
+    C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
     PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
     Com<SC>: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
@@ -110,6 +192,8 @@ where
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
     type DeviceProverData = C::ProverData;
+    type DeviceProvingKey = StarkProvingKeyDevice<SC, C>;
+
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -198,7 +282,7 @@ where
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
-    fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+    fn setup(&self, program: &A::Program) -> (Self::DeviceProvingKey, StarkVerifyingKey<SC>) {
         let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
             .in_scope(|| {
                 self.machine()
@@ -242,7 +326,6 @@ where
         // Commit to the batch of traces.
         let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
             .in_scope(|| self.committer.commit(&domains_and_traces));
-        let data = data.to_host();
 
         // Get the chip ordering.
         let chip_ordering = named_preprocessed_traces
@@ -258,12 +341,13 @@ where
         let pc_start = program.pc_start();
 
         (
-            StarkProvingKey {
+            StarkProvingKeyDevice {
                 commit: commit.clone(),
                 pc_start,
                 traces,
                 data,
                 chip_ordering: chip_ordering.clone(),
+                phantom: PhantomData,
             },
             StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
         )
@@ -271,7 +355,7 @@ where
 
     fn open(
         &self,
-        pk: &StarkProvingKey<SC>,
+        pk: &Self::DeviceProvingKey,
         data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut <SC as StarkGenericConfig>::Challenger,
     ) -> Result<ShardProof<SC>, Self::Error> {
@@ -440,17 +524,15 @@ where
             }
         }
 
-        let pk_data_device = pk.data.to_device().unwrap();
-
         let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
             self.opening_prover.open(
                 &self.committer,
                 self.pcs(),
                 vec![
-                    (pk_data_device, preprocessed_opening_points),
-                    (main_data, trace_opening_points.clone()),
-                    (perm_prover_data, trace_opening_points),
-                    (quotient_prover_data, quotient_opening_points),
+                    (&pk.data, preprocessed_opening_points),
+                    (&main_data, trace_opening_points.clone()),
+                    (&perm_prover_data, trace_opening_points),
+                    (&quotient_prover_data, quotient_opening_points),
                 ],
                 challenger,
             )
@@ -532,7 +614,7 @@ where
     /// a STARK proof that the execution record is valid.
     fn prove(
         &self,
-        pk: &StarkProvingKey<SC>,
+        pk: &Self::DeviceProvingKey,
         mut records: Vec<A::Record>,
         challenger: &mut SC::Challenger,
         opts: <A::Record as MachineRecord>::Config,
@@ -543,7 +625,12 @@ where
         self.machine().generate_dependencies(&mut records, &opts);
 
         // Observe the preprocessed commitment.
-        pk.observe_into(challenger);
+        challenger.observe(pk.commit.clone());
+        challenger.observe(pk.pc_start);
+        let zero = Val::<SC>::zero();
+        for _ in 0..7 {
+            challenger.observe(zero);
+        }
 
         // Generate and commit the traces for each shard.
         let shard_data: Vec<_> = records
@@ -581,6 +668,11 @@ where
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
     A::Record: Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
 {
     pub fn pcs(&self) -> &SC::Pcs {
         self.machine.config().pcs()
@@ -588,7 +680,7 @@ where
 
     pub fn generate_permutation_traces(
         &self,
-        pk: &StarkProvingKey<SC>,
+        pk: &StarkProvingKeyDevice<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],

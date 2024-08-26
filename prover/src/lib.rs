@@ -57,8 +57,6 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use moongate_core::utils::init_tracer;
     use sp1_core_machine::io::SP1Stdin;
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
@@ -89,12 +87,8 @@ mod tests {
 
     #[test]
     fn test_e2e_fibonacci() {
-        let elf = FIBONACCI_ELF;
+        let elf = TENDERMINT_BENCHMARK_ELF;
         init_tracer();
-
-        if env::var("FRI_QUERIES").is_err() {
-            env::set_var("FRI_QUERIES", "1");
-        }
 
         let opts = gpu_prover_opts();
         let stdin = SP1Stdin::new();

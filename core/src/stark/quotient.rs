@@ -18,6 +18,7 @@ use sp1_stark::StarkProvingKey;
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
 
+use crate::fri::FriQueryProver;
 use p3_field::AbstractField;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
@@ -37,7 +38,7 @@ use crate::stark::ffi::quotient_gpu;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
-use super::{BabyBearFriConfig, CpuProverData, GpuMatrix};
+use super::{BabyBearFriConfig, CpuProverData, GpuMatrix, StarkProvingKeyDevice};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -97,7 +98,7 @@ where
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
-        pk: &StarkProvingKey<SC>,
+        pk: &StarkProvingKeyDevice<SC, C>,
         main_traces: &[ColMajorMatrixDevice<SC::Val>],
         domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
@@ -107,6 +108,11 @@ where
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
         C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+            + 'static
+            + Send
+            + Sync
+            + Default,
     {
         let mut results = Vec::with_capacity(chips.len());
 
