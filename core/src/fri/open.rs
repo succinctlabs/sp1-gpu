@@ -409,6 +409,7 @@ pub(super) mod merkle_tree_opening_prover {
     use p3_symmetric::PseudoCompressionFunction;
     use p3_util::log2_ceil_usize;
 
+    use crate::cuda_runtime::stream::CudaStream;
     use crate::device::memory::ToDevice;
     use crate::matrix::MatrixViewDevice;
     use crate::merkle_tree::FieldMerkleTreeDeviceCommitter;
@@ -535,7 +536,8 @@ pub(super) mod merkle_tree_opening_prover {
                                 .map(|i| {
                                     let start = (data_index >> i) ^ 1;
                                     let end = start + 1;
-                                    data.digest_layers[i][start..end].to_host()[0]
+                                    let res = &data.digest_layers[i][start..end];
+                                    res.as_host_vec(&CudaStream::default())[0]
                                 })
                                 .collect();
 

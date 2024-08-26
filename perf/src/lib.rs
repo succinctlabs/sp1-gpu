@@ -1,4 +1,4 @@
-use programs::KEYSPACE_STDIN;
+use programs::{KEYSPACE_BATCHER_STDIN, KEYSPACE_STDIN};
 use report::Measurement;
 use sp1_core_executor::SP1Context;
 use sp1_core_machine::io::SP1Stdin;
@@ -25,8 +25,10 @@ pub fn make_measurement<C: SP1ProverComponents>(
     tracing::info!("prove core");
     let time = std::time::Instant::now();
     let mut stdin = SP1Stdin::new();
-    if name == "Keyspace" {
+    if name == "KeyspaceRecord" {
         stdin = bincode::deserialize(KEYSPACE_STDIN).unwrap();
+    } else if name == "KeyspaceBatcher" {
+        stdin = bincode::deserialize(KEYSPACE_BATCHER_STDIN).unwrap();
     }
     let core_proof = prover.prove_core(&pk, &stdin, opts, context).unwrap();
     let core_time = time.elapsed();

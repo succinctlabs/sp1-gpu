@@ -60,10 +60,12 @@ mod tests {
     use std::env;
 
     use moongate_core::utils::init_tracer;
+    use sp1_core_machine::io::SP1Stdin;
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::test_e2e_prover;
     use sp1_prover::tests::test_e2e_with_deferred_proofs_prover;
     use sp1_prover::tests::Test;
+    use sp1_prover::SP1Prover;
 
     use crate::components::GpuProverComponents;
     use crate::gpu_prover_opts;
@@ -72,6 +74,11 @@ mod tests {
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
 
     const RETH_ELF: &[u8] = include_bytes!("../../perf/programs/reth/riscv32im-succinct-zkvm-elf");
+
+    const KEYSPACE_RECORD_ELF: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-record/riscv32im-succinct-zkvm-elf");
+    const KEYSPACE_RECORD_INPUT: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-record/stdin.bin");
 
     #[test]
     fn test_e2e_fibonacci() {
@@ -83,7 +90,20 @@ mod tests {
         }
 
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Wrap).unwrap()
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    fn test_e2e_keyspace() {
+        let elf = KEYSPACE_RECORD_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = bincode::deserialize::<SP1Stdin>(KEYSPACE_RECORD_INPUT).unwrap();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
     }
 
     #[test]
@@ -96,13 +116,17 @@ mod tests {
     fn test_core_elf(elf: &[u8]) {
         init_tracer();
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Core).unwrap()
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, Test::Core)
+            .unwrap()
     }
 
     fn test_compress_elf(elf: &[u8]) {
         init_tracer();
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, Test::Compress)
+            .unwrap()
     }
 
     #[test]

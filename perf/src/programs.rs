@@ -11,5 +11,12 @@ pub const TENDERMINT_BENCHMARK_ELF: &[u8] =
 
 pub const RETH_ELF: &[u8] = include_bytes!("../programs/reth/riscv32im-succinct-zkvm-elf");
 
-pub const KEYSPACE_ELF: &[u8] = include_bytes!("../programs/keyspace/riscv32im-succinct-zkvm-elf");
-pub const KEYSPACE_STDIN: &[u8] = include_bytes!("../programs/keyspace/stdin.bin");
+pub const KEYSPACE_ELF: &[u8] =
+    include_bytes!("../programs/keyspace-record/riscv32im-succinct-zkvm-elf");
+pub const KEYSPACE_STDIN: &[u8] = include_bytes!("../programs/keyspace-record/stdin.bin");
+
+pub const KEYSPACE_BATCHER_ELF: &[u8] =
+    include_bytes!("../programs/keyspace-batcher/riscv32im-succinct-zkvm-elf");
+
+pub const KEYSPACE_BATCHER_STDIN: &[u8] =
+    include_bytes!("../programs/keyspace-batcher/batch_proof.bin");
