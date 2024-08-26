@@ -49,8 +49,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
         opts.recursion_opts.records_and_traces_channel_capacity = 1;
         opts.recursion_opts.trace_gen_workers = 1;
     } else {
-        opts.recursion_opts.records_and_traces_channel_capacity = 2;
-        opts.recursion_opts.trace_gen_workers = 2;
+        opts.recursion_opts.records_and_traces_channel_capacity = 4;
+        opts.recursion_opts.trace_gen_workers = 4;
     }
     opts
 }
@@ -77,8 +77,15 @@ mod tests {
 
     const KEYSPACE_RECORD_ELF: &[u8] =
         include_bytes!("../../perf/programs/keyspace-record/riscv32im-succinct-zkvm-elf");
+
     const KEYSPACE_RECORD_INPUT: &[u8] =
         include_bytes!("../../perf/programs/keyspace-record/stdin.bin");
+
+    const KEYSPACE_BATCH_ELF: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-batcher/riscv32im-succinct-zkvm-elf");
+
+    const KEYSPACE_BATCH_INPUT: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-batcher/stdin.bin");
 
     #[test]
     fn test_e2e_fibonacci() {
@@ -96,14 +103,29 @@ mod tests {
     }
 
     #[test]
-    fn test_e2e_keyspace() {
+    fn test_e2e_keyspace_record() {
         let elf = KEYSPACE_RECORD_ELF;
         init_tracer();
 
         let opts = gpu_prover_opts();
         let stdin = bincode::deserialize::<SP1Stdin>(KEYSPACE_RECORD_INPUT).unwrap();
         let prover = SP1Prover::<GpuProverComponents>::new();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
+            .unwrap();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
+    }
+
+    #[test]
+    fn test_e2e_keyspace_batcher() {
+        let elf = KEYSPACE_BATCH_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = bincode::deserialize::<SP1Stdin>(KEYSPACE_BATCH_INPUT).unwrap();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
+            .unwrap();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
     }
 
     #[test]

@@ -21,7 +21,7 @@ debug-assertions = true
 # sp1
 sp1-core-executor = { path = "../sp1/crates/core/executor" }
 sp1-core-machine = { path = "../sp1/crates/core/machine" }
-sp1-prover = { path = "../sp1/crates/prover" }
+sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
 sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
 sp1-server = { path = "../sp1/crates/server" }
 sp1-stark = { path = "../sp1/crates/stark" }
