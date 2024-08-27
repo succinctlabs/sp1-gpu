@@ -287,7 +287,7 @@ where
             .in_scope(|| {
                 self.machine()
                     .chips()
-                    .iter()
+                    .par_iter()
                     .map(|chip| {
                         let prep_trace = chip.generate_preprocessed_trace(program);
                         // Assert that the chip width data is correct.
