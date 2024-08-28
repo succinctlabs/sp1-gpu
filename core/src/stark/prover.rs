@@ -9,33 +9,35 @@ use p3_commit::Mmcs;
 use p3_commit::PolynomialSpace;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::Matrix;
-use sp1_core::stark::AirOpenedValues;
+use sp1_stark::air::MachineAir;
+use sp1_stark::air::MachineProgram;
+use sp1_stark::AirOpenedValues;
+use sp1_stark::Chip;
+use sp1_stark::ChipOpenedValues;
+use sp1_stark::Com;
+use sp1_stark::DebugConstraintBuilder;
+use sp1_stark::MachineProof;
+use sp1_stark::MachineProver;
+use sp1_stark::MachineRecord;
+use sp1_stark::PcsProverData;
+use sp1_stark::ProvePhase;
+use sp1_stark::ProverConstraintFolder;
+use sp1_stark::SP1CoreOpts;
+use sp1_stark::ShardCommitment;
+use sp1_stark::ShardMainData;
+use sp1_stark::ShardOpenedValues;
+use sp1_stark::ShardProof;
+use sp1_stark::StarkGenericConfig;
+use sp1_stark::StarkMachine;
+use sp1_stark::StarkProvingKey;
+use sp1_stark::StarkVerifyingKey;
+
+use sp1_stark::Val;
 
 use itertools::Itertools;
 
-use sp1_core::stark::ShardMainData;
 use tracing::info;
 
-use sp1_core::air::MachineProgram;
-use sp1_core::stark::Chip;
-use sp1_core::stark::ChipOpenedValues;
-use sp1_core::stark::Com;
-use sp1_core::stark::DebugConstraintBuilder;
-use sp1_core::stark::MachineProof;
-use sp1_core::stark::MachineProver;
-use sp1_core::stark::ProvePhase;
-use sp1_core::stark::ShardCommitment;
-use sp1_core::stark::ShardOpenedValues;
-use sp1_core::stark::ShardProof;
-use sp1_core::stark::StarkVerifyingKey;
-use sp1_core::utils::SP1CoreOpts;
-use sp1_core::{
-    air::MachineAir,
-    stark::{
-        MachineRecord, PcsProverData, ProverConstraintFolder, StarkGenericConfig, StarkMachine,
-        StarkProvingKey, Val,
-    },
-};
 use std::cmp::Reverse;
 
 use air::P3EvalFolder;
@@ -116,11 +118,7 @@ where
         let (_, total) = cuda_mem_get_info().unwrap();
         let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
         tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
-        let chip_streams = machine
-            .chips()
-            .iter()
-            .map(|_| CudaStream::create().unwrap())
-            .collect();
+        let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
@@ -143,7 +141,7 @@ where
     ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
         let chips = match phase {
             ProvePhase::Phase1 => self.phase1_chips(),
-            ProvePhase::Phase2 => self.shard_chips(record),
+            ProvePhase::Phase2 => self.shard_chips(record).collect_vec(),
         };
 
         chips
@@ -164,11 +162,8 @@ where
         named_traces.sort_by_key(|(_, trace)| Reverse(trace.height()));
 
         // Get the chip ordering.
-        let chip_ordering = named_traces
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
-            .collect();
+        let chip_ordering =
+            named_traces.iter().enumerate().map(|(i, (name, _))| (name.to_owned(), i)).collect();
 
         // Get the domains.
         let config = self.machine.config();
@@ -190,20 +185,18 @@ where
             .collect();
 
         // Commit to the traces.
-        let domains_and_traces = domains
-            .iter()
-            .copied()
-            .zip(traces.iter())
-            .collect::<Vec<_>>();
-        let (commit, data) = self.committer.commit(&domains_and_traces);
+        let domains_and_traces = domains.iter().copied().zip(traces.iter()).collect::<Vec<_>>();
+        let (commit, data) =
+            tracing::debug_span!("commit").in_scope(|| self.committer.commit(&domains_and_traces));
 
-        ShardMainData {
+        tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values: shard.public_values(),
-        }
+            public_values: tracing::debug_span!("compute public values")
+                .in_scope(|| shard.public_values()),
+        })
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
@@ -261,10 +254,8 @@ where
             .collect::<HashMap<_, _>>();
 
         // Get the preprocessed traces
-        let traces = named_preprocessed_traces
-            .into_iter()
-            .map(|(_, trace)| trace)
-            .collect::<Vec<_>>();
+        let traces =
+            named_preprocessed_traces.into_iter().map(|(_, trace)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
 
@@ -276,12 +267,7 @@ where
                 data,
                 chip_ordering: chip_ordering.clone(),
             },
-            StarkVerifyingKey {
-                commit,
-                pc_start,
-                chip_information,
-                chip_ordering,
-            },
+            StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
         )
     }
 
@@ -297,18 +283,10 @@ where
         let _span = span.enter();
         let span = tracing::Span::current();
         let _span = span.enter();
-        let ShardMainData {
-            traces,
-            main_commit,
-            mut main_data,
-            chip_ordering,
-            public_values,
-        } = data;
+        let ShardMainData { traces, main_commit, mut main_data, chip_ordering, public_values } =
+            data;
 
-        let shard_chips = self
-            .machine
-            .shard_chips_ordered(&chip_ordering)
-            .collect::<Vec<_>>();
+        let shard_chips = self.machine.shard_chips_ordered(&chip_ordering).collect::<Vec<_>>();
 
         let domains = traces
             .iter()
@@ -340,9 +318,8 @@ where
         challenger.observe(main_commit.clone());
 
         // Get the permutation challenges.
-        let local_permutation_challenges = (0..2)
-            .map(|_| challenger.sample_ext_element())
-            .collect::<Vec<_>>();
+        let local_permutation_challenges =
+            (0..2).map(|_| challenger.sample_ext_element()).collect::<Vec<_>>();
         let permutation_challenges = global_permutation_challenges
             .iter()
             .chain(local_permutation_challenges.iter())
@@ -357,14 +334,7 @@ where
         let (permutation_traces, cumulative_sums): (Vec<_>, Vec<_>) =
             permutation_traces_and_cumulative_sums.into_iter().unzip();
 
-        info!(
-            "Shard: [{}]",
-            shard_chips
-                .iter()
-                .map(|c| c.name())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        info!("Shard: [{}]", shard_chips.iter().map(|c| c.name()).collect::<Vec<_>>().join(", "));
 
         for (i, chip) in shard_chips.iter().enumerate() {
             let width = traces[i].width();
@@ -381,11 +351,8 @@ where
         }
 
         // Commit to the permutation traces.
-        let perm_domains_and_traces = domains
-            .iter()
-            .copied()
-            .zip(permutation_traces)
-            .collect::<Vec<_>>();
+        let perm_domains_and_traces =
+            domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
         let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         permutation_span.exit();
@@ -431,10 +398,7 @@ where
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
             .flat_map(|values| {
-                let DeviceQuotientValues {
-                    quotient_chunks,
-                    quotient_chunk_domains,
-                } = values;
+                let DeviceQuotientValues { quotient_chunks, quotient_chunk_domains } = values;
 
                 quotient_chunk_domains.into_iter().zip(quotient_chunks)
             })
@@ -467,9 +431,8 @@ where
             .collect::<Vec<_>>();
 
         // Compute quotient openning points, open every chunk at zeta.
-        let quotient_opening_points = (0..num_quotient_chunks)
-            .map(|_| vec![zeta])
-            .collect::<Vec<_>>();
+        let quotient_opening_points =
+            (0..num_quotient_chunks).map(|_| vec![zeta]).collect::<Vec<_>>();
 
         // Recompute main and permutation LDE and insert into the prover data.
         if recompute_ldes {
@@ -542,28 +505,23 @@ where
             .zip_eq(cumulative_sums)
             .zip_eq(shard_chips.iter())
             .enumerate()
-            .map(
-                |(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
-                    let preprocessed = pk
-                        .chip_ordering
-                        .get(&chip.name())
-                        .map(|&index| preprocessed_opened_values[index].clone())
-                        .unwrap_or(AirOpenedValues {
-                            local: vec![],
-                            next: vec![],
-                        });
-                    let log_degree = domains[i].size().ilog2() as usize;
-                    ChipOpenedValues {
-                        preprocessed,
-                        main,
-                        permutation,
-                        quotient,
-                        global_cumulative_sum: cumulative_sum[0],
-                        local_cumulative_sum: cumulative_sum[1],
-                        log_degree,
-                    }
-                },
-            )
+            .map(|(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                let preprocessed = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| preprocessed_opened_values[index].clone())
+                    .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
+                let log_degree = domains[i].size().ilog2() as usize;
+                ChipOpenedValues {
+                    preprocessed,
+                    main,
+                    permutation,
+                    quotient,
+                    global_cumulative_sum: cumulative_sum[0],
+                    local_cumulative_sum: cumulative_sum[1],
+                    log_degree,
+                }
+            })
             .collect::<Vec<_>>();
 
         Ok(ShardProof::<SC> {
@@ -573,9 +531,7 @@ where
                 permutation_commit,
                 quotient_commit,
             },
-            opened_values: ShardOpenedValues {
-                chips: opened_values,
-            },
+            opened_values: ShardOpenedValues { chips: opened_values },
             opening_proof,
             chip_ordering,
             public_values,
@@ -670,19 +626,15 @@ where
             .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
                 let preprocessed_trace = pk.chip_ordering.get(&chip.name()).map(|&index| {
-                    pk.traces[index]
-                        .to_device_async(main_trace.stream())
-                        .unwrap()
-                        .to_column_major()
+                    pk.traces[index].to_device_async(main_trace.stream()).unwrap().to_column_major()
                 });
 
-                self.permutation_trace_generator
-                    .generate_flattened_permutation_trace(
-                        chip,
-                        preprocessed_trace.as_ref(),
-                        main_trace,
-                        random_elements,
-                    )
+                self.permutation_trace_generator.generate_flattened_permutation_trace(
+                    chip,
+                    preprocessed_trace.as_ref(),
+                    main_trace,
+                    random_elements,
+                )
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
@@ -690,15 +642,13 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use sp1_core::{
-        runtime::{ExecutionRecord, Program, Runtime},
-        stark::RiscvAir,
-        utils::{
-            run_test,
-            tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
-            SP1CoreOpts,
-        },
-    };
+
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::ExecutionRecord;
+    use sp1_core_executor::Executor;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::utils::run_test;
     use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
 
     use crate::{
@@ -711,14 +661,14 @@ pub mod tests {
 
     pub fn execute_core(program: Program) -> ExecutionRecord {
         let opts = SP1CoreOpts::default();
-        let mut runtime = Runtime::new(program, opts);
+        let mut runtime = Executor::new(program, opts);
         runtime.run().unwrap();
         runtime.record
     }
 
     #[test]
     fn test_fibonacci_poseidon_2_baby_bear_prove() {
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
         init_tracer();
         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
@@ -729,10 +679,10 @@ pub mod tests {
 
     #[test]
     fn test_fibonacci_poseidon2_bn254_prove() {
-        use sp1_core::io::SP1Stdin;
-        use sp1_core::runtime::SP1Context;
+        use sp1_core_executor::SP1Context;
+        use sp1_core_machine::io::SP1Stdin;
 
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
         type SC = BabyBearPoseidon2Outer;
 
@@ -748,7 +698,7 @@ pub mod tests {
 
         // Execute the program.
         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-            let mut runtime = Runtime::new(program, SP1CoreOpts::default());
+            let mut runtime = Executor::new(program, SP1CoreOpts::default());
             runtime.run().unwrap();
             runtime
         });
@@ -757,7 +707,7 @@ pub mod tests {
         let prover = P::new(machine);
         let inputs = SP1Stdin::new();
         let (pk, vk) = prover.setup(runtime.program.as_ref());
-        let (proof, _, _) = sp1_core::utils::prove_with_context(
+        let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
             &prover,
             &pk,
             Program::clone(&runtime.program),
@@ -768,22 +718,6 @@ pub mod tests {
         .unwrap();
 
         let mut challenger = prover.config().challenger();
-        prover
-            .machine()
-            .verify(&vk, &proof, &mut challenger)
-            .unwrap();
-    }
-
-    #[test]
-    #[ignore]
-    fn test_ssz_withdrawals_prove() {
-        let program = Program::from(SSZ_WITHDRAWALS_ELF);
-
-        init_tracer();
-        // Execute the program.
-        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-            program,
-        )
-        .unwrap();
+        prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
     }
 }

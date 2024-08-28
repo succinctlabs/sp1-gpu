@@ -18,11 +18,8 @@ pub fn scope<'env, F, T>(f: F) -> T
 where
     F: for<'scope> FnOnce(&'scope Scope<'scope, 'env>) -> T,
 {
-    let scope = Scope {
-        task_count: Arc::new(AtomicUsize::new(0)),
-        scope: PhantomData,
-        env: PhantomData,
-    };
+    let scope =
+        Scope { task_count: Arc::new(AtomicUsize::new(0)), scope: PhantomData, env: PhantomData };
 
     let result = f(&scope);
 

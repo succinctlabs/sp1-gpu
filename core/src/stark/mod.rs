@@ -9,6 +9,10 @@ pub use error::*;
 pub use permutation::*;
 pub use prover::*;
 pub use quotient::*;
+use sp1_stark::{
+    baby_bear_poseidon2::{BabyBearPoseidon2, ValMmcs},
+    PcsProverData, StarkGenericConfig,
+};
 pub use utils::*;
 
 use p3_challenger::{CanObserve, CanSample, FieldChallenger, GrindingChallenger};
@@ -19,10 +23,6 @@ use p3_matrix::dense::RowMajorMatrix;
 use sp1_recursion_core::stark::config::{BabyBearPoseidon2Outer, OuterValMmcs};
 
 use p3_baby_bear::BabyBear;
-use sp1_core::{
-    stark::{PcsProverData, StarkGenericConfig},
-    utils::BabyBearPoseidon2,
-};
 
 type EF = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge;
 
@@ -58,7 +58,7 @@ pub trait BabyBearFriConfig:
 }
 
 impl BabyBearFriConfig for BabyBearPoseidon2 {
-    type ValMmcs = sp1_core::utils::baby_bear_poseidon2::ValMmcs;
+    type ValMmcs = ValMmcs;
     type RowMajorProverData = PcsProverData<Self>;
     type FriChallenger = <Self as StarkGenericConfig>::Challenger;
 }

@@ -1,6 +1,8 @@
 use report::Measurement;
-use sp1_core::{runtime::SP1Context, utils::SP1ProverOpts};
-use sp1_prover::{components::SP1ProverComponents, SP1Prover, SP1Stdin};
+use sp1_core_executor::SP1Context;
+use sp1_core_machine::io::SP1Stdin;
+use sp1_prover::{components::SP1ProverComponents, SP1Prover};
+use sp1_stark::SP1ProverOpts;
 
 pub mod programs;
 pub mod report;
@@ -39,11 +41,5 @@ pub fn make_measurement<C: SP1ProverComponents>(
     tracing::info!("verify compressed");
     prover.verify_compressed(&compressed_proof, &vk).unwrap();
 
-    Measurement {
-        name: name.to_string(),
-        num_shards,
-        cycles,
-        core_time,
-        compress_time,
-    }
+    Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
 }

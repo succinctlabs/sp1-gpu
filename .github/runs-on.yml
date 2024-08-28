@@ -1,0 +1,11 @@
+images:
+  dlami-x64:
+    platform: "linux"
+    arch: "x64"
+    ami: "ami-0197c13a4f68c9360"
+
+runners:
+  gpu-nvidia:
+    cpu: [32, 64]
+    family: ["g6"]
+    hdd: 200

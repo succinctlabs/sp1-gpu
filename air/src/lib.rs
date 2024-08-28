@@ -11,11 +11,11 @@ use p3_air::Air;
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_core::stark::PROOF_MAX_NUM_PVS;
-use sp1_core::{
-    air::MachineAir,
-    stark::{AirOpenedValues, Chip, GenericVerifierConstraintFolder},
-};
+use sp1_stark::air::MachineAir;
+use sp1_stark::AirOpenedValues;
+use sp1_stark::Chip;
+use sp1_stark::GenericVerifierConstraintFolder;
+use sp1_stark::PROOF_MAX_NUM_PVS;
 use symbolic_folder_expr::SymbolicFolderExpr;
 use symbolic_folder_var::SymbolicFolderVar;
 
@@ -65,37 +65,24 @@ where
     let permutation_width = chip.permutation_width();
 
     let preprocessed = AirOpenedValues {
-        local: (0..preprocessed_width)
-            .map(SymbolicFolderVar::preprocessed_local)
-            .collect(),
-        next: (0..preprocessed_width)
-            .map(SymbolicFolderVar::preprocessed_next)
-            .collect(),
+        local: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_local).collect(),
+        next: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_next).collect(),
     };
     let main = AirOpenedValues {
         local: (0..width).map(SymbolicFolderVar::main_local).collect(),
         next: (0..width).map(SymbolicFolderVar::main_next).collect(),
     };
     let perm = AirOpenedValues {
-        local: (0..permutation_width)
-            .map(SymbolicFolderVar::permutation_local)
-            .collect(),
-        next: (0..permutation_width)
-            .map(SymbolicFolderVar::permutation_next)
-            .collect(),
+        local: (0..permutation_width).map(SymbolicFolderVar::permutation_local).collect(),
+        next: (0..permutation_width).map(SymbolicFolderVar::permutation_next).collect(),
     };
-    let public_values = (0..PROOF_MAX_NUM_PVS)
-        .map(SymbolicFolderVar::public_value)
-        .collect::<Vec<_>>();
-    let perm_challenges = (0..4)
-        .map(SymbolicFolderVar::permutation_challenge)
-        .collect::<Vec<_>>();
+    let public_values =
+        (0..PROOF_MAX_NUM_PVS).map(SymbolicFolderVar::public_value).collect::<Vec<_>>();
+    let perm_challenges = (0..4).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
 
     let accumulator = SymbolicFolderExpr::alloc();
 
-    let cumulative_sums = (0..2)
-        .map(SymbolicFolderVar::cumulative_sum)
-        .collect::<Vec<_>>();
+    let cumulative_sums = (0..2).map(SymbolicFolderVar::cumulative_sum).collect::<Vec<_>>();
 
     let mut folder = P3EvalFolder {
         preprocessed: preprocessed.view(),
@@ -137,9 +124,9 @@ pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
 
 #[cfg(test)]
 mod tests {
-    use sp1_core::air::MachineAir;
-    use sp1_core::stark::RiscvAir;
-    use sp1_core::utils::BabyBearPoseidon2;
+
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2};
 
     use crate::{codegen_cuda_eval, optimizer};
 

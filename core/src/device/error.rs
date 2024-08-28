@@ -36,9 +36,7 @@ impl From<CudaRustError> for Result<(), CudaError> {
                     CStr::from_ptr(value.message).to_str().unwrap().to_string(),
                 ))
             } else {
-                Err(CudaError::Other(
-                    CStr::from_ptr(value.message).to_str().unwrap().to_string(),
-                ))
+                Err(CudaError::Other(CStr::from_ptr(value.message).to_str().unwrap().to_string()))
             }
         }
     }

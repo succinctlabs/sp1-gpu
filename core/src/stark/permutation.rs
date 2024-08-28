@@ -4,10 +4,9 @@ use hashbrown::HashMap;
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
-use sp1_core::{
+use sp1_stark::{
     air::{InteractionScope, MachineAir},
-    lookup::Interaction,
-    stark::{get_grouped_maps, Chip},
+    get_grouped_maps, Chip, Interaction,
 };
 
 use crate::{
@@ -37,13 +36,8 @@ where
         preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
         main_trace: &ColMajorMatrixDevice<BabyBear>,
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
-    ) -> Result<
-        (
-            ColMajorMatrixDevice<BabyBear>,
-            Vec<BinomialExtensionField<BabyBear, 4>>,
-        ),
-        CudaError,
-    > {
+    ) -> Result<(ColMajorMatrixDevice<BabyBear>, Vec<BinomialExtensionField<BabyBear, 4>>), CudaError>
+    {
         let stream = main_trace.stream();
         const D: usize = 4;
 
@@ -79,9 +73,7 @@ where
         let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
-            preprocessed_trace
-                .map(|mat| mat.view())
-                .unwrap_or(MatrixViewDevice::null(false)),
+            preprocessed_trace.map(|mat| mat.view()).unwrap_or(MatrixViewDevice::null(false)),
             main_trace.view(),
             global_alpha,
             global_beta,
@@ -121,10 +113,7 @@ where
             *scope_cumulative_sum = cumulative_sum;
         }
 
-        Ok((
-            permutation_trace,
-            vec![global_cumulative_sum, local_cumulative_sum],
-        ))
+        Ok((permutation_trace, vec![global_cumulative_sum, local_cumulative_sum]))
     }
 }
 
@@ -288,23 +277,13 @@ impl<F: Field> HostInteractions<F> {
         values_ptr.push(curr_values_ptr);
         multiplicities_ptr.push(curr_mult_ptr);
 
-        let num_global_interactions = sends
-            .get(&InteractionScope::Global)
-            .map(|v| v.len())
-            .unwrap_or(0)
-            + receives
-                .get(&InteractionScope::Global)
-                .map(|v| v.len())
-                .unwrap_or(0);
+        let num_global_interactions =
+            sends.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0)
+                + receives.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0);
 
-        let num_local_interactions = sends
-            .get(&InteractionScope::Local)
-            .map(|v| v.len())
-            .unwrap_or(0)
-            + receives
-                .get(&InteractionScope::Local)
-                .map(|v| v.len())
-                .unwrap_or(0);
+        let num_local_interactions =
+            sends.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0)
+                + receives.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0);
 
         Self {
             values_ptr,
@@ -476,16 +455,12 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
 impl<F: Field> From<PairCol> for PairColDevice<F> {
     fn from(value: PairCol) -> Self {
         match value {
-            PairCol::Preprocessed(column_idx) => Self {
-                column_idx,
-                is_preprocessed: true,
-                weight: F::one(),
-            },
-            PairCol::Main(column_idx) => Self {
-                column_idx,
-                is_preprocessed: false,
-                weight: F::one(),
-            },
+            PairCol::Preprocessed(column_idx) => {
+                Self { column_idx, is_preprocessed: true, weight: F::one() }
+            }
+            PairCol::Main(column_idx) => {
+                Self { column_idx, is_preprocessed: false, weight: F::one() }
+            }
         }
     }
 }
@@ -536,13 +511,9 @@ mod tests {
     use rand::thread_rng;
     use rand::Rng;
 
-    use sp1_core::utils::tests::FIBONACCI_ELF;
-
-    use sp1_core::{
-        air::MachineAir,
-        runtime::Program,
-        stark::{ByteChip, Chip},
-    };
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::ByteChip;
 
     type F = BabyBear;
     const D: usize = 4;
@@ -555,7 +526,7 @@ mod tests {
         let air = ByteChip::<F>::default();
         let chip = Chip::new(air);
 
-        let program = Program::from(FIBONACCI_ELF);
+        let program = Program::from(FIBONACCI_ELF).unwrap();
 
         let num_rows = 1 << 16;
         let preprocessed_trace = chip.generate_preprocessed_trace(&program).unwrap();
@@ -614,11 +585,8 @@ mod tests {
         println!("Host generate_permutation_trace: {:?}", time.elapsed());
 
         // Compare the values to the host values.
-        for (i, (exp, res)) in expected_perm_trace
-            .values
-            .iter()
-            .zip(perm_h.values.iter())
-            .enumerate()
+        for (i, (exp, res)) in
+            expected_perm_trace.values.iter().zip(perm_h.values.iter()).enumerate()
         {
             assert_eq!(exp, res, "at index {}", i);
         }

@@ -1,8 +1,19 @@
+use sp1_stark::StarkGenericConfig;
+
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::AbstractExtensionField;
 use p3_field::{Field, TwoAdicField};
+use sp1_stark::air::MachineAir;
+use sp1_stark::quotient_values;
+use sp1_stark::Chip;
+use sp1_stark::Dom;
+use sp1_stark::PackedChallenge;
+use sp1_stark::PcsProverData;
+use sp1_stark::ProverConstraintFolder;
+use sp1_stark::StarkMachine;
+use sp1_stark::StarkProvingKey;
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
@@ -15,12 +26,6 @@ use air::P3EvalFolder;
 
 use std::collections::HashMap;
 use std::marker::PhantomData;
-
-use sp1_core::stark::{quotient_values, PcsProverData, StarkMachine, StarkProvingKey};
-use sp1_core::{
-    air::MachineAir,
-    stark::{Chip, Dom, PackedChallenge, ProverConstraintFolder, StarkGenericConfig},
-};
 
 use crate::device::error::CudaError;
 use crate::device::memory::ToDevice;
@@ -72,10 +77,7 @@ where
             let (operations, max) = air::codegen_cuda_eval(chip);
             eval_programs.insert(chip.name().to_owned(), (operations, max));
         }
-        Self {
-            eval_programs,
-            _marker: PhantomData,
-        }
+        Self { eval_programs, _marker: PhantomData }
     }
 
     pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &(Vec<Operation>, usize) {
@@ -87,9 +89,7 @@ where
         num_chunks: usize,
         evals: &ColMajorMatrixDevice<SC::Val>,
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
-        (0..num_chunks)
-            .map(|i| evals.vertically_strided(num_chunks, i))
-            .collect()
+        (0..num_chunks).map(|i| evals.vertically_strided(num_chunks, i)).collect()
     }
 
     #[allow(clippy::type_complexity)]
@@ -131,10 +131,7 @@ where
                     .chip_ordering
                     .get(&chip.name())
                     .map(|&index| {
-                        pk.traces[index]
-                            .to_device_async(stream)
-                            .unwrap()
-                            .to_column_major()
+                        pk.traces[index].to_device_async(stream).unwrap().to_column_major()
                     })
                     .map(|trace| {
                         committer.get_evaluations_on_domain(trace_domain, quotient_domain, &trace)
@@ -176,10 +173,8 @@ where
             let stream = main_on_quotient_domain.stream();
 
             // Move data to device and get generator powers.
-            let cumulative_sums_device = cumulative_sums[i]
-                .as_slice()
-                .to_device_async(stream)
-                .unwrap();
+            let cumulative_sums_device =
+                cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
@@ -231,10 +226,7 @@ where
             let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
             let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
 
-            results.push(DeviceQuotientValues {
-                quotient_chunks,
-                quotient_chunk_domains,
-            });
+            results.push(DeviceQuotientValues { quotient_chunks, quotient_chunk_domains });
         }
 
         Ok(results)
@@ -248,10 +240,7 @@ impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
         &self,
         _stream: &crate::cuda_runtime::stream::CudaStream,
     ) -> Result<Self::DeviceType, CudaError> {
-        Ok(Self::DeviceType {
-            log_n: self.log_n,
-            shift: self.shift,
-        })
+        Ok(Self::DeviceType { log_n: self.log_n, shift: self.shift })
     }
 }
 
@@ -388,10 +377,7 @@ where
         let quotient_chunks = quotient_domain.split_evals(quotient_degree, quotient_flat);
         let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
 
-        QuotientValues {
-            quotient_chunks,
-            quotient_chunk_domains,
-        }
+        QuotientValues { quotient_chunks, quotient_chunk_domains }
     }
 }
 
@@ -403,6 +389,7 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
 
 #[cfg(test)]
 mod tests {
+    use crate::stark::BabyBearPoseidon2;
     use itertools::Itertools;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
@@ -410,22 +397,24 @@ mod tests {
     use p3_field::extension::BinomialExtensionField;
     use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-    use sp1_core::air::SP1_PROOF_NUM_PV_ELTS;
-    use sp1_core::utils::BabyBearPoseidon2;
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_executor::Program;
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::utils::log2_strict_usize;
+    use sp1_stark::air::MachineAir;
+    use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
+    use sp1_stark::PackedChallenge;
+    use sp1_stark::StarkGenericConfig;
 
     use rand::thread_rng;
-    use sp1_core::stark::{quotient_values, PackedChallenge, RiscvAir, StarkGenericConfig};
-    use sp1_core::{
-        air::MachineAir,
-        runtime::Program,
-        utils::{log2_strict_usize, tests::FIBONACCI_ELF},
-    };
+
     use tracing::debug;
 
     use crate::cuda_runtime::ffi::DEFAULT_STREAM;
     use crate::device::memory::ToHost;
     use crate::matrix::ColMajorMatrixDevice;
     use crate::stark::ffi::quotient_gpu;
+    use crate::stark::quotient::quotient_values;
     use crate::utils::init_tracer;
     use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
 
@@ -435,10 +424,7 @@ mod tests {
     type SC = BabyBearPoseidon2;
 
     fn natural_domain_for_degree(degree: usize) -> TwoAdicMultiplicativeCoset<BabyBear> {
-        TwoAdicMultiplicativeCoset {
-            log_n: log2_strict_usize(degree),
-            shift: F::one(),
-        }
+        TwoAdicMultiplicativeCoset { log_n: log2_strict_usize(degree), shift: F::one() }
     }
 
     #[test]
@@ -454,25 +440,17 @@ mod tests {
             debug!("Chip: {}", chip.name());
             debug!("Id: {}", i);
 
-            let program = Program::from(FIBONACCI_ELF);
+            let program = Program::from(FIBONACCI_ELF).unwrap();
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() {
-                prep.height()
-            } else {
-                1 << 10
-            };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 10 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
-            let permutation_challenges = vec![
-                EF::one(),
-                EF::two(),
-                EF::two() + EF::one(),
-                EF::two() + EF::two(),
-            ];
+            let permutation_challenges =
+                vec![EF::one(), EF::two(), EF::two() + EF::one(), EF::two() + EF::two()];
             let packed_permutation_challenges = permutation_challenges
                 .iter()
                 .map(|c| PackedChallenge::<SC>::from_f(*c))
@@ -560,10 +538,7 @@ mod tests {
             let quotient_domain_device = quotient_domain.to_device().unwrap();
 
             let preprocessed_trace_on_quotient_domain_device =
-                preprocessed_trace_on_quotient_domain
-                    .values
-                    .to_device()
-                    .unwrap();
+                preprocessed_trace_on_quotient_domain.values.to_device().unwrap();
             let preprocessed_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 preprocessed_trace_on_quotient_domain_device,
                 preprocessed_trace_on_quotient_domain.width(),
@@ -578,10 +553,8 @@ mod tests {
             )
             .to_column_major();
 
-            let permutation_trace_on_quotient_domain_device = permutation_trace_on_quotient_domain
-                .values
-                .to_device()
-                .unwrap();
+            let permutation_trace_on_quotient_domain_device =
+                permutation_trace_on_quotient_domain.values.to_device().unwrap();
             let permutation_trace_on_quotient_domain_device = RowMajorMatrixDevice::new(
                 permutation_trace_on_quotient_domain_device,
                 permutation_trace_on_quotient_domain.width(),
