@@ -23,7 +23,6 @@
 
 #ifndef __CUDA_ARCH__
 
-
 extern "C" rustCudaError_t sppark_init() {
   uint32_t lg_domain_size = 1;
   uint32_t domain_size = 1U << lg_domain_size;
@@ -65,7 +64,7 @@ extern "C" rustCudaError_t batch_lde_shift(
   const gpu_t& gpu = select_gpu();
 
   try {
-    CUDA_UNWRAP(cudaDeviceSynchronize());
+    // CUDA_UNWRAP(cudaDeviceSynchronize());
 
     NTT::Base_dev_ptr(gpu,  // GS_NTT
                       &d_inout[ext_domain_size - domain_size],

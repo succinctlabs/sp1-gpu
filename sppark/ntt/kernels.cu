@@ -55,7 +55,7 @@ static __device__ __host__ constexpr uint32_t lg2(T n)
 {   uint32_t ret=0; while (n>>=1) ret++; return ret;   }
 
 template<unsigned int Z_COUNT>
-__launch_bounds__(192, 2) __global__
+__launch_bounds__(64, 1) __global__
 void bit_rev_permutation_z(fr_t* out, const fr_t* in, uint32_t lg_domain_size)
 {
     const uint32_t LG_Z_COUNT = lg2(Z_COUNT);
@@ -187,7 +187,7 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
                                   uint32_t poly_count = 1,
                                   bool ext_pow = false)
 {
-    extern __shared__ fr_t exchange[]; 
+    extern __shared__ fr_t exchange[]; // block size
 
     size_t domain_size = (size_t)1 << lg_domain_size;
     uint32_t blowup = 1u << lg_blowup;
