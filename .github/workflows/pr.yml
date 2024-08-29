@@ -100,7 +100,7 @@ jobs:
 
       - name: Run Evaluation
         run: |
-          cd crates/eval
+          cd eval
           RUSTFLAGS='-C target-cpu=native' cargo run --release -- \
             --programs fibonacci,ssz-withdrawals,tendermint \
             --post-to-slack ${{ github.ref == 'refs/heads/main' }} \
