@@ -19,19 +19,19 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { path = "../sp1/crates/core/executor" }
-sp1-core-machine = { path = "../sp1/crates/core/machine" }
-sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
-sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-sp1-server = { path = "../sp1/crates/server" }
-sp1-stark = { path = "../sp1/crates/stark" }
-sp1-cuda = { path = "../sp1/crates/cuda" }
-# sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
-# sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
-# sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
-# sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
-# sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
-# sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/small-program-opts" }
+# sp1-core-executor = { path = "../sp1/crates/core/executor" }
+# sp1-core-machine = { path = "../sp1/crates/core/machine" }
+# sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
+# sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
+# sp1-server = { path = "../sp1/crates/server" }
+# sp1-stark = { path = "../sp1/crates/stark" }
+# sp1-cuda = { path = "../sp1/crates/cuda" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/v1.3.0-rc1" }
 
 # p3
 p3-baby-bear = "0.1.3-succinct"

@@ -80,6 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (name, elf) in named_programs {
         let measurement = make_measurement(&prover, name, elf, opts);
         println!("{}", measurement);
+        measurements.push(measurement);
         let measurement = make_measurement(&prover, name, elf, opts);
         println!("{}", measurement);
         measurements.push(measurement);
