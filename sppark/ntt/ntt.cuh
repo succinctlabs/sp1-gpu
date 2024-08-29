@@ -252,7 +252,7 @@ public:
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],
                            uint32_t lg_domain_size, uint32_t lg_blowup,
-                           bool perform_shift = true, fr_t shift = fr_t{1}, size_t poly_count = 1, bool ext_pow = false)
+                           bool perform_shift = true, fr_t shift = fr_t{1}, uint32_t poly_count = 1, bool ext_pow = false)
     {
         assert(lg_domain_size + lg_blowup <= MAX_LG_DOMAIN_SIZE);
         size_t domain_size = (size_t)1 << lg_domain_size;
@@ -277,10 +277,11 @@ public:
         }
 
         stream.launch_coop(LDE_spread_distribute_powers,
-                        {dim3(num_blocks, poly_count), dim3(block_size),
+                        {dim3(num_blocks), dim3(block_size),
                          sizeof(fr_t) * block_size},
                         ext_domain_data, domain_data, gen_powers,
-                        lg_domain_size, lg_blowup, perform_shift, shift, ext_pow);
+                        lg_domain_size, lg_blowup, perform_shift, shift, poly_count, ext_pow);
+        
     }
 
 public:

@@ -66,6 +66,11 @@ void bit_rev_permutation_z(fr_t* out, const fr_t* in, uint32_t lg_domain_size)
     uint32_t idx = threadIdx.x % Z_COUNT;
     uint32_t rev = bit_rev(idx, LG_Z_COUNT);
 
+    size_t column = blockIdx.y;    // [0..poly_count)
+    in += column << lg_domain_size;
+    out += column << lg_domain_size;
+
+
     index_t step = (index_t)1 << (lg_domain_size - LG_Z_COUNT);
     index_t tid = threadIdx.x + blockDim.x * (index_t)blockIdx.x;
 
@@ -180,9 +185,10 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
                                   uint32_t lg_domain_size, uint32_t lg_blowup,
                                   bool perform_shift = true,
                                   fr_t shift = fr_t {1},
+                                  uint32_t poly_count = 1,
                                   bool ext_pow = false)
 {
-    extern __shared__ fr_t exchange[]; // block size
+    extern __shared__ fr_t exchange[]; 
 
     size_t domain_size = (size_t)1 << lg_domain_size;
     uint32_t blowup = 1u << lg_blowup;
@@ -193,10 +199,6 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
 
     bool overlapping_data = false;
 
-    size_t column = blockIdx.y;    // [0..poly_count)
-    in += column << (lg_domain_size + lg_blowup);
-    out += column << (lg_domain_size + lg_blowup);
-
     if ((in < out && (in + domain_size) > out)
      || (in >= out && (out + domain_size * blowup) > in))
     {
@@ -204,7 +206,6 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
         assert(&out[domain_size * (blowup - 1)] == &in[0]);
     }
 
-    index_t idx0 = blockDim.x * blockIdx.x;
     uint32_t thread_pos = threadIdx.x & (blowup - 1);
 
 #if 0
@@ -213,40 +214,46 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
     index_t iters = domain_size >> (31 - __clz(stride));
 #endif
 
-    for (index_t iter = 0; iter < iters; iter++) {
-        index_t idx = idx0 + threadIdx.x;
+    index_t ext_domain_size = 1u << (lg_domain_size + lg_blowup);
+    for (index_t column = 0; column < poly_count; column++) {
+        index_t idx0 = blockDim.x * blockIdx.x;
 
-        fr_t r = in[idx];
+        for (index_t iter = 0; iter < iters; iter++) {
+            index_t idx = idx0 + threadIdx.x;
 
-        if (perform_shift) {
-            index_t pow = bit_rev(idx, lg_domain_size +
-                                  (ext_pow ? lg_blowup : 0));
+            fr_t r = in[idx];
 
-            fr_t weight = get_intermediate_root(pow, gen_powers);
-            r = r * weight * (shift^pow);
-        }
+            if (perform_shift) {
+                index_t pow = bit_rev(idx, lg_domain_size +
+                                    (ext_pow ? lg_blowup : 0));
 
-        __syncthreads();
+                fr_t weight = get_intermediate_root(pow, gen_powers);
+                r = r * weight * (shift^pow);
+            }
 
-        exchange[threadIdx.x] = r;
-
-        if (overlapping_data && (iter >= (blowup - 1) * (iters >> lg_blowup)))
-            cooperative_groups::this_grid().sync();
-        else
             __syncthreads();
 
-        r.zero();
+            exchange[threadIdx.x] = r;
 
-        for (uint32_t i = 0; i < blowup; i++) {
-            uint32_t offset = i * blockDim.x + threadIdx.x;
+            if (overlapping_data && (iter >= (blowup - 1) * (iters >> lg_blowup)))
+                cooperative_groups::this_grid().sync();
+            else
+                __syncthreads();
+            r.zero();
 
-            if (thread_pos == 0)
-                r = exchange[offset >> lg_blowup];
+            for (uint32_t i = 0; i < blowup; i++) {
+                uint32_t offset = i * blockDim.x + threadIdx.x;
 
-            out[(idx0 << lg_blowup) + offset] = r;
+                if (thread_pos == 0)
+                    r = exchange[offset >> lg_blowup];
+
+                out[(idx0 << lg_blowup) + offset] = r;
+            }
+
+            idx0 += stride;
         }
-
-        idx0 += stride;
+        in += ext_domain_size;
+        out += ext_domain_size;
     }
 }
 
