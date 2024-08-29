@@ -82,7 +82,7 @@ jobs:
 
   performance:
     name: Performance
-    runs-on: [runs-on, family=c7a.48xlarge, "run-id=${{ github.run_id }}"]
+    runs-on: [runs-on, family=g6.2xlarge, "run-id=${{ github.run_id }}"]
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
