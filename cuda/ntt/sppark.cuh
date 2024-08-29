@@ -52,12 +52,12 @@ extern "C" rustCudaError_t sppark_init() {
 }
 
 extern "C" rustCudaError_t batch_lde_shift(
-  fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, 
-  fr_t shift, uint32_t poly_count, bool bit_rev_output) {
+    fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, 
+    fr_t shift, uint32_t poly_count, bool bit_rev_output) {
     
   if (lg_domain_size == 0) {
     return CUDA_SUCCESS_MOON;
-  }
+    }
 
   uint32_t domain_size = 1U << lg_domain_size;
   uint32_t ext_domain_size = domain_size << lg_blowup;
@@ -95,7 +95,7 @@ extern "C" rustCudaError_t batch_lde_shift(
                       NTT::Direction::forward,
                       NTT::Type::standard,
                       poly_count);
-                      
+
     if (bit_rev_output) {
         NTT::bit_rev(&d_inout[0], &d_inout[0], 
             lg_domain_size + lg_blowup, gpu, poly_count);
@@ -121,7 +121,7 @@ extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uin
 
   try {
     CUDA_UNWRAP(cudaDeviceSynchronize());
-    //INPUT!
+
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * domain_size],
@@ -132,7 +132,6 @@ extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uin
     }
 
     gpu.sync();
-    //OUTPUT!
   } catch (const cudaError_t& e) {
     gpu.sync();
     CUDA_OK(e);
@@ -173,7 +172,7 @@ extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, ui
 
   try {
     CUDA_UNWRAP(cudaDeviceSynchronize());
-      //INPUT!
+
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(gpu,
                         &d_inout[c * domain_size],
@@ -184,7 +183,6 @@ extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, ui
     }
 
     gpu.sync();
-        //OUTPUT!
   } catch (const cudaError_t& e) {
     gpu.sync();
     CUDA_OK(e);
