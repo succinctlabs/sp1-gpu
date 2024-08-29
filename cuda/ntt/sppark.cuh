@@ -66,93 +66,41 @@ extern "C" rustCudaError_t batch_lde_shift(
 
   try {
     CUDA_UNWRAP(cudaDeviceSynchronize());
-    //1
-    #if 0
-    for (size_t c = 0; c < poly_count; c++) {
-      NTT::Base_dev_ptr(gpu,  // GS_NTT
-                        &d_inout[(c+1) * ext_domain_size - domain_size],
-                        lg_domain_size,
-                        NTT::InputOutputOrder::NR,
-                        NTT::Direction::inverse,
-                        NTT::Type::standard,
-                        1);
-    }
-    #else
-      NTT::Base_dev_ptr(gpu,  // GS_NTT
-                        &d_inout[ext_domain_size - domain_size],
-                        lg_domain_size,
-                        NTT::InputOutputOrder::NR,
-                        NTT::Direction::inverse,
-                        NTT::Type::standard,
-                        poly_count);
-    #endif
 
+    NTT::Base_dev_ptr(gpu,  // GS_NTT
+                      &d_inout[ext_domain_size - domain_size],
+                      lg_domain_size,
+                      NTT::InputOutputOrder::NR,
+                      NTT::Direction::inverse,
+                      NTT::Type::standard,
+                      poly_count);
+    
     const auto gen_powers =
         NTTParameters::all()[gpu.id()].partial_group_gen_powers;
     
-    //2
-    #if 0
-      for (size_t c = 0; c < poly_count; c++) {
-        NTT::LDE_launch(gpu, 
-              &d_inout[c * ext_domain_size], 
-              &d_inout[(c + 1) * ext_domain_size - domain_size], 
-              gen_powers, 
-              lg_domain_size, 
-              lg_blowup, 
-              true, 
-              shift,
-              1);
-      }
-    #else
-      NTT::LDE_launch(gpu, 
-            &d_inout[0], 
-            &d_inout[ext_domain_size - domain_size], 
-            gen_powers, 
-            lg_domain_size, 
-            lg_blowup, 
-            true, 
-            shift,
-            poly_count);
-    #endif
-    
-    // dump_stage(gpu, d_inout, h_inout, "k2", 64, 4, 11);
-
-    //3
-    #if 0
-    for (size_t c = 0; c < poly_count; c++) {
-      NTT::Base_dev_ptr(gpu,  // CT_NTT
-                        &d_inout[c * ext_domain_size],
-                        lg_domain_size + lg_blowup,
-                        NTT::InputOutputOrder::RN,
-                        NTT::Direction::forward,
-                        NTT::Type::standard,
-                        1);
+    NTT::LDE_launch(gpu, 
+                    &d_inout[0], 
+                    &d_inout[ext_domain_size - domain_size], 
+                    gen_powers, 
+                    lg_domain_size, 
+                    lg_blowup, 
+                    true, 
+                    shift,
+                    poly_count);
+  
+    NTT::Base_dev_ptr(gpu,  // CT_NTT
+                      &d_inout[0],
+                      lg_domain_size + lg_blowup,
+                      NTT::InputOutputOrder::RN,
+                      NTT::Direction::forward,
+                      NTT::Type::standard,
+                      poly_count);
+                      
+    if (bit_rev_output) {
+        NTT::bit_rev(&d_inout[0], &d_inout[0], 
+            lg_domain_size + lg_blowup, gpu, poly_count);
     }
-    #else
-      NTT::Base_dev_ptr(gpu,  // CT_NTT
-                        &d_inout[0],
-                        lg_domain_size + lg_blowup,
-                        NTT::InputOutputOrder::RN,
-                        NTT::Direction::forward,
-                        NTT::Type::standard,
-                        poly_count);
-    #endif
-
-    //4
-    #if 0
-      for (size_t c = 0; c < poly_count; c++) {
-        if (bit_rev_output) {
-           NTT::bit_rev(&d_inout[c * ext_domain_size], &d_inout[c * ext_domain_size], 
-               lg_domain_size + lg_blowup, gpu, 1);
-        }
-      }
-    #else
-      if (bit_rev_output) {
-          NTT::bit_rev(&d_inout[0], &d_inout[0], 
-              lg_domain_size + lg_blowup, gpu, poly_count);
-      }
-    #endif
-
+    
     gpu.sync();
   } catch (const cudaError_t& e) {
     gpu.sync();
