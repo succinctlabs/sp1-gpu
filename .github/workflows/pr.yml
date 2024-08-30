@@ -225,7 +225,7 @@ jobs:
     runs-on: "ubuntu-latest"
     needs:
       - "start-runner"
-      - "cuda-test"
+      - "performance"
     if: ${{ always() }}
 
     steps:
