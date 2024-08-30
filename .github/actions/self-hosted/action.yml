@@ -64,18 +64,18 @@ runs:
         sudo nvidia-ctk runtime configure --runtime=docker
         sudo systemctl restart docker
 
-    - name: Install CUDA Toolkit
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y nvidia-cuda-toolkit
+    # - name: Install CUDA Toolkit
+    #   shell: bash
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install -y nvidia-cuda-toolkit
 
-    - name: Set CUDA environment variables
-      shell: bash
-      run: |
-        echo "CUDA_HOME=/usr/lib/cuda" >> $GITHUB_ENV
-        echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
-        echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+    # - name: Set CUDA environment variables
+    #   shell: bash
+    #   run: |
+    #     echo "CUDA_HOME=/usr/lib/cuda" >> $GITHUB_ENV
+    #     echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
+    #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Install Rust
       shell: bash
@@ -95,7 +95,8 @@ runs:
         sp1up
         cargo-prove prove --version
 
-    - name: Show GPU info
+    - name: Check CUDA version
       shell: bash
       run: |
+        nvcc --version
         nvidia-smi
