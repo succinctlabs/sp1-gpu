@@ -75,8 +75,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      # - name: Setup CI
+      #   uses: ./.github/actions/setup
 
       - name: Run cargo check
         uses: actions-rs/cargo@v1
@@ -103,8 +103,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      # - name: Setup CI
+      #   uses: ./.github/actions/setup
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
@@ -196,8 +196,8 @@ jobs:
         run: |
           nvidia-smi
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      # - name: Setup CI
+      #   uses: ./.github/actions/setup
 
       - name: Install SP1 toolchain
         run: |
