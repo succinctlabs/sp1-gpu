@@ -25,6 +25,35 @@ on:
 #   cancel-in-progress: true
 
 jobs:
+  # Lint does not need to be done on a self-hosted runner
+  lint:
+    name: Formatting & Clippy
+    runs-on: [runs-on, runner=8cpu-linux-x64, "run-id=${{ github.run_id }}"]
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Runs-On Runner
+        uses: ./.github/actions/runs-on
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+        env:
+          CARGO_INCREMENTAL: 1
+
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-features --all-targets -- -D warnings -A incomplete-features
+        env:
+          CARGO_INCREMENTAL: 1
+
   start-runner:
     name: Start Self-Hosted EC2 Runner
     runs-on: "ubuntu-latest"
@@ -47,7 +76,7 @@ jobs:
 
       - name: Start EC2 runner
         id: "start-ec2-runner"
-        uses: "xJonathanLEI/ec2-github-runner@main"
+        uses: "machulav/ec2-github-runner@main"
         with:
           mode: "start"
           # Must use personal access token here as `GITHUB_TOKEN` does not have access to runners.
@@ -96,34 +125,6 @@ jobs:
           args: --release
         env:
           RUST_BACKTRACE: 1
- 
-  lint:
-    name: Formatting & Clippy
-    runs-on: [runs-on, runner=8cpu-linux-x64, "run-id=${{ github.run_id }}"]
-    env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup Runs-On Runner
-        uses: ./.github/actions/runs-on
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-        env:
-          CARGO_INCREMENTAL: 1
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-features --all-targets -- -D warnings -A incomplete-features
-        env:
-          CARGO_INCREMENTAL: 1
 
   performance:
     name: Performance
@@ -175,7 +176,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Stop EC2 runner
-        uses: "xJonathanLEI/ec2-github-runner@main"
+        uses: "machulav/ec2-github-runner@main"
         with:
           mode: "stop"
           github-token: ${{ secrets.GH_PAT }}
