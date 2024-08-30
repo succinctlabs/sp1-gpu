@@ -77,30 +77,16 @@ runs:
     #     echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
     #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
-    - name: Check NVIDIA Driver Version
+    - name: Install CUDA Toolkit
       shell: bash
       run: |
-        nvidia-smi --query-gpu=driver_version --format=csv,noheader
-
-    - name: Install Compatible CUDA Toolkit
-      shell: bash
-      run: |
-        DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader)
-        echo "Current NVIDIA driver version: $DRIVER_VERSION"
-        
-        # You might need to adjust this logic based on the specific driver version
-        if [[ "$DRIVER_VERSION" == 535.* ]]; then
-          CUDA_VERSION="12.2"
-        elif [[ "$DRIVER_VERSION" == 525.* ]]; then
-          CUDA_VERSION="12.0"
-        else
-          echo "Unsupported driver version. Please add appropriate CUDA version."
-          exit 1
-        fi
-        
-        echo "Installing CUDA $CUDA_VERSION"
-        wget "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}.0_linux.run"
-        sudo sh "cuda_${CUDA_VERSION}.0_linux.run" --silent --toolkit --override
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+        sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+        wget https://developer.download.nvidia.com/compute/cuda/12.3.0/local_installers/cuda-repo-ubuntu2204-12-3-local_12.3.0-545.23.06-1_amd64.deb
+        sudo dpkg -i cuda-repo-ubuntu2204-12-3-local_12.3.0-545.23.06-1_amd64.deb
+        sudo cp /var/cuda-repo-ubuntu2204-12-3-local/cuda-*-keyring.gpg /usr/share/keyrings/
+        sudo apt-get update
+        sudo apt-get -y install cuda-12-3
 
     - name: Set CUDA environment variables
       shell: bash
@@ -114,6 +100,7 @@ runs:
       run: |
         nvidia-smi
         nvcc --version
+        
     - name: Install sp1up
       shell: bash
       run: |
