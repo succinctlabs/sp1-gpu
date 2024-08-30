@@ -61,7 +61,9 @@ jobs:
           ec2-image-id: "ami-07661c9ecd302a7aa"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g5.2xlarge"
+          # Use a subnet in the default VPC
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
+          # Use a security group attached to the default VPC
           security-group-id: "${{ secrets.AWS_SG_ID }}"
           storage-size: 1024
 
