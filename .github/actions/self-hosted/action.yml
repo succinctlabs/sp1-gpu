@@ -77,16 +77,28 @@ runs:
     #     echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
     #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
-    - name: Install CUDA Toolkit
+    - name: Check NVIDIA Driver Version
       shell: bash
       run: |
+        nvidia-smi --query-gpu=driver_version --format=csv,noheader
+
+    - name: Install Compatible CUDA Toolkit
+      shell: bash
+      run: |
+        DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader)
+        echo "Current NVIDIA driver version: $DRIVER_VERSION"
+        
+        # Pin the CUDA repository
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
         sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-        wget https://developer.download.nvidia.com/compute/cuda/12.3.0/local_installers/cuda-repo-ubuntu2204-12-3-local_12.3.0-545.23.06-1_amd64.deb
-        sudo dpkg -i cuda-repo-ubuntu2204-12-3-local_12.3.0-545.23.06-1_amd64.deb
-        sudo cp /var/cuda-repo-ubuntu2204-12-3-local/cuda-*-keyring.gpg /usr/share/keyrings/
+        
+        # Add CUDA Repository
+        sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+        sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
         sudo apt-get update
-        sudo apt-get -y install cuda-12-3
+        
+        # Install CUDA
+        sudo apt-get -y install cuda-toolkit-12-3
 
     - name: Set CUDA environment variables
       shell: bash
@@ -100,7 +112,7 @@ runs:
       run: |
         nvidia-smi
         nvcc --version
-        
+
     - name: Install sp1up
       shell: bash
       run: |
