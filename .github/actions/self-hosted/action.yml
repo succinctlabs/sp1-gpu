@@ -1,3 +1,4 @@
+# See: https://github.com/machulav/ec2-github-runner
 name: Setup Self-Hosted Runner
 runs:
   using: "composite"
@@ -66,8 +67,7 @@ runs:
     - name: Install Rust
       shell: bash
       run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain
-        1.79.0 -y
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Install sp1up
