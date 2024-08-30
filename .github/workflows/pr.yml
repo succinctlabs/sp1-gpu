@@ -75,8 +75,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      # - name: Setup CI
-      #   uses: ./.github/actions/setup
+      - name: Setup Self-Hosted Runner
+        uses: ./.github/actions/self-hosted
 
       - name: Run cargo check
         uses: actions-rs/cargo@v1
@@ -103,8 +103,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      - name: Setup Runs-On Runner
+        uses: ./.github/actions/runs-on
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
@@ -134,8 +134,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      - name: Setup Self-Hosted Runner
+        uses: ./.github/actions/self-hosted
 
       - name: Run Evaluation
         run: |

@@ -1,4 +1,4 @@
-name: Test setup
+name: Setup Self-Hosted Runner
 inputs:
   pull_token:
     description: "Token to use for private repo access"
