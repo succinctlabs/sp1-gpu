@@ -1,4 +1,4 @@
-name: Setup Self-Hosted Runner
+name: Setup Self-hosted Runner
 runs:
   using: "composite"
   steps:
@@ -63,10 +63,11 @@ runs:
         sudo nvidia-ctk runtime configure --runtime=docker
         sudo systemctl restart docker
 
-    - name: Install Rust
-      shell: bash
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+      - name: "Install Rust"
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Install sp1up
       shell: bash
