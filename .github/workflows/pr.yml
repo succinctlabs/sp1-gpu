@@ -10,6 +10,7 @@ on:
       - "air/**"
       - "core/**"
       - "cuda/**"
+      - "eval/**"
       - "perf/**"
       - "prover/**"
       - "server/**"
@@ -21,7 +22,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   start-runner:
