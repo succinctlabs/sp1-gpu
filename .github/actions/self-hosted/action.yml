@@ -1,4 +1,4 @@
-name: Setup Self-hosted Runner
+name: Setup Self-Hosted Runner
 runs:
   using: "composite"
   steps:
@@ -13,6 +13,7 @@ runs:
     - name: Install build dependencies
       shell: bash
       run: |
+        sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev
 
     - name: rust-cache
@@ -28,7 +29,6 @@ runs:
         key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
         restore-keys: rust-1.79.0-
 
-    # https://docs.docker.com/engine/install/ubuntu/
     - name: Install Docker
       shell: bash
       run: |
@@ -63,11 +63,12 @@ runs:
         sudo nvidia-ctk runtime configure --runtime=docker
         sudo systemctl restart docker
 
-      - name: "Install Rust"
-        shell: bash
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: Install Rust
+      shell: bash
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain
+        1.79.0 -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Install sp1up
       shell: bash

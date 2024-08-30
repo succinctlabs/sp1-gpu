@@ -26,7 +26,7 @@ on:
 
 jobs:
   start-runner:
-    name: Start Self-hosted EC2 Runner
+    name: Start Self-Hosted EC2 Runner
     runs-on: "ubuntu-latest"
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -78,7 +78,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Self-hosted Runner
+      - name: Setup Self-Hosted Runner
         uses: ./.github/actions/self-hosted
 
       - name: Run cargo check
@@ -137,7 +137,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Self-hosted Runner
+      - name: Setup Self-Hosted Runner
         uses: ./.github/actions/self-hosted
 
       - name: Run Evaluation
@@ -158,7 +158,7 @@ jobs:
             --author "${{ github.event.pull_request.user.login || github.actor }}"
 
   stop-runner:
-    name: Stop Self-hosted EC2 Runner
+    name: Stop Self-Hosted EC2 Runner
     runs-on: "ubuntu-latest"
     needs:
       - "start-runner"
