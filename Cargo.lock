@@ -3324,7 +3324,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3359,7 +3359,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3424,7 +3424,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3444,7 +3444,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3464,7 +3464,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3474,7 +3474,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3526,7 +3526,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3550,7 +3550,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3588,7 +3588,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3617,7 +3617,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3654,7 +3654,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3694,7 +3694,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3704,7 +3704,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3730,7 +3730,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3761,7 +3761,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/map-reduce#b4e59338f766822a8fb03f688bd23241f1ba2e6c"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
 dependencies = [
  "arrayref",
  "getrandom",
