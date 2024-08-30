@@ -24,6 +24,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  start-runner:
+    name: "Start self-hosted EC2 runner"
+    runs-on: "ubuntu-latest"
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+
+    steps:
+      # Use an access key for an IAM user with these permissions:
+      # - ec2:RunInstances
+      # - ec2:TerminateInstances
+      # - ec2:DescribeInstances
+      # - ec2:DescribeInstanceStatus
+      - name: "Configure AWS credentials"
+        uses: "aws-actions/configure-aws-credentials@v1"
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: "Start EC2 runner"
+        id: "start-ec2-runner"
+        uses: "xJonathanLEI/ec2-github-runner@main"
+        with:
+          mode: "start"
+          # Must use personal access token here as `GITHUB_TOKEN` does not have access to runners.
+          # Use a fine-grained token with these permissions to at least this repository:
+          # - Administration: Read and write
+          # - Contents: Read and write
+          # - Metadata: Read-only
+          # - Workflows: Read and write
+          github-token: ${{ secrets.GH_PAT }}
+          # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
+          # ec2-image-id: "ami-0b9dd033e4f035441"
+          ec2-image-id: "ami-0729c079aae647cb3"
+          # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
+          ec2-instance-type: "g5.2xlarge"
+          subnet-id: "${{ vars.AWS_SUBNET_ID }}"
+          security-group-id: "${{ vars.AWS_SG_ID }}"
+          storage-size: 1024
+
   test:
     name: Test
     runs-on: [runs-on,runner=gpu-nvidia,image=dlami-x64,"run-id=${{ github.run_id }}"]
@@ -82,12 +123,76 @@ jobs:
 
   performance:
     name: Performance
-    runs-on: [runs-on,runner=gpu-nvidia,image=dlami-x64,"run-id=${{ github.run_id }}"]
+    runs-on: "${{ needs.start-runner.outputs.label }}"
+    needs:
+      - "start-runner"
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+
+      # Workaround for EC2 runner missing $HOME
+      - name: "Set HOME env var"
+        run: |
+          if [ -z "$HOME" ]; then
+            echo "HOME=/home/ubuntu" >> $GITHUB_ENV
+          fi
+
+        # https://docs.docker.com/engine/install/ubuntu/
+      - name: "Install Docker"
+        run: |
+          # Add Docker's official GPG key:
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+          # Add the repository to Apt sources:
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+            $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      - name: "Install Nvidia container toolkit"
+        run: |
+          curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+            && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+              sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+              sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+          sudo apt-get update
+          sudo apt-get install -y nvidia-container-toolkit
+
+          sudo nvidia-ctk runtime configure --runtime=docker
+          sudo systemctl restart docker
+
+      - name: "Install Rust"
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s - -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: "Install sp1up"
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+      - name: "Install SP1 toolchain"
+        run: |
+          sp1up
+
+      - name: "Install build dependencies"
+        run: |
+          sudo apt-get install -y build-essential pkg-config libssl-dev
+
+      - name: "Show GPU info"
+        run: |
+          nvidia-smi
 
       - name: Setup CI
         uses: ./.github/actions/setup
@@ -114,3 +219,27 @@ jobs:
             --branch-name "${{ github.head_ref || github.ref_name }}" \
             --commit-hash "${{ github.sha }}" \
             --author "${{ github.event.pull_request.user.login || github.actor }}"
+
+  stop-runner:
+    name: "Stop self-hosted EC2 runner"
+    runs-on: "ubuntu-latest"
+    needs:
+      - "start-runner"
+      - "cuda-test"
+    if: ${{ always() }}
+
+    steps:
+      - name: "Configure AWS credentials"
+        uses: "aws-actions/configure-aws-credentials@v1"
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: "Stop EC2 runner"
+        uses: "xJonathanLEI/ec2-github-runner@main"
+        with:
+          mode: "stop"
+          github-token: ${{ secrets.GH_PAT }}
+          label: "${{ needs.start-runner.outputs.label }}"
+          ec2-instance-id: "${{ needs.start-runner.outputs.ec2-instance-id }}"
