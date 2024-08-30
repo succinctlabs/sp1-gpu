@@ -80,16 +80,27 @@ runs:
     - name: Check NVIDIA Driver Version
       shell: bash
       run: |
-        nvidia-smi --query-gpu=driver_version --format=csv,noheader | tee /tmp/nvidia_driver_version
+        nvidia-smi --query-gpu=driver_version --format=csv,noheader
 
     - name: Install Compatible CUDA Toolkit
       shell: bash
       run: |
-        DRIVER_VERSION=$(cat /tmp/nvidia_driver_version)
-        CUDA_VERSION="12.3.0"  # Adjust this to the version you need
-        CUDA_URL="https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_${DRIVER_VERSION}_linux.run"
-        wget $CUDA_URL
-        sudo sh cuda_${CUDA_VERSION}_${DRIVER_VERSION}_linux.run --silent --toolkit --override
+        DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader)
+        echo "Current NVIDIA driver version: $DRIVER_VERSION"
+        
+        # You might need to adjust this logic based on the specific driver version
+        if [[ "$DRIVER_VERSION" == 535.* ]]; then
+          CUDA_VERSION="12.2"
+        elif [[ "$DRIVER_VERSION" == 525.* ]]; then
+          CUDA_VERSION="12.0"
+        else
+          echo "Unsupported driver version. Please add appropriate CUDA version."
+          exit 1
+        fi
+        
+        echo "Installing CUDA $CUDA_VERSION"
+        wget "https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}.0_linux.run"
+        sudo sh "cuda_${CUDA_VERSION}.0_linux.run" --silent --toolkit --override
 
     - name: Set CUDA environment variables
       shell: bash
@@ -103,7 +114,6 @@ runs:
       run: |
         nvidia-smi
         nvcc --version
-
     - name: Install sp1up
       shell: bash
       run: |
