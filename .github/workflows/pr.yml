@@ -60,9 +60,12 @@ jobs:
           # ec2-image-id: "ami-0b9dd033e4f035441"
           # ec2-image-id: "ami-0729c079aae647cb3"
           # ec2-image-id: "ami-0d53d72369335a9d6"
-          ec2-image-id: "ami-06e724c7e929de7ac"
+          # ec2-image-id: "ami-06e724c7e929de7ac"
+          # ec2-image-id: "ami-0b9dd033e4f035441"
+          ec2-image-id: "ami-0a0e5d9c7acc336f1"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
-          ec2-instance-type: "g6.2xlarge"
+          # ec2-instance-type: "g6.2xlarge"
+          ec2-instance-type: "c7i.16xlarge"
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           security-group-id: "${{ secrets.AWS_SG_ID }}"
           storage-size: 1024
