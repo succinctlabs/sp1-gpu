@@ -30,6 +30,11 @@ runs:
         key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
         restore-keys: rust-1.79.0-
 
+    - name: Install Rust
+      shell: bash
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+
     - name: Install Docker
       shell: bash
       run: |
