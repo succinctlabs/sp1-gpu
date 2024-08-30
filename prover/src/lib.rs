@@ -9,7 +9,7 @@ pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
-const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (24.0 * 1e9);
+const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
@@ -20,7 +20,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let (_, total) = cuda_mem_get_info().unwrap();
     tracing::info!("Total memory on device: {}", total);
 
-    let shard_size_log = (total as f64 * SHARD_MEM_RATIO).log2().ceil() as usize;
+    let shard_size_log = ((total as f64) * SHARD_MEM_RATIO).log2().floor() as usize;
     let default_shard_size = 1 << shard_size_log;
     let shard_size = env::var("SHARD_SIZE")
         .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
@@ -71,6 +71,12 @@ mod tests {
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
 
     const RETH_ELF: &[u8] = include_bytes!("../../perf/programs/reth/riscv32im-succinct-zkvm-elf");
+
+    #[test]
+    fn test_gpu_prover_opts() {
+        let opts = gpu_prover_opts();
+        println!("{:?}", opts);
+    }
 
     #[test]
     fn test_e2e_fibonacci() {
