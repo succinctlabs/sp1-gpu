@@ -55,6 +55,7 @@ jobs:
           # - Contents: Read and write
           # - Metadata: Read-only
           # - Workflows: Read and write
+          #
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
           # ec2-image-id: "ami-0b9dd033e4f035441"
