@@ -57,22 +57,16 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          # ec2-image-id: "ami-0b9dd033e4f035441"
-          # ec2-image-id: "ami-0729c079aae647cb3"
-          # ec2-image-id: "ami-0d53d72369335a9d6"
-          # ec2-image-id: "ami-06e724c7e929de7ac"
-          # ec2-image-id: "ami-0b9dd033e4f035441"
           ec2-image-id: "ami-07661c9ecd302a7aa"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g5.2xlarge"
-          # ec2-instance-type: "c7i.16xlarge"
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           security-group-id: "${{ secrets.AWS_SG_ID }}"
           storage-size: 1024
 
   test:
     name: Test
-    runs-on: [runs-on,runner=gpu-nvidia,image=dlami-x64,"run-id=${{ github.run_id }}"]
+    runs-on: "${{ needs.start-runner.outputs.label }}"
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
@@ -131,6 +125,7 @@ jobs:
     runs-on: "${{ needs.start-runner.outputs.label }}"
     needs:
       - "start-runner"
+      - "test"
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
@@ -231,6 +226,7 @@ jobs:
     needs:
       - "start-runner"
       - "performance"
+      - "test"
     if: ${{ always() }}
 
     steps:
