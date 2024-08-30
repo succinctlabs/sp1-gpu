@@ -23,7 +23,7 @@ debug-assertions = true
 # sp1-core-machine = { path = "../sp1/crates/core/machine" }
 # sp1-prover = { path = "../sp1/crates/prover" }
 # sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-# sp1-server = { path = "../sp1/crates/server" }
+# sp1-cuda = { path = "../sp1/crates/cuda" }
 # sp1-stark = { path = "../sp1/crates/stark" }
 sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "kevjue/phase_1_improvements" }
 sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "kevjue/phase_1_improvements" }

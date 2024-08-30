@@ -139,9 +139,12 @@ where
         record: &A::Record,
         phase: ProvePhase,
     ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        let chips = match phase {
-            ProvePhase::Phase1 => self.phase1_chips(),
-            ProvePhase::Phase2 => self.shard_chips(record).collect_vec(),
+        let chips = if phase == ProvePhase::Phase1 {
+            self.shard_chips(record)
+                .filter(|chip| chip.included_in_phase(phase))
+                .collect::<Vec<_>>()
+        } else {
+            self.shard_chips(record).collect::<Vec<_>>()
         };
 
         chips
@@ -552,7 +555,7 @@ where
     where
         A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
     {
-        self.machine().generate_dependencies(&mut records, &opts);
+        self.machine().generate_dependencies(&mut records, &opts, ProvePhase::Phase1);
 
         // Observe the preprocessed commitment.
         pk.observe_into(challenger);
