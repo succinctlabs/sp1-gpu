@@ -78,6 +78,7 @@ runs:
     #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
     - name: Install CUDA Toolkit
+      shell: bash
       run: |
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
         sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
@@ -87,6 +88,7 @@ runs:
         sudo apt-get -y install cuda
 
     - name: Set CUDA environment variables
+      shell: bash
       run: |
         echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
         echo "/usr/local/cuda/bin" >> $GITHUB_PATH
