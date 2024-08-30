@@ -65,11 +65,13 @@ runs:
         sudo systemctl restart docker
 
     - name: Install CUDA Toolkit
+      shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y nvidia-cuda-toolkit
 
     - name: Set CUDA environment variables
+      shell: bash
       run: |
         echo "CUDA_HOME=/usr/lib/cuda" >> $GITHUB_ENV
         echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
