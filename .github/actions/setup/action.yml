@@ -12,12 +12,16 @@ runs:
         if [ -z "$HOME" ]; then
           echo "HOME=/home/ubuntu" >> $GITHUB_ENV
         fi
-        
+
     - name: Set up git private repo access
       shell: bash
       run: |
         git config --global url."https://${{ inputs.pull_token }}@github.com/".insteadOf ssh://git@github.com
         git config --global url."https://${{ inputs.pull_token }}@github.com".insteadOf https://github.com
+
+    - name: "Install build dependencies"
+      run: |
+        sudo apt-get install -y build-essential pkg-config libssl-dev
 
     - name: Install Go 1.22
       uses: actions/setup-go@v5
@@ -47,8 +51,55 @@ runs:
         key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
         restore-keys: rust-1.79.0-
 
-    - name: Setup toolchain
+    - name: Setup Rust toolchain
       id: rustc-toolchain
       shell: bash
       run: |
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+
+    # https://docs.docker.com/engine/install/ubuntu/
+    - name: "Install Docker"
+      run: |
+        # Add Docker's official GPG key:
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+        # Add the repository to Apt sources:
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      - name: "Install Nvidia container toolkit"
+        run: |
+          curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+            && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+              sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+              sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+          sudo apt-get update
+          sudo apt-get install -y nvidia-container-toolkit
+
+          sudo nvidia-ctk runtime configure --runtime=docker
+          sudo systemctl restart docker
+
+      - name: "Install sp1up"
+        run: |
+          curl -L https://sp1.succinct.xyz --token ${{ secrets.GITHUB_TOKEN }} | bash
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+      - name: "Install SP1 toolchain"
+        run: |
+          sp1up
+          cargo-prove prove --version
+
+      - name: "Show GPU info"
+        run: |
+          nvidia-smi
