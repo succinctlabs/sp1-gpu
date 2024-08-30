@@ -77,15 +77,18 @@ runs:
     #     echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
     #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
+    - name: Update NVIDIA Drivers
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y linux-headers-$(uname -r)
+        sudo apt-get install -y nvidia-driver-535
+
     - name: Install CUDA Toolkit
       shell: bash
       run: |
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
-        sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
-        sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
-        sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
-        sudo apt-get update
-        sudo apt-get -y install cuda
+        wget https://developer.download.nvidia.com/compute/cuda/12.3.0/local_installers/cuda_12.3.0_545.23.06_linux.run
+        sudo sh cuda_12.3.0_545.23.06_linux.run --silent --toolkit --driver --override
 
     - name: Set CUDA environment variables
       shell: bash
@@ -94,11 +97,11 @@ runs:
         echo "/usr/local/cuda/bin" >> $GITHUB_PATH
         echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
-    - name: Install Rust
+    - name: Verify CUDA installation
       shell: bash
       run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        nvidia-smi
+        nvcc --version
 
     - name: Install sp1up
       shell: bash
@@ -111,9 +114,3 @@ runs:
       run: |
         sp1up
         cargo-prove prove --version
-
-    - name: Check CUDA version
-      shell: bash
-      run: |
-        nvcc --version
-        nvidia-smi
