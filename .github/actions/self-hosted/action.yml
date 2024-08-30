@@ -4,21 +4,26 @@ runs:
   steps:
     # Workaround for EC2 runner missing $HOME
     - name: "Set HOME env var"
+      shell: bash
+      shell: bash
       run: |
         if [ -z "$HOME" ]; then
           echo "HOME=/home/ubuntu" >> $GITHUB_ENV
         fi
 
     - name: Install build dependencies
+      shell: bash
       run: |
         sudo apt-get install -y build-essential pkg-config libssl-dev
 
     - name: Setup GCC
+      shell: bash
       uses: Dup4/actions-setup-gcc@v1
       with:
         version: latest
 
     - name: rust-cache
+      shell: bash
       uses: actions/cache@v3
       with:
         path: |
@@ -33,6 +38,7 @@ runs:
 
     # https://docs.docker.com/engine/install/ubuntu/
     - name: Install Docker
+      shell: bash
       run: |
         # Add Docker's official GPG key:
         sudo apt-get update
@@ -52,6 +58,7 @@ runs:
 
     # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
     - name: Install Nvidia container toolkit
+      shell: bash
       run: |
         curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
           && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -65,20 +72,24 @@ runs:
         sudo systemctl restart docker
 
     - name: Install Rust
+      shell: bash
       id: rustc-toolchain
       run: |
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
 
     - name: Install sp1up
+      shell: bash
       run: |
         curl -L https://sp1.succinct.xyz | bash
         echo "$HOME/.sp1/bin" >> $GITHUB_PATH
 
     - name: Install SP1 toolchain
+      shell: bash
       run: |
         sp1up
         cargo-prove prove --version
 
     - name: Show GPU info
+      shell: bash
       run: |
         nvidia-smi
