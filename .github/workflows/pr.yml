@@ -67,6 +67,8 @@ jobs:
   test:
     name: Test
     runs-on: "${{ needs.start-runner.outputs.label }}"
+    needs:
+      - "start-runner"
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
@@ -179,7 +181,7 @@ jobs:
 
       - name: "Install sp1up"
         run: |
-          curl -L https://sp1.succinct.xyz | bash
+          curl -L https://sp1.succinct.xyz --token ${{ secrets.GITHUB_TOKEN }} | bash
           echo "$HOME/.sp1/bin" >> $GITHUB_PATH
 
       - name: "Install SP1 toolchain"
