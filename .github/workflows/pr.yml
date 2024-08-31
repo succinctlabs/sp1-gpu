@@ -89,7 +89,7 @@ jobs:
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
           ec2-image-id: "ami-07661c9ecd302a7aa"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
-          ec2-instance-type: "g5.16xlarge"
+          ec2-instance-type: "g5.32xlarge"
           # Use a subnet in the default VPC
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           # Use a security group attached to the default VPC
