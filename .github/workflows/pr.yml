@@ -87,9 +87,9 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          ec2-image-id: "ami-07661c9ecd302a7aa"
+          ec2-image-id: "ami-0d5ed7bc982ae8b65"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
-          ec2-instance-type: "g5.64xlarge"
+          ec2-instance-type: "g5.16xlarge"
           # Use a subnet in the default VPC
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           # Use a security group attached to the default VPC
