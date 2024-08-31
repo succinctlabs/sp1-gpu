@@ -110,22 +110,21 @@ jobs:
       - name: Setup Self-Hosted Runner
         uses: ./.github/actions/self-hosted
 
-      # Uncomment the following steps to run cargo check and test
-      # - name: Run cargo check
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: check
-      #     toolchain: 1.79.0
-      #     args: --all-targets --all-features
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          toolchain: 1.79.0
+          args: --all-targets --all-features
 
-      # - name: Run cargo test
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     toolchain: 1.79.0
-      #     args: --release
-      #   env:
-      #     RUST_BACKTRACE: 1
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          toolchain: 1.79.0
+          args: --release
+        env:
+          RUST_BACKTRACE: 1
 
       - name: Run Evaluation
         run: |

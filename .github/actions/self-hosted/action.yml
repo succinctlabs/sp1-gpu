@@ -54,8 +54,7 @@ runs:
 
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-    - name: Install Nvidia container toolkit
+    - name: Install NVIDIA Container Toolkit
       shell: bash
       run: |
         curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
@@ -68,24 +67,6 @@ runs:
 
         sudo nvidia-ctk runtime configure --runtime=docker
         sudo systemctl restart docker
-
-    # - name: Install CUDA Toolkit
-    #   shell: bash
-    #   run: |
-    #     sudo apt-get update
-    #     sudo apt-get install -y nvidia-cuda-toolkit
-
-    # - name: Set CUDA environment variables
-    #   shell: bash
-    #   run: |
-    #     echo "CUDA_HOME=/usr/lib/cuda" >> $GITHUB_ENV
-    #     echo "/usr/lib/cuda/bin" >> $GITHUB_PATH
-    #     echo "LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-    - name: Check NVIDIA Driver Version
-      shell: bash
-      run: |
-        nvidia-smi --query-gpu=driver_version --format=csv,noheader
 
     - name: Install Compatible CUDA Toolkit
       shell: bash
