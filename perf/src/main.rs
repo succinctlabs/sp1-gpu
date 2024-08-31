@@ -81,9 +81,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let measurement = make_measurement(&prover, name, elf, opts);
         println!("{}", measurement);
         measurements.push(measurement);
-        let measurement = make_measurement(&prover, name, elf, opts);
-        println!("{}", measurement);
-        measurements.push(measurement);
+        // Make a second measurement to see affects of the cache.
+        // let measurement = make_measurement(&prover, name, elf, opts);
+        // println!("{}", measurement);
+        // measurements.push(measurement);
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;

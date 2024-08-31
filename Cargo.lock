@@ -241,7 +241,7 @@ checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -252,7 +252,7 @@ checksum = "6e0c28dcc82d7c8ead5cb13beb15405b57b8546e93215673ff8ca0349a028107"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -429,7 +429,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 2.0.76",
+ "syn 2.0.77",
  "which 4.4.2",
 ]
 
@@ -628,7 +628,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -792,7 +792,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -816,7 +816,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -827,7 +827,7 @@ checksum = "d336a2a514f6ccccaa3e09b02d41d35330c07ddf03a62165fcec10bb561c7806"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -947,7 +947,7 @@ checksum = "5f33878137e4dafd7fa914ad4e259e18a4e8e532b9617a2d0150262bf53abfce"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -1201,7 +1201,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -1319,7 +1319,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -1615,9 +1615,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.4.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ead53efc7ea8ed3cfb0c79fc8023fbb782a5432b52830b6518941cebe6505c"
+checksum = "68b900aa2f7301e21c36462b170ee99994de34dff39a4a6a528e80e7376d07e5"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.5",
@@ -2124,9 +2124,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.3"
+version = "0.36.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27b64972346851a39438c60b341ebc01bba47464ae329e55cf343eb93964efd9"
+checksum = "084f1a5821ac4c651660a94a7153d27ac9d8a53736203f58b31945ded098070a"
 dependencies = [
  "memchr",
 ]
@@ -2151,7 +2151,7 @@ checksum = "1e32339a5dc40459130b3bd269e9892439f55b33e772d2a9d402a789baaf4e8a"
 dependencies = [
  "futures-core",
  "futures-sink",
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
  "js-sys",
  "once_cell",
  "pin-project-lite",
@@ -2680,7 +2680,7 @@ checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2739,7 +2739,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479cf940fbbb3426c32c5d5176f62ad57549a0bb84773423ba8be9d089f5faba"
 dependencies = [
  "proc-macro2",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -2790,7 +2790,7 @@ dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3133,7 +3133,7 @@ checksum = "a5831b979fd7b5439637af1752d535ff49f4860c0f341d1baeb6faf0f4242170"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3180,7 +3180,7 @@ dependencies = [
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
  "serde",
  "serde_derive",
  "serde_json",
@@ -3197,7 +3197,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3222,7 +3222,7 @@ checksum = "82fe9db325bcef1fbcde82e078a5cc4efdf787e96b3b9cf45b50b529f2083d67"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3324,7 +3324,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3359,7 +3359,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3424,7 +3424,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3444,7 +3444,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3464,7 +3464,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3474,7 +3474,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3526,7 +3526,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3550,7 +3550,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3588,7 +3588,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3617,7 +3617,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3654,7 +3654,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3694,7 +3694,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3704,7 +3704,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3730,7 +3730,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3761,7 +3761,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/integration-constraints#5d82c18e283248c873fe00846f30952d28875bb6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#54f0a60e880d3c77eef19fcd164e232982d312b4"
 dependencies = [
  "arrayref",
  "getrandom",
@@ -3845,7 +3845,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -3876,9 +3876,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.76"
+version = "2.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578e081a14e0cefc3279b0472138c513f37b41a08d5a3cca9b6e4e8ceb6cd525"
+checksum = "9f35bcdf61fd8e7be6caf75f429fdca8beb3ed76584befb503b1569faee373ed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3950,7 +3950,7 @@ checksum = "a4558b58466b9ad7ca0f102865eccc95938dca1a74a856f2b57b6629050da261"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4020,9 +4020,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.39.3"
+version = "1.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9babc99b9923bfa4804bd74722ff02c0381021eafa4db9949217e3be8e84fff5"
+checksum = "e2b070231665d27ad9ec9b8df639893f46727666c6767db40317fbe920a5d998"
 dependencies = [
  "backtrace",
  "bytes",
@@ -4054,7 +4054,7 @@ checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4093,7 +4093,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
  "toml_datetime",
  "winnow 0.5.40",
 ]
@@ -4104,7 +4104,7 @@ version = "0.22.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "583c44c02ad26b0c3f3066fe629275e50627026c51ac2e595cca4c230ce1ce1d"
 dependencies = [
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
  "toml_datetime",
  "winnow 0.6.18",
 ]
@@ -4188,7 +4188,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4395,7 +4395,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
  "wasm-bindgen-shared",
 ]
 
@@ -4429,7 +4429,7 @@ checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -4545,7 +4545,7 @@ checksum = "9107ddc059d5b6fbfbffdfa7a7fe3e22a226def0b2608f72e9d552763d3e1ad7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4556,7 +4556,7 @@ checksum = "29bee4b38ea3cde66011baa44dba677c432a78593e202392d1e9070cf2a7fca7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4797,7 +4797,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -4817,7 +4817,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.76",
+ "syn 2.0.77",
 ]
 
 [[package]]
