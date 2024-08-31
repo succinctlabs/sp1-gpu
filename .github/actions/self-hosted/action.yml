@@ -34,6 +34,14 @@ runs:
       shell: bash
       run: |
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        source $HOME/.cargo/env
+
+    - name: Verify Rust installation
+      shell: bash
+      run: |
+        rustc --version
+        cargo --version
 
     - name: Install Docker
       shell: bash
