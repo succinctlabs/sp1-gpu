@@ -98,7 +98,7 @@ where
         committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKey<SC>,
-        main_traces: &[ColMajorMatrixDevice<SC::Val>],
+        main_traces: &[&ColMajorMatrixDevice<SC::Val>],
         domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,

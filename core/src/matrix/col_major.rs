@@ -1,5 +1,8 @@
+use core::slice;
+use std::iter;
+
 use p3_baby_bear::BabyBear;
-use p3_matrix::dense::RowMajorMatrix;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
@@ -202,6 +205,22 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
     }
 }
 
+impl<T: Default + Copy + Send + Sync> Matrix<T> for ColMajorMatrixDevice<T> {
+    fn width(&self) -> usize {
+        ColMajorMatrixDevice::width(self)
+    }
+
+    fn height(&self) -> usize {
+        ColMajorMatrixDevice::height(self)
+    }
+
+    type Row<'a> = iter::Cloned<slice::Iter<'a, T>> where Self: 'a;
+
+    fn row(&self, _: usize) -> Self::Row<'_> {
+        unimplemented!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use p3_baby_bear::BabyBear;
@@ -277,7 +296,8 @@ mod tests {
         let device_matrix = host_matrix.to_device().unwrap().to_column_major();
 
         for offset in 0..stride {
-            let strided_d = device_matrix.vertically_strided(stride, offset).unwrap();
+            let strided_d =
+                ColMajorMatrixDevice::vertically_strided(&device_matrix, stride, offset).unwrap();
             let mat_h = host_matrix.clone();
             let host_matrix_strided =
                 mat_h.vertically_strided(stride, offset).to_row_major_matrix();
