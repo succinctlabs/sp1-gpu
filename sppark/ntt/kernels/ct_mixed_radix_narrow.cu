@@ -183,11 +183,11 @@ class CT_launcher {
     bool is_intt;
     int stage;
     const NTTParameters& ntt_parameters;
-    const stream_t& stream;
+    const cudaStream_t stream;
 
 public:
     CT_launcher(fr_t* d_ptr, int lg_dsz, bool intt,
-                const NTTParameters& params, const stream_t& s)
+                const NTTParameters& params, const cudaStream_t& s)
       : d_inout(d_ptr), lg_domain_size(lg_dsz), is_intt(intt), stage(0),
         ntt_parameters(params), stream(s)
     {}

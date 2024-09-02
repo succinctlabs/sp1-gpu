@@ -162,7 +162,7 @@ void generate_radixX_twiddles_X(fr_t* d_radixX_twiddles_X, int n,
 
 class NTTParameters {
 private:
-    const gpu_t& gpu;
+    const cudaStream_t& stream;
     bool inverse;
 
 public:
@@ -179,27 +179,32 @@ public:
 private:
     fr_t* twiddles_X(int num_blocks, int block_size, const fr_t& root)
     {
-        fr_t* ret = (fr_t*)gpu.Dmalloc(num_blocks * block_size * sizeof(fr_t));
-        generate_radixX_twiddles_X<<<16, block_size, 0, gpu>>>(ret, num_blocks, root);
+        fr_t* ret;
+        CUDA_UNWRAP_SPPARK(cudaMallocAsync(&ret, num_blocks * block_size * sizeof(fr_t), stream));
+        
+        generate_radixX_twiddles_X<<<16, block_size, 0, stream>>>(ret, num_blocks, root);
         CUDA_UNWRAP_SPPARK(cudaGetLastError());
         return ret;
     }
 #endif
 
 public:
-    NTTParameters(const bool _inverse, int id)
-        : gpu(select_gpu(id)), inverse(_inverse)
+    NTTParameters(const bool _inverse, cudaStream_t _stream)
+        : stream(_stream), inverse(_inverse)
     {
         const fr_t* roots = inverse ? inverse_roots_of_unity
                                     : forward_roots_of_unity;
 
-        const size_t blob_sz = 64 + 128 + 256 + 512 + 32;
+        const size_t blob_sz = 32 + 64 + 128 + 256 + 512;
 
         fr_t* radix6_twiddles;
         CUDA_UNWRAP_SPPARK(cudaGetSymbolAddress((void**)&radix6_twiddles,
                                      inverse ? inverse_radix6_twiddles
                                              : forward_radix6_twiddles));
-        fr_t* blob = (fr_t*)gpu.Dmalloc(blob_sz * sizeof(fr_t));
+
+        fr_t* blob;
+        CUDA_UNWRAP_SPPARK(cudaMallocAsync(&blob, blob_sz * sizeof(fr_t), stream));
+
 
         twiddles[0] = radix6_twiddles;
         twiddles[1] = blob;                 /* radix7_twiddles */
@@ -207,7 +212,7 @@ public:
         twiddles[3] = twiddles[2] + 128;    /* radix9_twiddles */
         twiddles[4] = twiddles[3] + 256;    /* radix10_twiddles */
 
-        generate_all_twiddles<<<blob_sz/32, 32, 0, gpu>>>(blob,
+        generate_all_twiddles<<<blob_sz/32, 32, 0, stream>>>(blob,
                                                           roots[6],
                                                           roots[7],
                                                           roots[8],
@@ -218,7 +223,7 @@ public:
         /* copy to the constant segment */
         CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(radix6_twiddles, twiddles[4] + 512,
                                 32 * sizeof(fr_t), cudaMemcpyDeviceToDevice,
-                                gpu));
+                                stream));
 
 #if !defined(FEATURE_BABY_BEAR) && !defined(FEATURE_GOLDILOCKS)
         radix6_twiddles_6 = twiddles_X(64, 64, roots[12]);
@@ -230,15 +235,15 @@ public:
 
         const size_t partial_sz = WINDOW_NUM * WINDOW_SIZE;
 
-        partial_twiddles = reinterpret_cast<decltype(partial_twiddles)>
-                           (gpu.Dmalloc(2 * partial_sz * sizeof(fr_t)));
+        cudaMallocAsync(&partial_twiddles, 2 * partial_sz * sizeof(fr_t), stream);
+
         partial_group_gen_powers = &partial_twiddles[WINDOW_NUM];
 
-        generate_partial_twiddles<<<WINDOW_SIZE/32, 32, 0, gpu>>>
+        generate_partial_twiddles<<<WINDOW_SIZE/32, 32, 0, stream>>>
             (partial_twiddles, roots[MAX_LG_DOMAIN_SIZE]);
         CUDA_UNWRAP_SPPARK(cudaGetLastError());
 
-        generate_partial_twiddles<<<WINDOW_SIZE/32, 32, 0, gpu>>>
+        generate_partial_twiddles<<<WINDOW_SIZE/32, 32, 0, stream>>>
             (partial_group_gen_powers, inverse ? group_gen_inverse 
                                                : group_gen);
         CUDA_UNWRAP_SPPARK(cudaGetLastError());
@@ -248,26 +253,23 @@ public:
 
     ~NTTParameters()
     {
-        int current_id;
-        cudaGetDevice(&current_id);
-
-        gpu.select();
-        gpu.Dfree(partial_twiddles);
+        cudaFreeAsync(partial_twiddles, stream);
 
 #if !defined(FEATURE_BABY_BEAR) && !defined(FEATURE_GOLDILOCKS)
-        gpu.Dfree(radix9_twiddles_9);
-        gpu.Dfree(radix8_twiddles_8);
-        gpu.Dfree(radix7_twiddles_7);
-        gpu.Dfree(radix6_twiddles_12);
-        gpu.Dfree(radix6_twiddles_6);
+        cudaFreeAsync(radix9_twiddles_9, stream);
+        cudaFreeAsync(radix8_twiddles_8, stream);
+        cudaFreeAsync(radix7_twiddles_7, stream);
+        cudaFreeAsync(radix6_twiddles_12, stream);
+        cudaFreeAsync(radix6_twiddles_6, stream);
+
 #endif
 
-        gpu.Dfree(twiddles[1]);
-
-        cudaSetDevice(current_id);
+        cudaFreeAsync(twiddles[1], stream);
     }
 
-    inline void sync() const    { gpu.sync(); }
+    inline void sync() const { 
+        CUDA_UNWRAP_SPPARK(cudaStreamSynchronize(stream));
+    }
 
 private:
     class all_params { friend class NTTParameters;
@@ -279,15 +281,17 @@ private:
             int current_id;
             cudaGetDevice(&current_id);
 
-            size_t nids = ngpus();
+            int nids = 0;
+            cudaGetDeviceCount(&nids);
+
             forward.reserve(nids);
-            for (size_t id = 0; id < nids; id++)
-                forward.emplace_back(false, id);
             inverse.reserve(nids);
-            for (size_t id = 0; id < nids; id++)
-                inverse.emplace_back(true, id);
-            for (size_t id = 0; id < nids; id++)
+            for (int id = 0; id < nids; id++) {
+                cudaSetDevice(id);
+                forward.emplace_back(false, (cudaStream_t)0);
+                inverse.emplace_back(true, (cudaStream_t)0);
                 inverse[id].sync();
+            }
 
             cudaSetDevice(current_id);
         }
