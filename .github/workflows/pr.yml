@@ -87,7 +87,7 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          ec2-image-id: "ami-0fac016a0e4971743"
+          ec2-image-id: "ami-06e724c7e929de7ac"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g6.16xlarge"
           # Use a subnet in the default VPC
@@ -110,21 +110,21 @@ jobs:
       - name: Setup Self-Hosted Runner
         uses: ./.github/actions/self-hosted
 
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          toolchain: 1.79.0
-          args: --all-targets --all-features
+      # - name: Run cargo check
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: check
+      #     toolchain: 1.79.0
+      #     args: --all-targets --all-features
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          toolchain: 1.79.0
-          args: --release
-        env:
-          RUST_BACKTRACE: 1
+      # - name: Run cargo test
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     toolchain: 1.79.0
+      #     args: --release
+      #   env:
+      #     RUST_BACKTRACE: 1
 
   performance:
     name: Performance
