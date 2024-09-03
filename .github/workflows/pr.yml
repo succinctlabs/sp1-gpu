@@ -138,7 +138,11 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         
-      - name: Run cargo check
+      - name: cd eval
+        run: |
+          cd eval
+
+      - name: Run Evaluation
         uses: actions-rs/cargo@v1
         with:
           command: run
