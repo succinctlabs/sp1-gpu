@@ -66,7 +66,7 @@ use super::PermutationTraceGenerator;
 
 use super::natural_domain_for_degree;
 
-const LDE_MEM_RATIO: f64 = 10.0 / 24.0;
+const LDE_MEM_RATIO: f64 = 8.0 / 24.0;
 
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
