@@ -34,6 +34,7 @@ use crate::fri::TwoAdicFriCommitter;
 use crate::matrix::ColMajorMatrixDevice;
 use crate::merkle_tree::MmcsCommitter;
 use crate::stark::ffi::quotient_gpu;
+use crate::sync_device;
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 

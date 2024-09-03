@@ -306,7 +306,7 @@ where
 
         // Delete the ldes of the main prover data.
         if recompute_ldes {
-            tracing::debug!("Recomputing LDEs");
+            tracing::info!("Recomputing LDEs");
             main_data.clear_matrices();
         }
 
