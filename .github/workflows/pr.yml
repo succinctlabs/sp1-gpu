@@ -94,7 +94,7 @@ jobs:
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           # Use a security group attached to the default VPC
           security-group-id: "${{ secrets.AWS_SG_ID }}"
-          storage-size: 8192
+          storage-size: 1024
 
   test:
     name: Test
