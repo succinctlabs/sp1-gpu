@@ -1,17 +1,8 @@
+# See: https://github.com/machulav/ec2-github-runner
 name: Setup Self-Hosted Runner
 runs:
   using: "composite"
   steps:
-    - name: Update GLIBC
-      shell: bash
-      run: |
-        echo "Updating GLIBC..."
-        sudo apt-get update
-        sudo apt-get install --only-upgrade libc6 -y
-        sudo ldconfig
-        echo "Updated GLIBC version:"
-        ldd --version | head -n 1
-
     # Workaround for EC2 runner missing $HOME
     - name: "Set HOME env var"
       shell: bash
