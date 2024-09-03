@@ -137,32 +137,39 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        
-      - name: cd eval
-        run: |
-          cd eval
+
+      - name: Setup Self-Hosted Runner
+        uses: ./.github/actions/self-hosted
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.79.0
+          override: true
 
       - name: Run Evaluation
         uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-C target-cpu=native'
+          RUST_BACKTRACE: 1
         with:
           command: run
-          toolchain: 1.79.0
-          args: --release --bin evaluate-performance -- \
-            --programs fibonacci,ssz-withdrawals,tendermint \
-            --post-to-slack ${{ github.ref == 'refs/heads/main' }} \
-            --slack-channel-id "${{ secrets.SLACK_CHANNEL_ID }}" \
-            --slack-token "${{ secrets.SLACK_TOKEN }}" \
-            --post-to-github ${{ github.event_name == 'pull_request' }} \
-            --github-token "${{ secrets.GITHUB_TOKEN }}" \
-            --repo-owner "${{ github.repository_owner }}" \
-            --repo-name "${{ github.event.repository.name }}" \
-            --pr-number "${{ github.event.pull_request.number }}" \
-            --branch-name "${{ github.head_ref || github.ref_name }}" \
-            --commit-hash "${{ github.sha }}" \
+          args: >
+            --release
+            --manifest-path eval/Cargo.toml
+            --
+            --programs fibonacci,ssz-withdrawals,tendermint
+            --post-to-slack ${{ github.ref == 'refs/heads/main' }}
+            --slack-channel-id "${{ secrets.SLACK_CHANNEL_ID }}"
+            --slack-token "${{ secrets.SLACK_TOKEN }}"
+            --post-to-github ${{ github.event_name == 'pull_request' }}
+            --github-token "${{ secrets.GITHUB_TOKEN }}"
+            --repo-owner "${{ github.repository_owner }}"
+            --repo-name "${{ github.event.repository.name }}"
+            --pr-number "${{ github.event.pull_request.number }}"
+            --branch-name "${{ github.head_ref || github.ref_name }}"
+            --commit-hash "${{ github.sha }}"
             --author "${{ github.event.pull_request.user.login || github.actor }}"
-          env:
-            RUSTFLAGS: '-C target-cpu=native'
-            RUST_BACKTRACE: 1
 
   stop-runner:
     name: Stop Self-Hosted EC2 Runner
