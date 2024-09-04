@@ -55,10 +55,7 @@ extern "C" rustCudaError_t sppark_init(const cudaStream_t stream=0) {
 
 extern "C" rustCudaError_t batch_lde_shift(
     fr_t* d_inout, uint32_t lg_domain_size, uint32_t lg_blowup, 
-    fr_t shift, uint32_t poly_count, bool bit_rev_output, const cudaStream_t s = 0) {
-    
-    cudaStream_t stream; //TODO: DEBUG
-    cudaStreamCreate(&stream);
+    fr_t shift, uint32_t poly_count, bool bit_rev_output, const cudaStream_t stream) {
 
     if (lg_domain_size == 0) {
       return CUDA_SUCCESS_MOON;
@@ -67,11 +64,9 @@ extern "C" rustCudaError_t batch_lde_shift(
   uint32_t domain_size = 1U << lg_domain_size;
   uint32_t ext_domain_size = domain_size << lg_blowup;
 
-  
   try {
-
-     CUDA_UNWRAP(cudaStreamSynchronize(stream));
-
+    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
+     
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(stream,
                         &d_inout[(c+1) * ext_domain_size - domain_size],
@@ -105,7 +100,6 @@ extern "C" rustCudaError_t batch_lde_shift(
     CUDA_OK(e);
   }
 
-  cudaStreamDestroy(stream);  
   return CUDA_SUCCESS_MOON;
 
 }

@@ -3,8 +3,7 @@ use std::marker::PhantomData;
 use p3_baby_bear::BabyBear;
 
 use crate::{
-    device::{error::CudaError, slice::DeviceSlice},
-    matrix::MatrixViewMutDevice,
+    cuda_runtime::stream::CudaStream, device::{error::CudaError, slice::DeviceSlice, DeviceBuffer}, matrix::MatrixViewMutDevice
 };
 
 mod ffi;
@@ -61,7 +60,7 @@ impl DeviceDft<BabyBear> {
     /// # Safety
     pub unsafe fn coset_lde_device(
         &self,
-        inout_slice: &mut DeviceSlice<BabyBear>,
+        inout_slice: &mut DeviceBuffer<BabyBear>,
         log_degree: usize,
         log_blowup: usize,
         shift: BabyBear,
@@ -73,7 +72,7 @@ impl DeviceDft<BabyBear> {
             shift,
             1,
             false,
-            // stream,
+            inout_slice.stream().handle(),
         )
         .into()
     }
@@ -94,7 +93,7 @@ impl DeviceDft<BabyBear> {
             shift,
             matrix.width as u32,
             bit_rev,
-            // stream,
+            CudaStream::default().handle(), // TODO: Do we need a stream here?
         )
         .into()
     }
@@ -276,7 +275,7 @@ mod tests {
     fn test_coset_lde() {
         let mut rng = thread_rng();
 
-        let log_degrees = 4..15; //20
+        let log_degrees = 4..20;
         let log_blowup = 2;
 
         let dft = DeviceDft::new();
@@ -294,7 +293,7 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one()) }
+            unsafe { dft.coset_lde_device(&mut d_values, log_d, log_blowup, BabyBear::one()) }
                 .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);

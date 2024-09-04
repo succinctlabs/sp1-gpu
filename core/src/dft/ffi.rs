@@ -1,5 +1,6 @@
 use p3_baby_bear::BabyBear;
 
+use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::device::error::CudaRustError;
 
 extern "C" {
@@ -12,6 +13,7 @@ extern "C" {
         shift: BabyBear,
         poly_count: u32,
         is_bit_rev: bool,
+        stream: CudaStreamHandle,
     ) -> CudaRustError;
 
     pub(crate) fn batch_NTT(
