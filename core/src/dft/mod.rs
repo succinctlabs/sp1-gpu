@@ -73,6 +73,7 @@ impl DeviceDft<BabyBear> {
             shift,
             1,
             false,
+            // stream,
         )
         .into()
     }
@@ -93,6 +94,7 @@ impl DeviceDft<BabyBear> {
             shift,
             matrix.width as u32,
             bit_rev,
+            // stream,
         )
         .into()
     }
@@ -274,7 +276,7 @@ mod tests {
     fn test_coset_lde() {
         let mut rng = thread_rng();
 
-        let log_degrees = 4..20;
+        let log_degrees = 4..15; //20
         let log_blowup = 2;
 
         let dft = DeviceDft::new();

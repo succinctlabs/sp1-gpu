@@ -41,7 +41,7 @@ public:
     }
 
     static void bit_rev(fr_t* d_out, const fr_t* d_inp,
-                        uint32_t lg_domain_size, const cudaStream_t& stream)
+                        uint32_t lg_domain_size, const cudaStream_t stream)
     {
         assert(lg_domain_size <= MAX_LG_DOMAIN_SIZE);
 
@@ -75,7 +75,7 @@ public:
 private:
     static void LDE_powers(fr_t* inout, bool innt, bool bitrev,
                            uint32_t lg_dsz, uint32_t lg_blowup,
-                           const cudaStream_t& stream)
+                           const cudaStream_t stream)
     {
         size_t domain_size = (size_t)1 << lg_dsz;
         const auto gen_powers =
@@ -96,7 +96,7 @@ private:
 
     static void CT_NTT(fr_t* d_inout, const int lg_domain_size, bool intt,
                        const NTTParameters& ntt_parameters,
-                       const cudaStream_t& stream)
+                       const cudaStream_t stream)
     {
         CT_launcher params{d_inout, lg_domain_size, intt, ntt_parameters, stream};
 
@@ -126,7 +126,7 @@ private:
 
     static void GS_NTT(fr_t* d_inout, const int lg_domain_size, const bool is_intt,
                        const NTTParameters& ntt_parameters,
-                       const cudaStream_t& stream)
+                       const cudaStream_t stream)
     {
         GS_launcher params{d_inout, lg_domain_size, is_intt, ntt_parameters, stream};
 
@@ -157,7 +157,7 @@ private:
 protected:
     static void NTT_internal(fr_t* d_inout, uint32_t lg_domain_size,
                              InputOutputOrder order, Direction direction,
-                             Type type, const cudaStream_t& stream)
+                             Type type, const cudaStream_t stream)
     {
         // Pick an NTT algorithm based on the input order and the desired output
         // order of the data. In certain cases, bit reversal can be avoided which
@@ -210,7 +210,7 @@ protected:
     }
 
 public:
-    static RustError Base(const cudaStream_t& stream, fr_t* inout, uint32_t lg_domain_size,
+    static RustError Base(const cudaStream_t stream, fr_t* inout, uint32_t lg_domain_size,
                           InputOutputOrder order, Direction direction,
                           Type type)
     {
@@ -222,17 +222,15 @@ public:
             size_t domain_size = (size_t)1 << lg_domain_size;
             
             dev_ptr_t<fr_t> d_inout{domain_size, stream};
-            #if 0
 
-            cudaMemcpyAsync(&d_inout[0], inout, domain_size * sizeof(fr_t), cudaMemcpyHostToDevice, stream);
+            CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(&d_inout[0], inout, domain_size * sizeof(fr_t), cudaMemcpyHostToDevice, stream));
             
             NTT_internal(&d_inout[0], lg_domain_size, order, direction, type, stream);
 
-            cudaMemcpyAsync(inout, &d_inout[0], domain_size * sizeof(fr_t), cudaMemcpyDeviceToHost, stream);
-            cudaStreamSynchronize(stream);
-            #endif
+            CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(inout, &d_inout[0], domain_size * sizeof(fr_t), cudaMemcpyDeviceToHost, stream));
+            CUDA_UNWRAP_SPPARK(cudaStreamSynchronize(stream));
         } catch (const cuda_error& e) {
-            cudaStreamSynchronize(stream);
+            CUDA_UNWRAP_SPPARK(cudaStreamSynchronize(stream));
 #ifdef TAKE_RESPONSIBILITY_FOR_ERROR_MESSAGE
             return RustError{e.code(), e.what()};
 #else
@@ -244,7 +242,7 @@ public:
     }
 
 public: 
-    static void LDE_launch(const cudaStream_t& stream,
+    static void LDE_launch(const cudaStream_t stream,
                            fr_t* ext_domain_data, fr_t* domain_data,
                            const fr_t (*gen_powers)[WINDOW_SIZE],
                            uint32_t lg_domain_size, uint32_t lg_blowup,
@@ -271,22 +269,23 @@ public:
             num_blocks = domain_size / 1024;
             block_size = 1024;
         }
-
+      
 
         // launch coop
         //1. check params
         size_t shared_sz = sizeof(fr_t) * block_size;
         if (device_prop().sharedMemPerBlock < shared_sz)
-            cudaFuncSetAttribute(LDE_spread_distribute_powers, 
+            CUDA_UNWRAP_SPPARK(cudaFuncSetAttribute(LDE_spread_distribute_powers, 
                                 cudaFuncAttributeMaxDynamicSharedMemorySize, 
-                                shared_sz);
+                                shared_sz));
 
         if (num_blocks == 0 || block_size == 0) {
             int blockSize, minGridSize;
 
-            cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, LDE_spread_distribute_powers);
+            CUDA_UNWRAP_SPPARK(cudaOccupancyMaxPotentialBlockSize(
+                &minGridSize, &blockSize, LDE_spread_distribute_powers));
             if (block_size == 0) block_size = blockSize;
-            if (num_blocks == 0)  num_blocks = minGridSize;
+            if (num_blocks == 0) num_blocks = minGridSize;
         }
         //2. prepare args
         void* args[] = {
@@ -301,17 +300,17 @@ public:
         };
 
         //3. launch
-        cudaLaunchCooperativeKernel((const void*)LDE_spread_distribute_powers, 
+        CUDA_UNWRAP_SPPARK(cudaLaunchCooperativeKernel((const void*)LDE_spread_distribute_powers, 
                                     dim3(num_blocks), 
                                     dim3(block_size),
                                     args, 
                                     shared_sz, 
-                                    stream);
+                                    stream));
 
     }
 
 public:
-    static RustError LDE_aux(const cudaStream_t& stream, fr_t* inout,
+    static RustError LDE_aux(const cudaStream_t stream, fr_t* inout,
                              uint32_t lg_domain_size, uint32_t lg_blowup,
                              fr_t *aux_out = nullptr)
     {
@@ -372,11 +371,11 @@ public:
         return RustError{cudaSuccess};
     }
 
-    static RustError LDE(const cudaStream_t& gpu, fr_t* inout,
+    static RustError LDE(const cudaStream_t gpu, fr_t* inout,
                          uint32_t lg_domain_size, uint32_t lg_blowup)
     {   return LDE_aux(gpu, inout, lg_domain_size, lg_blowup);   }
 
-    static void Base_dev_ptr(const cudaStream_t& stream, fr_t* d_inout,
+    static void Base_dev_ptr(const cudaStream_t stream, fr_t* d_inout,
                              uint32_t lg_domain_size, InputOutputOrder order,
                              Direction direction, Type type)
     {
@@ -384,7 +383,7 @@ public:
                      stream);
     }
 
-    static void LDE_powers(const cudaStream_t& stream, fr_t* d_inout,
+    static void LDE_powers(const cudaStream_t stream, fr_t* d_inout,
                            uint32_t lg_domain_size)
     {
         LDE_powers(d_inout, false, true, lg_domain_size, 0, stream);
@@ -393,7 +392,7 @@ public:
     // If d_out and d_in overlap, d_out is expected to encompass d_in and
     // d_in is expected to be aligned to the end of d_out
     // The input is expected to be in bit-reversed order
-    static void LDE_expand(const cudaStream_t& stream, fr_t* d_out, fr_t* d_in,
+    static void LDE_expand(const cudaStream_t stream, fr_t* d_out, fr_t* d_in,
                            uint32_t lg_domain_size, uint32_t lg_blowup)
     {
         LDE_launch(stream, d_out, d_in, NULL, lg_domain_size, lg_blowup, false);
