@@ -53,6 +53,7 @@ impl<
                 self.log_blowup,
                 shift,
                 bit_reversed,
+                lde_mat.stream(),
             )?;
 
             Ok(lde_mat)
@@ -85,6 +86,7 @@ impl<
                     self.log_blowup,
                     shift,
                     bit_reversed,
+                    lde.stream(),
                 )?;
 
                 Ok(lde)
@@ -107,7 +109,7 @@ impl<
         let log_blowup = dst_domain.log_n - src_domain.log_n;
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
-            self.dft.coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false)?;
+            self.dft.coset_lde_batch_device(lde_mat.view_mut(), log_blowup, shift, false, lde_mat.stream())?;
 
             Ok(lde_mat)
         }

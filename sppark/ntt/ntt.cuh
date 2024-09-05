@@ -228,9 +228,7 @@ public:
             NTT_internal(&d_inout[0], lg_domain_size, order, direction, type, stream);
 
             CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(inout, &d_inout[0], domain_size * sizeof(fr_t), cudaMemcpyDeviceToHost, stream));
-            CUDA_UNWRAP_SPPARK(cudaStreamSynchronize(stream));
         } catch (const cuda_error& e) {
-            CUDA_UNWRAP_SPPARK(cudaStreamSynchronize(stream));
 #ifdef TAKE_RESPONSIBILITY_FOR_ERROR_MESSAGE
             return RustError{e.code(), e.what()};
 #else
@@ -325,7 +323,7 @@ public:
             fr_t* domain_data = &d_inout[ext_domain_size - domain_size]; // aligned to the end
             fr_t* ext_domain_data = &d_inout[0];
 
-            cudaMemcpyAsync(domain_data, inout, domain_size*sizeof(fr_t), cudaMemcpyHostToDevice, stream);
+            CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(domain_data, inout, domain_size*sizeof(fr_t), cudaMemcpyHostToDevice, stream));
 
             NTT_internal(domain_data, lg_domain_size,
                          InputOutputOrder::NR, Direction::inverse,
@@ -336,12 +334,12 @@ public:
                 NTTParameters::all()[gpu_id()].partial_group_gen_powers;
             
             cudaEvent_t event;
-            cudaEventCreate(&event, cudaEventDisableTiming);
+            CUDA_UNWRAP_SPPARK(cudaEventCreate(&event, cudaEventDisableTiming));
 
 
             if (aux_out != nullptr) {
                 bit_rev(aux_data, domain_data, lg_domain_size, stream);
-                cudaEventRecord(event, stream);
+                CUDA_UNWRAP_SPPARK(cudaEventRecord(event, stream));
             }
 
             LDE_launch(stream, ext_domain_data, domain_data, gen_powers,
@@ -354,13 +352,11 @@ public:
 
 
             if (aux_out != nullptr) {
-                cudaStreamWaitEvent(stream, event);
-                cudaMemcpyAsync(aux_out, aux_data, aux_size*sizeof(fr_t), cudaMemcpyDeviceToHost, stream);
+                CUDA_UNWRAP_SPPARK(cudaStreamWaitEvent(stream, event));
+                CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(aux_out, aux_data, aux_size*sizeof(fr_t), cudaMemcpyDeviceToHost, stream));
             }
-            cudaMemcpyAsync(inout, ext_domain_data, ext_domain_size*sizeof(fr_t), cudaMemcpyDeviceToHost, stream);
-            cudaStreamSynchronize(stream);
+            CUDA_UNWRAP_SPPARK(cudaMemcpyAsync(inout, ext_domain_data, ext_domain_size*sizeof(fr_t), cudaMemcpyDeviceToHost, stream));
         } catch (const cuda_error& e) {
-            cudaStreamSynchronize(stream);
 #ifdef TAKE_RESPONSIBILITY_FOR_ERROR_MESSAGE
             return RustError{e.code(), e.what()};
 #else

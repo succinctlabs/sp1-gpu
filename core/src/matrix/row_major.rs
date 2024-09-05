@@ -87,6 +87,10 @@ impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         self.view_mut()
     }
+
+    fn stream(&self) -> &CudaStream {
+        self.stream()
+    }
 }
 
 impl RowMajorMatrixDevice<BabyBear> {

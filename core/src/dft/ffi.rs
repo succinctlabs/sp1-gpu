@@ -4,7 +4,9 @@ use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::device::error::CudaRustError;
 
 extern "C" {
-    pub(crate) fn sppark_init() -> CudaRustError;
+    pub(crate) fn sppark_init(
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
 
     pub(crate) fn batch_lde_shift(
         d_inout: *mut BabyBear,
@@ -20,11 +22,13 @@ extern "C" {
         d_inout: *mut BabyBear,
         lg_domain_size: u32,
         poly_count: u32,
+        stream: CudaStreamHandle,
     ) -> CudaRustError;
 
     pub(crate) fn batch_iNTT(
         d_inout: *mut BabyBear,
         lg_domain_size: u32,
         poly_count: u32,
+        stream: CudaStreamHandle,
     ) -> CudaRustError;
 }

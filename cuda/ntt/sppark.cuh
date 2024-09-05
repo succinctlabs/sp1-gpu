@@ -23,12 +23,7 @@
 
 #ifndef __CUDA_ARCH__
 
-extern "C" rustCudaError_t sppark_init(const cudaStream_t stream=0) {
-  // cudaError_t status = cudaStreamQuery(stream);
-  // if (status == cudaErrorInvalidResourceHandle) {
-  //     cudaStreamCreate(stream);
-  // }
- 
+extern "C" rustCudaError_t sppark_init(const cudaStream_t stream) { 
   uint32_t lg_domain_size = 1;
   uint32_t domain_size = 1U << lg_domain_size;
 
@@ -36,18 +31,13 @@ extern "C" rustCudaError_t sppark_init(const cudaStream_t stream=0) {
   inout[0] = fr_t(1);
   inout[1] = fr_t(1);
   try {
-    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
-
     NTT::Base(stream,
               &inout[0],
               lg_domain_size,
               NTT::InputOutputOrder::NR,
               NTT::Direction::forward,
               NTT::Type::standard);
-
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
   } catch (const cudaError_t& e) {
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
     CUDA_OK(e);
   }
   return CUDA_SUCCESS_MOON;
@@ -64,9 +54,7 @@ extern "C" rustCudaError_t batch_lde_shift(
   uint32_t domain_size = 1U << lg_domain_size;
   uint32_t ext_domain_size = domain_size << lg_blowup;
 
-  try {
-    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
-     
+  try {     
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(stream,
                         &d_inout[(c+1) * ext_domain_size - domain_size],
@@ -94,25 +82,20 @@ extern "C" rustCudaError_t batch_lde_shift(
                lg_domain_size + lg_blowup, stream);
       }
     }
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
   } catch (const cudaError_t& e) {
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
     CUDA_OK(e);
   }
 
   return CUDA_SUCCESS_MOON;
-
 }
 
-extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream = 0) {
+extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream) {
   if (lg_domain_size == 0)
     return CUDA_SUCCESS_MOON;
 
   uint32_t domain_size = 1U << lg_domain_size;
 
   try {
-    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
-
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(stream,
                         &d_inout[c * domain_size],
@@ -121,43 +104,35 @@ extern "C" rustCudaError_t batch_NTT(fr_t* d_inout, uint32_t lg_domain_size, uin
                         NTT::Direction::forward,
                         NTT::Type::standard);
     }
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
   } catch (const cudaError_t& e) {
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
     CUDA_OK(e);
   }
   return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t reverse_bits_batch(fr_t* d_out, fr_t* d_in, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream = 0) {
+extern "C" rustCudaError_t reverse_bits_batch(fr_t* d_out, fr_t* d_in, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream) {
   if (lg_domain_size == 0)
     return CUDA_SUCCESS_MOON;
 
   uint32_t domain_size = 1U << lg_domain_size;
   
   try {
-    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
-
     for (size_t c = 0; c < poly_count; c++) {
       NTT::bit_rev(&d_out[c * domain_size], &d_in[c * domain_size], lg_domain_size, stream);
     }
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
   } catch (const cudaError_t& e) {
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
     CUDA_OK(e);
   }
   return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream = 0) {
+extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, uint32_t poly_count, const cudaStream_t stream) {
   if (lg_domain_size == 0)
     return CUDA_SUCCESS_MOON;
 
   uint32_t domain_size = 1U << lg_domain_size;
 
   try {
-    // CUDA_UNWRAP(cudaStreamSynchronize(stream));
-
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(stream,
                         &d_inout[c * domain_size],
@@ -166,9 +141,7 @@ extern "C" rustCudaError_t batch_iNTT(fr_t* d_inout, uint32_t lg_domain_size, ui
                         NTT::Direction::inverse,
                         NTT::Type::standard);
     }
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
   } catch (const cudaError_t& e) {
-    CUDA_UNWRAP(cudaStreamSynchronize(stream));
     CUDA_OK(e);
   }
   return CUDA_SUCCESS_MOON;
