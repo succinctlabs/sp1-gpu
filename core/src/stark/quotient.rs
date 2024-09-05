@@ -13,7 +13,6 @@ use sp1_stark::PackedChallenge;
 use sp1_stark::PcsProverData;
 use sp1_stark::ProverConstraintFolder;
 use sp1_stark::StarkMachine;
-use sp1_stark::StarkProvingKey;
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};

@@ -140,13 +140,13 @@ where
         }
     }
 
-    fn from_host(host: StarkProvingKey<SC>) -> Self {
+    fn from_host(host: &StarkProvingKey<SC>) -> Self {
         StarkProvingKeyDevice {
-            commit: host.commit,
+            commit: host.commit.clone(),
             pc_start: host.pc_start,
-            traces: host.traces,
+            traces: host.traces.clone(),
             data: host.data.to_device().unwrap(),
-            chip_ordering: host.chip_ordering,
+            chip_ordering: host.chip_ordering.clone(),
             phantom: PhantomData,
         }
     }
