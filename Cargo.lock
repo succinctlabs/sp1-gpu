@@ -1914,6 +1914,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "moongate-core",
+ "serial_test",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-prover",
@@ -3324,7 +3325,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3360,7 +3361,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3425,7 +3426,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3445,7 +3446,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3465,7 +3466,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3475,7 +3476,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3488,7 +3489,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3528,7 +3529,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3552,7 +3553,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3590,7 +3591,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3619,7 +3620,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3656,7 +3657,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3696,7 +3697,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3706,7 +3707,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3732,7 +3733,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3763,7 +3764,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#f934455e7122d8e4fd6561d0dd85ccd9aa4e6011"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/proof-shapes#5bfc9830d522960a1db8e889f994989eb2794a98"
 dependencies = [
  "arrayref",
  "getrandom",

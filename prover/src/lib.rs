@@ -57,6 +57,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use moongate_core::utils::init_tracer;
     use sp1_core_machine::io::SP1Stdin;
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
@@ -92,8 +94,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_e2e_fibonacci() {
-        let elf = TENDERMINT_BENCHMARK_ELF;
+        let elf = FIBONACCI_ELF;
         init_tracer();
 
         let opts = gpu_prover_opts();
@@ -103,6 +106,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_e2e_keyspace_record() {
         let elf = KEYSPACE_RECORD_ELF;
         init_tracer();
@@ -116,6 +120,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_e2e_keyspace_batcher() {
         let elf = KEYSPACE_BATCH_ELF;
         init_tracer();
@@ -129,6 +134,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_deferred_e2e() {
         init_tracer();
         let opts = gpu_prover_opts();
@@ -152,29 +158,34 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_core_fibonacci() {
         test_core_elf(FIBONACCI_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_compress_tendermint() {
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_core_tendermint() {
         test_core_elf(TENDERMINT_BENCHMARK_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_core_reth() {
         test_core_elf(RETH_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_compress_reth() {
         test_compress_elf(RETH_ELF);
