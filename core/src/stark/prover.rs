@@ -19,6 +19,7 @@ use sp1_stark::Com;
 use sp1_stark::DebugConstraintBuilder;
 use sp1_stark::MachineProof;
 use sp1_stark::MachineProver;
+use sp1_stark::MachineProvingKey;
 use sp1_stark::MachineRecord;
 use sp1_stark::PcsProverData;
 use sp1_stark::ProverConstraintFolder;
@@ -27,18 +28,18 @@ use sp1_stark::ShardCommitment;
 use sp1_stark::ShardMainData;
 use sp1_stark::ShardOpenedValues;
 use sp1_stark::ShardProof;
-use sp1_stark::StarkGenericConfig;
 use sp1_stark::StarkMachine;
 use sp1_stark::StarkProvingKey;
 use sp1_stark::StarkVerifyingKey;
-
 use sp1_stark::Val;
 
 use itertools::Itertools;
-
 use tracing::info;
 
+use p3_field::AbstractField;
+use std::array;
 use std::cmp::Reverse;
+use std::marker::PhantomData;
 
 use air::P3EvalFolder;
 
@@ -66,7 +67,7 @@ use super::PermutationTraceGenerator;
 
 use super::natural_domain_for_degree;
 
-const LDE_MEM_RATIO: f64 = 10.0 / 24.0;
+const LDE_MEM_RATIO: f64 = 8.0 / 24.0;
 
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
@@ -77,6 +78,85 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     lde_mem_threshold: usize,
     committer: TwoAdicFriCommitter<SC, C>,
     opening_prover: FriOpeningProver<SC>,
+}
+
+/// A proving key for a STARK.
+#[derive(Clone)]
+pub struct StarkProvingKeyDevice<SC, C>
+where
+    SC: BabyBearFriConfig,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+{
+    /// The commitment to the preprocessed traces.
+    pub commit: Com<SC>,
+    /// The start pc of the program.
+    pub pc_start: Val<SC>,
+    /// The preprocessed traces.
+    pub traces: Vec<RowMajorMatrix<Val<SC>>>,
+    /// The pcs data for the preprocessed traces.
+    pub data: C::ProverData,
+    /// The preprocessed chip ordering.
+    pub chip_ordering: HashMap<String, usize>,
+    pub phantom: PhantomData<C>,
+}
+
+impl<SC, C> MachineProvingKey<SC> for StarkProvingKeyDevice<SC, C>
+where
+    SC: BabyBearFriConfig,
+    Com<SC>: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
+    SC::FriChallenger: Send,
+    <SC::ValMmcs as Mmcs<SC::Val>>::Commitment: Send + Sync,
+    SC::RowMajorProverData: Send + Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
+    C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
+    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+{
+    fn commit(&self) -> Com<SC> {
+        self.commit.clone()
+    }
+
+    fn pc_start(&self) -> Val<SC> {
+        self.pc_start
+    }
+
+    fn to_host(&self) -> StarkProvingKey<SC> {
+        StarkProvingKey {
+            commit: self.commit.clone(),
+            pc_start: self.pc_start,
+            data: self.data.to_host(),
+            traces: self.traces.clone(),
+            chip_ordering: self.chip_ordering.clone(),
+        }
+    }
+
+    fn from_host(host: &StarkProvingKey<SC>) -> Self {
+        StarkProvingKeyDevice {
+            commit: host.commit.clone(),
+            pc_start: host.pc_start,
+            traces: host.traces.clone(),
+            data: host.data.to_device().unwrap(),
+            chip_ordering: host.chip_ordering.clone(),
+            phantom: PhantomData,
+        }
+    }
+
+    fn observe_into(&self, challenger: &mut sp1_stark::Challenger<SC>) {
+        challenger.observe(self.commit.clone());
+        challenger.observe(self.pc_start);
+        let zero = Val::<SC>::zero();
+        for _ in 0..7 {
+            challenger.observe(zero);
+        }
+    }
 }
 
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
@@ -100,7 +180,7 @@ where
         + Send
         + Sync
         + Default,
-    C::ProverData: Send + ToHost<HostType = PcsProverData<SC>>,
+    C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
     PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
     Com<SC>: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
@@ -110,6 +190,8 @@ where
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
     type DeviceProverData = C::ProverData;
+    type DeviceProvingKey = StarkProvingKeyDevice<SC, C>;
+
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
@@ -200,12 +282,12 @@ where
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
-    fn setup(&self, program: &A::Program) -> (StarkProvingKey<SC>, StarkVerifyingKey<SC>) {
+    fn setup(&self, program: &A::Program) -> (Self::DeviceProvingKey, StarkVerifyingKey<SC>) {
         let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
             .in_scope(|| {
                 self.machine()
                     .chips()
-                    .iter()
+                    .par_iter()
                     .map(|chip| {
                         let prep_trace = chip.generate_preprocessed_trace(program);
                         // Assert that the chip width data is correct.
@@ -244,7 +326,6 @@ where
         // Commit to the batch of traces.
         let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
             .in_scope(|| self.committer.commit(&domains_and_traces));
-        let data = data.to_host();
 
         // Get the chip ordering.
         let chip_ordering = named_preprocessed_traces
@@ -260,12 +341,13 @@ where
         let pc_start = program.pc_start();
 
         (
-            StarkProvingKey {
+            StarkProvingKeyDevice {
                 commit: commit.clone(),
                 pc_start,
                 traces,
                 data,
                 chip_ordering: chip_ordering.clone(),
+                phantom: PhantomData,
             },
             StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
         )
@@ -273,8 +355,8 @@ where
 
     fn open(
         &self,
-        pk: &StarkProvingKey<SC>,
-        global_data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
+        pk: &Self::DeviceProvingKey,
+        global_data: Option<ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>>,
         local_data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut SC::Challenger,
         global_permutation_challenges: &[SC::Challenge],
@@ -282,20 +364,26 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let ShardMainData {
-            traces: global_traces,
-            main_commit: global_main_commit,
-            main_data: mut global_main_data,
-            chip_ordering: global_chip_ordering,
-            public_values: global_public_values,
-        } = global_data;
+        let (global_traces, global_main_commit, global_main_data, global_chip_ordering) =
+            if let Some(global_data) = global_data {
+                let ShardMainData {
+                    traces: global_traces,
+                    main_commit: global_main_commit,
+                    main_data: global_main_data,
+                    chip_ordering: global_chip_ordering,
+                    public_values: _,
+                } = global_data;
+                (global_traces, global_main_commit, Some(global_main_data), global_chip_ordering)
+            } else {
+                (vec![], SC::zero_commitment(), None, HashMap::new())
+            };
 
         let ShardMainData {
             traces: local_traces,
             main_commit: local_main_commit,
-            main_data: mut local_main_data,
+            main_data: local_main_data,
             chip_ordering: local_chip_ordering,
-            public_values: _,
+            public_values: local_public_values,
         } = local_data;
 
         // Merge the chip ordering and traces from the global and local data.
@@ -334,7 +422,9 @@ where
         if recompute_ldes {
             tracing::debug!("Recomputing LDEs");
 
-            global_main_data.clear_matrices();
+            if let Some(global_main_data) = global_main_data.as_ref() {
+                global_main_data.clear_matrices();
+            }
             local_main_data.clear_matrices();
         }
 
@@ -418,7 +508,7 @@ where
             &perm_domains_and_traces,
             &permutation_challenges,
             folding_challenge,
-            &global_public_values,
+            &local_public_values,
             &cumulative_sums,
         )?;
 
@@ -468,52 +558,74 @@ where
                 let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
                 perm_prover_data.push_matrix(perm_lde);
             }
-            for ((domain, trace), chip) in domains.iter().zip(all_traces).zip(shard_chips.iter()) {
+            for (i, (domain, trace)) in domains.iter().zip(all_traces).enumerate() {
                 let main_lde = self.committer.encode(*domain, trace, true)?;
-                let scope = all_chip_scopes.get(&chip.name()).expect("chip not found");
+                let scope = all_chip_scopes[i];
 
-                if *scope == InteractionScope::Global {
-                    global_main_data.push_matrix(main_lde);
+                if scope == InteractionScope::Global {
+                    if let Some(global_main_data) = global_main_data.as_ref() {
+                        global_main_data.push_matrix(main_lde);
+                    }
                 } else {
                     local_main_data.push_matrix(main_lde);
                 }
             }
         }
 
-        let pk_data_device = pk.data.to_device().unwrap();
-
         // Split the trace_opening_points to the global and local chips.
         let mut global_trace_opening_points = Vec::with_capacity(global_chip_ordering.len());
         let mut local_trace_opening_points = Vec::with_capacity(local_chip_ordering.len());
-        for (trace_opening_point, chip) in
-            trace_opening_points.clone().into_iter().zip(shard_chips.iter())
-        {
-            let scope = all_chip_scopes.get(&chip.name()).expect("chip not found");
-            if *scope == InteractionScope::Global {
+        for (i, trace_opening_point) in trace_opening_points.clone().into_iter().enumerate() {
+            let scope = all_chip_scopes[i];
+            if scope == InteractionScope::Global {
                 global_trace_opening_points.push(trace_opening_point);
             } else {
                 local_trace_opening_points.push(trace_opening_point);
             }
         }
 
-        let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
-            self.opening_prover.open(
-                &self.committer,
-                self.pcs(),
-                vec![
-                    (pk_data_device, preprocessed_opening_points),
-                    (global_main_data, global_trace_opening_points),
-                    (local_main_data, local_trace_opening_points),
-                    (perm_prover_data, trace_opening_points),
-                    (quotient_prover_data, quotient_opening_points),
-                ],
-                challenger,
-            )
-        });
+        let rounds = if let Some(global_main_data) = global_main_data.as_ref() {
+            vec![
+                (&pk.data, preprocessed_opening_points),
+                (global_main_data, global_trace_opening_points),
+                (&local_main_data, local_trace_opening_points),
+                (&perm_prover_data, trace_opening_points),
+                (&quotient_prover_data, quotient_opening_points),
+            ]
+        } else {
+            vec![
+                (&pk.data, preprocessed_opening_points),
+                (&local_main_data, local_trace_opening_points),
+                (&perm_prover_data, trace_opening_points),
+                (&quotient_prover_data, quotient_opening_points),
+            ]
+        };
+
+        let (openings, opening_proof) = tracing::debug_span!("compute opening")
+            .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
 
         // Collect the opened values for each chip.
-        let [preprocessed_values, global_main_values, local_main_values, permutation_values, mut quotient_values] =
-            openings.try_into().unwrap();
+        let (
+            preprocessed_values,
+            global_main_values,
+            local_main_values,
+            permutation_values,
+            mut quotient_values,
+        ) = if global_main_data.is_some() {
+            let [preprocessed_values, global_main_values, local_main_values, permutation_values, quotient_values] =
+                openings.try_into().unwrap();
+            (
+                preprocessed_values,
+                Some(global_main_values),
+                local_main_values,
+                permutation_values,
+                quotient_values,
+            )
+        } else {
+            let [preprocessed_values, local_main_values, permutation_values, quotient_values] =
+                openings.try_into().unwrap();
+            (preprocessed_values, None, local_main_values, permutation_values, quotient_values)
+        };
 
         let preprocessed_opened_values = preprocessed_values
             .into_iter()
@@ -531,6 +643,8 @@ where
             let local_order = local_chip_ordering.get(&chip.name());
             match (global_order, local_order) {
                 (Some(&global_order), None) => {
+                    let global_main_values =
+                        global_main_values.as_ref().expect("Global main values should be Some");
                     main_values.push(global_main_values[global_order].clone());
                 }
                 (None, Some(&local_order)) => {
@@ -602,7 +716,7 @@ where
             opening_proof,
             chip_ordering: all_chips_ordering,
             chip_scopes: all_chip_scopes,
-            public_values: global_public_values,
+            public_values: local_public_values,
         })
     }
 
@@ -612,7 +726,7 @@ where
     /// a STARK proof that the execution record is valid.
     fn prove(
         &self,
-        pk: &StarkProvingKey<SC>,
+        pk: &Self::DeviceProvingKey,
         mut records: Vec<A::Record>,
         challenger: &mut SC::Challenger,
         opts: <A::Record as MachineRecord>::Config,
@@ -620,31 +734,54 @@ where
     where
         A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
     {
+        let contains_global_bus = self.machine().contains_global_bus();
+
         self.machine().generate_dependencies(&mut records, &opts, InteractionScope::Global);
 
         // Observe the preprocessed commitment.
-        pk.observe_into(challenger);
+        challenger.observe(pk.commit.clone());
+        challenger.observe(pk.pc_start);
+        let zero = Val::<SC>::zero();
+        for _ in 0..7 {
+            challenger.observe(zero);
+        }
 
         // Generate and commit the traces for each shard.
         let global_data: Vec<_> = records
             .iter()
             .map(|record| {
-                let traces = self.generate_traces(record, InteractionScope::Global);
-                self.commit(record, traces)
+                if contains_global_bus {
+                    let global_named_traces =
+                        self.generate_traces(record, InteractionScope::Global);
+                    Some(self.commit(record, global_named_traces))
+                } else {
+                    None
+                }
             })
             .collect();
 
         // Observe the challenges for each segment.
-        global_data.iter().for_each(|data| {
-            challenger.observe(data.main_commit.clone());
-            challenger.observe_slice(&data.public_values[0..self.num_pv_elts()]);
+        global_data.iter().zip_eq(records.iter()).for_each(|(global_data, record)| {
+            if contains_global_bus {
+                challenger.observe(
+                    global_data
+                        .as_ref()
+                        .expect("must have a global commitment")
+                        .main_commit
+                        .clone(),
+                );
+            }
+            challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
         });
 
         // Obtain the challenges used for the global permutation argument.
-        let mut global_permutation_challenges: Vec<SC::Challenge> = Vec::new();
-        for _ in 0..2 {
-            global_permutation_challenges.push(challenger.sample_ext_element());
-        }
+        let global_permutation_challenges: [SC::Challenge; 2] = array::from_fn(|_| {
+            if contains_global_bus {
+                challenger.sample_ext_element()
+            } else {
+                SC::Challenge::zero()
+            }
+        });
 
         let shard_proofs = records
             .iter()
@@ -676,6 +813,11 @@ where
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
         + MachineAir<BabyBear>,
     A::Record: Sync,
+    C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+        + 'static
+        + Send
+        + Sync
+        + Default,
 {
     pub fn pcs(&self) -> &SC::Pcs {
         self.machine.config().pcs()
@@ -684,7 +826,7 @@ where
     #[allow(clippy::type_complexity)]
     pub fn generate_permutation_traces(
         &self,
-        pk: &StarkProvingKey<SC>,
+        pk: &StarkProvingKeyDevice<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         main_traces: &[&GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
@@ -718,6 +860,7 @@ pub mod tests {
     use sp1_core_machine::riscv::RiscvAir;
     use sp1_core_machine::utils::run_test;
     use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
+    use sp1_stark::StarkGenericConfig;
 
     use crate::{
         merkle_tree::FieldMerkleTreeDeviceCommitter,

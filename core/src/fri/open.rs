@@ -48,7 +48,7 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
     fn query_open_batch(
         &self,
         query_indices: &[usize],
-        prover_data_slice: &[Self::ProverData],
+        prover_data_slice: &[&Self::ProverData],
         log_global_max_height: usize,
         is_answering: bool,
     ) -> Vec<Vec<BatchOpening<F, ValMmcs>>>;
@@ -60,7 +60,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
         pcs: &SC::Pcs,
-        rounds: Vec<(C::ProverData, Vec<Vec<SC::Challenge>>)>,
+        rounds: Vec<(&C::ProverData, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
     ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
     where
@@ -444,7 +444,7 @@ pub(super) mod merkle_tree_opening_prover {
         fn query_open_batch(
             &self,
             query_indices: &[usize],
-            prover_data_slice: &[Self::ProverData],
+            prover_data_slice: &[&Self::ProverData],
             log_global_max_height: usize,
             is_answering: bool,
         ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
@@ -616,7 +616,7 @@ where
 
     let query_proofs_data = committer.mmcs_committer.query_open_batch(
         &query_indices,
-        &commit_phase_result.data,
+        commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
         log_max_height,
         true,
     );

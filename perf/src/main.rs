@@ -1,4 +1,5 @@
 use moongate_core::utils::init_tracer;
+use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
@@ -29,6 +30,8 @@ enum Program {
     Sha2Chain,
     Tendermint,
     Reth,
+    KeyspaceRecord,
+    KeyspaceBatcher,
     All,
 }
 
@@ -66,6 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             vec![("Tendermint Benchmark", TENDERMINT_BENCHMARK_ELF)]
         }
         Program::Reth => vec![("Reth", RETH_ELF)],
+        Program::KeyspaceRecord => vec![("KeyspaceRecord", KEYSPACE_ELF)],
+        Program::KeyspaceBatcher => vec![("KeyspaceBatcher", KEYSPACE_BATCHER_ELF)],
     };
 
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
@@ -76,6 +81,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let measurement = make_measurement(&prover, name, elf, opts);
         println!("{}", measurement);
         measurements.push(measurement);
+        // Make a second measurement to see affects of the cache.
+        // let measurement = make_measurement(&prover, name, elf, opts);
+        // println!("{}", measurement);
+        // measurements.push(measurement);
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;
