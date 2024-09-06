@@ -778,6 +778,7 @@ pub mod tests {
             &inputs,
             SP1CoreOpts::default(),
             SP1Context::default(),
+            None,
         )
         .unwrap();
 
