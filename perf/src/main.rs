@@ -21,6 +21,8 @@ struct Args {
     pub program: Program,
     #[arg(short, long, default_value = "telemetry")]
     pub trace: Trace,
+    #[arg(short, long, default_value = "1")]
+    pub repititions: usize,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -77,14 +79,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = gpu_prover_opts();
 
     let mut measurements = vec![];
+    let repititions = args.repititions;
     for (name, elf) in named_programs {
-        let measurement = make_measurement(&prover, name, elf, opts);
-        println!("{}", measurement);
-        measurements.push(measurement);
-        // Make a second measurement to see affects of the cache.
-        // let measurement = make_measurement(&prover, name, elf, opts);
-        // println!("{}", measurement);
-        // measurements.push(measurement);
+        for _ in 0..repititions {
+            let measurement = make_measurement(&prover, name, elf, opts);
+            println!("{}", measurement);
+            measurements.push(measurement);
+        }
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;
