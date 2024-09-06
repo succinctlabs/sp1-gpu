@@ -148,7 +148,7 @@ where
                 let main_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,
                     quotient_domain,
-                    &main_traces[i],
+                    main_traces[i],
                 )?;
                 let perm_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,

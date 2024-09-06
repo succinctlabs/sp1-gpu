@@ -364,7 +364,7 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let (global_traces, global_main_commit, global_main_data, global_chip_ordering) =
+        let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
             if let Some(global_data) = global_data {
                 let ShardMainData {
                     traces: global_traces,
@@ -381,7 +381,7 @@ where
         let ShardMainData {
             traces: local_traces,
             main_commit: local_main_commit,
-            main_data: local_main_data,
+            main_data: mut local_main_data,
             chip_ordering: local_chip_ordering,
             public_values: local_public_values,
         } = local_data;
@@ -422,7 +422,7 @@ where
         if recompute_ldes {
             tracing::debug!("Recomputing LDEs");
 
-            if let Some(global_main_data) = global_main_data.as_ref() {
+            if let Some(global_main_data) = global_main_data.as_mut() {
                 global_main_data.clear_matrices();
             }
             local_main_data.clear_matrices();
@@ -563,7 +563,7 @@ where
                 let scope = all_chip_scopes[i];
 
                 if scope == InteractionScope::Global {
-                    if let Some(global_main_data) = global_main_data.as_ref() {
+                    if let Some(global_main_data) = global_main_data.as_mut() {
                         global_main_data.push_matrix(main_lde);
                     }
                 } else {
