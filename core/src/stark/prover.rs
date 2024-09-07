@@ -737,6 +737,7 @@ where
         let contains_global_bus = self.machine().contains_global_bus();
 
         self.machine().generate_dependencies(&mut records, &opts, InteractionScope::Global);
+        self.machine().generate_dependencies(&mut records, &opts, InteractionScope::Local);
 
         // Observe the preprocessed commitment.
         challenger.observe(pk.commit.clone());
