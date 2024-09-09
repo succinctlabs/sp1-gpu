@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use p3_baby_bear::BabyBear;
 
 use crate::{
-    cuda_runtime::stream::CudaStream, device::{error::CudaError, slice::DeviceSlice}, matrix::MatrixViewMutDevice
+    cuda_runtime::stream::CudaStream,
+    device::{error::CudaError, slice::DeviceSlice},
+    matrix::MatrixViewMutDevice,
 };
 
 mod ffi;
@@ -38,7 +40,8 @@ impl DeviceDft<BabyBear> {
         stream: &CudaStream,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
-        ffi::batch_NTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle()).into()
+        ffi::batch_NTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle())
+            .into()
     }
 
     /// # Safety
@@ -58,7 +61,8 @@ impl DeviceDft<BabyBear> {
         stream: &CudaStream,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
-        ffi::batch_iNTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle()).into()
+        ffi::batch_iNTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle())
+            .into()
     }
 
     /// # Safety
@@ -306,8 +310,10 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one(), &stream) }
-                .unwrap();
+            unsafe {
+                dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one(), &stream)
+            }
+            .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -346,8 +352,16 @@ mod tests {
             // Test the regulat version.
             let time = Instant::now();
             let shift = rng.gen::<BabyBear>();
-            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, shift, false, &CudaStream::default()) }
-                .unwrap();
+            unsafe {
+                dft.coset_lde_batch_device(
+                    mat_d.view_mut(),
+                    log_blowup,
+                    shift,
+                    false,
+                    &CudaStream::default(),
+                )
+            }
+            .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -387,7 +401,13 @@ mod tests {
             // Test the regulat version.
             let time = Instant::now();
             unsafe {
-                dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, BabyBear::one(), true, mat_d.stream())
+                dft.coset_lde_batch_device(
+                    mat_d.view_mut(),
+                    log_blowup,
+                    BabyBear::one(),
+                    true,
+                    mat_d.stream(),
+                )
             }
             .unwrap();
             let gpu_time = time.elapsed();

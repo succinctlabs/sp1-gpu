@@ -201,7 +201,7 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         self.view_mut()
     }
-    
+
     fn stream(&self) -> &CudaStream {
         self.stream()
     }
