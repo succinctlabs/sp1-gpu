@@ -223,7 +223,7 @@ where
     ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
         let chips = self
             .shard_chips(record)
-            .filter(|chip| chip.interaction_randomness() == interaction_scope)
+            .filter(|chip| chip.commit_scope() == interaction_scope)
             .collect::<Vec<_>>();
 
         chips
