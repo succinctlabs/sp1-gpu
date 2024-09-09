@@ -139,6 +139,7 @@ impl ColMajorMatrixDevice<BabyBear> {
                 self.values.as_ptr(),
                 self.height.ilog2(),
                 self.width(),
+                self.stream().handle(),
             )
         }
         .to_result()

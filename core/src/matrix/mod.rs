@@ -77,6 +77,7 @@ pub(super) mod ffi {
             input: *const BabyBear,
             lg_domain_size: u32,
             poly_count: usize,
+            stream: CudaStreamHandle,
         ) -> CudaRustError;
     }
 }
