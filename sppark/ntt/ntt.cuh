@@ -23,10 +23,31 @@ public:
     enum class Algorithm { GS, CT };
 
 private:
-    static cudaDeviceProp device_prop(){
-        cudaDeviceProp deviceProp;
-        cudaGetDeviceProperties(&deviceProp, gpu_id());
-        return deviceProp;
+    struct DeviceProp {
+        int gpu_id;
+        size_t sharedMemPerBlock;
+        int multiProcessorCount;
+        bool initialized = false;
+    };
+
+    static DeviceProp& device_prop() {
+        static DeviceProp prop;
+        if (!prop.initialized) {
+            cudaGetDevice(&prop.gpu_id);
+
+            cudaDeviceProp deviceProp;
+            cudaGetDeviceProperties(&deviceProp, prop.gpu_id);
+
+            prop.sharedMemPerBlock = deviceProp.sharedMemPerBlock;
+            prop.multiProcessorCount = deviceProp.multiProcessorCount;
+            prop.initialized = true;
+
+        }
+        return prop;
+    }
+
+    static size_t shMemPerBlock() {
+        return device_prop().sharedMemPerBlock;
     }
 
     static int sm_count() {
@@ -35,9 +56,7 @@ private:
 
 public:
     static int gpu_id() {
-        int gpu_id;
-        cudaGetDevice(&gpu_id);
-        return gpu_id;
+        return device_prop().gpu_id;
     }
 
     static void bit_rev(fr_t* d_out, const fr_t* d_inp,
@@ -272,7 +291,7 @@ public:
         // launch coop
         //1. check params
         size_t shared_sz = sizeof(fr_t) * block_size;
-        if (device_prop().sharedMemPerBlock < shared_sz)
+        if (shMemPerBlock() < shared_sz)
             CUDA_UNWRAP_SPPARK(cudaFuncSetAttribute(LDE_spread_distribute_powers, 
                                 cudaFuncAttributeMaxDynamicSharedMemorySize, 
                                 shared_sz));

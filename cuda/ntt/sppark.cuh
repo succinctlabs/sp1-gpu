@@ -54,6 +54,9 @@ extern "C" rustCudaError_t batch_lde_shift(
   uint32_t domain_size = 1U << lg_domain_size;
   uint32_t ext_domain_size = domain_size << lg_blowup;
 
+  const auto gen_powers =
+      NTTParameters::all()[NTT::gpu_id()].partial_group_gen_powers;
+
   try {     
     for (size_t c = 0; c < poly_count; c++) {
       NTT::Base_dev_ptr(stream,
@@ -63,9 +66,6 @@ extern "C" rustCudaError_t batch_lde_shift(
                         NTT::Direction::inverse,
                         NTT::Type::standard);
     
-      const auto gen_powers =
-          NTTParameters::all()[NTT::gpu_id()].partial_group_gen_powers;
-  
       NTT::LDE_launch(
           stream, &d_inout[c * ext_domain_size], &d_inout[(c + 1) * ext_domain_size - domain_size], 
           gen_powers, lg_domain_size, lg_blowup, true, shift);
