@@ -117,14 +117,14 @@ jobs:
           toolchain: 1.79.0
           args: --all-targets --all-features
 
-      # - name: Run cargo test
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     toolchain: 1.79.0
-      #     args: --release
-      #   env:
-      #     RUST_BACKTRACE: 1
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          toolchain: 1.79.0
+          args: --release
+        env:
+          RUST_BACKTRACE: 1
 
   performance:
     name: Performance
