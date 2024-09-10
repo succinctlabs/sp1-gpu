@@ -139,6 +139,7 @@ impl ColMajorMatrixDevice<BabyBear> {
                 self.values.as_ptr(),
                 self.height.ilog2(),
                 self.width(),
+                self.stream().handle(),
             )
         }
         .to_result()
@@ -199,6 +200,10 @@ impl<T: Default + Copy + Send + Sync> DeviceMatrix<T> for ColMajorMatrixDevice<T
 
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         self.view_mut()
+    }
+
+    fn stream(&self) -> &CudaStream {
+        self.stream()
     }
 }
 

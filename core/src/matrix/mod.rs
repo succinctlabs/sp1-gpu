@@ -8,6 +8,8 @@ pub use pinned::*;
 pub use row_major::*;
 pub use view::*;
 
+use crate::cuda_runtime::stream::CudaStream;
+
 pub trait DeviceMatrix<T: Copy> {
     /// The number of columns in the matrix.
     fn width(&self) -> usize;
@@ -20,6 +22,9 @@ pub trait DeviceMatrix<T: Copy> {
 
     /// A mutable view of the matrix.
     fn view_mut(&mut self) -> MatrixViewMutDevice<T>;
+
+    /// A stream corresponded to matrix.
+    fn stream(&self) -> &CudaStream;
 }
 
 pub(super) mod ffi {
@@ -72,6 +77,7 @@ pub(super) mod ffi {
             input: *const BabyBear,
             lg_domain_size: u32,
             poly_count: usize,
+            stream: CudaStreamHandle,
         ) -> CudaRustError;
     }
 }

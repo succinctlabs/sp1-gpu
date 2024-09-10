@@ -363,7 +363,7 @@ where
         let _span = span.enter();
         let span = tracing::Span::current();
         let _span = span.enter();
-        let ShardMainData { traces, main_commit, mut main_data, chip_ordering, public_values } =
+        let ShardMainData { mut traces, main_commit, mut main_data, chip_ordering, public_values } =
             data;
 
         let shard_chips = self.machine.shard_chips_ordered(&chip_ordering).collect::<Vec<_>>();
@@ -518,9 +518,17 @@ where
                 let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
                 perm_prover_data.push_matrix(perm_lde);
             }
-            for (domain, trace) in domains.iter().zip(traces) {
-                let main_lde = self.committer.encode(*domain, &trace, true)?;
+            for (domain, trace) in domains.iter().zip(traces.iter()) {
+                let main_lde = self.committer.encode(*domain, trace, true)?;
                 main_data.push_matrix(main_lde);
+            }
+
+            // Synchronize the dropping of the traces so that we free the memory.
+            for _ in 0..traces.len() {
+                let trace = traces.pop().unwrap();
+                let stream = trace.stream().clone();
+                drop(trace);
+                stream.synchronize().unwrap();
             }
         }
 
@@ -598,6 +606,11 @@ where
                 }
             })
             .collect::<Vec<_>>();
+
+        // Synchronize all the chip streams so that we free the memory used in the FRI openning.
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
 
         Ok(ShardProof::<SC> {
             commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },

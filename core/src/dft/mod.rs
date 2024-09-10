@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use p3_baby_bear::BabyBear;
 
 use crate::{
+    cuda_runtime::stream::CudaStream,
     device::{error::CudaError, slice::DeviceSlice},
     matrix::MatrixViewMutDevice,
 };
@@ -14,7 +15,7 @@ pub struct DeviceDft<F = BabyBear>(PhantomData<F>);
 
 impl DeviceDft<BabyBear> {
     pub fn init() -> Result<Self, CudaError> {
-        Result::from(unsafe { ffi::sppark_init() })?;
+        Result::from(unsafe { ffi::sppark_init(CudaStream::default().handle()) })?;
         Ok(Self(PhantomData))
     }
 
@@ -27,17 +28,20 @@ impl DeviceDft<BabyBear> {
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
-        ffi::batch_NTT(inout_slice.as_mut_ptr(), log_degree as u32, 1).into()
+        ffi::batch_NTT(inout_slice.as_mut_ptr(), log_degree as u32, 1, stream.handle()).into()
     }
 
     /// # Safety
     pub unsafe fn dft_batch_device(
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
-        ffi::batch_NTT(matrix.values, matrix.height.ilog2(), matrix.width as u32).into()
+        ffi::batch_NTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle())
+            .into()
     }
 
     /// # Safety
@@ -45,17 +49,20 @@ impl DeviceDft<BabyBear> {
         &self,
         inout_slice: &mut DeviceSlice<BabyBear>,
         log_degree: usize,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
-        ffi::batch_iNTT(inout_slice.as_mut_ptr(), log_degree as u32, 1).into()
+        ffi::batch_iNTT(inout_slice.as_mut_ptr(), log_degree as u32, 1, stream.handle()).into()
     }
 
     /// # Safety
     pub unsafe fn idft_batch_device(
         &self,
         matrix: MatrixViewMutDevice<BabyBear>,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
-        ffi::batch_iNTT(matrix.values, matrix.height.ilog2(), matrix.width as u32).into()
+        ffi::batch_iNTT(matrix.values, matrix.height.ilog2(), matrix.width as u32, stream.handle())
+            .into()
     }
 
     /// # Safety
@@ -65,6 +72,7 @@ impl DeviceDft<BabyBear> {
         log_degree: usize,
         log_blowup: usize,
         shift: BabyBear,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
         ffi::batch_lde_shift(
             inout_slice.as_mut_ptr(),
@@ -73,6 +81,7 @@ impl DeviceDft<BabyBear> {
             shift,
             1,
             false,
+            stream.handle(),
         )
         .into()
     }
@@ -84,6 +93,7 @@ impl DeviceDft<BabyBear> {
         log_blowup: usize,
         shift: BabyBear,
         bit_rev: bool,
+        stream: &CudaStream,
     ) -> Result<(), CudaError> {
         assert!(!matrix.row_major);
         ffi::batch_lde_shift(
@@ -93,6 +103,7 @@ impl DeviceDft<BabyBear> {
             shift,
             matrix.width as u32,
             bit_rev,
+            stream.handle(),
         )
         .into()
     }
@@ -182,7 +193,7 @@ mod tests {
             assert_eq!(mat_d.height(), d);
 
             let time = Instant::now();
-            unsafe { dft.dft_batch_device(mat_d.view_mut()) }.unwrap();
+            unsafe { dft.dft_batch_device(mat_d.view_mut(), mat_d.stream()) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -192,6 +203,7 @@ mod tests {
             println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
 
             let results = mat_d.to_host();
+            mat_d.stream().synchronize().unwrap();
             assert_eq!(results.width(), batch_size);
             assert_eq!(results.height(), d);
 
@@ -216,9 +228,10 @@ mod tests {
 
             let mut d_values = DeviceBuffer::with_capacity(d).unwrap();
             d_values.extend_from_host_slice(&values);
+            let stream = d_values.stream().clone();
 
             let time = Instant::now();
-            unsafe { dft.dft_device(&mut d_values[..], log_d) }.unwrap();
+            unsafe { dft.dft_device(&mut d_values[..], log_d, &stream) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -228,6 +241,7 @@ mod tests {
             println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
 
             let mut values_back = vec![BabyBear::zero(); d];
+            stream.synchronize().unwrap();
             d_values.copy_to_host(&mut values_back);
 
             for (val, exp) in values_back.into_iter().zip(expected_value) {
@@ -250,9 +264,10 @@ mod tests {
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
             let mut d_values = values.clone().to_device().unwrap();
+            let stream = d_values.stream().clone();
 
             let time = Instant::now();
-            unsafe { dft.idft_device(&mut d_values[..], log_d) }.unwrap();
+            unsafe { dft.idft_device(&mut d_values[..], log_d, &stream) }.unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu idft time log degree {}: {:?}", log_d, gpu_time);
 
@@ -261,6 +276,7 @@ mod tests {
             let cpu_time = time.elapsed();
             println!("Cpu idft time log degree {}: {:?}", log_d, cpu_time);
 
+            stream.synchronize().unwrap();
             let mut values_back = vec![BabyBear::zero(); d];
             d_values.copy_to_host(&mut values_back);
 
@@ -284,7 +300,9 @@ mod tests {
             let d = 1 << log_d;
             let ext_d = d << log_blowup;
 
-            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity(ext_d).unwrap();
+            let stream = CudaStream::create().unwrap();
+
+            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity_in(ext_d, &stream).unwrap();
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
@@ -292,8 +310,10 @@ mod tests {
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
-            unsafe { dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one()) }
-                .unwrap();
+            unsafe {
+                dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one(), &stream)
+            }
+            .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -303,7 +323,8 @@ mod tests {
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
 
             let mut values_back = vec![BabyBear::zero(); ext_d];
-            d_values[0..ext_d].copy_into_host(&mut values_back, &CudaStream::default());
+            d_values[0..ext_d].copy_into_host(&mut values_back, &stream);
+            stream.synchronize().unwrap();
 
             for (val, exp) in values_back.into_iter().zip(expected_value) {
                 assert_eq!(val, exp);
@@ -331,8 +352,16 @@ mod tests {
             // Test the regulat version.
             let time = Instant::now();
             let shift = rng.gen::<BabyBear>();
-            unsafe { dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, shift, false) }
-                .unwrap();
+            unsafe {
+                dft.coset_lde_batch_device(
+                    mat_d.view_mut(),
+                    log_blowup,
+                    shift,
+                    false,
+                    &CudaStream::default(),
+                )
+            }
+            .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
@@ -372,7 +401,13 @@ mod tests {
             // Test the regulat version.
             let time = Instant::now();
             unsafe {
-                dft.coset_lde_batch_device(mat_d.view_mut(), log_blowup, BabyBear::one(), true)
+                dft.coset_lde_batch_device(
+                    mat_d.view_mut(),
+                    log_blowup,
+                    BabyBear::one(),
+                    true,
+                    mat_d.stream(),
+                )
             }
             .unwrap();
             let gpu_time = time.elapsed();
@@ -388,6 +423,7 @@ mod tests {
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
 
             let values_back = mat_d.to_host();
+            mat_d.stream().synchronize().unwrap();
 
             for (val, exp) in values_back.values.into_iter().zip(expected_value.values) {
                 assert_eq!(val, exp);
