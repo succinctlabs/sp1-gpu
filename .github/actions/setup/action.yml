@@ -3,6 +3,8 @@ inputs:
   pull_token:
     description: "Token to use for private repo access"
     required: true
+env:
+  CUDA_INSTALLER_LOG: /tmp/cuda-installer.log
 runs:
   using: "composite"
   steps:
