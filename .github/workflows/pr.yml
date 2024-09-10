@@ -35,6 +35,26 @@ jobs:
 
       - name: Setup CI
         uses: ./.github/actions/setup
+
+      - name: Verify CUDA installation
+        run: |
+          echo "Checking CUDA version:"
+          nvcc --version
+          
+          echo "Checking CUDA libraries:"
+          ls -l /usr/local/cuda/lib64
+          
+          echo "Checking CUDA include files:"
+          ls -l /usr/local/cuda/include
+          
+          echo "Checking nvidia-smi output:"
+          nvidia-smi
+          
+          echo "Checking CUDA_HOME environment variable:"
+          echo $CUDA_HOME
+          
+          echo "Checking LD_LIBRARY_PATH:"
+          echo $LD_LIBRARY_PATH
       
       - name: Setup Rust Environment
         shell: bash
