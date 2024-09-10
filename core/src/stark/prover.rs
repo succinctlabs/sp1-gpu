@@ -525,6 +525,10 @@ where
             })
             .collect::<Vec<_>>();
 
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
         Ok(ShardProof::<SC> {
             commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
             opened_values: ShardOpenedValues { chips: opened_values },
