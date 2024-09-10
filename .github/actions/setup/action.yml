@@ -41,7 +41,7 @@ runs:
       run: |
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
 
-    - name: Setup Rust Environment
-      shell: bash
-      run: |
-        . "$HOME/.cargo/env"
+    - uses: Jimver/cuda-toolkit@v0.2.16
+      id: cuda-toolkit
+      with:
+        cuda: '12.5.0'
