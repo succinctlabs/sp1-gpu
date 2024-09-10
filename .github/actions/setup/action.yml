@@ -34,6 +34,11 @@ runs:
           ~/.rustup/
         key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
         restore-keys: rust-1.79.0-
+      
+    - name: Setup Cargo
+      shell: bash
+      run: |
+        . "$HOME/.cargo/env"
 
     - name: Setup toolchain
       id: rustc-toolchain
