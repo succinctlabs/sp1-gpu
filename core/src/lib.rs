@@ -16,4 +16,4 @@ pub mod utils;
 pub use cuda_runtime::{spawn::spawn, sync_device};
 
 #[cfg(debug_assertions)]
-compile_error!("sp1-sdk must be built in release mode. Please compile with the --release flag.");
+compile_error!("moongate must be built in release mode. Please compile with the --release flag.");
