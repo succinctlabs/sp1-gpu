@@ -321,6 +321,15 @@ public:
             CUDA_UNWRAP_SPPARK(cudaMalloc(&d_ptr, n * sizeof(T)));
         }
     }
+
+    dev_ptr_t(size_t nelems, const cudaStream_t s) : d_ptr(nullptr)
+    {
+        if (nelems) {
+            size_t n = (nelems+WARP_SZ-1) & ((size_t)0-WARP_SZ);
+            CUDA_UNWRAP_SPPARK(cudaMallocAsync(&d_ptr, n * sizeof(T), s));
+        }
+    }
+
     dev_ptr_t(size_t nelems, stream_t& s) : d_ptr(nullptr)
     {
         if (nelems) {
