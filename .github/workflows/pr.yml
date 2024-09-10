@@ -33,6 +33,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Run nvidia-smi
+        run: nvidia-smi
+
       - name: Setup CI
         uses: ./.github/actions/setup
 
