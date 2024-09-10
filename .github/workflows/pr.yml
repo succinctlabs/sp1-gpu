@@ -18,6 +18,7 @@ on:
       - "Cargo.toml"
       - ".github/workflows/**"
       - ".github/runs-on.yml"
+      - ".github/actions/**"
   merge_group:
 
 # concurrency:
