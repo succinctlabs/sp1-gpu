@@ -66,7 +66,7 @@ extern "C" rustCudaError_t cuda_event_elapsed_time(float *ms, cudaEvent_t start,
 extern "C" const cudaStream_t DEFAULT_STREAM = cudaStreamDefault;
 
 extern "C" rustCudaError_t cuda_stream_create(cudaStream_t *stream) {
-    CUDA_OK(cudaStreamCreate(stream));
+    CUDA_OK(cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking));
     return CUDA_SUCCESS_MOON;
 }
 
