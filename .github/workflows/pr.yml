@@ -10,6 +10,7 @@ on:
       - "air/**"
       - "core/**"
       - "cuda/**"
+      - "eval/**"
       - "perf/**"
       - "prover/**"
       - "server/**"
@@ -19,39 +20,12 @@ on:
       - ".github/runs-on.yml"
   merge_group:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+#   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Test
-    runs-on: [runs-on,runner=gpu-nvidia,image=dlami-x64,"run-id=${{ github.run_id }}"]
-    env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup CI
-        uses: ./.github/actions/setup
-
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          toolchain: 1.79.0
-          args: --all-targets --all-features
-
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          toolchain: 1.79.0
-          args: --release
-        env:
-          RUST_BACKTRACE: 1
- 
+  # Lint does not need to be done on a self-hosted runner
   lint:
     name: Formatting & Clippy
     runs-on: [runs-on, runner=8cpu-linux-x64, "run-id=${{ github.run_id }}"]
@@ -61,8 +35,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup CI
-        uses: ./.github/actions/setup
+      - name: Setup Runs-On Runner
+        uses: ./.github/actions/runs-on
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
@@ -79,3 +53,145 @@ jobs:
           args: --all-features --all-targets -- -D warnings -A incomplete-features
         env:
           CARGO_INCREMENTAL: 1
+
+  start-runner:
+    name: Start Self-Hosted EC2 Runner
+    runs-on: "ubuntu-latest"
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+
+    steps:
+      # Use an access key for an IAM user with these permissions:
+      # - ec2:RunInstances
+      # - ec2:TerminateInstances
+      # - ec2:DescribeInstances
+      # - ec2:DescribeInstanceStatus
+      - name: Configure AWS credentials
+        uses: "aws-actions/configure-aws-credentials@v1"
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Start EC2 runner
+        id: "start-ec2-runner"
+        uses: "xJonathanLEI/ec2-github-runner@main"
+        with:
+          mode: "start"
+          # Must use personal access token here as `GITHUB_TOKEN` does not have access to runners.
+          # Use a fine-grained token with these permissions to at least this repository:
+          # - Administration: Read and write
+          # - Contents: Read and write
+          # - Metadata: Read-only
+          # - Workflows: Read and write
+          github-token: ${{ secrets.GH_PAT }}
+          # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
+          ec2-image-id: "ami-06e724c7e929de7ac"
+          # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
+          ec2-instance-type: "g6.16xlarge"
+          # Use a subnet in the default VPC
+          subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
+          # Use a security group attached to the default VPC
+          security-group-id: "${{ secrets.AWS_SG_ID }}"
+          storage-size: 1024
+
+  test:
+    name: Test
+    runs-on: "${{ needs.start-runner.outputs.label }}"
+    needs:
+      - "start-runner"
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Self-Hosted Runner
+        uses: ./.github/actions/self-hosted
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          toolchain: 1.79.0
+          args: --all-targets --all-features
+
+      # - name: Run cargo test
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     toolchain: 1.79.0
+      #     args: --release
+      #   env:
+      #     RUST_BACKTRACE: 1
+
+  performance:
+    name: Performance
+    runs-on: "${{ needs.start-runner.outputs.label }}"
+    needs:
+      - "start-runner"
+      - "test"
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Self-Hosted Runner
+        uses: ./.github/actions/self-hosted
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.79.0
+          override: true
+
+      - name: Run Evaluation
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: '-C target-cpu=native'
+          RUST_BACKTRACE: 1
+        with:
+          command: run
+          args: >
+            --release
+            --manifest-path eval/Cargo.toml
+            --
+            --programs fibonacci,ssz-withdrawals,tendermint
+            --post-to-slack ${{ github.ref == 'refs/heads/main' }}
+            --slack-channel-id "${{ secrets.SLACK_CHANNEL_ID }}"
+            --slack-token "${{ secrets.SLACK_TOKEN }}"
+            --post-to-github ${{ github.event_name == 'pull_request' }}
+            --github-token "${{ secrets.GITHUB_TOKEN }}"
+            --repo-owner "${{ github.repository_owner }}"
+            --repo-name "${{ github.event.repository.name }}"
+            --pr-number "${{ github.event.pull_request.number }}"
+            --branch-name "${{ github.head_ref || github.ref_name }}"
+            --commit-hash "${{ github.sha }}"
+            --author "${{ github.event.pull_request.user.login || github.actor }}"
+
+  stop-runner:
+    name: Stop Self-Hosted EC2 Runner
+    runs-on: "ubuntu-latest"
+    needs:
+      - "start-runner"
+      - "test"
+      - "performance"
+    if: ${{ always() }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: "aws-actions/configure-aws-credentials@v1"
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Stop EC2 runner
+        uses: "xJonathanLEI/ec2-github-runner@main"
+        with:
+          mode: "stop"
+          github-token: ${{ secrets.GH_PAT }}
+          label: "${{ needs.start-runner.outputs.label }}"
+          ec2-instance-id: "${{ needs.start-runner.outputs.ec2-instance-id }}"
