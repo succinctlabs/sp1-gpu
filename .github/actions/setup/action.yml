@@ -43,6 +43,9 @@ runs:
       run: |
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
 
+    - name: Change /var/log permissions
+      run: sudo chmod 777 /var/log
+
     - uses: Jimver/cuda-toolkit@v0.2.16
       id: cuda-toolkit
       with:
