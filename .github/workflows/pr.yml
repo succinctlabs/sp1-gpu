@@ -26,7 +26,7 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: [runs-on,runner=gpu-nvidia,image=dlami-x64,"run-id=${{ github.run_id }}"]
+    runs-on: nvidia-gpu-linux-x64
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
