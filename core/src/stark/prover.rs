@@ -525,6 +525,7 @@ where
             })
             .collect::<Vec<_>>();
 
+        // Synchronize all the chip streams so that we free the memory used in the FRI openning.
         for stream in self.chip_streams.iter() {
             stream.synchronize().unwrap();
         }
