@@ -92,7 +92,7 @@ runs:
         sudo apt-get update
         
         # Install CUDA
-        sudo apt-get -y install cuda-toolkit-12-3
+        sudo apt-get -y install cuda-toolkit-12-6
 
     - name: Set CUDA environment variables
       shell: bash

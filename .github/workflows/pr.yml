@@ -87,7 +87,7 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          ec2-image-id: "ami-06e724c7e929de7ac"
+          ec2-image-id: "ami-0c8cb6d6f6dc127c9"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g6.16xlarge"
           # Use a subnet in the default VPC
@@ -125,6 +125,14 @@ jobs:
           args: --release
         env:
           RUST_BACKTRACE: 1
+      # - name: Run docker build
+      #   run: |
+      #     docker build -t moongate-toolchain -f Dockerfile.toolchain .
+        
+      # # we need to run cargo test --release in the docker container
+      # - name: Run Tests (docker)
+      #   run: |
+      #     docker run --gpus all moongate-toolchain cargo test --release
 
   performance:
     name: Performance
