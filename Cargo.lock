@@ -1889,6 +1889,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum-map"
+version = "2.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6866f3bfdf8207509a033af1a75a7b08abda06bbaaeae6669323fd5a097df2e9"
+dependencies = [
+ "enum-map-derive",
+ "serde",
+]
+
+[[package]]
+name = "enum-map-derive"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f282cfdfe92516eb26c2af8589c274c7c17681f5ecc03c18255fe741c6aa64eb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.76",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5831,9 +5852,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "slack-rust"
-version = "0.0.1-alpha"
-source = "git+https://github.com/dselans/slack-rust.git?branch=main#8212d4e8de30ebb3f536da35eab27e7e0820461b"
+name = "slack-rust-rs"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b12b682cb9dfa4f3b4a57315c241e676103a79a01de6cb72802489fb2fc9bd8"
 dependencies = [
  "async-std",
  "async-tls",
@@ -5898,12 +5920,13 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "bincode",
  "bytemuck",
  "elf",
+ "enum-map",
  "eyre",
  "generic-array 1.1.0",
  "hashbrown 0.14.5",
@@ -5929,12 +5952,13 @@ dependencies = [
  "tiny-keccak",
  "tracing",
  "typenum",
+ "vec_map",
 ]
 
 [[package]]
 name = "sp1-core-machine"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5998,8 +6022,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6018,8 +6042,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -6038,8 +6062,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6048,8 +6072,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6059,7 +6083,7 @@ dependencies = [
  "reqwest 0.12.7",
  "serde",
  "serde_json",
- "slack-rust",
+ "slack-rust-rs",
  "sp1-prover",
  "sp1-sdk",
  "sp1-stark",
@@ -6069,8 +6093,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -6082,8 +6106,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6121,8 +6145,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -6145,8 +6169,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6174,8 +6198,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6211,8 +6235,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core-v2"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6251,8 +6275,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6261,8 +6285,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6287,8 +6311,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-program"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -6318,8 +6342,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6363,8 +6387,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "1.2.0-rc2"
-source = "git+https://github.com/succinctlabs/sp1.git?rev=v1.2.0-rc2#f173699fab2a9d226c5c10896e89ccdac3da875d"
+version = "1.2.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#26fd15e457e239c379d324f156d423811421eece"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
@@ -6388,6 +6412,7 @@ dependencies = [
  "serde",
  "sp1-derive",
  "sp1-primitives",
+ "sysinfo 0.30.13",
  "tracing",
 ]
 
@@ -7331,6 +7356,9 @@ name = "vec_map"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "vergen"
