@@ -87,7 +87,7 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          ec2-image-id: "ami-0c8cb6d6f6dc127c9"
+          ec2-image-id: "ami-0ea868ff4edb632ee"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g6.16xlarge"
           # Use a subnet in the default VPC
@@ -110,29 +110,29 @@ jobs:
       - name: Setup Self-Hosted Runner
         uses: ./.github/actions/self-hosted
 
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          toolchain: 1.79.0
-          args: --all-targets --all-features
+      # - name: Run cargo check
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: check
+      #     toolchain: 1.79.0
+      #     args: --all-targets --all-features
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          toolchain: 1.79.0
-          args: --release
-        env:
-          RUST_BACKTRACE: 1
-      # - name: Run docker build
-      #   run: |
-      #     docker build -t moongate-toolchain -f Dockerfile.toolchain .
+      # - name: Run cargo test
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     toolchain: 1.79.0
+      #     args: --release
+      #   env:
+      #     RUST_BACKTRACE: 1
+      - name: Run docker build
+        run: |
+          docker build -t moongate-toolchain -f Dockerfile.toolchain .
         
-      # # we need to run cargo test --release in the docker container
-      # - name: Run Tests (docker)
-      #   run: |
-      #     docker run --gpus all moongate-toolchain cargo test --release
+      # we need to run cargo test --release in the docker container
+      - name: Run Tests (docker)
+        run: |
+          docker run --gpus all moongate-toolchain cargo test --release
 
   performance:
     name: Performance
