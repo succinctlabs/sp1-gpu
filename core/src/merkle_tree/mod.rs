@@ -36,8 +36,6 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             .sorted_by_key(|l| Reverse(l.height))
             .peekable();
 
-        // TODO: vector of streams  l.stream
-
         let max_height = leaves_largest_first.peek().unwrap().height;
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
