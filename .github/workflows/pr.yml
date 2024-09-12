@@ -132,7 +132,7 @@ jobs:
       # we need to run cargo test --release in the docker container
       - name: Run Tests (docker)
         run: |
-          docker run --gpus all moongate-toolchain cargo test --release
+          docker run --gpus all moongate-toolchain "cargo test --release"
 
   performance:
     name: Performance

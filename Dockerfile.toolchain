@@ -21,8 +21,5 @@ WORKDIR /usr/src/app
 # Copy the Rust project files
 COPY . .
 
-# Build the Rust project
-RUN cargo build -p moongate-server --release
-
 # Set the entrypoint to run the binary
-ENTRYPOINT ["bash"]
+ENTRYPOINT ["/bin/bash", "-c"]
