@@ -155,29 +155,30 @@ jobs:
           toolchain: 1.79.0
           override: true
 
-      - name: Run Evaluation
-        uses: actions-rs/cargo@v1
+      - name: Run Evaluation (docker)
         env:
           RUSTFLAGS: '-C target-cpu=native'
           RUST_BACKTRACE: 1
-        with:
-          command: run
-          args: >
-            --release
-            --manifest-path eval/Cargo.toml
-            --
-            --programs fibonacci,ssz-withdrawals,tendermint
-            --post-to-slack ${{ github.ref == 'refs/heads/main' }}
-            --slack-channel-id "${{ secrets.SLACK_CHANNEL_ID }}"
-            --slack-token "${{ secrets.SLACK_TOKEN }}"
-            --post-to-github ${{ github.event_name == 'pull_request' }}
-            --github-token "${{ secrets.GITHUB_TOKEN }}"
-            --repo-owner "${{ github.repository_owner }}"
-            --repo-name "${{ github.event.repository.name }}"
-            --pr-number "${{ github.event.pull_request.number }}"
-            --branch-name "${{ github.head_ref || github.ref_name }}"
-            --commit-hash "${{ github.sha }}"
-            --author "${{ github.event.pull_request.user.login || github.actor }}"
+        run: |
+          docker run --gpus all \
+            -e RUSTFLAGS \
+            -e RUST_BACKTRACE \
+            moongate-toolchain \
+            "cargo run --release \
+            --manifest-path eval/Cargo.toml \
+            -- \
+            --programs fibonacci,ssz-withdrawals,tendermint \
+            --post-to-slack ${{ github.ref == 'refs/heads/main' }} \
+            --slack-channel-id '${{ secrets.SLACK_CHANNEL_ID }}' \
+            --slack-token '${{ secrets.SLACK_TOKEN }}' \
+            --post-to-github ${{ github.event_name == 'pull_request' }} \
+            --github-token '${{ secrets.GITHUB_TOKEN }}' \
+            --repo-owner '${{ github.repository_owner }}' \
+            --repo-name '${{ github.event.repository.name }}' \
+            --pr-number '${{ github.event.pull_request.number }}' \
+            --branch-name '${{ github.head_ref || github.ref_name }}' \
+            --commit-hash '${{ github.sha }}' \
+            --author '${{ github.event.pull_request.user.login || github.actor }}'"
 
   stop-runner:
     name: Stop Self-Hosted EC2 Runner
