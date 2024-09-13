@@ -145,11 +145,7 @@ jobs:
       # we need to run cargo test --release in the docker container
       - name: Run Tests (docker)
         run: |
-          docker run --gpus all \
-            -v ~/.cargo:/root/.cargo \
-            -v ~/.rustup:/root/.rustup \
-            moongate-toolchain \
-            "cargo test --release"
+          docker run --gpus all -v ~/.cargo:/root/.cargo -v ~/.rustup:/root/.rustup moongate-toolchain "cargo test --release"
 
   performance:
     name: Performance
