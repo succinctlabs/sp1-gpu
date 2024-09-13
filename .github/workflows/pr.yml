@@ -140,6 +140,7 @@ jobs:
           context: .
           file: ./Dockerfile.toolchain
           push: false
+          load: true
           tags: moongate-toolchain:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
@@ -157,7 +158,7 @@ jobs:
             -v ~/.cargo/registry:/root/.cargo/registry \
             -v ~/.cargo/git:/root/.cargo/git \
             -v ~/.rustup:/root/.rustup \
-            moongate-toolchain \
+            moongate-toolchain:latest \
             "cargo test --release -- --test-threads=1"
 
   performance:
