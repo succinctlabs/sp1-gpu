@@ -142,9 +142,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.87"
+version = "1.0.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10f00e1f6e58a40e807377c75c6a7f97bf9044fab57816f2414e6f5f4499d7b8"
+checksum = "4e1496f8fb1fbf272686b8d37f523dab3e4a7443300055e74cdaa449f3114356"
 
 [[package]]
 name = "ark-ff"
@@ -2908,9 +2908,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a908a6e00f1fdd0dfd9c0eb08ce85126f6d8bbda50017e74bc4a4b7d4a926a4"
+checksum = "0884ad60e090bf1345b93da0a5de8923c93884cd03f40dfcfddd3b4bee661853"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -3049,9 +3049,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.36"
+version = "0.38.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f55e80d50763938498dd5ebb18647174e0c76dc38c5505294bb224624f30f36"
+checksum = "8acb788b847c24f28525660c4d7758620a7210875711f79e7f663cc152726811"
 dependencies = [
  "bitflags 2.6.0",
  "errno",
@@ -3345,7 +3345,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3382,7 +3382,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3447,7 +3447,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3467,7 +3467,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3497,7 +3497,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3510,7 +3510,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3549,7 +3549,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3586,7 +3586,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3615,7 +3615,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3652,7 +3652,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3692,7 +3692,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3702,7 +3702,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3728,7 +3728,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#4d77bc119a46c099f59c46b16a6e2484b810f575"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/generate_dependencies_cleanup#0a811c8ba9bbdc4c926b5ec89c420c08bc5ba75e"
 dependencies = [
  "arrayref",
  "getrandom",
@@ -3805,6 +3805,9 @@ name = "strum"
 version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
+dependencies = [
+ "strum_macros",
+]
 
 [[package]]
 name = "strum_macros"
@@ -4290,9 +4293,9 @@ checksum = "08f95100a766bf4f8f28f90d77e0a5461bbdb219042e7679bebe79004fed8d75"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.12"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+checksum = "e91b56cd4cadaeb79bbf1a5645f6b4f8dc5bde8834ad5894a8db35fda9efa1fe"
 
 [[package]]
 name = "unicode-normalization"

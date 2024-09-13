@@ -60,9 +60,9 @@ mod tests {
     use moongate_core::utils::init_tracer;
     use sp1_core_machine::io::SP1Stdin;
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
-    use sp1_prover::tests::test_e2e_prover;
-    use sp1_prover::tests::test_e2e_with_deferred_proofs_prover;
-    use sp1_prover::tests::Test;
+    use sp1_prover::tests::{
+        bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test,
+    };
     use sp1_prover::SP1Prover;
 
     use crate::components::GpuProverComponents;
@@ -93,6 +93,17 @@ mod tests {
 
     #[test]
     fn test_e2e_fibonacci() {
+        let elf = FIBONACCI_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    fn test_e2e_tendermint() {
         let elf = TENDERMINT_BENCHMARK_ELF;
         init_tracer();
 
@@ -151,6 +162,13 @@ mod tests {
             .unwrap()
     }
 
+    fn bench_elf(elf: &[u8], kind: Test) {
+        init_tracer();
+        let opts = gpu_prover_opts();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        bench_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, kind).unwrap()
+    }
+
     #[test]
     fn test_core_fibonacci() {
         test_core_elf(FIBONACCI_ELF);
@@ -158,8 +176,20 @@ mod tests {
 
     #[test]
     #[ignore]
+    fn bench_core_fibonacci() {
+        bench_elf(FIBONACCI_ELF, Test::Core);
+    }
+
+    #[test]
+    #[ignore]
     fn test_compress_tendermint() {
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
+    }
+
+    #[test]
+    #[ignore]
+    fn bench_compress_tendermint() {
+        bench_elf(TENDERMINT_BENCHMARK_ELF, Test::Compress);
     }
 
     #[test]
@@ -178,5 +208,17 @@ mod tests {
     #[ignore]
     fn test_compress_reth() {
         test_compress_elf(RETH_ELF);
+    }
+
+    #[test]
+    #[ignore]
+    fn bench_core_reth() {
+        bench_elf(RETH_ELF, Test::Core);
+    }
+
+    #[test]
+    #[ignore]
+    fn bench_compress_reth() {
+        bench_elf(RETH_ELF, Test::Compress);
     }
 }

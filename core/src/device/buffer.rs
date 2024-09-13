@@ -35,6 +35,11 @@ impl<T: Copy> DeviceBuffer<T> {
         Self::try_with_capacity_in(capacity, &CudaStream::default())
     }
 
+    /// Creates a buffer with a null pointer and zero capacity.
+    pub fn null() -> Self {
+        Self { buf: std::ptr::null_mut(), len: 0, cap: 0, stream: CudaStream::default() }
+    }
+
     /// Allocate a new buffer on the device.
     ///
     /// The function will return an error if there is not enough memory available, or if any other

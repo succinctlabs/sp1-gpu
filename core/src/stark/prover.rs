@@ -604,6 +604,9 @@ where
         let (openings, opening_proof) = tracing::debug_span!("compute opening")
             .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
 
+        drop(perm_prover_data);
+        drop(quotient_prover_data);
+
         // Collect the opened values for each chip.
         let (
             preprocessed_values,
@@ -704,6 +707,11 @@ where
                 }
             })
             .collect::<Vec<_>>();
+
+        // Synchronize all the chip streams so that we free the memory used in the FRI openning.
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
 
         Ok(ShardProof::<SC> {
             commitment: ShardCommitment {
