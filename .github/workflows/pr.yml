@@ -107,8 +107,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Self-Hosted Runner
-        uses: ./.github/actions/self-hosted
+      # - name: Setup Self-Hosted Runner
+      #   uses: ./.github/actions/self-hosted
 
       - name: rust-cache
         uses: actions/cache@v3
@@ -164,8 +164,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Self-Hosted Runner
-        uses: ./.github/actions/self-hosted
+      # - name: Setup Self-Hosted Runner
+      #   uses: ./.github/actions/self-hosted
 
       # - name: Install Rust
       #   uses: actions-rs/toolchain@v1
