@@ -17,31 +17,31 @@ runs:
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev
 
-    - name: rust-cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-          ~/.rustup/
-        key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
-        restore-keys: rust-1.79.0-
+    # - name: rust-cache
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: |
+    #       ~/.cargo/bin/
+    #       ~/.cargo/registry/index/
+    #       ~/.cargo/registry/cache/
+    #       ~/.cargo/git/db/
+    #       target/
+    #       ~/.rustup/
+    #     key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
+    #     restore-keys: rust-1.79.0-
 
-    - name: Install Rust
-      shell: bash
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        source $HOME/.cargo/env
+    # - name: Install Rust
+    #   shell: bash
+    #   run: |
+    #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+    #     echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    #     source $HOME/.cargo/env
 
-    - name: Verify Rust installation
-      shell: bash
-      run: |
-        rustc --version
-        cargo --version
+    # - name: Verify Rust installation
+    #   shell: bash
+    #   run: |
+    #     rustc --version
+    #     cargo --version
 
     - name: Install Docker
       shell: bash
@@ -107,14 +107,14 @@ runs:
         nvidia-smi
         nvcc --version
 
-    - name: Install sp1up
-      shell: bash
-      run: |
-        curl -L https://sp1.succinct.xyz | bash
-        echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+    # - name: Install sp1up
+    #   shell: bash
+    #   run: |
+    #     curl -L https://sp1.succinct.xyz | bash
+    #     echo "$HOME/.sp1/bin" >> $GITHUB_PATH
 
-    - name: Install SP1 toolchain
-      shell: bash
-      run: |
-        sp1up
-        cargo-prove prove --version
+    # - name: Install SP1 toolchain
+    #   shell: bash
+    #   run: |
+    #     sp1up
+    #     cargo-prove prove --version
