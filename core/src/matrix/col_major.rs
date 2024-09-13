@@ -25,7 +25,7 @@ impl<T: Default + Copy + Send + Sync> ColMajorMatrixDevice<T> {
     }
 
     pub fn null() -> Self {
-        Self { values: DeviceBuffer::with_capacity(0).unwrap(), height: 1 }
+        Self { values: DeviceBuffer::null(), height: 1 }
     }
 
     pub const fn stream(&self) -> &CudaStream {

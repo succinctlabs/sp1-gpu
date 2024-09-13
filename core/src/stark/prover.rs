@@ -522,14 +522,14 @@ where
                 let main_lde = self.committer.encode(*domain, trace, true)?;
                 main_data.push_matrix(main_lde);
             }
+        }
 
-            // Synchronize the dropping of the traces so that we free the memory.
-            for _ in 0..traces.len() {
-                let trace = traces.pop().unwrap();
-                let stream = trace.stream().clone();
-                drop(trace);
-                stream.synchronize().unwrap();
-            }
+        // Synchronize the dropping of the traces so that we free the memory.
+        for _ in 0..traces.len() {
+            let trace = traces.pop().unwrap();
+            let stream = trace.stream().clone();
+            drop(trace);
+            stream.synchronize().unwrap();
         }
 
         let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
@@ -545,6 +545,10 @@ where
                 challenger,
             )
         });
+
+        drop(main_data);
+        drop(perm_prover_data);
+        drop(quotient_prover_data);
 
         // Collect the opened values for each chip.
         let [preprocessed_values, main_values, permutation_values, mut quotient_values] =

@@ -93,6 +93,17 @@ mod tests {
 
     #[test]
     fn test_e2e_fibonacci() {
+        let elf = FIBONACCI_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    fn test_e2e_tendermint() {
         let elf = TENDERMINT_BENCHMARK_ELF;
         init_tracer();
 
