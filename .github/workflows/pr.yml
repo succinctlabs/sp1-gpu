@@ -158,7 +158,7 @@ jobs:
             -v ~/.cargo/git:/root/.cargo/git \
             -v ~/.rustup:/root/.rustup \
             moongate-toolchain \
-            "cargo test --release"
+            "cargo test --release -- --test-threads=1"
 
   performance:
     name: Performance
