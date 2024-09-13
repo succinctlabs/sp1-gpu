@@ -86,8 +86,8 @@ jobs:
           # - Metadata: Read-only
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
-          # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-          ec2-image-id: "ami-0ea868ff4edb632ee"
+          # github-runner-ami-1726256456 (Ubuntu 22.04)
+          ec2-image-id: "ami-079a6a210557ef0e4"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g6.16xlarge"
           # Use a subnet in the default VPC
