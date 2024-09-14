@@ -566,8 +566,6 @@ mod tests {
         let elapsed = time.elapsed().unwrap();
         println!("Device generate_permutation_trace: {:?}", elapsed);
 
-        println!("cumulative_sums: {:?}", cumulative_sums);
-
         let perm_h = perm_d.to_host();
 
         // print the dimensions
