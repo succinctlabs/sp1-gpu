@@ -555,7 +555,7 @@ mod tests {
         let perm_generator = PermutationTraceGenerator::<F, EF, _>::default();
         // Generate the permutation rows on device.
         let time = CudaInstant::now().unwrap();
-        let (perm_d, cumulative_sums) = perm_generator
+        let (perm_d, _) = perm_generator
             .generate_flattened_permutation_trace(
                 &chip,
                 Some(&prep_d),
