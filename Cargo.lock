@@ -3345,7 +3345,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3382,7 +3382,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3447,7 +3447,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3467,7 +3467,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3497,7 +3497,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3510,7 +3510,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3550,7 +3550,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3574,7 +3574,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3612,7 +3612,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3641,7 +3641,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3678,7 +3678,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3718,7 +3718,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3728,7 +3728,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3754,7 +3754,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3785,7 +3785,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#3b815009d4cdd0b69d5ae05575a8e53d2cccb8ee"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#db332bd60f9c81e337fbfde88ce801562169e47c"
 dependencies = [
  "arrayref",
  "getrandom",
