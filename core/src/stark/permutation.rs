@@ -69,8 +69,8 @@ where
 
         let num_threads_per_block = 256;
         let num_blocks = height.div_ceil(num_threads_per_block);
-        let global_perm_width = *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0);
-        let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
+        let global_perm_width = grouped_widths.get(&InteractionScope::Global).copied();
+        let local_perm_width = grouped_widths.get(&InteractionScope::Local).copied();
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
             preprocessed_trace.map(|mat| mat.view()).unwrap_or(MatrixViewDevice::null(false)),
@@ -81,7 +81,7 @@ where
             local_beta,
             batch_size,
             global_perm_width,
-            has_local_perm,
+            local_perm_width,
             num_blocks,
             num_threads_per_block,
             stream,
@@ -91,17 +91,19 @@ where
         let row_idx = permutation_trace.height() - 1;
         let mut global_cumulative_sum = Default::default();
         let mut local_cumulative_sum = Default::default();
+        let mut current_index = 0;
         for (scope, width) in grouped_widths {
             if width == 0 {
                 continue;
             }
 
-            let (start_col_idx, scope_cumulative_sum) = match scope {
-                InteractionScope::Global => ((width - 1) * D, &mut global_cumulative_sum),
-                InteractionScope::Local => {
-                    (permutation_trace.width() - D, &mut local_cumulative_sum)
-                }
+            let scope_cumulative_sum = match scope {
+                InteractionScope::Global => &mut global_cumulative_sum,
+                InteractionScope::Local => &mut local_cumulative_sum,
             };
+
+            current_index += width * D;
+            let start_col_idx = current_index - D;
 
             let cumulative_sum = BinomialExtensionField::<BabyBear, 4>::from_base_fn(|i| {
                 let index = (start_col_idx + i) * permutation_trace.height() + row_idx;
@@ -366,8 +368,8 @@ impl DeviceInteractions<BabyBear> {
         local_alpha: BinomialExtensionField<BabyBear, 4>,
         local_beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
-        global_perm_width: usize,
-        has_local_perm: bool,
+        global_perm_width: Option<usize>,
+        local_perm_width: Option<usize>,
         num_blocks: usize,
         num_threads_per_block: usize,
         stream: &CudaStream,
@@ -392,8 +394,10 @@ impl DeviceInteractions<BabyBear> {
 
         // TODO: optimize with a single kernel call instead of scan for each column of the batch.
         let height = permutation.height;
-        if has_local_perm {
-            let col = permutation.width - D;
+        let mut current_index = 0;
+        if let Some(width) = global_perm_width {
+            current_index += width * D;
+            let col = current_index - D;
             unsafe {
                 for j in 0..4 {
                     let last_col_ptr = permutation.values.add((col + j) * height);
@@ -403,8 +407,9 @@ impl DeviceInteractions<BabyBear> {
             }
         }
 
-        if global_perm_width > 0 {
-            let col = (global_perm_width - 1) * D;
+        if let Some(width) = local_perm_width {
+            current_index += width * D;
+            let col = current_index - D;
             unsafe {
                 for j in 0..4 {
                     let last_col_ptr = permutation.values.add((col + j) * height);
