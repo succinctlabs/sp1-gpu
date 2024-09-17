@@ -65,60 +65,46 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
 
         size_t num_interactions = interactions.num_global_interactions + interactions.num_local_interactions;
 
-        EF global_row_cumulative_sum = EF::zero();
-        EF local_row_cumulative_sum = EF::zero();
+        // Within `interactions`, the global interactions are first, then the local ones.
+        EF cumulative_sum = EF::zero();
+        for (size_t i = 0, perm_ext_element_idx = 0; i < num_interactions; )
+        {
+            bool is_global = i < interactions.num_global_interactions;
+            size_t max_scope_inter_idx = is_global ? interactions.num_global_interactions : num_interactions;
 
-        bool has_global = interactions.num_global_interactions > 0;
-        bool has_local = interactions.num_local_interactions > 0;
-
-        for (size_t scope = 0; scope < 2; scope ++) {
-            bool is_global = scope == 0;
-            size_t start_idx = is_global ? 0 : interactions.num_global_interactions;
-            size_t end_idx = is_global ? interactions.num_global_interactions : num_interactions;
-            size_t max_idx = is_global ? interactions.num_global_interactions : num_interactions;
-            size_t perm_start_idx = is_global ? 0 : (interactions.global_width * EF::D);
+            // Calculate the batched interaction value.
             EF alpha = is_global ? global_alpha : local_alpha;
             EF beta = is_global ? global_beta : local_beta;
-    
-            for (size_t i = start_idx; i < end_idx; i+=batch_size) {
-                EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size, max_idx);
+            EF value = InteractionValue(i, RowIdx, interactions, preprocessed, main, alpha, beta, batch_size, max_scope_inter_idx);
 
-                // Accumulate the sum of values.
-                if (is_global) {
-                    global_row_cumulative_sum += value;
-                } else {
-                    local_row_cumulative_sum += value;
-                }
+            // Assign the value to the extension field slot in the permutation trace.
+            size_t perm_start_idx = perm_ext_element_idx * EF::D;
+            #pragma unroll
+            for (size_t k = 0; k < EF::D; k++) {
+                size_t flatten_perm_idx = perm_start_idx + k;
+                permutation.values[flatten_perm_idx * permutation.height + RowIdx] = value.value[k];
+            }
+            perm_ext_element_idx++;
 
-                // Assign the value to the row.
-                size_t perm_index = perm_start_idx + ((i - start_idx) / batch_size) * EF::D;
+            // Accumulate the sum of values for the scope.
+            cumulative_sum += value;
 
+            // If we are in the last batch, assign the cumulative sum.
+            bool is_last_batch = i + batch_size >= max_scope_inter_idx;
+            if (is_last_batch) {
+                size_t cumulaitve_sum_start_idx = perm_ext_element_idx * EF::D;
                 #pragma unroll
                 for (size_t k = 0; k < EF::D; k++) {
-                    size_t flatten_perm_index = perm_index + k;
-                    permutation.values[flatten_perm_index * permutation.height + RowIdx] = value.value[k];
+                    size_t flatten_perm_idx = cumulaitve_sum_start_idx + k;
+                    permutation.values[flatten_perm_idx * permutation.height + RowIdx] = cumulative_sum.value[k];
                 }
+                perm_ext_element_idx++;
+                cumulative_sum = EF::zero();
             }
-        }
 
-        // Assign the global cumulative sum of values to the last column of the global permutation trace.
-        if (has_global) {
-            size_t last_col_index = (interactions.global_width - 1) * EF::D;
-            #pragma unroll
-            for (size_t k = 0; k < EF::D; k++) {
-                size_t flatten_perm_index = last_col_index + k;
-                permutation.values[flatten_perm_index * permutation.height + RowIdx] = global_row_cumulative_sum.value[k];
-            }
-        }
-
-        if (has_local) {
-            // Assign the local cumulative sum of values to the last column.
-            size_t last_col_index = permutation.width - EF::D;
-            #pragma unroll
-            for (size_t k = 0; k < EF::D; k++) {
-                size_t flatten_perm_index = last_col_index + k;
-                permutation.values[flatten_perm_index * permutation.height + RowIdx] = local_row_cumulative_sum.value[k];
-            }
+            // Calculate the current batch size to increment i.
+            size_t current_batch_size = min(batch_size, max_scope_inter_idx - i);
+            i += current_batch_size;
         }
     }
 
