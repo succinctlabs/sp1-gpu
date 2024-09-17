@@ -523,9 +523,12 @@ mod tests {
     const D: usize = 4;
     type EF = BinomialExtensionField<F, D>;
 
-    fn test_chip<F: Field, A: BaseAir<F>>(chip: Chip<F, A>)
+    fn test_chip<A>(chip: Chip<F, A>)
     where
-        A: MachineAir<F> + Air<InteractionBuilder<F>> + Air<SymbolicAirBuilder<F>>,
+        A: BaseAir<F>
+            + MachineAir<F, Program = Program>
+            + Air<InteractionBuilder<F>>
+            + Air<SymbolicAirBuilder<F>>,
     {
         let mut rng = thread_rng();
 
