@@ -19,3 +19,7 @@ bincode = "1.3.3"
 sp1-prover = { workspace = true, features = ["export-tests"] }
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true, features = ["programs"] }
+
+[features]
+default = []
+debug = ["sp1-core-machine/debug"]

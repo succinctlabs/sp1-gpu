@@ -98,12 +98,12 @@ where
         committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
         pk: &StarkProvingKeyDevice<SC, C>,
-        main_traces: &[ColMajorMatrixDevice<SC::Val>],
+        main_traces: &[&ColMajorMatrixDevice<SC::Val>],
         domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sums: &[SC::Challenge],
+        cumulative_sums: &[Vec<SC::Challenge>],
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
         C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
@@ -148,7 +148,7 @@ where
                 let main_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,
                     quotient_domain,
-                    &main_traces[i],
+                    main_traces[i],
                 )?;
                 let perm_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,
@@ -178,7 +178,8 @@ where
             let stream = main_on_quotient_domain.stream();
 
             // Move data to device and get generator powers.
-
+            let cumulative_sums_device =
+                cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
@@ -207,7 +208,7 @@ where
                     operations_device.as_ptr(),
                     operations.len(),
                     *memory_size,
-                    cumulative_sums[i],
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_on_quotient_domain.view(),
@@ -327,7 +328,7 @@ where
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sum: SC::Challenge,
+        cumulative_sums: &[SC::Challenge],
     ) -> QuotientValues<SC> {
         let log_quotient_degree = chip.log_quotient_degree();
 
@@ -364,7 +365,7 @@ where
         // Calculate the quotient values.
         let quotient_values = quotient_values(
             chip,
-            cumulative_sum,
+            cumulative_sums,
             trace_domain,
             quotient_domain,
             prep_on_quotient_domain,
@@ -407,6 +408,7 @@ mod tests {
     use sp1_core_machine::utils::log2_strict_usize;
     use sp1_stark::air::MachineAir;
     use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
+    use sp1_stark::PackedChallenge;
     use sp1_stark::StarkGenericConfig;
 
     use rand::thread_rng;
@@ -452,15 +454,20 @@ mod tests {
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
-            let permutation_challenges = vec![EF::one(), EF::two()];
-            let perm =
+            let permutation_challenges =
+                vec![EF::one(), EF::two(), EF::two() + EF::one(), EF::two() + EF::two()];
+            let packed_permutation_challenges = permutation_challenges
+                .iter()
+                .map(|c| PackedChallenge::<SC>::from_f(*c))
+                .collect::<Vec<_>>();
+            let (perm, global_cumulative_sum, local_cumulative_sum) =
                 chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
 
             let degree = main.height();
             let log_degree = log2_strict_usize(degree);
             let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
-            let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
+            let cumulative_sums = vec![global_cumulative_sum, local_cumulative_sum];
 
             // Calculate evaluations on quotient domain.
 
@@ -511,13 +518,13 @@ mod tests {
             let start = std::time::Instant::now();
             let result = quotient_values::<BabyBearPoseidon2, _, _>(
                 chip,
-                cumulative_sum,
+                &cumulative_sums,
                 trace_domain,
                 quotient_domain,
                 preprocessed_trace_on_quotient_domain.clone(),
                 main_trace_on_quotient_domain.clone(),
                 permutation_trace_on_quotient_domain.clone(),
-                &permutation_challenges,
+                &packed_permutation_challenges,
                 alpha,
                 &public_values,
             );
@@ -560,6 +567,7 @@ mod tests {
             .to_column_major();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
+            let cumulative_sums_device = cumulative_sums.to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -576,7 +584,7 @@ mod tests {
                     operations_device.as_ptr(),
                     operations.len(),
                     expr_ctr,
-                    cumulative_sum,
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),

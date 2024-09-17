@@ -44,4 +44,5 @@ air = { path = "../air" }
 [dev-dependencies]
 rand = "0.8.5"
 p3-fri = { workspace = true }
+p3-uni-stark = { workspace = true }
 sp1-core-executor = { workspace = true, features = ["programs"] }

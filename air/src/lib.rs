@@ -78,15 +78,18 @@ where
     };
     let public_values =
         (0..PROOF_MAX_NUM_PVS).map(SymbolicFolderVar::public_value).collect::<Vec<_>>();
-    let perm_challenges = (0..2).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
+    let perm_challenges = (0..4).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
 
     let accumulator = SymbolicFolderExpr::alloc();
+
+    let cumulative_sums = (0..2).map(SymbolicFolderVar::cumulative_sum).collect::<Vec<_>>();
+
     let mut folder = P3EvalFolder {
         preprocessed: preprocessed.view(),
         main: main.view(),
         perm: perm.view(),
         perm_challenges: &perm_challenges,
-        cumulative_sum: SymbolicFolderVar::cumulative_sum(),
+        cumulative_sums: &cumulative_sums,
         public_values: &public_values,
         is_first_row: SymbolicFolderVar::is_first_row(),
         is_last_row: SymbolicFolderVar::is_last_row(),

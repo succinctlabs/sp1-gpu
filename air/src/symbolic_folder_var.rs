@@ -87,8 +87,8 @@ impl SymbolicFolderVar {
         }
     }
 
-    pub fn cumulative_sum() -> Self {
-        Self { variant: SymbolicFolderVarType::CumulativeSum, f: F::zero(), ef: EF::zero(), idx: 0 }
+    pub fn cumulative_sum(idx: usize) -> Self {
+        Self { variant: SymbolicFolderVarType::CumulativeSum, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn public_value(idx: usize) -> Self {
