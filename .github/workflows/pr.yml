@@ -178,6 +178,8 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      # Commented out because the latency of the docker buildx cache is high enough 
+      # with the EC2 builder that it's a wash.  Can be added back in if the toolchain gets complex.
       # - name: Set up Docker Buildx
       #   uses: docker/setup-buildx-action@v3
 
