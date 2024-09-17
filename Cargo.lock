@@ -142,9 +142,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.88"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e1496f8fb1fbf272686b8d37f523dab3e4a7443300055e74cdaa449f3114356"
+checksum = "86fdf8605db99b54d3cd748a44c6d04df638eb5dafb219b135d0149bd0db01f6"
 
 [[package]]
 name = "ark-ff"
@@ -212,9 +212,9 @@ dependencies = [
 
 [[package]]
 name = "arrayref"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d151e35f61089500b617991b791fc8bfd237ae50cd5950803758a179b41e67a"
+checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
 
 [[package]]
 name = "arrayvec"
@@ -545,9 +545,9 @@ checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
 
 [[package]]
 name = "cc"
-version = "1.1.18"
+version = "1.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b62ac837cdb5cb22e10a256099b4fc502b1dfe560cb282963a974d7abd80e476"
+checksum = "2d74707dde2ba56f86ae90effb3b43ddd369504387e718014de010cec7959800"
 dependencies = [
  "shlex",
 ]
@@ -1569,9 +1569,9 @@ dependencies = [
 
 [[package]]
 name = "iana-time-zone"
-version = "0.1.60"
+version = "0.1.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7ffbb5a1b541ea2561f8c41c087286cc091e21e556a4f09a8f6cbf17b69b141"
+checksum = "235e081f3925a06703c2d0117ea8b91f042756fd6e7a6e5d901e8ca1a996b220"
 dependencies = [
  "android_system_properties",
  "core-foundation-sys",
@@ -2779,7 +2779,7 @@ version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecf48c7ca261d60b74ab1a7b20da18bede46776b2e55535cb958eb595c5fa7b"
 dependencies = [
- "toml_edit 0.22.20",
+ "toml_edit 0.22.21",
 ]
 
 [[package]]
@@ -3344,8 +3344,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3381,8 +3381,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3446,8 +3446,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3466,8 +3466,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3486,8 +3486,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3496,8 +3496,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3509,8 +3509,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3549,8 +3549,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit-v2"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3586,8 +3586,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3615,8 +3615,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3652,8 +3652,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core-v2"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3692,8 +3692,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3702,8 +3702,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3728,8 +3728,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#600616f35f44cdfa1616763ffd9c99aef4d95383"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
 dependencies = [
  "arrayref",
  "getrandom",
@@ -4090,9 +4090,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.20"
+version = "0.22.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583c44c02ad26b0c3f3066fe629275e50627026c51ac2e595cca4c230ce1ce1d"
+checksum = "3b072cee73c449a636ffd6f32bd8de3a9f7119139aff882f44943ce2986dc5cf"
 dependencies = [
  "indexmap 2.5.0",
  "toml_datetime",
