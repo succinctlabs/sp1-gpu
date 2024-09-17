@@ -545,9 +545,9 @@ checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
 
 [[package]]
 name = "cc"
-version = "1.1.19"
+version = "1.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d74707dde2ba56f86ae90effb3b43ddd369504387e718014de010cec7959800"
+checksum = "45bcde016d64c21da4be18b655631e5ab6d3107607e71a73a9f53eb48aae23fb"
 dependencies = [
  "shlex",
 ]
@@ -3346,7 +3346,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3383,7 +3383,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3448,7 +3448,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3468,7 +3468,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3488,7 +3488,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3498,7 +3498,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3511,7 +3511,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3551,7 +3551,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3588,7 +3588,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3617,7 +3617,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3654,7 +3654,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3694,7 +3694,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3704,7 +3704,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3730,7 +3730,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=kevjue/phase_1_improvements#f1d5d5d6447913ed0c0a4e74af2218edb413b841"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#1e3ef0e9d21d235ad6d8b2b1d357e8f153a8b022"
 dependencies = [
  "arrayref",
  "getrandom",
@@ -4301,9 +4301,9 @@ checksum = "e91b56cd4cadaeb79bbf1a5645f6b4f8dc5bde8834ad5894a8db35fda9efa1fe"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.23"
+version = "0.1.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a56d1686db2308d901306f92a263857ef59ea39678a5458e7cb17f01415101f5"
+checksum = "5033c97c4262335cded6d6fc3e5c18ab755e1a3dc96376350f3d8e9f009ad956"
 dependencies = [
  "tinyvec",
 ]
