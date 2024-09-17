@@ -513,7 +513,7 @@ mod tests {
 
     use sp1_core_executor::programs::tests::FIBONACCI_ELF;
     use sp1_core_executor::Program;
-    use sp1_core_machine::riscv::ByteChip;
+    use sp1_core_machine::memory::MemoryLocalChip;
 
     type F = BabyBear;
     const D: usize = 4;
@@ -523,7 +523,7 @@ mod tests {
     fn test_generate_flatenned_permutation_trace_device() {
         let mut rng = thread_rng();
 
-        let air = ByteChip::<F>::default();
+        let air = MemoryLocalChip::new();
         let chip = Chip::new(air);
 
         let program = Program::from(FIBONACCI_ELF).unwrap();
@@ -538,9 +538,9 @@ mod tests {
         }
 
         // Transfer perm and main traces to the device.
-        let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
-        let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
-        let prep_d = prep_d.to_column_major();
+        //let prep_trace_d = preprocessed_trace.values.to_device().unwrap();
+        //let prep_d = RowMajorMatrixDevice::new(prep_trace_d, preprocessed_trace.width);
+        //let prep_d = prep_d.to_column_major();
 
         let main_trace_d = main_trace.values.to_device().unwrap();
         let main_d = RowMajorMatrixDevice::new(main_trace_d, main_trace.width);
@@ -558,7 +558,7 @@ mod tests {
         let (perm_d, _) = perm_generator
             .generate_flattened_permutation_trace(
                 &chip,
-                Some(&prep_d),
+                None,
                 &main_d,
                 &[global_alpha, global_beta, local_alpha, local_beta],
             )
@@ -574,7 +574,7 @@ mod tests {
         let time = std::time::Instant::now();
         let expected_perm_trace = chip
             .generate_permutation_trace(
-                Some(&preprocessed_trace),
+                None,
                 &main_trace,
                 &[global_alpha, global_beta, local_alpha, local_beta],
             )

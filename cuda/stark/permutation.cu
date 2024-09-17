@@ -91,7 +91,7 @@ template<typename F, typename EF> __global__ void PopulatePermutationRowsFlatten
                 }
 
                 // Assign the value to the row.
-                size_t perm_index = perm_start_idx + (i / batch_size) * EF::D;
+                size_t perm_index = perm_start_idx + ((i - start_idx) / batch_size) * EF::D;
 
                 #pragma unroll
                 for (size_t k = 0; k < EF::D; k++) {
