@@ -120,7 +120,7 @@ where
     C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
     PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
 {
-    fn commit(&self) -> Com<SC> {
+    fn preprocessed_commit(&self) -> Com<SC> {
         self.commit.clone()
     }
 
