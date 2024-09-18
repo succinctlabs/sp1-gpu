@@ -1,0 +1,12 @@
+[package]
+name = "moongate-eval"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-eval = { workspace = true }
+sp1-prover = { workspace = true }
+moongate-prover = { path = "../prover" }
+
+tokio = { version = "1.28.2", features = ["full"] }
+anyhow = "1.0.71"
