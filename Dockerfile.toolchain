@@ -1,0 +1,25 @@
+# Start with a base image that includes CUDA
+FROM nvidia/cuda:12.5.1-devel-ubuntu20.04 AS builder
+
+# Install necessary packages
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC  apt-get install -y \
+    curl \
+    build-essential \
+    protobuf-compiler \
+    libssl-dev \ 
+    pkg-config \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy the Rust project files
+COPY . .
+
+# Set the entrypoint to run the binary
+ENTRYPOINT ["/bin/bash", "-c"]
