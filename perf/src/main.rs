@@ -21,8 +21,8 @@ struct Args {
     pub program: Program,
     #[arg(short, long, default_value = "telemetry")]
     pub trace: Trace,
-    #[arg(short, long, default_value_t = true)]
-    pub verify: bool,
+    #[arg(short, long, default_value = "false")]
+    pub skip_verify: bool,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -79,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = gpu_prover_opts();
 
     let mut measurements = vec![];
-    let verify = args.verify;
+    let verify = !args.skip_verify;
     for (name, elf) in named_programs {
         let measurement = make_measurement(&prover, name, elf, opts, verify);
         println!("{}", measurement);
