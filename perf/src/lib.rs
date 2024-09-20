@@ -14,6 +14,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     name: &str,
     elf: &[u8],
     opts: SP1ProverOpts,
+    verify: bool,
 ) -> Measurement {
     tracing::info!("Starting measurement for {}", name);
 
@@ -36,16 +37,20 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let cycles = core_proof.cycles as usize;
     let num_shards = core_proof.proof.0.len();
 
-    tracing::info!("verify core");
-    prover.verify(&core_proof.proof, &vk).unwrap();
+    if verify {
+        tracing::info!("verify core");
+        prover.verify(&core_proof.proof, &vk).unwrap();
+    }
 
     tracing::info!("compress");
     let time = std::time::Instant::now();
     let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
     let compress_time = time.elapsed();
 
-    tracing::info!("verify compressed");
-    prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    if verify {
+        tracing::info!("verify compressed");
+        prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    }
 
     Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
 }
