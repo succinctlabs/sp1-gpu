@@ -394,10 +394,10 @@ where
             &local_traces,
             &local_chip_ordering,
         );
-        let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
+        let mut all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
 
-        assert!(shard_chips.len() == all_shard_data.len());
+        assert!(shard_chips.len() == all_traces.len());
 
         let domains = all_traces
             .iter()
@@ -559,7 +559,7 @@ where
                 let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
                 perm_prover_data.push_matrix(perm_lde);
             }
-            for (i, (domain, trace)) in domains.iter().zip(all_traces).enumerate() {
+            for (i, (domain, trace)) in domains.iter().zip(all_traces.iter()).enumerate() {
                 let main_lde = self.committer.encode(*domain, trace, true)?;
                 let scope = all_chip_scopes[i];
 
@@ -570,6 +570,13 @@ where
                 } else {
                     local_main_data.push_matrix(main_lde);
                 }
+            }
+
+            // Synchronize the streams so that the LDE are ready for the opening.
+            for _ in 0..all_traces.len() {
+                let trace = all_traces.pop().unwrap();
+                let stream = trace.stream().clone();
+                stream.synchronize().unwrap();
             }
         }
 
@@ -605,6 +612,7 @@ where
         let (openings, opening_proof) = tracing::debug_span!("compute opening")
             .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
 
+        drop(local_main_data);
         drop(perm_prover_data);
         drop(quotient_prover_data);
 
