@@ -394,10 +394,10 @@ where
             &local_traces,
             &local_chip_ordering,
         );
-        let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
+        let mut all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
 
-        assert!(shard_chips.len() == all_shard_data.len());
+        assert!(shard_chips.len() == all_traces.len());
 
         let domains = all_traces
             .iter()
@@ -410,7 +410,7 @@ where
         // Compute some statistics.
         let mut total_lde_size = 0;
         let log_blowup = self.committer.log_blowup();
-        for (chip, domain) in shard_chips.iter().zip(domains.iter()) {
+        for (chip, domain) in shard_chips.iter().zip_eq(domains.iter()) {
             let height = domain.size();
             let stats = ChipStatistics::new::<SC::Challenge, _>(chip, height);
             total_lde_size += stats.lde_memory_size(log_blowup);
@@ -559,24 +559,36 @@ where
                 let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
                 perm_prover_data.push_matrix(perm_lde);
             }
-            for (i, (domain, trace)) in domains.iter().zip(all_traces).enumerate() {
+            for (i, (domain, trace)) in domains.iter().zip(all_traces.iter()).enumerate() {
                 let main_lde = self.committer.encode(*domain, trace, true)?;
                 let scope = all_chip_scopes[i];
 
-                if scope == InteractionScope::Global {
-                    if let Some(global_main_data) = global_main_data.as_mut() {
-                        global_main_data.push_matrix(main_lde);
+                match scope {
+                    InteractionScope::Global => {
+                        global_main_data
+                            .as_mut()
+                            .expect("global main data must exist")
+                            .push_matrix(main_lde);
                     }
-                } else {
-                    local_main_data.push_matrix(main_lde);
+                    InteractionScope::Local => {
+                        local_main_data.push_matrix(main_lde);
+                    }
                 }
+            }
+
+            // Synchronize the streams and drop the traces.
+            for _ in 0..all_traces.len() {
+                let trace = all_traces.pop().unwrap();
+                let stream = trace.stream().clone();
+                drop(trace);
+                stream.synchronize().unwrap();
             }
         }
 
         // Split the trace_opening_points to the global and local chips.
         let mut global_trace_opening_points = Vec::with_capacity(global_chip_ordering.len());
         let mut local_trace_opening_points = Vec::with_capacity(local_chip_ordering.len());
-        for (i, trace_opening_point) in trace_opening_points.clone().into_iter().enumerate() {
+        for (i, trace_opening_point) in trace_opening_points.iter().cloned().enumerate() {
             let scope = all_chip_scopes[i];
             if scope == InteractionScope::Global {
                 global_trace_opening_points.push(trace_opening_point);
@@ -602,9 +614,18 @@ where
             ]
         };
 
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
         let (openings, opening_proof) = tracing::debug_span!("compute opening")
             .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
 
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
+        drop(local_main_data);
         drop(perm_prover_data);
         drop(quotient_prover_data);
 
