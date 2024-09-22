@@ -5859,7 +5859,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5896,7 +5896,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5961,7 +5961,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5981,7 +5981,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -6001,7 +6001,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6011,7 +6011,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6032,7 +6032,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -6045,7 +6045,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6085,7 +6085,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6122,7 +6122,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6151,7 +6151,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6188,7 +6188,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6228,7 +6228,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6238,7 +6238,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6264,7 +6264,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6310,7 +6310,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#d9b3e784abc58e4e7c576e75ce6903486c3ff1a9"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/vk-maps#5068ea081c1596c2760331a57fa6dd45e3093498"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
