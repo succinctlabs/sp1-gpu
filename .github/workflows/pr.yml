@@ -162,7 +162,6 @@ jobs:
           docker run --gpus all \
             -v ~/.cargo/registry:/root/.cargo/registry \
             -v ~/.cargo/git:/root/.cargo/git \
-            -v ~/.rustup:/root/.rustup \
             moongate-toolchain \
             "cargo test --release -- --test-threads=1"
 
