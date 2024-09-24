@@ -3345,7 +3345,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -3382,7 +3382,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -3447,7 +3447,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -3467,7 +3467,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3497,7 +3497,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -3510,7 +3510,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3549,7 +3549,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -3573,7 +3573,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -3611,7 +3611,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -3640,7 +3640,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3677,7 +3677,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -3717,7 +3717,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3727,7 +3727,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3753,7 +3753,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-program"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -3784,7 +3784,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1#f7e3e846543f9d39b7ae851a05eaf6769c7656ec"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=v3.0.0-rc1-with-cycles#df028e344ee7a8317da8635772ae9c77922a40d3"
 dependencies = [
  "arrayref",
  "getrandom",
