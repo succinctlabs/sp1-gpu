@@ -1,0 +1,47 @@
+name: Build and Push Docker to ECR
+on: [push]
+
+env:
+  ECR_REGISTRY: public.ecr.aws
+  ECR_REPOSITORY: succinct-labs/docker/moongate
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Configure AWS credentials
+      uses: "aws-actions/configure-aws-credentials@v1"
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+
+    - name: Login to Amazon ECR Public
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: public
+
+    - name: Build, tag, and push docker image to Amazon ECR Public
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build and tag with commit SHA
+        docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+        
+        # Check if a git tag exists for this commit
+        GIT_TAG=$(git describe --tags --exact-match 2> /dev/null || true)
+        if [ -n "$GIT_TAG" ]; then
+          echo "Found git tag: $GIT_TAG"
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
+        else
+          echo "No git tag found for this commit"
+        fi
