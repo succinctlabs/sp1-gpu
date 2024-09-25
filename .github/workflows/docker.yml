@@ -3,7 +3,7 @@ on: [push]
 
 env:
   ECR_REGISTRY: public.ecr.aws
-  ECR_REPOSITORY: succinct-labs/docker/moongate
+  ECR_REPOSITORY: succinct-labs/moongate
 
 jobs:
   build:
