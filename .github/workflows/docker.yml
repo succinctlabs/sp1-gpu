@@ -6,7 +6,7 @@ env:
   ECR_REPOSITORY: succinct-labs/moongate
 
 jobs:
-  build:
+  docker-build-push:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repo
@@ -21,19 +21,44 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v3
 
     - name: Login to Amazon ECR Public
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v2
       with:
         registry-type: public
+      
+    - name: Load Docker cache
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
 
-    - name: Build, tag, and push docker image to Amazon ECR Public
+    - name: Build and Push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.server
+        push: false
+        load: true
+        tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+
+    - name: Push Docker image to Amazon ECR Public
       env:
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Build and tag with commit SHA
-        docker build -f Dockerfile.server -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
         
         # Check if a git tag exists for this commit
