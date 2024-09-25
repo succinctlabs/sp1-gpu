@@ -5858,7 +5858,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5895,7 +5895,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5960,7 +5960,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5980,7 +5980,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -6000,7 +6000,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6010,7 +6010,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6031,7 +6031,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -6044,7 +6044,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6084,7 +6084,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6121,7 +6121,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6150,7 +6150,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6187,7 +6187,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6227,7 +6227,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6237,7 +6237,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6263,7 +6263,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6309,7 +6309,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/execution-shard-new#ffda83ea5e3b995731bac14ad2b5e58e8d7cf574"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/public-value-assertions#5e4c17a0b3124bf7a59eb4a744020d7fa02edb06"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
