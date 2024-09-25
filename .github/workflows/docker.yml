@@ -1,9 +1,15 @@
 name: Build and Push Docker to ECR
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 env:
   ECR_REGISTRY: public.ecr.aws
-  ECR_REPOSITORY: succinct-labs/moongate
+  ECR_REPOSITORY: succinct-labs/sp1-gpu
 
 jobs:
   docker-build-push:
@@ -72,6 +78,11 @@ jobs:
           echo "Found git tag: $GIT_TAG"
           docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
+          
+          # Tag and push as 'latest' for tagged commits
+          echo "Tagging and pushing as latest"
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
         else
           echo "No git tag found for this commit"
         fi
