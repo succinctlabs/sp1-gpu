@@ -33,7 +33,7 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         # Build and tag with commit SHA
-        docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+        docker build -f Dockerfile.server -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
         
         # Check if a git tag exists for this commit
