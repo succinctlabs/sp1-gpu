@@ -87,7 +87,7 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # github-runner-ami-1726256456 (Ubuntu 22.04)
-          ec2-image-id: "ami-079a6a210557ef0e4"
+          ec2-image-id: "ami-0a63dc9cb9e934ba3"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
           ec2-instance-type: "g6.16xlarge"
           # Use a subnet in the default VPC
