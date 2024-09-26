@@ -18,7 +18,11 @@ jobs:
 
     # https://github.com/orgs/community/discussions/25678
     - name: Delete huge unnecessary tools folder
-      run: rm -rf /opt/hostedtoolcache
+      run: |
+        df -h
+        rm -rf /opt/hostedtoolcache
+        rm -rf /usr/share/dotnet
+        df -h
 
     - name: Checkout repo
       uses: actions/checkout@v3
