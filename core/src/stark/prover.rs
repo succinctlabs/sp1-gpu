@@ -241,7 +241,7 @@ where
         mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(name, trace)| Reverse((trace.height(), name.clone())));
+        named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
 
         // Get the chip ordering.
         let chip_ordering =
@@ -311,7 +311,7 @@ where
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_preprocessed_traces
-            .sort_by_key(|(name, trace)| Reverse((trace.height(), name.clone())));
+            .sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
 
         let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
             .iter()
