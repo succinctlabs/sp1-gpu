@@ -114,6 +114,18 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn test_e2e_reth() {
+        let elf = RETH_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
     fn test_e2e_keyspace_record() {
         let elf = KEYSPACE_RECORD_ELF;
         init_tracer();
@@ -123,7 +135,7 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::All).unwrap();
     }
 
     #[test]
@@ -136,7 +148,7 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::All).unwrap();
     }
 
     #[test]
