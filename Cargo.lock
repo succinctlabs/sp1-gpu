@@ -766,6 +766,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2582,6 +2588,16 @@ dependencies = [
  "futures-core",
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "gmp-mpfr-sys"
+version = "1.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0205cd82059bc63b63cf516d714352a30c44f2c74da9961dfda2617ae6b5918"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5160,6 +5176,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rug"
+version = "1.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97ae2c1089ec0575193eb9222881310cc1ed8bce3646ef8b81b44b518595b79d"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "libm",
+]
+
+[[package]]
 name = "ruint"
 version = "1.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5526,6 +5554,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5858,7 +5895,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5878,6 +5915,7 @@ dependencies = [
  "rand 0.8.5",
  "rrs-succinct",
  "serde",
+ "serde-big-array",
  "serde_with 3.9.0",
  "sp1-curves",
  "sp1-derive",
@@ -5895,7 +5933,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5936,6 +5974,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon-scan",
  "rrs-succinct",
+ "rug",
  "serde",
  "serde_with 3.9.0",
  "size",
@@ -5960,7 +5999,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5980,7 +6019,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -5990,6 +6029,7 @@ dependencies = [
  "k256",
  "num",
  "p3-field",
+ "rug",
  "serde",
  "snowbridge-amcl",
  "sp1-primitives",
@@ -6000,7 +6040,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6010,7 +6050,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6031,7 +6071,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -6044,7 +6084,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6084,7 +6124,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6121,7 +6161,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6150,7 +6190,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6187,7 +6227,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6227,7 +6267,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6237,7 +6277,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6263,7 +6303,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6309,7 +6349,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#66a6e7eda86a8213a4dd42bf37789274319df4b5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/more-runtime-opts-2#3bfcc63abb5870fd7a695541680c356d98be0c9e"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
