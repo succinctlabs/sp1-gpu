@@ -14,6 +14,8 @@ moongate-core = { path = "../core" }
 sysinfo = "0.31.2"
 bincode = "1.3.3"
 
+clap = { version = "4.5.9", features = ["derive", "env"] }
+
 
 [dev-dependencies]
 sp1-prover = { workspace = true, features = ["export-tests"] }
@@ -23,3 +25,7 @@ sp1-core-machine = { workspace = true, features = ["programs"] }
 [features]
 default = []
 debug = ["sp1-core-machine/debug"]
+
+[[bin]]
+name = "build_compress_vks"
+path = "bin/build_compress_vks.rs"
