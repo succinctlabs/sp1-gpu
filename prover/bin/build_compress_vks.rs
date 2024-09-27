@@ -36,13 +36,15 @@ fn main() {
     let range_start = args.start;
     let range_end = args.end;
 
-    build_vk_map::<GpuProverComponents>(
-        build_dir,
-        reduce_batch_size,
-        dummy,
-        num_compiler_workers,
-        num_setup_workers,
-        range_start,
-        range_end,
-    );
+    tracing::info_span!("build_vk_map").in_scope(|| {
+        build_vk_map::<GpuProverComponents>(
+            build_dir,
+            reduce_batch_size,
+            dummy,
+            num_compiler_workers,
+            num_setup_workers,
+            range_start,
+            range_end,
+        )
+    });
 }
