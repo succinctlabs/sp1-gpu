@@ -5,16 +5,9 @@ use rayon::prelude::*;
 use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
-use p3_commit::Mmcs;
-use p3_commit::PolynomialSpace;
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::Matrix;
-use sp1_stark::air::InteractionScope;
-use sp1_stark::air::MachineAir;
-use sp1_stark::air::MachineProgram;
-use sp1_stark::AirOpenedValues;
-use sp1_stark::Chip;
-use sp1_stark::ChipOpenedValues;
+use p3_commit::{Mmcs, PolynomialSpace};
+use p3_field::AbstractExtensionField;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::Com;
 use sp1_stark::DebugConstraintBuilder;
 use sp1_stark::MachineProof;
@@ -32,6 +25,10 @@ use sp1_stark::StarkMachine;
 use sp1_stark::StarkProvingKey;
 use sp1_stark::StarkVerifyingKey;
 use sp1_stark::Val;
+use sp1_stark::{
+    air::{InteractionScope, MachineAir, MachineProgram},
+    AirOpenedValues, Chip, ChipOpenedValues,
+};
 
 use itertools::Itertools;
 use tracing::info;
@@ -478,6 +475,12 @@ where
 
         // Observe the permutation commitment.
         challenger.observe(permutation_commit.clone());
+        for sums in cumulative_sums.iter() {
+            let global_sum = sums[0];
+            let local_sum = sums[1];
+            CanObserve::<BabyBear>::observe_slice(challenger, global_sum.as_base_slice());
+            CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
+        }
 
         // Delete the ldes of the permutation prover data.
         if recompute_ldes {
