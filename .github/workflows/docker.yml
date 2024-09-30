@@ -1,11 +1,6 @@
 name: Build and Push Docker to ECR
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push]
+    
 
 env:
   ECR_REGISTRY: public.ecr.aws
