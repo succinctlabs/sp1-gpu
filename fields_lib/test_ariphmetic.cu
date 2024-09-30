@@ -3,8 +3,8 @@
 #include <random>
 #include <vector>
 
-#include "bb31_t.cuh"
-#include "bb31_extension_t.cuh"
+#include "../cuda/fields/bb31_t.cuh"
+#include "../cuda/fields/bb31_extension_t.cuh"
 #include "mersenne31/mer31_t.cuh"
 #include "mersenne31/mer31_extension_t.cuh"
 
@@ -63,12 +63,13 @@ __global__ void fill_bb31ext(bb31_t* in, bb31_extension_t* out)
     out[tIdx] = bb31_extension_t(in[tIdx], in[N+tIdx], in[2*N+tIdx], in[3*N+tIdx]);
 }
 
-__global__ void fill_mer31ext(mer31_t* in, mer31_complex_t* out)
+template <typename I, typename O>
+__global__ void fill_mer31ext(I* in, O* out)
 {
     size_t tIdx = threadIdx.x + blockDim.x * blockIdx.x;
     size_t N = gridDim.x * blockDim.x;
 
-    out[tIdx] = mer31_complex_t(in[tIdx],in[N+tIdx]);
+    out[tIdx] = O(in[tIdx],in[N+tIdx]);
 }
 
 
@@ -198,10 +199,11 @@ namespace field_test_ariphmetic {
 			dur = stop - start;
             printf("mer31 test      : %.2f\n", dur.count());
 
-            mer31_complex_t* merext_31 = (mer31_complex_t*)mer31_out;
+            mer31_complex_t* merext_31;
+            cudaMalloc((void**)&merext_31, sizeof(mer31_complex_t) * input.size());
             if (!ONLY_TEST)
                 start = std::chrono::high_resolution_clock::now();
-            fill_mer31ext<<<N/256, 1024>>>(mer31, merext_31); //KERNEL
+            fill_mer31ext<mer31_t, mer31_complex_t><<<N/256, 1024>>>(mer31, merext_31); //KERNEL
             if (!ONLY_TEST){ 
             cudaDeviceSynchronize();//added
                 stop = std::chrono::high_resolution_clock::now();
@@ -209,7 +211,8 @@ namespace field_test_ariphmetic {
                 printf("mer31 ext fill b: %.2f\n", dur.count());
             }
 
-            mer31_complex_t* mer31ext_out = (mer31_complex_t*) mer31;
+            mer31_complex_t* mer31ext_out;
+            cudaMalloc((void**)&mer31ext_out, sizeof(mer31_complex_t) * input.size()/2);
             cudaDeviceSynchronize();//added
             start = std::chrono::high_resolution_clock::now();
             test_ariphmetic<mer31_complex_t>(merext_31, merext_31 + N, mer31ext_out, N); //KERNEL  
@@ -217,9 +220,35 @@ namespace field_test_ariphmetic {
             stop = std::chrono::high_resolution_clock::now();
 			dur = stop - start;
             printf("mer31 ext test  : %.2f\n", dur.count()); 
+            
+            mer31_ext128_t* mer31ext_128;
+            cudaMalloc((void**)&mer31ext_128, sizeof(mer31_ext128_t) * input.size()/4);
+            if (!ONLY_TEST)
+                start = std::chrono::high_resolution_clock::now();
+            fill_mer31ext<mer31_complex_t, mer31_ext128_t><<<N/512, 1024>>>(mer31ext_out, mer31ext_128); //KERNEL
+            if (!ONLY_TEST){ 
+            cudaDeviceSynchronize();//added
+                stop = std::chrono::high_resolution_clock::now();
+                dur = stop - start;
+                printf("mer31 128 fill b: %.2f\n", dur.count());
+            }
+
+            mer31_ext128_t* mer31ext_128_out;
+            cudaMalloc((void**)&mer31ext_128_out, sizeof(mer31_ext128_t) * input.size()/4);
+            cudaDeviceSynchronize();//added
+            start = std::chrono::high_resolution_clock::now();
+            test_ariphmetic<mer31_ext128_t>(mer31ext_128, mer31ext_128 + N, mer31ext_128_out, N); //KERNEL  
+            cudaDeviceSynchronize(); 
+            stop = std::chrono::high_resolution_clock::now();
+			dur = stop - start;
+            printf("mer31 128 test  : %.2f\n", dur.count()); 
 
             cudaFree(mer31);
-            cudaFree(mer31_out);        
+            cudaFree(mer31_out);
+            cudaFree(merext_31);
+            cudaFree(mer31ext_out);    
+            cudaFree(mer31ext_128_out);
+            cudaFree(mer31ext_128);     
         }
         if (1) {
             do_mod* bb31;
@@ -253,7 +282,8 @@ namespace field_test_ariphmetic {
 
 int main()
 {
-    //nvcc -O3 -std=c++17 -o test_ariphmetic cuda/fields/test_ariphmetic.cu
+    // nvcc -O3 -std=c++17 -o test_ariphmetic cuda/fields/test_ariphmetic.cu
+    // ./test_ariphmetic
     field_test_ariphmetic::run_test(1024 * 1024 * 64);
     return 0;
 }

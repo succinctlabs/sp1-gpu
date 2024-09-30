@@ -40,7 +40,7 @@ public:
 
     HD inline constexpr mer31_t(const uint32_t v) : val(mod(v)) {}
     HD inline constexpr mer31_t(const uint32_t v, by_value) : val(v) {}
-    HD inline mer31_t(const mer31_t& m) : val(m.val) {}
+    HD inline constexpr mer31_t(const mer31_t& m) : val(m.val) {}
 
     HD inline mer31_t& operator+=(const mer31_t b)
     {
