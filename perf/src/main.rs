@@ -82,6 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let verify = !args.skip_verify;
     for (name, elf) in named_programs {
         let measurement = make_measurement(&prover, name, elf, opts, verify);
+        let measurement = make_measurement(&prover, name, elf, opts, verify);
         println!("{}", measurement);
         measurements.push(measurement);
     }
