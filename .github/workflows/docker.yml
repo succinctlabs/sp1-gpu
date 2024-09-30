@@ -25,7 +25,7 @@ jobs:
         sudo rm -rf /usr/local/share/boost
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         df -h
-
+      
     - name: Checkout repo
       uses: actions/checkout@v3
       with:
@@ -47,6 +47,10 @@ jobs:
       with:
         registry-type: public
 
+    - name: Get short SHA
+      id: get_short_sha
+      run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
     - name: Build and Push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -54,13 +58,13 @@ jobs:
         file: ./Dockerfile.server
         push: false
         load: true
-        tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.get_short_sha.outputs.SHORT_SHA }}
         cache-from: type=gha
         cache-to: type=gha, mode=max
 
     - name: Push Docker image to Amazon ECR Public
       env:
-        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_TAG: ${{ steps.get_short_sha.outputs.SHORT_SHA }}
       run: |
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
         
