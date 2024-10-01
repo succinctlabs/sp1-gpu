@@ -89,7 +89,7 @@ jobs:
           # github-runner-ami-1726256456 (Ubuntu 22.04)
           ec2-image-id: "ami-0a63dc9cb9e934ba3"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
-          ec2-instance-type: "g5.4xlarge"
+          ec2-instance-type: "g6.4xlarge"
           # Use a subnet in the default VPC
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           # Use a security group attached to the default VPC
