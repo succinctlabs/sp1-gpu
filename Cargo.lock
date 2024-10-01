@@ -568,9 +568,9 @@ dependencies = [
 
 [[package]]
 name = "async-stream"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd56dd203fef61ac097dd65721a419ddccb106b2d2b70ba60a6b529f03961a51"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
 dependencies = [
  "async-stream-impl",
  "futures-core",
@@ -579,9 +579,9 @@ dependencies = [
 
 [[package]]
 name = "async-stream-impl"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16e62a023e7c117e27523144c5d2459f4397fcc3cab0085af8e2224f643a0193"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1130,9 +1130,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.18"
+version = "4.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0956a43b323ac1afaffc053ed5c4b7c1f1800bacd1683c353aabbb752515dd3"
+checksum = "7be5744db7978a28d9df86a214130d106a89ce49644cbc4e3f0c22c3fba30615"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1140,9 +1140,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.18"
+version = "4.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d72166dd41634086d5803a47eb71ae740e61d84709c36f3c34110173db3961b"
+checksum = "a5fbc17d3ef8278f55b282b2a2e75ae6f6c7d4bb70ed3d0382375104bfafdb4b"
 dependencies = [
  "anstream",
  "anstyle",
@@ -5552,9 +5552,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.9.0"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69cecfa94848272156ea67b2b1a53f20fc7bc638c4a46d2f8abde08f05f4b857"
+checksum = "9720086b3357bcb44fce40117d769a4d068c70ecfa190850a980a71755f66fcc"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -5564,7 +5564,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "serde_with_macros 3.9.0",
+ "serde_with_macros 3.10.0",
  "time 0.3.36",
 ]
 
@@ -5582,9 +5582,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.9.0"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8fee4991ef4f274617a51ad4af30519438dacb2f56ac773b08a1922ff743350"
+checksum = "5f1abbfe725f27678f4663bcacb75a83e829fd464c25d78dd038a3a29e307cec"
 dependencies = [
  "darling 0.20.10",
  "proc-macro2",
@@ -5808,7 +5808,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5828,7 +5828,7 @@ dependencies = [
  "rand 0.8.5",
  "rrs-succinct",
  "serde",
- "serde_with 3.9.0",
+ "serde_with 3.10.0",
  "sp1-curves",
  "sp1-derive",
  "sp1-primitives",
@@ -5845,7 +5845,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5886,7 +5886,7 @@ dependencies = [
  "rayon-scan",
  "rrs-succinct",
  "serde",
- "serde_with 3.9.0",
+ "serde_with 3.10.0",
  "size",
  "snowbridge-amcl",
  "sp1-core-executor",
@@ -5909,7 +5909,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5929,7 +5929,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -5949,7 +5949,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5959,7 +5959,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5980,7 +5980,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "bincode",
  "hex",
@@ -5998,7 +5998,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6039,7 +6039,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6077,7 +6077,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6106,7 +6106,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6129,7 +6129,7 @@ dependencies = [
  "p3-symmetric",
  "p3-util",
  "serde",
- "serde_with 3.9.0",
+ "serde_with 3.10.0",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-derive",
@@ -6143,7 +6143,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6166,7 +6166,7 @@ dependencies = [
  "p3-symmetric",
  "p3-util",
  "serde",
- "serde_with 3.9.0",
+ "serde_with 3.10.0",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-derive",
@@ -6183,7 +6183,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6193,7 +6193,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6219,7 +6219,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6266,7 +6266,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9f391bd996cbce7a6093d779d2998a1c95c7c969"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#cc2eb4034a6c9e823bec957a8758517d6dd6ee48"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
