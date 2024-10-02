@@ -5814,7 +5814,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5851,7 +5851,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5915,7 +5915,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5935,7 +5935,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "curve25519-dalek",
  "dashu",
@@ -5955,7 +5955,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5965,7 +5965,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5986,7 +5986,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "bincode",
  "hex",
@@ -6004,7 +6004,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6045,7 +6045,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6083,7 +6083,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6112,7 +6112,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6149,7 +6149,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core-v2"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6189,7 +6189,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6199,7 +6199,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6225,7 +6225,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6272,7 +6272,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#9204e1f7cb24e2002131d60b3e4750e5ce822abf"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4d7a6a1972678c5a249d522b05c3c38965a5b974"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
