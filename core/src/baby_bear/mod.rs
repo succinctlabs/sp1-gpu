@@ -1,6 +1,8 @@
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
 use crate::{
     cuda_runtime::stream::CudaStream,
     device::{error::CudaRustError, CudaScan},
@@ -27,6 +29,14 @@ mod ffi {
             n: usize,
             stream: CudaStreamHandle,
         ) -> CudaRustError;
+        pub fn add_baby_bear_vecs(
+            a: *const F,
+            b: *const F,
+            c: *mut F,
+            n: usize,
+            stream: CudaStreamHandle,
+        );
+        pub fn sum_baby_bear_vec(a: *const F, out: *mut F, n: usize, stream: CudaStreamHandle);
     }
 }
 
@@ -55,9 +65,16 @@ impl CudaScan for EF {
 #[cfg(test)]
 mod tests {
     use p3_field::AbstractField;
+    use p3_util::log2_ceil_usize;
     use rand::{thread_rng, Rng};
 
-    use crate::device::memory::{ToDevice, ToHost};
+    use crate::{
+        cuda_runtime::ffi::cuda_stream_synchronize,
+        device::{
+            memory::{ToDevice, ToHost},
+            DeviceBuffer,
+        },
+    };
 
     use super::*;
 
@@ -117,5 +134,73 @@ mod tests {
                 assert_eq!(exp, res, "at index {}", i);
             }
         }
+    }
+
+    #[test]
+    fn test_add_vecs() {
+        let n = 1 << 25;
+        let mut rng = thread_rng();
+        let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+        let b = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+        let mut a_d = a.to_device().unwrap();
+        let mut b_d = b.to_device().unwrap();
+
+        let mut c = DeviceBuffer::<F>::with_capacity(n).unwrap();
+
+        unsafe {
+            c.set_max_len();
+            ffi::add_baby_bear_vecs(
+                a_d.as_ptr(),
+                b_d.as_ptr(),
+                c.as_mut_ptr(),
+                n,
+                a_d.stream().handle(),
+            );
+        }
+
+        let c = c.to_host();
+        for (i, ((a, b), c)) in a.into_iter().zip(b).zip(c).enumerate() {
+            assert_eq!(a + b, c, "at index {}", i);
+        }
+    }
+
+    #[test]
+    fn test_sum_vec() {
+        let n: usize = 1 << 27;
+        let mut rng = thread_rng();
+        let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+
+        let num_rounds = log2_ceil_usize(n).div_ceil(9);
+
+        println!("Num rounds: {}", num_rounds);
+
+        let mut a_d = a.to_device().unwrap();
+        let mut result;
+        result = DeviceBuffer::<F>::with_capacity(n.div_ceil(512)).unwrap();
+        let now = std::time::Instant::now();
+        unsafe {
+            result.set_max_len();
+        }
+        for i in 0..num_rounds {
+            unsafe {
+                ffi::sum_baby_bear_vec(a_d.as_ptr(), result.as_mut_ptr(), n, a_d.stream().handle())
+            };
+            a_d = result;
+            result =
+                DeviceBuffer::<F>::with_capacity(n.div_ceil(512_u32.pow(i as u32 + 1) as usize))
+                    .unwrap();
+            unsafe { result.set_max_len() };
+        }
+
+        println!("Cuda sum took {:?}", now.elapsed());
+        let result = a_d.to_host();
+
+        let now = std::time::Instant::now();
+        let sum: F = a.clone().into_par_iter().sum();
+        println!("Sequential sum took {:?}", now.elapsed());
+
+        let out_sum: F = result[0];
+
+        assert_eq!(sum, out_sum);
     }
 }

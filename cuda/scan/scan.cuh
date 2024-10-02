@@ -30,9 +30,55 @@ template<typename T> RustCudaError ScanTemplate(T * d_out, T * d_in, size_t n, c
     return CUDA_SUCCESS_MOON;
 }
 
+template<typename T> __global__ void AddTemplate(T * a, T * b, T * c, size_t n, cudaStream_t stream){
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if(index < n) {
+        c[index] = a[index] + b[index];
+    } 
+}
+
+template<typename T>
+__global__ void SumTemplate(const T* in, T* out, size_t n, cudaStream_t stream) {
+    extern __shared__ T sdata[512];
+    
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Load input into shared memory
+    if (i < n){
+    sdata[tid] = in[i];
+    }
+    __syncthreads();
+    
+    // Perform block-wise reduction in shared memory
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    }
+    
+    // Write the result for this block to global memory
+    if (tid == 0) {
+        out[blockIdx.x] = sdata[0];
+    }
+}
+
 
 extern "C" RustCudaError scan_baby_bear(bb31_t * d_out, bb31_t* d_in, size_t n, cudaStream_t stream) {
     return ScanTemplate(d_out, d_in, n, stream);
+}
+
+extern "C" void add_baby_bear_vecs(bb31_t * a, bb31_t * b, bb31_t * c, size_t n, cudaStream_t stream) {
+    size_t block_dim = 512;
+    size_t num_blocks = ceil(n / (float)block_dim);
+    AddTemplate<<<num_blocks, block_dim, 0, stream>>>(a, b, c, n, stream);
+}
+
+extern "C" void sum_baby_bear_vec(bb31_t * in, bb31_t * result, size_t n, cudaStream_t stream) {
+    size_t block_dim = 512;
+    size_t num_blocks = ceil(n/ (float)block_dim);
+    SumTemplate<<<num_blocks, block_dim, 0, stream>>>(in, result, n, stream);
 }
 
 extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_out, 
