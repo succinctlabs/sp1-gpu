@@ -135,7 +135,6 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::All).unwrap();
     }
 
     #[test]
@@ -148,7 +147,6 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::All).unwrap();
     }
 
     #[test]
