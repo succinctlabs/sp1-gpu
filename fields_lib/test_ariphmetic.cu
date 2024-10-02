@@ -7,6 +7,7 @@
 #include "../cuda/fields/bb31_extension_t.cuh"
 #include "mersenne31/mer31_t.cuh"
 #include "mersenne31/mer31_extension_t.cuh"
+#include "binius/binius_t.cuh"
 
 #define ONLY_TEST false
 

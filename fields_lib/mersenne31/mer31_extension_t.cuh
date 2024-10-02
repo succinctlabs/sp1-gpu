@@ -91,8 +91,8 @@ public:
 
     HD inline mer31_complex_t reciprocal() const 
     {
-        return mer31_complex_t(x, -y) /
-               ((x * x) + (y * y));
+        return static_cast<mer31_extension_t_base<mer31_t>>(mer31_complex_t(x, -y)) /
+               static_cast<mer31_t>((x * x) + (y * y));
     }
 
     HD inline mer31_complex_t& operator/=(const mer31_complex_t b)
@@ -136,8 +136,8 @@ public:
 
     HD inline mer31_ext128_t reciprocal() const 
     {
-        return mer31_ext128_t(x, y) /
-               ((x * x) - (y * y * W_ext128));
+        return static_cast<mer31_extension_t_base<mer31_complex_t>>(mer31_ext128_t(x, y)) /
+               static_cast<mer31_complex_t>((x * x) - (y * y * W_ext128));
     }
 
     HD inline mer31_ext128_t& operator/=(const mer31_ext128_t b)
