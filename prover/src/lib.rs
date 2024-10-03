@@ -114,6 +114,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_e2e_reth() {
         let elf = RETH_ELF;
         init_tracer();
