@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use moongate_prover::components::GpuProverComponents;
 use sp1_core_machine::utils::setup_logger;
-use sp1_prover::{shapes::build_vk_map, REDUCE_BATCH_SIZE};
+use sp1_prover::{shapes::build_vk_map_to_file, REDUCE_BATCH_SIZE};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -37,7 +37,7 @@ fn main() {
     let range_end = args.end;
 
     tracing::info_span!("build_vk_map").in_scope(|| {
-        build_vk_map::<GpuProverComponents>(
+        build_vk_map_to_file::<GpuProverComponents>(
             build_dir,
             reduce_batch_size,
             dummy,
