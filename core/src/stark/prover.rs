@@ -879,7 +879,7 @@ pub mod tests {
     use sp1_core_executor::Program;
     use sp1_core_machine::riscv::RiscvAir;
     use sp1_core_machine::utils::run_test;
-    use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
+    use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
     use sp1_stark::StarkGenericConfig;
 
     use crate::{

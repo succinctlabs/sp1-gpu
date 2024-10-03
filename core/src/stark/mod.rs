@@ -22,7 +22,7 @@ use p3_dft::Radix2DitParallel;
 use p3_field::AbstractField;
 use p3_fri::{FriConfig, TwoAdicFriPcs};
 use p3_matrix::dense::RowMajorMatrix;
-use sp1_recursion_core::stark::config::{
+use sp1_recursion_core::stark::{
     BabyBearPoseidon2Outer, OuterDigestHash, OuterValMmcs, DIGEST_SIZE as OUTER_DIGEST_SIZE,
 };
 
