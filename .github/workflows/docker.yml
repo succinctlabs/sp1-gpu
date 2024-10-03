@@ -1,11 +1,6 @@
 name: Build and Push Docker to ECR
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push]
+    
 
 env:
   ECR_REGISTRY: public.ecr.aws
@@ -13,8 +8,17 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: ubuntu-latest
+    runs-on: [
+      "runs-on",
+      "runner=32cpu-linux-x64",
+      "run-id=${{ github.run_id }}",
+      "spot=false"
+    ]
     steps:
+
+    - name: Add SHORT_SHA env property with commit short sha
+      run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-7`" >> $GITHUB_ENV
+
 
     # https://github.com/orgs/community/discussions/25678
     - name: Delete huge unnecessary tools folder
@@ -25,7 +29,7 @@ jobs:
         sudo rm -rf /usr/local/share/boost
         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         df -h
-
+      
     - name: Checkout repo
       uses: actions/checkout@v3
       with:
@@ -46,6 +50,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
       with:
         registry-type: public
+        
 
     - name: Build and Push Docker image
       uses: docker/build-push-action@v5
@@ -54,26 +59,24 @@ jobs:
         file: ./Dockerfile.server
         push: false
         load: true
-        tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
         cache-from: type=gha
         cache-to: type=gha, mode=max
 
     - name: Push Docker image to Amazon ECR Public
-      env:
-        IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
         
         # Check if a git tag exists for this commit
         GIT_TAG=$(git describe --tags --exact-match 2> /dev/null || true)
         if [ -n "$GIT_TAG" ]; then
           echo "Found git tag: $GIT_TAG"
-          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$GIT_TAG
           
           # Tag and push as 'latest' for tagged commits
           echo "Tagging and pushing as latest"
-          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
           docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
         else
           echo "No git tag found for this commit"
