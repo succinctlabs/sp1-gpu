@@ -275,11 +275,11 @@ namespace field_test_ariphmetic {
 			dur = stop - start;
             printf("mer31 test      : %.2f\n", dur.count());
 
-            mer31_complex_t* merext_31;
-            cudaMalloc((void**)&merext_31, sizeof(mer31_complex_t) * input.size());
+            mer31_complex_t* mer31ext;
+            cudaMalloc((void**)&mer31ext, sizeof(mer31_complex_t) * input.size());
             if (!ONLY_TEST)
                 start = std::chrono::high_resolution_clock::now();
-            fill_ext<mer31_t, mer31_complex_t><<<N/256, 1024>>>(mer31, merext_31); //KERNEL
+            fill_ext<mer31_t, mer31_complex_t><<<N/256, 1024>>>(mer31, mer31ext); //KERNEL
             if (!ONLY_TEST){ 
             cudaDeviceSynchronize();//added
                 stop = std::chrono::high_resolution_clock::now();
@@ -291,14 +291,14 @@ namespace field_test_ariphmetic {
             cudaMalloc((void**)&mer31ext_out, sizeof(mer31_complex_t) * input.size()/2);
             cudaDeviceSynchronize();//added
             start = std::chrono::high_resolution_clock::now();
-            test_ariphmetic<mer31_complex_t>(merext_31, merext_31 + N, mer31ext_out, N); //KERNEL  
+            test_ariphmetic<mer31_complex_t>(mer31ext, mer31ext + N, mer31ext_out, N); //KERNEL  
             cudaDeviceSynchronize(); 
             stop = std::chrono::high_resolution_clock::now();
 			dur = stop - start;
             printf("mer31 ext test  : %.2f\n", dur.count()); 
             
             mer31_ext128_t* mer31ext_128;
-            cudaMalloc((void**)&mer31ext_128, sizeof(mer31_ext128_t) * input.size()/4);
+            cudaMalloc((void**)&mer31ext_128, sizeof(mer31_ext128_t) * input.size()/2);
             if (!ONLY_TEST)
                 start = std::chrono::high_resolution_clock::now();
             fill_ext<mer31_complex_t, mer31_ext128_t><<<N/512, 1024>>>(mer31ext_out, mer31ext_128); //KERNEL
@@ -321,10 +321,10 @@ namespace field_test_ariphmetic {
 
             cudaFree(mer31);
             cudaFree(mer31_out);
-            cudaFree(merext_31);
-            cudaFree(mer31ext_out);    
+            cudaFree(mer31ext);
+            cudaFree(mer31ext_out);   
+            cudaFree(mer31ext_128);   
             cudaFree(mer31ext_128_out);
-            cudaFree(mer31ext_128);     
         }
         if (1) {
             do_mod* bb31;

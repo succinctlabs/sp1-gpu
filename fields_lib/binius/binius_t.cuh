@@ -130,16 +130,6 @@ public:
     HD inline constexpr const T& operator[](size_t index) const
     {   return elems[index];    }
 
-    HD inline binius_t& operator+=(const T c)
-    {
-        a += c;
-        return *this;
-    }
-    friend HD inline binius_t operator+(binius_t x, const T c)
-    {   return x += c;   }
-    friend HD inline binius_t operator+(const T c, binius_t x)
-    {   return x += c;   }
-
     HD inline binius_t& operator+=(const binius_t other)
     {
         a += other.a;
