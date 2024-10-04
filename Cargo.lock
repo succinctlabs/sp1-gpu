@@ -3943,7 +3943,7 @@ dependencies = [
  "opentelemetry 0.23.0",
  "opentelemetry-proto",
  "opentelemetry_sdk 0.23.0",
- "prost",
+ "prost 0.12.6",
  "thiserror",
  "tokio",
  "tonic",
@@ -3957,7 +3957,7 @@ checksum = "984806e6cf27f2b49282e2a05e288f30594f3dbc74eb7a6e99422bc48ed78162"
 dependencies = [
  "opentelemetry 0.23.0",
  "opentelemetry_sdk 0.23.0",
- "prost",
+ "prost 0.12.6",
  "tonic",
 ]
 
@@ -4657,7 +4657,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
 dependencies = [
  "bytes 1.7.2",
- "prost-derive",
+ "prost-derive 0.12.6",
+]
+
+[[package]]
+name = "prost"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b0487d90e047de87f984913713b85c601c05609aad5b0df4b4573fbf69aa13f"
+dependencies = [
+ "bytes 1.7.2",
+ "prost-derive 0.13.3",
 ]
 
 [[package]]
@@ -4674,12 +4684,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "prost-types"
-version = "0.12.6"
+name = "prost-derive"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
+checksum = "e9552f850d5f0964a4e4d0bf306459ac29323ddfbae05e35a7c0d35cb0803cc5"
 dependencies = [
- "prost",
+ "anyhow",
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.79",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4759aa0d3a6232fb8dbdb97b61de2c20047c68aca932c7ed76da9d788508d670"
+dependencies = [
+ "prost 0.13.3",
 ]
 
 [[package]]
@@ -5814,7 +5837,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5851,7 +5874,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5915,11 +5938,11 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "bincode",
  "ctrlc",
- "prost",
+ "prost 0.13.3",
  "prost-types",
  "serde",
  "serde_json",
@@ -5935,7 +5958,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5956,7 +5979,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5966,7 +5989,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5987,7 +6010,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "bincode",
  "hex",
@@ -6005,7 +6028,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6046,7 +6069,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "bincode",
  "hashbrown 0.14.5",
@@ -6084,7 +6107,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6112,7 +6135,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -6151,7 +6174,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6161,7 +6184,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6187,7 +6210,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6209,7 +6232,7 @@ dependencies = [
  "p3-field",
  "p3-fri",
  "p3-matrix",
- "prost",
+ "prost 0.13.3",
  "reqwest 0.12.8",
  "reqwest-middleware",
  "serde",
@@ -6234,7 +6257,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#4f155049985509cec9770ac5084a55c7baa74072"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v1.3.0-rc2#f3245c90962e036d94a45247b41c936f80b72d37"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
@@ -6857,7 +6880,7 @@ dependencies = [
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
- "prost",
+ "prost 0.12.6",
  "tokio",
  "tokio-stream",
  "tower 0.4.13",
@@ -7044,24 +7067,23 @@ dependencies = [
 
 [[package]]
 name = "twirp-rs"
-version = "0.3.0"
+version = "0.13.0-succinct"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfa3161d8eee0abcad4e762f4215381a430cc1281870d575b0f1e4fbfc74b8ce"
+checksum = "27dfcc06b8d9262bc2d4b8d1847c56af9971a52dd8a0076876de9db763227d0d"
 dependencies = [
  "async-trait",
  "axum 0.7.7",
- "bytes 1.7.2",
  "futures",
  "http 1.1.0",
  "http-body-util",
  "hyper 1.4.1",
- "prost",
+ "prost 0.13.3",
  "reqwest 0.12.8",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
- "tower 0.4.13",
+ "tower 0.5.1",
  "url",
 ]
 
