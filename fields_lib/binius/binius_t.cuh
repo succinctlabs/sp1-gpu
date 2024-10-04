@@ -100,7 +100,7 @@ template<typename T>
 class binius_t;
 
 template<typename T>
-HD binius_t<T> binius_reduction();
+HD T binius_reduction();
 
 /*
     Base binius class uses a pair of {a, b}: a + b * x_k
@@ -130,6 +130,16 @@ public:
     HD inline constexpr const T& operator[](size_t index) const
     {   return elems[index];    }
 
+    HD inline binius_t& operator+=(const T c)
+    {
+        a += c;
+        return *this;
+    }
+    friend HD inline binius_t operator+(binius_t x, const T c)
+    {   return x += c;   }
+    friend HD inline binius_t operator+(const T c, binius_t x)
+    {   return x += c;   }
+
     HD inline binius_t& operator+=(const binius_t other)
     {
         a += other.a;
@@ -139,6 +149,11 @@ public:
     friend HD inline binius_t operator+(binius_t x, const binius_t y)
     {   return x += y;   }
 
+    HD inline binius_t& operator-=(const binius_t other)
+    {   return *this += other;   }
+    friend HD inline binius_t operator-(binius_t x, const binius_t y)
+    {   return x -= y;   }
+
     HD inline binius_t& operator*=(const T c)
     {
         a *= c;
@@ -147,11 +162,13 @@ public:
     }
     friend HD inline binius_t operator*(binius_t x, const T c)
     {   return x *= c;   }
+    friend HD inline binius_t operator*(const T c, binius_t x)
+    {   return x *= c;   }
 
     HD inline binius_t& operator*=(const binius_t other) 
     {
-        T tmp = a * other.b + b * other.a;
-        a = a * other.a + binius_reduction<T>() * (b * other.b);
+        T tmp = a * other.b + b * (other.a + other.b * binius_reduction<T>());
+        a = a * other.a + b * other.b;
         b = tmp;
         return *this;
     }
@@ -160,28 +177,25 @@ public:
 };
 
 template<>
-HD constexpr binius_t<bin8_t> binius_reduction() {
-    return binius_t<bin8_t>(0x1001);    // 1 + x2
+HD constexpr bin8_t binius_reduction() {
+    return bin8_t(0x10);    // x2
 }
 using bin16_t = binius_t<bin8_t>;
 
 template<>
-HD constexpr binius_t<bin16_t> binius_reduction() {
-    return binius_t<bin16_t>(0x01000001);  // 1 + x3
+HD constexpr bin16_t binius_reduction() {
+    return bin16_t(0x0100);  // x3
 }
 using bin32_t = binius_t<bin16_t>;
 
 template<>
-HD constexpr binius_t<bin32_t> binius_reduction() {
-    return binius_t<bin32_t>(0x0001000000000001);  // 1 + x4
+HD constexpr bin32_t binius_reduction() {
+    return bin32_t(0x00010000);  // x4
 }
 using bin64_t = binius_t<bin32_t>;
 
 template<>
-HD constexpr binius_t<bin64_t> binius_reduction() {
-    return binius_t<bin64_t>(
-        bin64_t(0x0000000000000001),  // 1
-        bin64_t(0x0000000100000000)   // x5
-    );
+HD constexpr bin64_t binius_reduction() {
+    return bin64_t(0x0000000100000000);   // x5
 }
 using bin128_t = binius_t<bin64_t>;

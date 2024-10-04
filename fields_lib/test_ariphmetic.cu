@@ -65,7 +65,7 @@ __global__ void fill_bb31ext(bb31_t* in, bb31_extension_t* out)
 }
 
 template <typename I, typename O>
-__global__ void fill_mer31ext(I* in, O* out)
+__global__ void fill_ext(I* in, O* out)
 {
     size_t tIdx = threadIdx.x + blockDim.x * blockIdx.x;
     size_t N = gridDim.x * blockDim.x;
@@ -105,7 +105,7 @@ namespace field_test_ariphmetic {
         test_sum<T><<<gridSize, blockSize>>>(input0, input1, output);
         test_mul<T><<<gridSize, blockSize>>>(input0, input1, output);
         //test_pow7<T><<<gridSize, blockSize>>>(input0, output);
-        test_reciprocal<T><<<gridSize, blockSize>>>(input0, output);
+        //test_reciprocal<T><<<gridSize, blockSize>>>(input0, output);
     }
 
     void run_test(const size_t N)
@@ -175,7 +175,82 @@ namespace field_test_ariphmetic {
 
             cudaFree(bb31);
             cudaFree(bb31_out);
-        }      
+        }
+        if (1) {
+            bin32_t* bin32;
+            cudaMalloc((void**)&bin32, size);
+            if (!ONLY_TEST)
+                start = std::chrono::high_resolution_clock::now();
+            fill_base<bin32_t><<<N/128, 1024>>>(d_input, bin32); //KERNEL
+            if (!ONLY_TEST){ 
+                cudaDeviceSynchronize();//added
+	    		stop = std::chrono::high_resolution_clock::now();
+		    	dur = stop - start;
+                printf("bin32 fill b    : %.2f\n", dur.count());
+            }
+
+            bin32_t* bin32_out;
+            cudaMalloc((void**)&bin32_out, size);
+
+            cudaDeviceSynchronize();//added
+            start = std::chrono::high_resolution_clock::now();
+            test_ariphmetic<bin32_t>(bin32, bin32 + N, bin32_out, N); //KERNEL  
+            cudaDeviceSynchronize();
+            stop = std::chrono::high_resolution_clock::now();
+			dur = stop - start;
+            printf("bin32 test      : %.2f\n", dur.count());
+
+            bin64_t* bin64;
+            cudaMalloc((void**)&bin64, sizeof(bin64_t) * input.size());
+            if (!ONLY_TEST)
+                start = std::chrono::high_resolution_clock::now();
+            fill_ext<bin32_t, bin64_t><<<N/256, 1024>>>(bin32, bin64); //KERNEL
+            if (!ONLY_TEST){ 
+            cudaDeviceSynchronize();//added
+                stop = std::chrono::high_resolution_clock::now();
+                dur = stop - start;
+                printf("bin64 fill b    : %.2f\n", dur.count());
+            }
+
+            bin64_t* bin64_out;
+            cudaMalloc((void**)&bin64_out, sizeof(bin64_t) * input.size()/2);
+            cudaDeviceSynchronize();//added
+            start = std::chrono::high_resolution_clock::now();
+            test_ariphmetic<bin64_t>(bin64, bin64 + N, bin64_out, N); //KERNEL  
+            cudaDeviceSynchronize(); 
+            stop = std::chrono::high_resolution_clock::now();
+			dur = stop - start;
+            printf("bin64 test      : %.2f\n", dur.count());
+
+            bin128_t* bin128;
+            cudaMalloc((void**)&bin128, sizeof(bin128_t) * input.size()/2);
+            if (!ONLY_TEST)
+                start = std::chrono::high_resolution_clock::now();
+            fill_ext<bin64_t, bin128_t><<<N/512, 1024>>>(bin64, bin128); //KERNEL
+            if (!ONLY_TEST){ 
+            cudaDeviceSynchronize();//added
+                stop = std::chrono::high_resolution_clock::now();
+                dur = stop - start;
+                printf("bin128 fill b   : %.2f\n", dur.count());
+            }
+
+            bin128_t* bin128_out;
+            cudaMalloc((void**)&bin128_out, sizeof(bin128_t) * input.size()/4);
+            cudaDeviceSynchronize();//added
+            start = std::chrono::high_resolution_clock::now();
+            test_ariphmetic<bin128_t>(bin128, bin128 + N, bin128_out, N); //KERNEL  
+            cudaDeviceSynchronize(); 
+            stop = std::chrono::high_resolution_clock::now();
+			dur = stop - start;
+            printf("bin128 test     : %.2f\n", dur.count());
+
+            cudaFree(bin32);
+            cudaFree(bin32_out);
+            cudaFree(bin64);
+            cudaFree(bin64_out);    
+            cudaFree(bin128);
+            cudaFree(bin128_out);
+        }    
         if (1) {
             mer31_t* mer31;
             cudaMalloc((void**)&mer31, size);
@@ -204,7 +279,7 @@ namespace field_test_ariphmetic {
             cudaMalloc((void**)&merext_31, sizeof(mer31_complex_t) * input.size());
             if (!ONLY_TEST)
                 start = std::chrono::high_resolution_clock::now();
-            fill_mer31ext<mer31_t, mer31_complex_t><<<N/256, 1024>>>(mer31, merext_31); //KERNEL
+            fill_ext<mer31_t, mer31_complex_t><<<N/256, 1024>>>(mer31, merext_31); //KERNEL
             if (!ONLY_TEST){ 
             cudaDeviceSynchronize();//added
                 stop = std::chrono::high_resolution_clock::now();
@@ -226,7 +301,7 @@ namespace field_test_ariphmetic {
             cudaMalloc((void**)&mer31ext_128, sizeof(mer31_ext128_t) * input.size()/4);
             if (!ONLY_TEST)
                 start = std::chrono::high_resolution_clock::now();
-            fill_mer31ext<mer31_complex_t, mer31_ext128_t><<<N/512, 1024>>>(mer31ext_out, mer31ext_128); //KERNEL
+            fill_ext<mer31_complex_t, mer31_ext128_t><<<N/512, 1024>>>(mer31ext_out, mer31ext_128); //KERNEL
             if (!ONLY_TEST){ 
             cudaDeviceSynchronize();//added
                 stop = std::chrono::high_resolution_clock::now();
