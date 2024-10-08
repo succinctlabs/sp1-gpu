@@ -13,6 +13,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     prover: &SP1Prover<C>,
     name: &str,
     elf: &[u8],
+    stdin: Option<SP1Stdin>,
     opts: SP1ProverOpts,
     verify: bool,
 ) -> Measurement {
@@ -25,7 +26,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
 
     tracing::info!("prove core");
     let time = std::time::Instant::now();
-    let mut stdin = SP1Stdin::new();
+    let mut stdin = stdin.unwrap_or_default();
     if name == "KeyspaceRecord" {
         stdin = bincode::deserialize(KEYSPACE_STDIN).unwrap();
     } else if name == "KeyspaceBatcher" {

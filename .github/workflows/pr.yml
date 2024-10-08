@@ -87,9 +87,9 @@ jobs:
           # - Workflows: Read and write
           github-token: ${{ secrets.GH_PAT }}
           # github-runner-ami-1726256456 (Ubuntu 22.04)
-          ec2-image-id: "ami-079a6a210557ef0e4"
+          ec2-image-id: "ami-0a63dc9cb9e934ba3"
           # 1 GPU; 8 vCPU; 32 GiB memory; 24 GiB GPU memory
-          ec2-instance-type: "g6.16xlarge"
+          ec2-instance-type: "g6.4xlarge"
           # Use a subnet in the default VPC
           subnet-id: "${{ secrets.AWS_SUBNET_ID }}"
           # Use a security group attached to the default VPC
@@ -122,11 +122,12 @@ jobs:
             ~/.rustup/
           key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
           restore-keys: rust-1.79.0-
+      
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
 
       # Commented out because the latency of the docker buildx cache is high enough 
       # with the EC2 builder that it's a wash.  Can be added back in if the toolchain gets complex.
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
 
       # - name: Cache Docker layers
       #   uses: actions/cache@v3
@@ -155,15 +156,14 @@ jobs:
         
       - name: Run docker build
         run: |
-          docker build -t moongate-toolchain -f Dockerfile.toolchain .
+          docker build -t moongate-toolchain:latest -f Dockerfile.toolchain .
       # we need to run cargo test --release in the docker container
       - name: Run Tests (docker)
         run: |
           docker run --gpus all \
             -v ~/.cargo/registry:/root/.cargo/registry \
             -v ~/.cargo/git:/root/.cargo/git \
-            -v ~/.rustup:/root/.rustup \
-            moongate-toolchain \
+            moongate-toolchain:latest \
             "cargo test --release -- --test-threads=1"
 
   performance:
