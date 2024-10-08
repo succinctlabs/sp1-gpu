@@ -8,6 +8,7 @@ use sp1_cuda::{
     CompressRequestPayload, ProveCoreRequestPayload, ShrinkRequestPayload, WrapRequestPayload,
 };
 use sp1_prover::SP1Prover;
+use tower_http::catch_panic::CatchPanicLayer;
 use twirp::{axum, internal, Router};
 
 struct MoongateProverServer {
@@ -148,7 +149,10 @@ pub async fn main() {
     let twirp_routes =
         Router::new().nest(sp1_cuda::proto::api::SERVICE_FQN, sp1_cuda::proto::api::router(server));
 
-    let app = Router::new().nest("/twirp", twirp_routes).fallback(twirp::server::not_found_handler);
+    let app = Router::new()
+        .nest("/twirp", twirp_routes)
+        .fallback(twirp::server::not_found_handler)
+        .layer(CatchPanicLayer::new());
 
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     if let Err(e) = axum::serve(tcp_listener, app).await {
