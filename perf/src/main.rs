@@ -1,5 +1,6 @@
 use moongate_core::utils::init_tracer;
 use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
+use sp1_core_machine::io::SP1Stdin;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
@@ -21,6 +22,10 @@ struct Args {
     pub program: Program,
     #[arg(short, long, default_value = "telemetry")]
     pub trace: Trace,
+    #[arg(short, long)]
+    pub program_path: Option<String>,
+    #[arg(short, long)]
+    pub stdin_path: Option<String>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -76,15 +81,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
     let opts = gpu_prover_opts();
 
+    if args.program_path.is_some() && args.stdin_path.is_some() {
+        let program = std::fs::read(args.program_path.unwrap()).unwrap();
+        let stdin = std::fs::read(args.stdin_path.unwrap()).unwrap();
+        let stdin: SP1Stdin = bincode::deserialize(&stdin).unwrap();
+        let measurement = make_measurement(&prover, "Custom", &program, Some(stdin), opts);
+        println!("{}", measurement);
+        return Ok(());
+    }
+
     let mut measurements = vec![];
     for (name, elf) in named_programs {
-        let measurement = make_measurement(&prover, name, elf, opts);
+        let measurement = make_measurement(&prover, name, elf, None, opts);
         println!("{}", measurement);
         measurements.push(measurement);
-        // Make a second measurement to see affects of the cache.
-        // let measurement = make_measurement(&prover, name, elf, opts);
-        // println!("{}", measurement);
-        // measurements.push(measurement);
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;

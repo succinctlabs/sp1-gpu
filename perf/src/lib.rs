@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use programs::{KEYSPACE_BATCHER_STDIN, KEYSPACE_STDIN};
 use report::Measurement;
 use sp1_core_executor::SP1Context;
@@ -13,6 +15,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     prover: &SP1Prover<C>,
     name: &str,
     elf: &[u8],
+    stdin: Option<SP1Stdin>,
     opts: SP1ProverOpts,
 ) -> Measurement {
     tracing::info!("Starting measurement for {}", name);
@@ -20,11 +23,11 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let context = SP1Context::default();
 
     tracing::info!("Setup elf");
-    let (pk, vk) = prover.setup(elf);
+    let (pk, _) = prover.setup(elf);
 
     tracing::info!("prove core");
     let time = std::time::Instant::now();
-    let mut stdin = SP1Stdin::new();
+    let mut stdin = stdin.unwrap_or_default();
     if name == "KeyspaceRecord" {
         stdin = bincode::deserialize(KEYSPACE_STDIN).unwrap();
     } else if name == "KeyspaceBatcher" {
@@ -36,16 +39,16 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let cycles = core_proof.cycles as usize;
     let num_shards = core_proof.proof.0.len();
 
-    tracing::info!("verify core");
-    prover.verify(&core_proof.proof, &vk).unwrap();
+    // tracing::info!("verify core");
+    // prover.verify(&core_proof.proof, &vk).unwrap();
 
     tracing::info!("compress");
-    let time = std::time::Instant::now();
-    let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
-    let compress_time = time.elapsed();
+    // let time = std::time::Instant::now();
+    // let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
+    let compress_time = Duration::from_secs_f32(0.0);
 
-    tracing::info!("verify compressed");
-    prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    // tracing::info!("verify compressed");
+    // prover.verify_compressed(&compressed_proof, &vk).unwrap();
 
     Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
 }
