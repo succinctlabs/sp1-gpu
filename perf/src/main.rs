@@ -7,11 +7,11 @@ use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use clap::{Parser, ValueEnum};
 use moongate_perf::report::write_measurements_to_csv;
-use moongate_perf::tracer;
 use moongate_perf::{
     make_measurement,
     programs::{FIBONACCI_ELF, LOOP_ELF, RETH_ELF, SHA2_CHAIN_ELF, TENDERMINT_BENCHMARK_ELF},
 };
+use moongate_perf::{tracer, Stage};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
 
@@ -28,6 +28,8 @@ struct Args {
     pub stdin_path: Option<String>,
     #[arg(short, long, default_value = "false")]
     pub skip_verify: bool,
+    #[arg(short, long, default_value = "compress")]
+    pub stage: Stage,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -83,19 +85,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
     let opts = gpu_prover_opts();
     let verify = !args.skip_verify;
+    let stage = args.stage;
 
     if args.program_path.is_some() && args.stdin_path.is_some() {
         let program = std::fs::read(args.program_path.unwrap()).unwrap();
         let stdin = std::fs::read(args.stdin_path.unwrap()).unwrap();
         let stdin: SP1Stdin = bincode::deserialize(&stdin).unwrap();
-        let measurement = make_measurement(&prover, "Custom", &program, Some(stdin), opts, verify);
+        let measurement =
+            make_measurement(&prover, "Custom", &program, Some(stdin), opts, verify, stage);
         println!("{}", measurement);
         return Ok(());
     }
 
     let mut measurements = vec![];
     for (name, elf) in named_programs {
-        let measurement = make_measurement(&prover, name, elf, None, opts, verify);
+        let measurement = make_measurement(&prover, name, elf, None, opts, verify, stage);
         println!("{}", measurement);
         measurements.push(measurement);
     }
