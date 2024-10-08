@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use programs::{KEYSPACE_BATCHER_STDIN, KEYSPACE_STDIN};
 use report::Measurement;
 use sp1_core_executor::SP1Context;
