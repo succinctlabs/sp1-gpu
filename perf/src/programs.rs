@@ -1,5 +1,4 @@
-pub const FIBONACCI_ELF: &[u8] =
-    include_bytes!("../programs/fibonacci/riscv32im-succinct-zkvm-elf");
+pub const FIBONACCI_ELF: &[u8] = include_bytes!("../programs/fibonacci-small");
 
 pub const LOOP_ELF: &[u8] = include_bytes!("../programs/loop/riscv32im-succinct-zkvm-elf");
 
