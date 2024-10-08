@@ -26,6 +26,8 @@ struct Args {
     pub program_path: Option<String>,
     #[arg(short, long)]
     pub stdin_path: Option<String>,
+    #[arg(short, long, default_value = "false")]
+    pub skip_verify: bool,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -80,19 +82,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
     let opts = gpu_prover_opts();
+    let verify = !args.skip_verify;
 
     if args.program_path.is_some() && args.stdin_path.is_some() {
         let program = std::fs::read(args.program_path.unwrap()).unwrap();
         let stdin = std::fs::read(args.stdin_path.unwrap()).unwrap();
         let stdin: SP1Stdin = bincode::deserialize(&stdin).unwrap();
-        let measurement = make_measurement(&prover, "Custom", &program, Some(stdin), opts);
+        let measurement = make_measurement(&prover, "Custom", &program, Some(stdin), opts, verify);
         println!("{}", measurement);
         return Ok(());
     }
 
     let mut measurements = vec![];
     for (name, elf) in named_programs {
-        let measurement = make_measurement(&prover, name, elf, None, opts);
+        let measurement = make_measurement(&prover, name, elf, None, opts, verify);
         println!("{}", measurement);
         measurements.push(measurement);
     }

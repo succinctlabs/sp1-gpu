@@ -17,13 +17,14 @@ pub fn make_measurement<C: SP1ProverComponents>(
     elf: &[u8],
     stdin: Option<SP1Stdin>,
     opts: SP1ProverOpts,
+    verify: bool,
 ) -> Measurement {
     tracing::info!("Starting measurement for {}", name);
 
     let context = SP1Context::default();
 
     tracing::info!("Setup elf");
-    let (pk, _) = prover.setup(elf);
+    let (pk, vk) = prover.setup(elf);
 
     tracing::info!("prove core");
     let time = std::time::Instant::now();
@@ -39,16 +40,20 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let cycles = core_proof.cycles as usize;
     let num_shards = core_proof.proof.0.len();
 
-    // tracing::info!("verify core");
-    // prover.verify(&core_proof.proof, &vk).unwrap();
+    if verify {
+        tracing::info!("verify core");
+        prover.verify(&core_proof.proof, &vk).unwrap();
+    }
 
     tracing::info!("compress");
-    // let time = std::time::Instant::now();
-    // let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
-    let compress_time = Duration::from_secs_f32(0.0);
+    let time = std::time::Instant::now();
+    let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
+    let compress_time = time.elapsed();
 
-    // tracing::info!("verify compressed");
-    // prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    if verify {
+        tracing::info!("verify compressed");
+        prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    }
 
     Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
 }

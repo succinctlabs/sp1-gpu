@@ -5,16 +5,9 @@ use rayon::prelude::*;
 use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
-use p3_commit::Mmcs;
-use p3_commit::PolynomialSpace;
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::Matrix;
-use sp1_stark::air::InteractionScope;
-use sp1_stark::air::MachineAir;
-use sp1_stark::air::MachineProgram;
-use sp1_stark::AirOpenedValues;
-use sp1_stark::Chip;
-use sp1_stark::ChipOpenedValues;
+use p3_commit::{Mmcs, PolynomialSpace};
+use p3_field::AbstractExtensionField;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::Com;
 use sp1_stark::DebugConstraintBuilder;
 use sp1_stark::MachineProof;
@@ -32,6 +25,10 @@ use sp1_stark::StarkMachine;
 use sp1_stark::StarkProvingKey;
 use sp1_stark::StarkVerifyingKey;
 use sp1_stark::Val;
+use sp1_stark::{
+    air::{InteractionScope, MachineAir, MachineProgram},
+    AirOpenedValues, Chip, ChipOpenedValues,
+};
 
 use itertools::Itertools;
 use tracing::info;
@@ -241,7 +238,7 @@ where
         mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(name, trace)| Reverse((trace.height(), name.clone())));
+        named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
 
         // Get the chip ordering.
         let chip_ordering =
@@ -311,7 +308,7 @@ where
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_preprocessed_traces
-            .sort_by_key(|(name, trace)| Reverse((trace.height(), name.clone())));
+            .sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
 
         let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
             .iter()
@@ -394,10 +391,10 @@ where
             &local_traces,
             &local_chip_ordering,
         );
-        let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
+        let mut all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
 
-        assert!(shard_chips.len() == all_shard_data.len());
+        assert!(shard_chips.len() == all_traces.len());
 
         let domains = all_traces
             .iter()
@@ -478,6 +475,12 @@ where
 
         // Observe the permutation commitment.
         challenger.observe(permutation_commit.clone());
+        for sums in cumulative_sums.iter() {
+            let global_sum = sums[0];
+            let local_sum = sums[1];
+            CanObserve::<BabyBear>::observe_slice(challenger, global_sum.as_base_slice());
+            CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
+        }
 
         // Delete the ldes of the permutation prover data.
         if recompute_ldes {
@@ -559,7 +562,7 @@ where
                 let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
                 perm_prover_data.push_matrix(perm_lde);
             }
-            for (i, (domain, trace)) in domains.iter().zip(all_traces).enumerate() {
+            for (i, (domain, trace)) in domains.iter().zip(all_traces.iter()).enumerate() {
                 let main_lde = self.committer.encode(*domain, trace, true)?;
                 let scope = all_chip_scopes[i];
 
@@ -570,6 +573,13 @@ where
                 } else {
                     local_main_data.push_matrix(main_lde);
                 }
+            }
+
+            // Synchronize the streams so that the LDE are ready for the opening.
+            for _ in 0..all_traces.len() {
+                let trace = all_traces.pop().unwrap();
+                let stream = trace.stream().clone();
+                stream.synchronize().unwrap();
             }
         }
 
@@ -605,6 +615,7 @@ where
         let (openings, opening_proof) = tracing::debug_span!("compute opening")
             .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
 
+        drop(local_main_data);
         drop(perm_prover_data);
         drop(quotient_prover_data);
 
@@ -868,7 +879,7 @@ pub mod tests {
     use sp1_core_executor::Program;
     use sp1_core_machine::riscv::RiscvAir;
     use sp1_core_machine::utils::run_test;
-    use sp1_recursion_core::stark::config::BabyBearPoseidon2Outer;
+    use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
     use sp1_stark::StarkGenericConfig;
 
     use crate::{

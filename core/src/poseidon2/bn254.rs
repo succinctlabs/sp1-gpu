@@ -222,7 +222,7 @@ use poseidon2_bn254_3_kernels::DIGEST_WIDTH;
 use poseidon2_bn254_3_kernels::ROUNDS_F;
 use poseidon2_bn254_3_kernels::ROUNDS_P;
 use poseidon2_bn254_3_kernels::WIDTH;
-use sp1_recursion_core::stark::poseidon2::bn254_poseidon2_rc3;
+use sp1_recursion_core::stark::bn254_poseidon2_rc3;
 
 pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Vec<Bn254Fr>) {
     let mut round_constants = bn254_poseidon2_rc3();

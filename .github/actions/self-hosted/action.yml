@@ -1,0 +1,120 @@
+# See: https://github.com/machulav/ec2-github-runner
+name: Setup Self-Hosted Runner
+runs:
+  using: "composite"
+  steps:
+    # Workaround for EC2 runner missing $HOME
+    - name: "Set HOME env var"
+      shell: bash
+      run: |
+        if [ -z "$HOME" ]; then
+          echo "HOME=/home/ubuntu" >> $GITHUB_ENV
+        fi
+
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config libssl-dev
+
+    # - name: rust-cache
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: |
+    #       ~/.cargo/bin/
+    #       ~/.cargo/registry/index/
+    #       ~/.cargo/registry/cache/
+    #       ~/.cargo/git/db/
+    #       target/
+    #       ~/.rustup/
+    #     key: rust-1.79.0-${{ hashFiles('**/Cargo.toml') }}
+    #     restore-keys: rust-1.79.0-
+
+    # - name: Install Rust
+    #   shell: bash
+    #   run: |
+    #     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.79.0 -y
+    #     echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    #     source $HOME/.cargo/env
+
+    # - name: Verify Rust installation
+    #   shell: bash
+    #   run: |
+    #     rustc --version
+    #     cargo --version
+
+    - name: Install Docker
+      shell: bash
+      run: |
+        # Add Docker's official GPG key:
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl
+        sudo install -m 0755 -d /etc/apt/keyrings
+        sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+        # Add the repository to Apt sources:
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    - name: Install NVIDIA Container Toolkit
+      shell: bash
+      run: |
+        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+          && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+            sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+            sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+        sudo apt-get update
+        sudo apt-get install -y nvidia-container-toolkit
+
+        sudo nvidia-ctk runtime configure --runtime=docker
+        sudo systemctl restart docker
+
+    - name: Install Compatible CUDA Toolkit
+      shell: bash
+      run: |
+        DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader)
+        echo "Current NVIDIA driver version: $DRIVER_VERSION"
+        
+        # Pin the CUDA repository
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+        sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+        
+        # Add CUDA Repository
+        sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+        sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+        sudo apt-get update
+        
+        # Install CUDA
+        sudo apt-get -y install cuda-toolkit-12-6
+
+    - name: Set CUDA environment variables
+      shell: bash
+      run: |
+        echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+        echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+    - name: Verify CUDA installation
+      shell: bash
+      run: |
+        nvidia-smi
+        nvcc --version
+
+    # - name: Install sp1up
+    #   shell: bash
+    #   run: |
+    #     curl -L https://sp1.succinct.xyz | bash
+    #     echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+    # - name: Install SP1 toolchain
+    #   shell: bash
+    #   run: |
+    #     sp1up
+    #     cargo-prove prove --version

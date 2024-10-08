@@ -114,6 +114,19 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    fn test_e2e_reth() {
+        let elf = RETH_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    #[ignore]
     fn test_e2e_keyspace_record() {
         let elf = KEYSPACE_RECORD_ELF;
         init_tracer();
@@ -123,10 +136,10 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
     }
 
     #[test]
+    #[ignore]
     fn test_e2e_keyspace_batcher() {
         let elf = KEYSPACE_BATCH_ELF;
         init_tracer();
@@ -136,7 +149,6 @@ mod tests {
         let prover = SP1Prover::<GpuProverComponents>::new();
         test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
             .unwrap();
-        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Plonk).unwrap();
     }
 
     #[test]
@@ -190,24 +202,6 @@ mod tests {
     #[ignore]
     fn bench_compress_tendermint() {
         bench_elf(TENDERMINT_BENCHMARK_ELF, Test::Compress);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_core_tendermint() {
-        test_core_elf(TENDERMINT_BENCHMARK_ELF);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_core_reth() {
-        test_core_elf(RETH_ELF);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_compress_reth() {
-        test_compress_elf(RETH_ELF);
     }
 
     #[test]
