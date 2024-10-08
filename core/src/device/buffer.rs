@@ -32,7 +32,7 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        Self::try_with_capacity_in(capacity, &CudaStream::default())
+        Self::with_capacity_in(capacity, &CudaStream::default())
     }
 
     /// Creates a buffer with a null pointer and zero capacity.
