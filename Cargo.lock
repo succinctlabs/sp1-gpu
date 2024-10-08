@@ -3552,8 +3552,12 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bincode",
+ "bytes 1.7.2",
+ "http 1.1.0",
+ "http-body-util",
  "moongate-core",
  "moongate-prover",
+ "serde_json",
  "sp1-core-executor",
  "sp1-cuda",
  "sp1-prover",

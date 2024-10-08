@@ -49,8 +49,24 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let compress_time = time.elapsed();
 
     if verify {
-        tracing::info!("verify compressed");
+        tracing::info!("verify compress");
         prover.verify_compressed(&compressed_proof, &vk).unwrap();
+    }
+
+    tracing::info!("shrink");
+    let shrink_proof = prover.shrink(compressed_proof, opts).unwrap();
+
+    if verify {
+        tracing::info!("verify shrink");
+        prover.verify_shrink(&shrink_proof, &vk).unwrap();
+    }
+
+    tracing::info!("wrap");
+    let wrapped_proof = prover.wrap_bn254(shrink_proof, opts).unwrap();
+
+    if verify {
+        tracing::info!("verify wrap");
+        prover.verify_wrap_bn254(&wrapped_proof, &vk).unwrap();
     }
 
     Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
