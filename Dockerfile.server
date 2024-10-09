@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     protobuf-compiler \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust
