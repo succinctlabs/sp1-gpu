@@ -3525,8 +3525,6 @@ dependencies = [
  "air",
  "cbindgen",
  "cc",
- "cfg-if",
- "globset",
  "hashbrown 0.14.5",
  "ignore",
  "itertools 0.13.0",
