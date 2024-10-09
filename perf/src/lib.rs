@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use clap::ValueEnum;
 use programs::{KEYSPACE_BATCHER_STDIN, KEYSPACE_STDIN};
 use report::Measurement;
 use sp1_core_executor::SP1Context;
@@ -9,6 +12,14 @@ pub mod programs;
 pub mod report;
 pub mod tracer;
 
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum Stage {
+    Core,
+    Compress,
+    Shrink,
+    Wrap,
+}
+
 pub fn make_measurement<C: SP1ProverComponents>(
     prover: &SP1Prover<C>,
     name: &str,
@@ -16,6 +27,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     stdin: Option<SP1Stdin>,
     opts: SP1ProverOpts,
     verify: bool,
+    stage: Stage,
 ) -> Measurement {
     tracing::info!("Starting measurement for {}", name);
 
@@ -43,15 +55,71 @@ pub fn make_measurement<C: SP1ProverComponents>(
         prover.verify(&core_proof.proof, &vk).unwrap();
     }
 
+    if stage == Stage::Core {
+        return Measurement::new(
+            name,
+            num_shards,
+            cycles,
+            core_time,
+            Duration::ZERO,
+            Duration::ZERO,
+            Duration::ZERO,
+        );
+    }
+
     tracing::info!("compress");
     let time = std::time::Instant::now();
     let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
     let compress_time = time.elapsed();
 
     if verify {
-        tracing::info!("verify compressed");
+        tracing::info!("verify compress");
         prover.verify_compressed(&compressed_proof, &vk).unwrap();
     }
 
-    Measurement { name: name.to_string(), num_shards, cycles, core_time, compress_time }
+    if stage == Stage::Compress {
+        return Measurement::new(
+            name,
+            num_shards,
+            cycles,
+            core_time,
+            compress_time,
+            Duration::ZERO,
+            Duration::ZERO,
+        );
+    }
+
+    tracing::info!("shrink");
+    let time = std::time::Instant::now();
+    let shrink_proof = prover.shrink(compressed_proof, opts).unwrap();
+    let shrink_time = time.elapsed();
+
+    if verify {
+        tracing::info!("verify shrink");
+        prover.verify_shrink(&shrink_proof, &vk).unwrap();
+    }
+
+    if stage == Stage::Shrink {
+        return Measurement::new(
+            name,
+            num_shards,
+            cycles,
+            core_time,
+            compress_time,
+            shrink_time,
+            Duration::ZERO,
+        );
+    }
+
+    tracing::info!("wrap");
+    let time = std::time::Instant::now();
+    let wrapped_proof = prover.wrap_bn254(shrink_proof, opts).unwrap();
+    let wrap_time = time.elapsed();
+
+    if verify {
+        tracing::info!("verify wrap");
+        prover.verify_wrap_bn254(&wrapped_proof, &vk).unwrap();
+    }
+
+    Measurement::new(name, num_shards, cycles, core_time, compress_time, shrink_time, wrap_time)
 }

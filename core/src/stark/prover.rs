@@ -41,10 +41,8 @@ use std::marker::PhantomData;
 use air::P3EvalFolder;
 
 use crate::cuda_runtime::stream::CudaStream;
-use crate::device::memory::cuda_mem_get_info;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
-use crate::merkle_tree::MmcsProverData;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -64,15 +62,12 @@ use super::PermutationTraceGenerator;
 
 use super::natural_domain_for_degree;
 
-const LDE_MEM_RATIO: f64 = 8.0 / 24.0;
-
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     chip_streams: Vec<CudaStream>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
-    lde_mem_threshold: usize,
     committer: TwoAdicFriCommitter<SC, C>,
     opening_prover: FriOpeningProver<SC>,
 }
@@ -194,16 +189,12 @@ where
     fn new(machine: StarkMachine<SC, A>) -> Self {
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
-        let (_, total) = cuda_mem_get_info().unwrap();
-        let lde_mem_threshold = (LDE_MEM_RATIO * (total as f64)) as usize;
-        tracing::info!("LDE memory threshold: {}", lde_mem_threshold);
         let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriOpeningProver::default(),
-            lde_mem_threshold,
             quotient_generator,
             chip_streams,
         }
@@ -362,7 +353,7 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
+        let (global_traces, global_main_commit, global_main_data, global_chip_ordering) =
             if let Some(global_data) = global_data {
                 let ShardMainData {
                     traces: global_traces,
@@ -379,7 +370,7 @@ where
         let ShardMainData {
             traces: local_traces,
             main_commit: local_main_commit,
-            main_data: mut local_main_data,
+            main_data: local_main_data,
             chip_ordering: local_chip_ordering,
             public_values: local_public_values,
         } = local_data;
@@ -391,7 +382,7 @@ where
             &local_traces,
             &local_chip_ordering,
         );
-        let mut all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
+        let all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
 
         assert!(shard_chips.len() == all_traces.len());
@@ -413,18 +404,6 @@ where
             total_lde_size += stats.lde_memory_size(log_blowup);
         }
         info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
-
-        let recompute_ldes = total_lde_size > self.lde_mem_threshold;
-
-        // Delete the ldes of the main prover data.
-        if recompute_ldes {
-            tracing::debug!("Recomputing LDEs");
-
-            if let Some(global_main_data) = global_main_data.as_mut() {
-                global_main_data.clear_matrices();
-            }
-            local_main_data.clear_matrices();
-        }
 
         // Observe the main commitment.
         challenger.observe(local_main_commit.clone());
@@ -469,7 +448,7 @@ where
         // Commit to the permutation traces.
         let perm_domains_and_traces =
             domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
-        let (permutation_commit, mut perm_prover_data) =
+        let (permutation_commit, perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         permutation_span.exit();
 
@@ -480,11 +459,6 @@ where
             let local_sum = sums[1];
             CanObserve::<BabyBear>::observe_slice(challenger, global_sum.as_base_slice());
             CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
-        }
-
-        // Delete the ldes of the permutation prover data.
-        if recompute_ldes {
-            perm_prover_data.clear_matrices();
         }
 
         // Get a challenge for folding the constraints.
@@ -556,33 +530,6 @@ where
         let quotient_opening_points =
             (0..num_quotient_chunks).map(|_| vec![zeta]).collect::<Vec<_>>();
 
-        // Recompute main and permutation LDE and insert into the prover data.
-        if recompute_ldes {
-            for (domain, perm_trace) in perm_domains_and_traces {
-                let perm_lde = self.committer.encode(domain, &perm_trace, true)?;
-                perm_prover_data.push_matrix(perm_lde);
-            }
-            for (i, (domain, trace)) in domains.iter().zip(all_traces.iter()).enumerate() {
-                let main_lde = self.committer.encode(*domain, trace, true)?;
-                let scope = all_chip_scopes[i];
-
-                if scope == InteractionScope::Global {
-                    if let Some(global_main_data) = global_main_data.as_mut() {
-                        global_main_data.push_matrix(main_lde);
-                    }
-                } else {
-                    local_main_data.push_matrix(main_lde);
-                }
-            }
-
-            // Synchronize the streams so that the LDE are ready for the opening.
-            for _ in 0..all_traces.len() {
-                let trace = all_traces.pop().unwrap();
-                let stream = trace.stream().clone();
-                stream.synchronize().unwrap();
-            }
-        }
-
         // Split the trace_opening_points to the global and local chips.
         let mut global_trace_opening_points = Vec::with_capacity(global_chip_ordering.len());
         let mut local_trace_opening_points = Vec::with_capacity(local_chip_ordering.len());
@@ -611,6 +558,12 @@ where
                 (&quotient_prover_data, quotient_opening_points),
             ]
         };
+
+        // Synchronize all the chip streams so that they are ready for the opening and all memory
+        // can be freed.
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
 
         let (openings, opening_proof) = tracing::debug_span!("compute opening")
             .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));

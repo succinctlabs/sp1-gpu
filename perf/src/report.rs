@@ -1,6 +1,6 @@
 use core::fmt;
 use csv::Writer;
-use std::{error::Error, time::Duration};
+use std::{error::Error, io::Write, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct Measurement {
@@ -9,6 +9,8 @@ pub struct Measurement {
     pub num_shards: usize,
     pub core_time: Duration,
     pub compress_time: Duration,
+    pub shrink_time: Duration,
+    pub wrap_time: Duration,
 }
 
 pub fn write_measurements_to_csv(
@@ -20,11 +22,15 @@ pub fn write_measurements_to_csv(
         "Program Name",
         "Cycles",
         "Shards",
-        "kHz",
+        "Compress kHz",
+        "Total kHz",
         "Core Time (s)",
         "Compress Time (s)",
-        "Total Time (s)",
+        "Shrink Time (s)",
+        "Wrap Time (s)",
+        "Total Core + Compress Time (s)",
         "Compress Fraction (%)",
+        "Total Time (s)",
     ])?;
 
     for measurement in measurements {
@@ -43,12 +49,24 @@ impl Measurement {
         num_shards: usize,
         core_time: Duration,
         compress_time: Duration,
+        shrink_time: Duration,
+        wrap_time: Duration,
     ) -> Self {
-        Self { name: name.to_string(), cycles, num_shards, core_time, compress_time }
+        Self {
+            name: name.to_string(),
+            cycles,
+            num_shards,
+            core_time,
+            compress_time,
+            shrink_time,
+            wrap_time,
+        }
     }
 
-    fn to_csv_record(&self) -> (String, usize, usize, f64, f64, f64, f64, f64) {
-        let total_time = self.core_time + self.compress_time;
+    fn to_csv_record(&self) -> (String, usize, usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) {
+        let total_core_compress_time = self.core_time + self.compress_time;
+        let total_time = total_core_compress_time + self.shrink_time + self.wrap_time;
+        let compress_khz = self.cycles as f64 / (total_core_compress_time.as_secs_f64() * 1e3);
         let khz = self.cycles as f64 / (total_time.as_secs_f64() * 1e3);
         let compress_fraction =
             (self.compress_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
@@ -57,44 +75,64 @@ impl Measurement {
             self.name.clone(),
             self.cycles,
             self.num_shards,
+            compress_khz,
             khz,
             self.core_time.as_secs_f64(),
             self.compress_time.as_secs_f64(),
-            total_time.as_secs_f64(),
+            self.shrink_time.as_secs_f64(),
+            self.wrap_time.as_secs_f64(),
+            total_core_compress_time.as_secs_f64(),
             compress_fraction,
+            total_time.as_secs_f64(),
         )
+    }
+
+    pub fn write<W: Write>(&self, writer: &mut csv::Writer<W>) -> std::io::Result<()> {
+        writer.write_record([
+            "Program Name",
+            "Cycles",
+            "Shards",
+            "Compress kHz",
+            "Total kHz",
+            "Core Time (s)",
+            "Compress Time (s)",
+            "Shrink Time (s)",
+            "Wrap Time (s)",
+            "Total Core + Compress Time (s)",
+            "Compress Fraction (%)",
+            "Total Time (s)",
+        ])?;
+
+        let record = self.to_csv_record();
+        writer.serialize(record)?;
+        Ok(())
     }
 }
 
 impl fmt::Display for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let total_time = self.core_time + self.compress_time;
-        let khz = self.cycles as f64 / (total_time.as_secs_f64() * 1e3);
-        let compress_fraction = self.compress_time.as_secs_f64() / total_time.as_secs_f64();
+        let mut buffer = Vec::new();
 
-        writeln!(
-            f,
-            "{:<15} | {:<10} | {:<10} | {:<10} | {:<15} | {:<15} | {:<15} | {:<20}",
-            "Program Name",
-            "Cycles",
-            "Shards",
-            "kHz",
-            "Core Time (s)",
-            "Compress Time (s)",
-            "Total Time (s)",
-            "Compress Fraction (%)"
-        )?;
-        writeln!(
-            f,
-            "{:<15} | {:<10} | {:<10} | {:<10.2} | {:<15.2} | {:<15.2} | {:<15.2} | {:<20.2}",
-            self.name,
-            self.cycles,
-            self.num_shards,
-            khz,
-            self.core_time.as_secs_f64(),
-            self.compress_time.as_secs_f64(),
-            total_time.as_secs_f64(),
-            compress_fraction
-        )
+        let mut writer = csv::Writer::from_writer(&mut buffer);
+        self.write(&mut writer).unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+
+        let s = String::from_utf8(buffer).unwrap();
+        let mut table = prettytable::Table::new();
+        let mut rdr = csv::Reader::from_reader(s.as_bytes());
+
+        let headers = rdr.headers().unwrap();
+        table.add_row(prettytable::Row::new(headers.iter().map(prettytable::Cell::new).collect()));
+
+        for result in rdr.records() {
+            let record = result.unwrap();
+            table.add_row(prettytable::Row::new(
+                record.iter().map(prettytable::Cell::new).collect(),
+            ));
+        }
+
+        table.set_format(*prettytable::format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
+        write!(f, "{}", table)
     }
 }
