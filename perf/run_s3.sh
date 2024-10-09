@@ -8,6 +8,8 @@ fi
 
 s3_path=$1
 
+stage=$2
+
 # Download files from S3
 aws s3 cp s3://sp1-testing-suite/$s3_path/program.bin /tmp/program.bin
 aws s3 cp s3://sp1-testing-suite/$s3_path/stdin.bin /tmp/stdin.bin
@@ -18,4 +20,4 @@ export RUST_BACKTRACE=1
 export RUST_LOG=debug
 
 # Run moongate-perf
-cargo run --release -p moongate-perf -- --program-path /tmp/program.bin --stdin-path /tmp/stdin.bin
+cargo run --release -p moongate-perf -- --program-path /tmp/program.bin --stdin-path /tmp/stdin.bin --stage $stage
