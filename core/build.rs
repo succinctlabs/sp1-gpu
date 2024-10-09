@@ -157,24 +157,25 @@ fn main() {
         }
 
         // Use the `cc` crate to build the library and statically link it to the crate.
-        let mut cc = cc::Build::new();
-        cc.cuda(true).flag("-default-stream=per-thread");
-        cc.flag("-Xcompiler").flag("-fopenmp");
-        cc.flag("-Xptxas").flag("-suppress-stack-size-warning");
+        let mut cc_builder = cc::Build::new();
+        cc_builder.cuda(true).flag("-default-stream=per-thread");
+        cc_builder.flag("-Xcompiler").flag("-fopenmp");
+        cc_builder.flag("-Xptxas").flag("-suppress-stack-size-warning");
         // nvcc.flag("--threads").flag("14");
-        cc.flag("-lnvToolsExt");
-        cc.flag("-ldl");
+        cc_builder.flag("-lnvToolsExt");
+        cc_builder.flag("-ldl");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
-            cc.include(include);
-            cc.define("SPPARK", None);
-            cc.file("../sppark/rust/src/lib.cpp").file("../sppark/util/all_gpus.cpp");
+            cc_builder.include(include);
+            cc_builder.define("SPPARK", None);
+            cc_builder.file("../sppark/rust/src/lib.cpp").file("../sppark/util/all_gpus.cpp");
         }
 
-        cc.define("FEATURE_BABY_BEAR", None);
+        cc_builder.define("FEATURE_BABY_BEAR", None);
 
-        cc.files(compilation_units.iter().map(DirEntry::path))
+        cc_builder
+            .files(compilation_units.iter().map(DirEntry::path))
             .include(target_include_dir)
             .compile("moongate_cuda");
     }
