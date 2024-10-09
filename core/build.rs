@@ -158,7 +158,7 @@ fn main() {
 
         // Use the `cc` crate to build the library and statically link it to the crate.
         let mut cc = cc::Build::new();
-        cc.cuda(true).std("c++20").flag("-default-stream=per-thread");
+        cc.cuda(true).flag("-default-stream=per-thread");
         cc.flag("-Xcompiler").flag("-fopenmp");
         cc.flag("-Xptxas").flag("-suppress-stack-size-warning");
         // nvcc.flag("--threads").flag("14");
