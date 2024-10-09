@@ -9,7 +9,9 @@ pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
-const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
+const SHARD_MEM_CONSTANT: usize = 20;
+
+const SHARD_MEM_RATIO: f64 = (1 << 20) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
@@ -237,18 +239,18 @@ mod tests {
             (RiscvAir::<BabyBear>::ProgramMemory(MemoryProgramChip::default()), 22),
             (RiscvAir::<BabyBear>::ByteLookup(ByteChip::default()), 16),
             (RiscvAir::<BabyBear>::SyscallCore(SyscallChip::core()), 20),
-            (RiscvAir::<BabyBear>::Cpu(CpuChip::default()), 20),
-            (RiscvAir::<BabyBear>::MemoryLocal(MemoryLocalChip::new()), 20),
+            (RiscvAir::<BabyBear>::Cpu(CpuChip::default()), 21),
+            (RiscvAir::<BabyBear>::MemoryLocal(MemoryLocalChip::new()), 21),
         ];
 
         let variable_log_heights = [
-            (RiscvAir::<BabyBear>::Add(AddSubChip::default()), 19),
+            (RiscvAir::<BabyBear>::Add(AddSubChip::default()), 20),
             (RiscvAir::<BabyBear>::DivRem(DivRemChip::default()), 20),
-            (RiscvAir::<BabyBear>::Bitwise(BitwiseChip::default()), 19),
-            (RiscvAir::<BabyBear>::Mul(MulChip::default()), 19),
-            (RiscvAir::<BabyBear>::ShiftRight(ShiftRightChip::default()), 19),
-            (RiscvAir::<BabyBear>::ShiftLeft(ShiftLeft::default()), 19),
-            (RiscvAir::<BabyBear>::Lt(LtChip::default()), 19),
+            (RiscvAir::<BabyBear>::Bitwise(BitwiseChip::default()), 21),
+            (RiscvAir::<BabyBear>::Mul(MulChip::default()), 20),
+            (RiscvAir::<BabyBear>::ShiftRight(ShiftRightChip::default()), 20),
+            (RiscvAir::<BabyBear>::ShiftLeft(ShiftLeft::default()), 20),
+            (RiscvAir::<BabyBear>::Lt(LtChip::default()), 20),
         ];
 
         let height_map = fixed_log_heights

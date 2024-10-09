@@ -43,6 +43,7 @@ use air::P3EvalFolder;
 use crate::cuda_runtime::stream::CudaStream;
 use crate::fri::FriOpeningProver;
 use crate::fri::FriQueryProver;
+use crate::merkle_tree::MmcsProverData;
 use crate::stark::DeviceQuotientValues;
 use crate::stark::DeviceQuotientValuesGenerator;
 use crate::utils::ChipStatistics;
@@ -353,7 +354,7 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let (global_traces, global_main_commit, global_main_data, global_chip_ordering) =
+        let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
             if let Some(global_data) = global_data {
                 let ShardMainData {
                     traces: global_traces,
@@ -370,7 +371,7 @@ where
         let ShardMainData {
             traces: local_traces,
             main_commit: local_main_commit,
-            main_data: local_main_data,
+            main_data: mut local_main_data,
             chip_ordering: local_chip_ordering,
             public_values: local_public_values,
         } = local_data;
@@ -448,7 +449,7 @@ where
         // Commit to the permutation traces.
         let perm_domains_and_traces =
             domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
-        let (permutation_commit, perm_prover_data) =
+        let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         permutation_span.exit();
 
@@ -476,6 +477,13 @@ where
             .chain(local_permutation_challenges.iter())
             .copied()
             .collect::<Vec<_>>();
+
+        // Drop the LDEs
+        local_main_data.clear_matrices();
+        perm_prover_data.clear_matrices();
+        if let Some(global_main_data) = global_main_data.as_mut() {
+            global_main_data.clear_matrices();
+        }
 
         // Compute values
         let quotient_values = self.quotient_generator.generate_quotient_values(
@@ -541,6 +549,31 @@ where
                 local_trace_opening_points.push(trace_opening_point);
             }
         }
+
+        // Recompute LDEs.
+        for local_trace in local_traces.iter() {
+            let config = self.machine.config();
+            let domain = natural_domain_for_degree(config, local_trace.height());
+            let lde = self.committer.encode(domain, local_trace, true)?;
+            local_main_data.push_matrix(lde);
+        }
+
+        for (perp_domain, perm_trace) in perm_domains_and_traces.iter() {
+            let lde = self.committer.encode(*perp_domain, perm_trace, true)?;
+            perm_prover_data.push_matrix(lde);
+        }
+
+        if let Some(global_main_data) = global_main_data.as_mut() {
+            for global_trace in global_traces.iter() {
+                let config = self.machine.config();
+                let domain = natural_domain_for_degree(config, global_trace.height());
+                let lde = self.committer.encode(domain, global_trace, true)?;
+                global_main_data.push_matrix(lde);
+            }
+        }
+
+        drop(local_traces);
+        drop(global_traces);
 
         let rounds = if let Some(global_main_data) = global_main_data.as_ref() {
             vec![

@@ -29,6 +29,7 @@ use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
 use sp1_stark::Challenger;
 use sp1_stark::InnerVal;
 
+use crate::device::memory::cuda_mem_get_info;
 use crate::device::memory::ToDevice;
 use crate::device::memory::ToHost;
 use crate::device::DeviceBuffer;
@@ -66,6 +67,10 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     {
+        let (free, total) = cuda_mem_get_info().unwrap();
+        tracing::info!("free memory on device: {}", free);
+        tracing::info!("total memory on device: {}", total);
+
         let alpha: Challenge<SC> = challenger.sample();
 
         let mats_and_points = rounds
