@@ -242,13 +242,13 @@ mod tests {
         ];
 
         let variable_log_heights = [
-            (RiscvAir::<BabyBear>::Add(AddSubChip::default()), 19),
-            (RiscvAir::<BabyBear>::DivRem(DivRemChip::default()), 20),
+            (RiscvAir::<BabyBear>::Add(AddSubChip::default()), 22),
+            (RiscvAir::<BabyBear>::DivRem(DivRemChip::default()), 19),
             (RiscvAir::<BabyBear>::Bitwise(BitwiseChip::default()), 19),
-            (RiscvAir::<BabyBear>::Mul(MulChip::default()), 19),
-            (RiscvAir::<BabyBear>::ShiftRight(ShiftRightChip::default()), 19),
-            (RiscvAir::<BabyBear>::ShiftLeft(ShiftLeft::default()), 19),
-            (RiscvAir::<BabyBear>::Lt(LtChip::default()), 19),
+            (RiscvAir::<BabyBear>::Mul(MulChip::default()), 20),
+            (RiscvAir::<BabyBear>::ShiftRight(ShiftRightChip::default()), 20),
+            (RiscvAir::<BabyBear>::ShiftLeft(ShiftLeft::default()), 20),
+            (RiscvAir::<BabyBear>::Lt(LtChip::default()), 20),
         ];
 
         let height_map = fixed_log_heights
