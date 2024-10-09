@@ -2929,6 +2929,19 @@ dependencies = [
 
 [[package]]
 name = "hyper-tls"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
+dependencies = [
+ "bytes 1.7.2",
+ "hyper 0.14.30",
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+]
+
+[[package]]
+name = "hyper-tls"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
@@ -3192,9 +3205,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.70"
+version = "0.3.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1868808506b929d7b0cfa8f75951347aa71bb21144b7791bae35d9bccfcfe37a"
+checksum = "0cb94a0ffd3f3ee755c20f7d8752f45cac88605a4dcf808abcff72873296ec7b"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -4989,19 +5002,23 @@ dependencies = [
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.30",
+ "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
  "log",
  "mime",
+ "native-tls",
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
+ "rustls-pemfile 1.0.4",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "sync_wrapper 0.1.2",
  "system-configuration 0.5.1",
  "tokio",
+ "tokio-native-tls",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -5027,7 +5044,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.4.1",
  "hyper-rustls",
- "hyper-tls",
+ "hyper-tls 0.6.0",
  "hyper-util",
  "ipnet",
  "js-sys",
@@ -5039,7 +5056,7 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls 0.23.14",
- "rustls-pemfile",
+ "rustls-pemfile 2.2.0",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -5276,6 +5293,15 @@ dependencies = [
  "rustls-webpki",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c74cae0a4cf6ccbbf5f359f08efdf8ee7e1dc532573bf0db71968cb56b1448c"
+dependencies = [
+ "base64 0.21.7",
 ]
 
 [[package]]
@@ -5824,8 +5850,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5857,8 +5883,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5904,8 +5930,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5920,8 +5946,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5941,8 +5967,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5950,8 +5976,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5971,8 +5997,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "bincode",
  "hex",
@@ -5988,8 +6014,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5997,6 +6023,7 @@ dependencies = [
  "dirs",
  "eyre",
  "itertools 0.13.0",
+ "lazy_static",
  "lru",
  "num-bigint 0.4.6",
  "p3-baby-bear",
@@ -6007,6 +6034,7 @@ dependencies = [
  "p3-matrix",
  "p3-symmetric",
  "rayon",
+ "reqwest 0.11.27",
  "serde",
  "serde_json",
  "serial_test",
@@ -6027,8 +6055,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6060,8 +6088,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6081,8 +6109,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6116,8 +6144,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6125,8 +6153,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6150,8 +6178,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6190,8 +6218,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "2.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-tests#c5459974dc0772e2556affb8ab648f2a1fea9298"
+version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/v3.0.0-rc4#3fa60b2cf70056175e993ca4c36dba82bdeb3b4e"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
@@ -7265,9 +7293,9 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a82edfc16a6c469f5f44dc7b571814045d60404b55a0ee849f9bcfa2e63dd9b5"
+checksum = "ef073ced962d62984fb38a36e5fdc1a2b23c9e0e1fa0689bb97afa4202ef6887"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -7276,9 +7304,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9de396da306523044d3302746f1208fa71d7532227f15e347e2d93e4145dd77b"
+checksum = "c4bfab14ef75323f4eb75fa52ee0a3fb59611977fd3240da19b2cf36ff85030e"
 dependencies = [
  "bumpalo",
  "log",
@@ -7291,9 +7319,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.43"
+version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61e9300f63a621e96ed275155c108eb6f843b6a26d053f122ab69724559dc8ed"
+checksum = "65471f79c1022ffa5291d33520cbbb53b7687b01c2f8e83b57d102eed7ed479d"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -7303,9 +7331,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "585c4c91a46b072c92e908d99cb1dcdf95c5218eeb6f3bf1efa991ee7a68cccf"
+checksum = "a7bec9830f60924d9ceb3ef99d55c155be8afa76954edffbb5936ff4509474e7"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -7313,9 +7341,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
+checksum = "4c74f6e152a76a2ad448e223b0fc0b6b5747649c3d769cc6bf45737bf97d0ed6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7326,9 +7354,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.93"
+version = "0.2.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62a0a307cb4a311d3a07867860911ca130c3494e8c2719593806c08bc5d0484"
+checksum = "a42f6c679374623f295a8623adfe63d9284091245c3504bde47c17a3ce2777d9"
 
 [[package]]
 name = "wasm-streams"
@@ -7345,9 +7373,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.70"
+version = "0.3.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26fdeaafd9bd129f65e7c031593c24d62186301e0c72c8978fa1678be7d532c0"
+checksum = "44188d185b5bdcae1052d08bcbcf9091a5524038d4572cc4f4f2bb9d5554ddd9"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
