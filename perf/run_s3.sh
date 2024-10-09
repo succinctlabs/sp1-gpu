@@ -7,7 +7,6 @@ if [ $# -ne 2 ]; then
 fi
 
 s3_path=$1
-
 stage=$2
 
 # Download files from S3
