@@ -9,4 +9,4 @@
 #include "../../cuda/quotient/quotient.cuh"
 #include "../../cuda/opening/opening.cuh"
 
-#include "moongate_cuda.cuh"
+// #include "moongate_cuda.cuh"
