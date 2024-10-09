@@ -8,3 +8,5 @@
 #include "../../cuda/scan/scan.cuh"
 #include "../../cuda/quotient/quotient.cuh"
 #include "../../cuda/opening/opening.cuh"
+
+#include "moongate_cuda.cuh"

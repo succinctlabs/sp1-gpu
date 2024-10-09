@@ -122,7 +122,7 @@
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/cuda",
         "${workspaceFolder}/sppark",
-        // "${workspaceFolder}/target/include"
+        "${workspaceFolder}/target/include"
     ],
     "C_Cpp.default.cppStandard": "c++20",
     "C_Cpp.autoAddFileAssociations": false,
