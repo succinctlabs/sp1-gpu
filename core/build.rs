@@ -1,73 +1,13 @@
-// Based on https://github.com/supranational/sppark/blob/main/rust/build.rs
-
-// use std::env;
-// use std::path::PathBuf;
-
-fn main_old() {
-    println!("cargo:rerun-if-changed=../cuda/");
-    println!("cargo:rerun-if-changed=../sppark/");
-    println!("cargo:rerun-if-env-changed=CXXFLAGS");
-
-    println!("Debug: Watching ../cuda/");
-    println!("Debug: Watching ../sppark/");
-
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let base_dir = manifest_dir.join("core");
-    println!("basedir: {:?}", base_dir);
-
-    let nvcc = which::which("nvcc");
-
-    if let Ok(nvcc) = nvcc {
-        let cuda_version =
-            std::process::Command::new(nvcc).arg("--version").output().expect("impossible");
-        if !cuda_version.status.success() {
-            panic!("{:?}", cuda_version);
-        }
-        let cuda_version = String::from_utf8(cuda_version.stdout).unwrap();
-        let x =
-            cuda_version.find("release ").expect("can't find \"release X.Y,\" in --version output")
-                + 8;
-        let y =
-            cuda_version[x..].find(',').expect("can't parse \"release X.Y,\" in --version output");
-        let v = cuda_version[x..x + y].parse::<f32>().unwrap();
-        if v < 12.0 {
-            panic!("Unsupported CUDA version {} < 12.0", v);
-        }
-
-        let mut nvcc = cc::Build::new();
-        nvcc.cuda(true).flag("-default-stream=per-thread");
-        nvcc.include(base_dir);
-        nvcc.flag("-Xcompiler").flag("-fopenmp");
-        nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
-        // nvcc.flag("--threads").flag("14");
-        nvcc.flag("-lnvToolsExt");
-        nvcc.flag("-ldl");
-
-        env::set_var("DEP_SPPARK_ROOT", "../sppark");
-        if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
-            nvcc.include(include);
-            nvcc.define("SPPARK", None);
-            nvcc.file("../sppark/rust/src/lib.cpp").file("../sppark/util/all_gpus.cpp");
-        }
-
-        nvcc.define("FEATURE_BABY_BEAR", None);
-
-        nvcc.file("bindings/api.cu").compile("moongate_cuda");
-    }
-}
-
-// =================================================================================================
+// Partially based on https://github.com/supranational/sppark/blob/main/rust/build.rs
 
 use std::{
     env,
     ffi::OsStr,
-    fs::{self, FileType},
-    os,
+    fs, os,
     path::{Path, PathBuf},
 };
 
-use cfg_if::cfg_if;
-use ignore::{DirEntry, Walk, WalkBuilder};
+use ignore::{DirEntry, WalkBuilder};
 use pathdiff::diff_paths;
 
 /// The library name, used for the static library archive and the headers.
@@ -158,20 +98,7 @@ fn main() {
         .with_no_includes()
         .with_sys_include("cstdint")
         .with_parse_deps(true)
-        .with_parse_include(&[
-            // "sp1-stark",
-            // "sp1-primitives",
-            // "sp1-core-machine",
-            "air",
-            "p3-baby-bear",
-            "p3-bn254-fr",
-            "p3-field",
-            // "sp1-core-executor",
-        ])
-        // .with_parse_extra_bindings(&["sp1-stark", "sp1-primitives", "p3-baby-bear"])
-        // .rename_item("BabyBear", "BabyBearMonty")
-        // .include_item("MemoryRecord") // Just for convenience. Not exposed, so we need to manually do this.
-        // .include_item("SyscallCode") // Required for populating the CPU columns for ECALL.
+        .with_parse_include(&["air", "p3-baby-bear", "p3-bn254-fr", "p3-field"])
         .with_namespace("moongate")
         .with_crate(crate_dir)
         .generate()
@@ -198,7 +125,6 @@ fn main() {
         if let Some(parent) = dst.parent() {
             fs::create_dir_all(parent).unwrap();
         }
-        println!("{:#?}", header);
         fs::copy(header.path(), &dst).unwrap();
         rel_symlink_file(dst, target_include_dir_fixed.join(relpath));
     }
@@ -230,8 +156,9 @@ fn main() {
             panic!("Unsupported CUDA version {} < 12.0", v);
         }
 
+        // Use the `cc` crate to build the library and statically link it to the crate.
         let mut cc = cc::Build::new();
-        cc.cuda(true).flag("-default-stream=per-thread");
+        cc.cuda(true).std("c++20").flag("-default-stream=per-thread");
         cc.flag("-Xcompiler").flag("-fopenmp");
         cc.flag("-Xptxas").flag("-suppress-stack-size-warning");
         // nvcc.flag("--threads").flag("14");
@@ -251,14 +178,6 @@ fn main() {
             .include(target_include_dir)
             .compile("moongate_cuda");
     }
-
-    // Use the `cc` crate to build the library and statically link it to the crate.
-    // cc::Build::new()
-    //     .std("c++20")
-    //     .cuda(true)
-    //     .files(compilation_units.iter().map(DirEntry::path))
-    //     .include(target_include_dir)
-    //     .compile(LIB_NAME);
 }
 
 /// Place a relative symlink pointing to `original` at `link`.
