@@ -10,3 +10,7 @@
 # nvidia profiling files
 *.nsys-rep
 *.sqlite
+
+# proof file from test
+prover/proof-with-pis.bin
+perf/proof-with-pis.bin
