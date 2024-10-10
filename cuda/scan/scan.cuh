@@ -37,6 +37,8 @@ template<typename T> __global__ void AddTemplate(T * a, T * b, T * c, size_t n, 
     } 
 }
 
+
+
 template<typename T>
 __global__ void SumTemplate(const T* in, T* out, size_t n, cudaStream_t stream) {
     extern __shared__ T sdata[512];
@@ -64,8 +66,30 @@ __global__ void SumTemplate(const T* in, T* out, size_t n, cudaStream_t stream) 
     }
 }
 
+template<typename T>
+__device__ T compute_eq_poly(size_t i, T * point, size_t n_variables) {
+    T result = T::one();
+    for(size_t j = 0; j < n_variables; j++) {
+        bool selector = (i>>j & 1)==1;
+        result *= T(selector) * point[j] + T(!selector) * (T::one() - point[j]); 
+    }
+    return result;
+}
+
+template<typename T>
+__global__ void ComputeEqPolyTemplate(T * d_out, T * point, size_t n_variables) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if(index < (1<<n_variables)) {
+        d_out[index] = compute_eq_poly(index, point, n_variables);
+    }
+}
 
 extern "C" RustCudaError scan_baby_bear(bb31_t * d_out, bb31_t* d_in, size_t n, cudaStream_t stream) {
+    return ScanTemplate(d_out, d_in, n, stream);
+}
+
+extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_out, 
+    bb31_extension_t  *d_in, size_t n, cudaStream_t stream) {
     return ScanTemplate(d_out, d_in, n, stream);
 }
 
@@ -81,7 +105,8 @@ extern "C" void sum_baby_bear_vec(bb31_t * in, bb31_t * result, size_t n, cudaSt
     SumTemplate<<<num_blocks, block_dim, 0, stream>>>(in, result, n, stream);
 }
 
-extern "C" RustCudaError scan_baby_bear_challenge(bb31_extension_t * d_out, 
-    bb31_extension_t  *d_in, size_t n, cudaStream_t stream) {
-    return ScanTemplate(d_out, d_in, n, stream);
+extern "C" void compute_eq_poly(bb31_t * d_out, bb31_t * point, size_t n_variables, cudaStream_t stream){
+    size_t block_dim = 512;
+    size_t num_blocks = ceil((1<<n_variables)/ (float)block_dim);
+    ComputeEqPolyTemplate<<<num_blocks, block_dim, 0, stream>>>(d_out, point, n_variables);
 }

@@ -41,6 +41,7 @@ public:
     inline bb31_t(const uint32_t *p)        { val = *p; }
     // this is used in constant declaration, e.g. as bb31_t{11}
     inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}
+    inline constexpr bb31_t(bool b): val((uint64_t)b*ONE) {}
 
     inline operator uint32_t() const        { return mul_by_1(); }
     inline void store(uint32_t *p) const    { *p = mul_by_1();   }

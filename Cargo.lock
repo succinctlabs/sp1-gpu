@@ -3481,6 +3481,8 @@ dependencies = [
  "sp1-core-machine",
  "sp1-recursion-core",
  "sp1-stark",
+ "spl-multi-pcs",
+ "spl-sumcheck",
  "thiserror",
  "tracing",
  "tracing-subscriber",
@@ -6373,6 +6375,49 @@ checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
 dependencies = [
  "base64ct",
  "der",
+]
+
+[[package]]
+name = "spl-algebra"
+version = "1.2.0"
+dependencies = [
+ "p3-field",
+]
+
+[[package]]
+name = "spl-basefold"
+version = "1.2.0"
+dependencies = [
+ "itertools 0.12.1",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-fri",
+ "p3-matrix",
+ "p3-util",
+ "rand 0.8.5",
+ "spl-algebra",
+ "spl-multi-pcs",
+ "thiserror",
+]
+
+[[package]]
+name = "spl-multi-pcs"
+version = "1.2.0"
+dependencies = [
+ "itertools 0.12.1",
+ "p3-util",
+ "spl-algebra",
+]
+
+[[package]]
+name = "spl-sumcheck"
+version = "1.2.0"
+dependencies = [
+ "itertools 0.12.1",
+ "p3-util",
+ "spl-algebra",
+ "spl-basefold",
 ]
 
 [[package]]
