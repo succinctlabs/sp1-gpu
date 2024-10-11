@@ -66,6 +66,38 @@ __global__ void SumTemplate(const T* in, T* out, size_t n, cudaStream_t stream) 
     }
 }
 
+template<typename F>
+void cuda_sum_host_function(F* a_d, size_t n, F* out, cudaStream_t stream) {
+    F *result_d;
+    size_t new_size = n;
+
+    size_t block_dim = 512;
+    size_t num_blocks = ceil(n / (float)block_dim);
+
+    size_t num_rounds = ((size_t)ceil(log2((double)n)))/log2(block_dim);
+
+    for (int i = 0; i < num_rounds; i++) {
+        size_t result_size = (new_size + block_dim-1) / block_dim; // Equivalent to div_ceil(new_size, 512)
+        
+        // Allocate result buffer
+        cudaMalloc(&result_d, result_size * sizeof(F));
+        
+        // Call the CUDA kernel
+        SumTemplate<<<num_blocks, block_dim, 0, stream>>>(a_d, result_d, new_size, stream);
+
+        // Free the old input buffer if it's not the original
+        if (i > 0) {
+            cudaFree(a_d);
+        }
+        
+        // Update pointers and size for next iteration
+        a_d = result_d;
+        new_size = result_size;
+    }
+    // Copy the result back to the host
+    cudaMemcpy(out, a_d, new_size*sizeof(F), cudaMemcpyDeviceToHost);
+}
+
 template<typename T>
 __device__ T compute_eq_poly(size_t i, T * point, size_t n_variables) {
     T result = T::one();
@@ -100,9 +132,7 @@ extern "C" void add_baby_bear_vecs(bb31_t * a, bb31_t * b, bb31_t * c, size_t n,
 }
 
 extern "C" void sum_baby_bear_vec(bb31_t * in, bb31_t * result, size_t n, cudaStream_t stream) {
-    size_t block_dim = 512;
-    size_t num_blocks = ceil(n/ (float)block_dim);
-    SumTemplate<<<num_blocks, block_dim, 0, stream>>>(in, result, n, stream);
+    cuda_sum_host_function(in, n, result, stream);
 }
 
 extern "C" void compute_eq_poly(bb31_t * d_out, bb31_t * point, size_t n_variables, cudaStream_t stream){

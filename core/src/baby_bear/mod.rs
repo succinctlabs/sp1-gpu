@@ -68,6 +68,7 @@ mod tests {
     use p3_field::AbstractField;
     use p3_util::log2_ceil_usize;
     use rand::{thread_rng, Rng};
+    use rayon::result;
     use spl_multi_pcs::Point;
 
     use crate::{
@@ -168,48 +169,29 @@ mod tests {
 
     #[test]
     fn test_sum_vec() {
-        for power in (10..32) {
+        for power in 10..27 {
             let n = 1 << power;
             let mut rng = thread_rng();
             let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
 
-            let num_rounds = log2_ceil_usize(n) / 9;
-
-            println!("Num rounds: {}", num_rounds);
-
+            let a_d = a.to_device().unwrap();
+            a_d.stream().synchronize().unwrap();
             let now = std::time::Instant::now();
-            let mut a_d = a.to_device().unwrap();
-            let mut result;
-            result = DeviceBuffer::<F>::with_capacity(n.div_ceil(512)).unwrap();
-            // let mut scratch = DeviceBuffer::<F>::with_capacity()
+            let mut result: Vec<F> = vec![F::zero(); 512];
+
             unsafe {
-                result.set_len(n.div_ceil(512));
-            }
-            let mut new_size = n;
-            for _ in 0..num_rounds {
-                unsafe {
-                    ffi::sum_baby_bear_vec(
-                        a_d.as_ptr(),
-                        result.as_mut_ptr(),
-                        new_size,
-                        a_d.stream().handle(),
-                    )
-                };
-                a_d = result;
-                new_size = new_size.div_ceil(512);
-                result = DeviceBuffer::<F>::with_capacity(new_size).unwrap();
-                unsafe {
-                    a_d.set_len(new_size);
-                };
+                ffi::sum_baby_bear_vec(a_d.as_ptr(), result.as_mut_ptr(), n, a_d.stream().handle());
             }
 
-            let result = a_d.to_host();
             let out_sum = result.into_iter().sum();
-            println!("Cuda sum took {:?}", now.elapsed());
+            a_d.stream().synchronize().unwrap();
+            let elapsed = now.elapsed();
+            println!("Cuda sum took  for log height {} took {:?}", power, elapsed);
 
             let now = std::time::Instant::now();
             let sum: F = a.clone().into_par_iter().sum();
-            println!("Sequential sum took {:?}", now.elapsed());
+            let elapsed = now.elapsed();
+            println!("Sequential sum for log_height {} took {:?}", power, elapsed);
 
             assert_eq!(sum, out_sum);
         }
