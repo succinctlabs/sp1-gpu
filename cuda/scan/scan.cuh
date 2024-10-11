@@ -148,7 +148,7 @@ void extension_cuda_sum_host_function(bb31_extension_t* a_d, size_t n, bb31_exte
         new_size = result_size;
     }
     // Copy the result back to the host
-    cudaMemcpy(out, a_d, new_size*sizeof(bb31_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(out, a_d, new_size*sizeof(bb31_extension_t), cudaMemcpyDeviceToHost);
 }
 
 void __global__ dummy_challenge_fn(bb31_extension_t * in, size_t n, bb31_extension_t * result, cudaStream_t stream) {
