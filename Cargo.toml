@@ -55,8 +55,8 @@ p3-interpolation = "0.1.3-succinct"
 
 # spl
 
-spl-multi-pcs = {git = "https:://github.com/succinctlabs/spl.git", branch = "erabinov/sumcheck_clean"}
-spl-sumcheck = {path = "https:://github.com/succinctlabs/spl.git", branch = "erabinov/sumcheck_clean"}
+spl-multi-pcs = {git = "https://github.com/succinctlabs/spl.git", branch = "erabinov/sumcheck_clean"}
+spl-sumcheck = {path = "https://github.com/succinctlabs/spl.git", branch = "erabinov/sumcheck_clean"}
 
 # for local development
 # p3-field = { path = "../Plonky3/field" }
