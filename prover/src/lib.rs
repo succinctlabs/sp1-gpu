@@ -57,25 +57,20 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use crate::components::GpuProverComponents;
     use crate::gpu_prover_opts;
     use moongate_core::utils::init_tracer;
-    use p3_baby_bear::BabyBear;
-    use sp1_core_executor::CoreShape;
-    use sp1_core_machine::alu::{
-        AddSubChip, BitwiseChip, DivRemChip, LtChip, MulChip, ShiftLeft, ShiftRightChip,
-    };
-    use sp1_core_machine::cpu::CpuChip;
+
     use sp1_core_machine::io::SP1Stdin;
-    use sp1_core_machine::memory::{MemoryLocalChip, MemoryProgramChip};
     use sp1_core_machine::riscv::tests::try_generate_dummy_proof;
-    use sp1_core_machine::riscv::{ByteChip, ProgramChip, RiscvAir, SyscallChip};
     use sp1_core_machine::utils::tests::FIBONACCI_ELF;
     use sp1_prover::tests::{
         bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test,
     };
     use sp1_prover::SP1Prover;
-    use sp1_stark::air::MachineAir;
+    use sp1_stark::ProofShape;
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
@@ -226,38 +221,19 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     #[allow(clippy::default_constructed_unit_structs)]
     fn test_shapes() {
         init_tracer();
+
+        env::set_var("FIX_CORE_SHAPES", "true");
+        env::set_var("FIX_RECURSION_SHAPES", "true");
         let prover = SP1Prover::<GpuProverComponents>::new();
 
-        let fixed_log_heights = [
-            (RiscvAir::<BabyBear>::Program(ProgramChip::default()), 22),
-            (RiscvAir::<BabyBear>::ProgramMemory(MemoryProgramChip::default()), 22),
-            (RiscvAir::<BabyBear>::ByteLookup(ByteChip::default()), 16),
-            (RiscvAir::<BabyBear>::SyscallCore(SyscallChip::core()), 20),
-            (RiscvAir::<BabyBear>::Cpu(CpuChip::default()), 20),
-            (RiscvAir::<BabyBear>::MemoryLocal(MemoryLocalChip::new()), 20),
-        ];
+        let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        let variable_log_heights = [
-            (RiscvAir::<BabyBear>::Add(AddSubChip::default()), 22),
-            (RiscvAir::<BabyBear>::DivRem(DivRemChip::default()), 19),
-            (RiscvAir::<BabyBear>::Bitwise(BitwiseChip::default()), 19),
-            (RiscvAir::<BabyBear>::Mul(MulChip::default()), 20),
-            (RiscvAir::<BabyBear>::ShiftRight(ShiftRightChip::default()), 20),
-            (RiscvAir::<BabyBear>::ShiftLeft(ShiftLeft::default()), 20),
-            (RiscvAir::<BabyBear>::Lt(LtChip::default()), 20),
-        ];
-
-        let height_map = fixed_log_heights
-            .into_iter()
-            .chain(variable_log_heights)
-            .map(|(air, log_height)| (air.name(), log_height));
-
-        let shape = CoreShape { inner: height_map.collect() };
-
-        try_generate_dummy_proof(&prover.core_prover, &shape);
+        for (i, shape) in shape_config.maximal_core_shapes().into_iter().enumerate() {
+            tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
+            try_generate_dummy_proof(&prover.core_prover, &shape);
+        }
     }
 }
