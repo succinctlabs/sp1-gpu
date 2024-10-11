@@ -5399,9 +5399,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.2.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836f1e0f4963ef5288b539b643b35e043e76a32d0f4e47e67febf69576527f50"
+checksum = "553f8299af7450cda9a52d3a370199904e7a46b5ffd1bef187c4a6af3bb6db69"
 dependencies = [
  "sdd",
 ]
@@ -5445,9 +5445,9 @@ dependencies = [
 
 [[package]]
 name = "sdd"
-version = "3.0.3"
+version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60a7b59a5d9b0099720b417b6325d91a52cbf5b3dcb5041d864be53eefa58abc"
+checksum = "49c1eeaf4b6a87c7479688c6d52b9f1153cedd3c489300564f932b065c6eab95"
 
 [[package]]
 name = "sec1"
@@ -5852,6 +5852,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5884,6 +5885,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5930,6 +5932,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5945,6 +5948,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5965,6 +5969,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5973,6 +5978,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5993,6 +5999,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "bincode",
  "hex",
@@ -6009,6 +6016,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6049,6 +6057,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6081,6 +6090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6101,6 +6111,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6135,6 +6146,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6143,6 +6155,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6167,6 +6180,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6206,6 +6220,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/config-rewind#218b5b6bde5b5df42d826cb329aa9a129634937c"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
