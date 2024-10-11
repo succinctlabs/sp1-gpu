@@ -42,6 +42,14 @@ public:
     // this is used in constant declaration, e.g. as bb31_t{11}
     inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}
 
+    static inline bb31_t from_canonical_u32(uint32_t n) { return bb31_t((uint32_t)(((uint64_t)n << 32) % MOD)); }
+
+    static inline bb31_t from_canonical_u16(uint16_t n) { return from_canonical_u32(n); };
+
+    static inline bb31_t from_canonical_u8(uint8_t n) { return from_canonical_u32(n); };
+
+    static inline bb31_t from_bool(bool b) { return from_canonical_u32(b); };
+
     inline operator uint32_t() const        { return mul_by_1(); }
     inline void store(uint32_t *p) const    { *p = mul_by_1();   }
     inline bb31_t& operator=(uint32_t b)    { val = b; to(); return *this; }

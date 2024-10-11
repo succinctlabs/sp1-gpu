@@ -29,6 +29,20 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
         self.values.stream()
     }
 
+    pub fn with_capacity(width: usize, height: usize) -> Result<Self, CudaError> {
+        let buffer = DeviceBuffer::with_capacity(width * height)?;
+        Ok(Self::new(buffer, width))
+    }
+
+    pub fn with_capacity_in(
+        width: usize,
+        height: usize,
+        stream: &CudaStream,
+    ) -> Result<Self, CudaError> {
+        let buffer = DeviceBuffer::with_capacity_in(width * height, stream)?;
+        Ok(Self::new(buffer, width))
+    }
+
     pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
     where
         Standard: Distribution<T>,

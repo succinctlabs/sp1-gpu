@@ -32,6 +32,10 @@ fn main() {
     // The output directory, where built artifacts should be placed.
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
+    // The include directory of sp1tracegen.
+    let sp1tracegen_include_dir = env::var("DEP_SP1TRACEGEN_INCLUDE").unwrap();
+    // println!("cargo::rustc-link-lib=static=sp1tracegen");
+
     // The target directory that the cargo invocation is using.
     // Headers are symlinked into `target/include` purely for IDE purposes.
     let target_dir = {
@@ -98,7 +102,13 @@ fn main() {
         .with_no_includes()
         .with_sys_include("cstdint")
         .with_parse_deps(true)
-        .with_parse_include(&["air", "p3-baby-bear", "p3-bn254-fr", "p3-field"])
+        .with_parse_include(&[
+            "air",
+            "p3-baby-bear",
+            "p3-bn254-fr",
+            "p3-field",
+            "sp1-core-executor",
+        ])
         .with_namespace("moongate")
         .with_crate(crate_dir)
         .generate()
@@ -177,6 +187,7 @@ fn main() {
         cc_builder
             .files(compilation_units.iter().map(DirEntry::path))
             .include(target_include_dir)
+            .include(sp1tracegen_include_dir)
             .compile("moongate_cuda");
     }
 }

@@ -3,6 +3,7 @@ pub(super) mod ffi;
 mod permutation;
 mod prover;
 mod quotient;
+pub mod trace;
 mod utils;
 
 pub use error::*;
