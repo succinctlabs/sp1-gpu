@@ -23,6 +23,7 @@ sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true, features = ["programs"] }
 p3-baby-bear = { workspace = true }
 sp1-stark = { workspace = true }
+serial_test = "3.1.1"
 
 [features]
 default = []

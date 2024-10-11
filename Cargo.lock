@@ -3549,6 +3549,7 @@ dependencies = [
  "clap",
  "moongate-core",
  "p3-baby-bear",
+ "serial_test",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-prover",

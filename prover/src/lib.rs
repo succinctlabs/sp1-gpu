@@ -62,6 +62,7 @@ mod tests {
     use crate::{components::GpuProverComponents, gpu_prover_opts};
     use moongate_core::utils::init_tracer;
 
+    use serial_test::serial;
     use sp1_core_machine::{
         io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
     };
@@ -89,12 +90,14 @@ mod tests {
         include_bytes!("../../perf/programs/keyspace-batcher/stdin.bin");
 
     #[test]
+    #[serial]
     fn test_gpu_prover_opts() {
         let opts = gpu_prover_opts();
         println!("{:?}", opts);
     }
 
     #[test]
+    #[serial]
     fn test_e2e_fibonacci() {
         let elf = FIBONACCI_ELF;
         init_tracer();
@@ -106,6 +109,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_e2e_tendermint() {
         let elf = TENDERMINT_BENCHMARK_ELF;
         init_tracer();
@@ -117,6 +121,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_e2e_reth() {
         let elf = RETH_ELF;
@@ -129,6 +134,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_e2e_keyspace_record() {
         let elf = KEYSPACE_RECORD_ELF;
@@ -155,6 +161,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_deferred_e2e() {
         init_tracer();
         let opts = gpu_prover_opts();
@@ -185,42 +192,48 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_core_fibonacci() {
         test_core_elf(FIBONACCI_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn bench_core_fibonacci() {
         bench_elf(FIBONACCI_ELF, Test::Core);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_compress_tendermint() {
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn bench_compress_tendermint() {
         bench_elf(TENDERMINT_BENCHMARK_ELF, Test::Compress);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn bench_core_reth() {
         bench_elf(RETH_ELF, Test::Core);
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn bench_compress_reth() {
         bench_elf(RETH_ELF, Test::Compress);
     }
 
     #[test]
-    #[allow(clippy::default_constructed_unit_structs)]
+    #[serial]
     fn test_shapes() {
         init_tracer();
 
