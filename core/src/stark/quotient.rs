@@ -3,37 +3,30 @@ use sp1_stark::StarkGenericConfig;
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
-use p3_field::AbstractExtensionField;
-use p3_field::{Field, TwoAdicField};
-use sp1_stark::air::MachineAir;
-use sp1_stark::quotient_values;
-use sp1_stark::Chip;
-use sp1_stark::Dom;
-use sp1_stark::PackedChallenge;
-use sp1_stark::PcsProverData;
-use sp1_stark::ProverConstraintFolder;
-use sp1_stark::StarkMachine;
+use p3_field::{AbstractExtensionField, Field, TwoAdicField};
+use sp1_stark::{
+    air::MachineAir, quotient_values, Chip, Dom, PackedChallenge, PcsProverData,
+    ProverConstraintFolder, StarkMachine,
+};
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
 
 use crate::fri::FriQueryProver;
 use p3_field::AbstractField;
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::Matrix;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
 
 use air::P3EvalFolder;
 
-use std::collections::HashMap;
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
-use crate::device::error::CudaError;
-use crate::device::memory::ToDevice;
-use crate::device::DeviceBuffer;
-use crate::fri::TwoAdicFriCommitter;
-use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::MmcsCommitter;
-use crate::stark::ffi::quotient_gpu;
+use crate::{
+    device::{error::CudaError, memory::ToDevice, DeviceBuffer},
+    fri::TwoAdicFriCommitter,
+    matrix::ColMajorMatrixDevice,
+    merkle_tree::MmcsCommitter,
+    stark::ffi::quotient_gpu,
+};
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
@@ -399,29 +392,28 @@ mod tests {
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
-    use p3_field::extension::BinomialExtensionField;
-    use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
+    use p3_field::{
+        extension::BinomialExtensionField, AbstractExtensionField, AbstractField, TwoAdicField,
+    };
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-    use sp1_core_executor::Program;
-    use sp1_core_machine::riscv::RiscvAir;
-    use sp1_core_machine::utils::log2_strict_usize;
-    use sp1_stark::air::MachineAir;
-    use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
-    use sp1_stark::PackedChallenge;
-    use sp1_stark::StarkGenericConfig;
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
+    use sp1_core_machine::{riscv::RiscvAir, utils::log2_strict_usize};
+    use sp1_stark::{
+        air::{MachineAir, SP1_PROOF_NUM_PV_ELTS},
+        PackedChallenge, StarkGenericConfig,
+    };
 
     use rand::thread_rng;
 
     use tracing::debug;
 
-    use crate::cuda_runtime::ffi::DEFAULT_STREAM;
-    use crate::device::memory::ToHost;
-    use crate::matrix::ColMajorMatrixDevice;
-    use crate::stark::ffi::quotient_gpu;
-    use crate::stark::quotient::quotient_values;
-    use crate::utils::init_tracer;
-    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
+    use crate::{
+        cuda_runtime::ffi::DEFAULT_STREAM,
+        device::memory::{ToDevice, ToHost},
+        matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
+        stark::{ffi::quotient_gpu, quotient::quotient_values},
+        utils::init_tracer,
+    };
 
     type F = BabyBear;
     const D: usize = 4;

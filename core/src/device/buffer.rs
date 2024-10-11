@@ -1,17 +1,24 @@
-use std::ops::{
-    Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
-    RangeToInclusive,
+use std::{
+    mem,
+    ops::{
+        Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
+        RangeToInclusive,
+    },
+    slice,
+    time::Duration,
 };
-use std::time::Duration;
-use std::{mem, slice};
 
 use p3_field::{ExtensionField, Field, PrimeField32};
 
-use crate::cuda_runtime::stream::{AllocTimeoutError, CudaStream};
-use crate::device::slice::DeviceSlice;
+use crate::{
+    cuda_runtime::stream::{AllocTimeoutError, CudaStream},
+    device::slice::DeviceSlice,
+};
 
-use super::error::CudaError;
-use super::memory::{ToDevice, ToHost};
+use super::{
+    error::CudaError,
+    memory::{ToDevice, ToHost},
+};
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]

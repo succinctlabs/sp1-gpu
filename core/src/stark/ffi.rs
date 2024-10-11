@@ -26,9 +26,11 @@ extern "C" {
 }
 
 pub(super) mod quotient_gpu {
-    use crate::cuda_runtime::stream::CudaStreamHandle;
-    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
-    use crate::stark::quotient::TwoAdicMultiplicativeCosetDevice;
+    use crate::{
+        cuda_runtime::stream::CudaStreamHandle,
+        matrix::{MatrixViewDevice, MatrixViewMutDevice},
+        stark::quotient::TwoAdicMultiplicativeCosetDevice,
+    };
     use air::operation::Operation;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;

@@ -1,7 +1,8 @@
-use crate::device::memory::ToDevice;
-use crate::device::DeviceBuffer;
-use crate::matrix::MatrixViewDevice;
-use crate::merkle_tree::FieldMerkleTreeHasher;
+use crate::{
+    device::{memory::ToDevice, DeviceBuffer},
+    matrix::MatrixViewDevice,
+    merkle_tree::FieldMerkleTreeHasher,
+};
 use p3_baby_bear::BabyBear;
 use p3_bn254_fr::Bn254Fr;
 use p3_field::AbstractField;
@@ -218,10 +219,7 @@ pub mod poseidon2_bn254_3_kernels {
     }
 }
 
-use poseidon2_bn254_3_kernels::DIGEST_WIDTH;
-use poseidon2_bn254_3_kernels::ROUNDS_F;
-use poseidon2_bn254_3_kernels::ROUNDS_P;
-use poseidon2_bn254_3_kernels::WIDTH;
+use poseidon2_bn254_3_kernels::{DIGEST_WIDTH, ROUNDS_F, ROUNDS_P, WIDTH};
 use sp1_recursion_core::stark::bn254_poseidon2_rc3;
 
 pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Vec<Bn254Fr>) {

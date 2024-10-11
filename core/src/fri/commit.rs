@@ -5,11 +5,10 @@ use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractField, Field};
 use sp1_stark::Com;
 
-use crate::device::error::CudaError;
-use crate::dft::DeviceDft;
-use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::MmcsCommitter;
-use crate::stark::BabyBearFriConfig;
+use crate::{
+    device::error::CudaError, dft::DeviceDft, matrix::ColMajorMatrixDevice,
+    merkle_tree::MmcsCommitter, stark::BabyBearFriConfig,
+};
 
 pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
     pub dft: DeviceDft<SC::Val>,

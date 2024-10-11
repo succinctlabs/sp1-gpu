@@ -11,7 +11,7 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
-const MAX_SHARD_SIZE: usize = 1 << 22;
+const MAX_SHARD_SIZE: usize = 1 << 21;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -59,17 +59,16 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 mod tests {
     use std::env;
 
-    use crate::components::GpuProverComponents;
-    use crate::gpu_prover_opts;
+    use crate::{components::GpuProverComponents, gpu_prover_opts};
     use moongate_core::utils::init_tracer;
 
-    use sp1_core_machine::io::SP1Stdin;
-    use sp1_core_machine::riscv::tests::try_generate_dummy_proof;
-    use sp1_core_machine::utils::tests::FIBONACCI_ELF;
-    use sp1_prover::tests::{
-        bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test,
+    use sp1_core_machine::{
+        io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
     };
-    use sp1_prover::SP1Prover;
+    use sp1_prover::{
+        tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
+        SP1Prover,
+    };
     use sp1_stark::ProofShape;
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =

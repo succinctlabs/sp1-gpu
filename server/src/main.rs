@@ -6,7 +6,8 @@ use std::{
 use async_trait::async_trait;
 use bytes::Bytes;
 use http::{
-    header::{self},Response, StatusCode,
+    header::{self},
+    Response, StatusCode,
 };
 use http_body_util::Full;
 use moongate_core::utils::init_tracer;

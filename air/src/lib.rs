@@ -7,15 +7,12 @@ use std::{marker::PhantomData, sync::Mutex};
 
 use lazy_static::lazy_static;
 use operation::Operation;
-use p3_air::Air;
-use p3_air::BaseAir;
+use p3_air::{Air, BaseAir};
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_stark::air::MachineAir;
-use sp1_stark::AirOpenedValues;
-use sp1_stark::Chip;
-use sp1_stark::GenericVerifierConstraintFolder;
-use sp1_stark::PROOF_MAX_NUM_PVS;
+use sp1_stark::{
+    air::MachineAir, AirOpenedValues, Chip, GenericVerifierConstraintFolder, PROOF_MAX_NUM_PVS,
+};
 use symbolic_folder_expr::SymbolicFolderExpr;
 use symbolic_folder_var::SymbolicFolderVar;
 

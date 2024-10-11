@@ -1,12 +1,11 @@
 use itertools::izip;
-use moongate_core::device::memory::ToDevice;
-use moongate_core::device::memory::ToHost;
-use moongate_core::device::DeviceBuffer;
+use moongate_core::device::{
+    memory::{ToDevice, ToHost},
+    DeviceBuffer,
+};
 use p3_baby_bear::BabyBear;
-use p3_field::extension::BinomialExtensionField;
-use p3_field::AbstractField;
-use rand::thread_rng;
-use rand::Rng;
+use p3_field::{extension::BinomialExtensionField, AbstractField};
+use rand::{thread_rng, Rng};
 
 const D: usize = 4;
 type F = BabyBear;

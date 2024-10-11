@@ -6,12 +6,12 @@ use sp1_prover::SP1Prover;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use clap::{Parser, ValueEnum};
-use moongate_perf::report::write_measurements_to_csv;
 use moongate_perf::{
     make_measurement,
     programs::{FIBONACCI_ELF, LOOP_ELF, RETH_ELF, SHA2_CHAIN_ELF, TENDERMINT_BENCHMARK_ELF},
+    report::write_measurements_to_csv,
+    tracer, Stage,
 };
-use moongate_perf::{tracer, Stage};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
 

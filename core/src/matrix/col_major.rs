@@ -3,16 +3,24 @@ use std::iter;
 
 use p3_baby_bear::BabyBear;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 
-use crate::cuda_runtime::stream::CudaStream;
-use crate::device::error::CudaError;
-use crate::device::memory::{ToDevice, ToHost};
-use crate::device::DeviceBuffer;
+use crate::{
+    cuda_runtime::stream::CudaStream,
+    device::{
+        error::CudaError,
+        memory::{ToDevice, ToHost},
+        DeviceBuffer,
+    },
+};
 
-use super::ffi::{self, transpose_naive};
-use super::{DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
+use super::{
+    ffi::{self, transpose_naive},
+    DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice,
+};
 
 /// A matrix stored on the device in column major form.
 #[derive(Debug)]
@@ -219,7 +227,10 @@ impl<T: Default + Copy + Send + Sync> Matrix<T> for ColMajorMatrixDevice<T> {
         ColMajorMatrixDevice::height(self)
     }
 
-    type Row<'a> = iter::Cloned<slice::Iter<'a, T>> where Self: 'a;
+    type Row<'a>
+        = iter::Cloned<slice::Iter<'a, T>>
+    where
+        Self: 'a;
 
     fn row(&self, _: usize) -> Self::Row<'_> {
         unimplemented!()
@@ -229,9 +240,7 @@ impl<T: Default + Copy + Send + Sync> Matrix<T> for ColMajorMatrixDevice<T> {
 #[cfg(test)]
 mod tests {
     use p3_baby_bear::BabyBear;
-    use p3_matrix::bitrev::BitReversableMatrix;
-    use p3_matrix::dense::RowMajorMatrix;
-    use p3_matrix::Matrix;
+    use p3_matrix::{bitrev::BitReversableMatrix, dense::RowMajorMatrix, Matrix};
     use rand::thread_rng;
 
     use crate::{cuda_runtime::sync_device, device::memory::ToHost};
