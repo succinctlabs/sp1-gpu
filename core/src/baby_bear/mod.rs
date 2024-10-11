@@ -1,7 +1,5 @@
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractField, Field};
-
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use p3_field::extension::BinomialExtensionField;
 
 use crate::{
     cuda_runtime::stream::CudaStream,
@@ -66,17 +64,13 @@ impl CudaScan for EF {
 #[cfg(test)]
 mod tests {
     use p3_field::AbstractField;
-    use p3_util::log2_ceil_usize;
     use rand::{thread_rng, Rng};
-    use rayon::result;
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use spl_multi_pcs::Point;
 
-    use crate::{
-        cuda_runtime::ffi::cuda_stream_synchronize,
-        device::{
-            memory::{ToDevice, ToHost},
-            DeviceBuffer,
-        },
+    use crate::device::{
+        memory::{ToDevice, ToHost},
+        DeviceBuffer,
     };
 
     use super::*;
@@ -145,8 +139,8 @@ mod tests {
         let mut rng = thread_rng();
         let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
         let b = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
-        let mut a_d = a.to_device().unwrap();
-        let mut b_d = b.to_device().unwrap();
+        let a_d = a.to_device().unwrap();
+        let b_d = b.to_device().unwrap();
 
         let mut c = DeviceBuffer::<F>::with_capacity(n).unwrap();
 
