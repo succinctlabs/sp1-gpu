@@ -27,15 +27,25 @@ mod ffi {
             n: usize,
             stream: CudaStreamHandle,
         ) -> CudaRustError;
-        pub fn add_baby_bear_vecs(
+        pub(crate) fn add_baby_bear_vecs(
             a: *const F,
             b: *const F,
             c: *mut F,
             n: usize,
             stream: CudaStreamHandle,
         );
-        pub fn sum_baby_bear_vec(a: *const F, out: *mut F, n: usize, stream: CudaStreamHandle);
-        pub fn compute_eq_poly(a: *mut F, c: *const F, n: usize, stream: CudaStreamHandle);
+        pub(crate) fn sum_baby_bear_vec(
+            a: *const F,
+            out: *mut F,
+            n: usize,
+            stream: CudaStreamHandle,
+        );
+        pub(crate) fn sum_baby_bear_vec_challenge(
+            a: *const EF,
+            out: *mut EF,
+            n: usize,
+            stream: CudaStreamHandle,
+        );
     }
 }
 
@@ -66,7 +76,6 @@ mod tests {
     use p3_field::AbstractField;
     use rand::{thread_rng, Rng};
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
-    use spl_multi_pcs::Point;
 
     use crate::device::{
         memory::{ToDevice, ToHost},
@@ -192,31 +201,37 @@ mod tests {
     }
 
     #[test]
-    fn test_baby_bear_eq() {
-        let n = 30;
-        let mut rng = thread_rng();
-        let point = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
-        let point_d = point.to_device().unwrap();
-        let mut output = DeviceBuffer::<F>::with_capacity(1 << n).unwrap();
-        let now = std::time::Instant::now();
+    fn test_sum_extension_vec() {
+        for power in 10..27 {
+            let n = 1 << power;
+            let mut rng = thread_rng();
+            let a = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
 
-        unsafe {
-            output.set_len(1 << n);
-            ffi::compute_eq_poly(
-                output.as_mut_ptr(),
-                point_d.as_ptr(),
-                n,
-                point_d.stream().handle(),
-            );
+            let a_d = a.to_device().unwrap();
+            a_d.stream().synchronize().unwrap();
+            let now = std::time::Instant::now();
+            let mut result: Vec<EF> = vec![EF::zero(); 512];
+
+            unsafe {
+                ffi::sum_baby_bear_vec_challenge(
+                    a_d.as_ptr(),
+                    result.as_mut_ptr(),
+                    n,
+                    a_d.stream().handle(),
+                );
+            }
+
+            let out_sum = result.into_iter().sum();
+            a_d.stream().synchronize().unwrap();
+            let elapsed = now.elapsed();
+            println!("Cuda sum took  for log height {} took {:?}", power, elapsed);
+
+            let now = std::time::Instant::now();
+            let sum: EF = a.clone().into_par_iter().sum();
+            let elapsed = now.elapsed();
+            println!("Sequential sum for log_height {} took {:?}", power, elapsed);
+
+            assert_eq!(sum, out_sum);
         }
-
-        println!("Cuda eq took {:?}", now.elapsed());
-        let output = output.to_host();
-
-        let now = std::time::Instant::now();
-        let expected = spl_multi_pcs::partial_lagrange_eval(&Point::new(point).reversed_point());
-        println!("Sequential eq took {:?}", now.elapsed());
-
-        assert_eq!(expected, output);
     }
 }

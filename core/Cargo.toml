@@ -27,10 +27,6 @@ p3-fri = { workspace = true }
 p3-util = { workspace = true }
 p3-interpolation = { workspace = true }
 
-spl-multi-pcs = {workspace = true}
-spl-sumcheck = {workspace = true}
-
-
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["std", "env-filter"] }
 rayon = "1.10.0"
