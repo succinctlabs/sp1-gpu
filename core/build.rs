@@ -23,10 +23,9 @@ fn main() {
             panic!("{:?}", cuda_version);
         }
         let cuda_version = String::from_utf8(cuda_version.stdout).unwrap();
-        let x = cuda_version
-            .find("release ")
-            .expect("can't find \"release X.Y,\" in --version output") +
-            8;
+        let x =
+            cuda_version.find("release ").expect("can't find \"release X.Y,\" in --version output")
+                + 8;
         let y =
             cuda_version[x..].find(',').expect("can't parse \"release X.Y,\" in --version output");
         let v = cuda_version[x..x + y].parse::<f32>().unwrap();

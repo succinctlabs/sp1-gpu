@@ -92,13 +92,13 @@ pub mod tests {
                 external_round_constants[0].len()
             ));
             for (i, round_constants) in external_round_constants.iter().enumerate() {
-                let mut line = "{".to_string() +
-                    &round_constants
+                let mut line = "{".to_string()
+                    + &round_constants
                         .iter()
                         .map(|rc| format!("bb31_t({})", rc.as_canonical_u32()))
                         .collect::<Vec<_>>()
-                        .join(",") +
-                    "}";
+                        .join(",")
+                    + "}";
                 if i != external_round_constants.len() - 1 {
                     line += ",";
                 }

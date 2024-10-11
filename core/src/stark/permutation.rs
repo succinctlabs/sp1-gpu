@@ -278,12 +278,12 @@ impl<F: Field> HostInteractions<F> {
         multiplicities_ptr.push(curr_mult_ptr);
 
         let num_global_interactions =
-            sends.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0) +
-                receives.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0);
+            sends.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0)
+                + receives.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0);
 
         let num_local_interactions =
-            sends.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0) +
-                receives.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0);
+            sends.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0)
+                + receives.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0);
 
         Self {
             values_ptr,

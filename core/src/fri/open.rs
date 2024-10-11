@@ -139,8 +139,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                 total_polys += num_polys;
                 let coset_log_height = log2_strict_usize(coset_height);
                 let g = BabyBear::two_adic_generator(coset_log_height);
-                let denominator = SC::Val::from_canonical_usize(coset_height) *
-                    shift.exp_u64(coset_height as u64 - 1);
+                let denominator = SC::Val::from_canonical_usize(coset_height)
+                    * shift.exp_u64(coset_height as u64 - 1);
 
                 g_values.extend((0..num_polys).flat_map(|_| g.powers().take(32)));
                 shifts.extend((0..num_polys).map(|_| shift));
