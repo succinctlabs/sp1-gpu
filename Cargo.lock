@@ -5851,7 +5851,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5884,7 +5884,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5931,7 +5931,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5947,7 +5947,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5968,7 +5968,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5977,7 +5977,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5998,7 +5998,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "bincode",
  "hex",
@@ -6015,7 +6015,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6056,7 +6056,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6089,7 +6089,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6110,7 +6110,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6145,7 +6145,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6154,7 +6154,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6179,7 +6179,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6219,7 +6219,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#42ea5f65ee7875a43ef05ee62aad21caf22b93e5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/shape-config-v2#0539513d6c7d0392709a4e95515bb09fc4e0f8f0"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
