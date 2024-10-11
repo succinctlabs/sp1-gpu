@@ -36,8 +36,29 @@ mod ffi {
             n: usize,
             stream: CudaStreamHandle,
         );
-        pub fn sum_baby_bear_vec(a: *const F, out: *mut F, n: usize, stream: CudaStreamHandle);
-        pub fn compute_eq_poly(a: *mut F, c: *const F, n: usize, stream: CudaStreamHandle);
+        pub fn compute_eq_poly(
+            a: *mut F,
+            c: *const F,
+            n_low: usize,
+            n_high: usize,
+            stream: CudaStreamHandle,
+        );
+
+        pub fn compute_extension_eq_poly(
+            a: *mut EF,
+            c: *const EF,
+            n_low: usize,
+            n_high: usize,
+            stream: CudaStreamHandle,
+        );
+
+        pub fn hadamard_product(
+            a: *const F,
+            b: *const F,
+            c: *mut F,
+            n: usize,
+            stream: CudaStreamHandle,
+        );
     }
 }
 
@@ -167,80 +188,116 @@ mod tests {
     }
 
     #[test]
-    fn test_sum_vec() {
-        for power in (10..32) {
-            let n = 1 << power;
-            let mut rng = thread_rng();
-            let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+    fn test_baby_bear_eq() {
+        let n = 28;
+        let num_repetitions = 1;
+        let mut output = DeviceBuffer::<F>::with_capacity(1 << n).unwrap();
+        let mut rng = thread_rng();
+        for n_high in 0..10 {
+            let n_low = n - n_high;
+            for _ in 0..num_repetitions {
+                let point = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+                let point_d = point.to_device().unwrap();
+                output.stream().synchronize().unwrap();
+                let now = std::time::Instant::now();
 
-            let num_rounds = log2_ceil_usize(n) / 9;
-
-            println!("Num rounds: {}", num_rounds);
-
-            let now = std::time::Instant::now();
-            let mut a_d = a.to_device().unwrap();
-            let mut result;
-            result = DeviceBuffer::<F>::with_capacity(n.div_ceil(512)).unwrap();
-            // let mut scratch = DeviceBuffer::<F>::with_capacity()
-            unsafe {
-                result.set_len(n.div_ceil(512));
-            }
-            let mut new_size = n;
-            for _ in 0..num_rounds {
                 unsafe {
-                    ffi::sum_baby_bear_vec(
-                        a_d.as_ptr(),
-                        result.as_mut_ptr(),
-                        new_size,
-                        a_d.stream().handle(),
-                    )
-                };
-                a_d = result;
-                new_size = new_size.div_ceil(512);
-                result = DeviceBuffer::<F>::with_capacity(new_size).unwrap();
-                unsafe {
-                    a_d.set_len(new_size);
-                };
+                    output.set_len(1 << n);
+                    ffi::compute_eq_poly(
+                        output.as_mut_ptr(),
+                        point_d.as_ptr(),
+                        n_low,
+                        n_high,
+                        point_d.stream().handle(),
+                    );
+                }
+
+                output.stream().synchronize().unwrap();
+                let elapsed = now.elapsed();
+                println!("Cuda eq with n_high = {}  took {:?}", n_high, elapsed);
+                let output = output.to_host();
+
+                let now = std::time::Instant::now();
+                let expected = spl_multi_pcs::partial_lagrange_eval(&Point::new(point));
+                let elapsed = now.elapsed();
+                println!("Sequential eq took {:?}", elapsed);
+
+                for (elem_1, elem_2) in expected.iter().zip(output.iter()) {
+                    assert_eq!(elem_1, elem_2);
+                }
             }
-
-            let result = a_d.to_host();
-            let out_sum = result.into_iter().sum();
-            println!("Cuda sum took {:?}", now.elapsed());
-
-            let now = std::time::Instant::now();
-            let sum: F = a.clone().into_par_iter().sum();
-            println!("Sequential sum took {:?}", now.elapsed());
-
-            assert_eq!(sum, out_sum);
         }
     }
 
     #[test]
-    fn test_baby_bear_eq() {
-        let n = 30;
+    fn test_baby_bear_extension_eq() {
+        let n = 28;
+        let num_repetitions = 1;
+        let mut output = DeviceBuffer::<EF>::with_capacity(1 << n).unwrap();
         let mut rng = thread_rng();
-        let point = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
-        let point_d = point.to_device().unwrap();
-        let mut output = DeviceBuffer::<F>::with_capacity(1 << n).unwrap();
-        let now = std::time::Instant::now();
+        for n_high in 0..10 {
+            let n_low = n - n_high;
+            for _ in 0..num_repetitions {
+                let point = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+                let point_d = point.to_device().unwrap();
+                output.stream().synchronize().unwrap();
+                let now = std::time::Instant::now();
 
-        unsafe {
-            output.set_len(1 << n);
-            ffi::compute_eq_poly(
-                output.as_mut_ptr(),
-                point_d.as_ptr(),
-                n,
-                point_d.stream().handle(),
-            );
+                unsafe {
+                    output.set_len(1 << n);
+                    ffi::compute_extension_eq_poly(
+                        output.as_mut_ptr(),
+                        point_d.as_ptr(),
+                        n_low,
+                        n_high,
+                        point_d.stream().handle(),
+                    );
+                }
+
+                output.stream().synchronize().unwrap();
+                let elapsed = now.elapsed();
+                println!("Cuda eq with n_high = {}  took {:?}", n_high, elapsed);
+                let output = output.to_host();
+
+                let now = std::time::Instant::now();
+                let expected = spl_multi_pcs::partial_lagrange_eval(&Point::new(point));
+                let elapsed = now.elapsed();
+                println!("Sequential eq took {:?}", elapsed);
+
+                for (elem_1, elem_2) in expected.iter().zip(output.iter()) {
+                    assert_eq!(elem_1, elem_2);
+                }
+            }
         }
+    }
 
-        println!("Cuda eq took {:?}", now.elapsed());
-        let output = output.to_host();
+    #[test]
+    fn test_hadamard_product() {
+        for power in 1..30 {
+            let n = 1 << power;
+            let mut rng = thread_rng();
+            let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+            let b = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+            let a_d = a.to_device().unwrap();
+            let b_d = b.to_device().unwrap();
 
-        let now = std::time::Instant::now();
-        let expected = spl_multi_pcs::partial_lagrange_eval(&Point::new(point).reversed_point());
-        println!("Sequential eq took {:?}", now.elapsed());
+            let mut c = DeviceBuffer::<F>::with_capacity(n).unwrap();
 
-        assert_eq!(expected, output);
+            unsafe {
+                c.set_max_len();
+                ffi::hadamard_product(
+                    a_d.as_ptr(),
+                    b_d.as_ptr(),
+                    c.as_mut_ptr(),
+                    n,
+                    a_d.stream().handle(),
+                );
+            }
+
+            let c = c.to_host();
+            for (i, ((a, b), c)) in a.into_iter().zip(b).zip(c).enumerate() {
+                assert_eq!(a * b, c, "at index {}", i);
+            }
+        }
     }
 }

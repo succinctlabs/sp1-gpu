@@ -37,50 +37,32 @@ template<typename T> __global__ void AddTemplate(T * a, T * b, T * c, size_t n, 
     } 
 }
 
-
-
 template<typename T>
-__global__ void SumTemplate(const T* in, T* out, size_t n, cudaStream_t stream) {
-    extern __shared__ T sdata[512];
-    
-    unsigned int tid = threadIdx.x;
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    // Load input into shared memory
-    if (i < n){
-    sdata[tid] = in[i];
-    }
-    __syncthreads();
-    
-    // Perform block-wise reduction in shared memory
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-    
-    // Write the result for this block to global memory
-    if (tid == 0) {
-        out[blockIdx.x] = sdata[0];
-    }
-}
-
-template<typename T>
-__device__ T compute_eq_poly(size_t i, T * point, size_t n_variables) {
+__device__ __forceinline__ T ComputeEqPolyVal(size_t i, T * point, size_t n_variables) {
     T result = T::one();
     for(size_t j = 0; j < n_variables; j++) {
         bool selector = (i>>j & 1)==1;
-        result *= T(selector) * point[j] + T(!selector) * (T::one() - point[j]); 
+        result *= T(selector) * point[n_variables-1-j] + T(!selector) * (T::one() - point[n_variables-1-j]); 
     }
     return result;
 }
 
 template<typename T>
-__global__ void ComputeEqPolyTemplate(T * d_out, T * point, size_t n_variables) {
+__global__ void HadamardProduct(const T* a, const T* b, T* c, size_t n, cudaStream_t stream) {
     size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-    if(index < (1<<n_variables)) {
-        d_out[index] = compute_eq_poly(index, point, n_variables);
+    if(index < n) {
+        c[index] = a[index] * b[index];
+    }
+}
+
+template<typename T>
+__global__ void ComputeEqPolyTemplate(T * d_out, T * point, size_t n_low, size_t n_high) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if(index < 1<<n_low) {
+        T base_val = ComputeEqPolyVal(index, point+n_high, n_low);
+        for(size_t i = 0; i < 1<<n_high; i++) {
+            d_out[index + i * (1<<n_low)]= base_val*ComputeEqPolyVal(i, point, n_high);
+        }
     }
 }
 
@@ -99,14 +81,20 @@ extern "C" void add_baby_bear_vecs(bb31_t * a, bb31_t * b, bb31_t * c, size_t n,
     AddTemplate<<<num_blocks, block_dim, 0, stream>>>(a, b, c, n, stream);
 }
 
-extern "C" void sum_baby_bear_vec(bb31_t * in, bb31_t * result, size_t n, cudaStream_t stream) {
+extern "C" void compute_eq_poly(bb31_t * d_out, bb31_t * point, size_t n_low, size_t n_high, cudaStream_t stream){
     size_t block_dim = 512;
-    size_t num_blocks = ceil(n/ (float)block_dim);
-    SumTemplate<<<num_blocks, block_dim, 0, stream>>>(in, result, n, stream);
+    size_t num_blocks = ceil((1<<n_low)/ (float)block_dim);
+    ComputeEqPolyTemplate<<<num_blocks, block_dim, 0, stream>>>(d_out, point, n_low, n_high);
 }
 
-extern "C" void compute_eq_poly(bb31_t * d_out, bb31_t * point, size_t n_variables, cudaStream_t stream){
+extern "C" void compute_extension_eq_poly(bb31_extension_t * d_out, bb31_extension_t * point, size_t n_low, size_t n_high, cudaStream_t stream){
     size_t block_dim = 512;
-    size_t num_blocks = ceil((1<<n_variables)/ (float)block_dim);
-    ComputeEqPolyTemplate<<<num_blocks, block_dim, 0, stream>>>(d_out, point, n_variables);
+    size_t num_blocks = ceil((1<<n_low)/ (float)block_dim);
+    ComputeEqPolyTemplate<<<num_blocks, block_dim, 0, stream>>>(d_out, point, n_low, n_high);
+}
+
+extern "C" void hadamard_product(bb31_t * a, bb31_t * b, bb31_t * c, size_t n, cudaStream_t stream) {
+    size_t block_dim = 512;
+    size_t num_blocks = ceil(n / (float)block_dim);
+    HadamardProduct<<<num_blocks, block_dim, 0, stream>>>(a, b, c, n, stream);
 }
