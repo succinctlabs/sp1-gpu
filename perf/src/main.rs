@@ -1,9 +1,7 @@
 use moongate_core::utils::init_tracer;
 use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
 use sp1_core_machine::io::SP1Stdin;
-use sp1_prover::{components::DefaultProverComponents, SP1Prover};
-use sp1_stark::SP1CoreOpts;
-use sp1_stark::SP1ProverOpts;
+use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
