@@ -14,11 +14,9 @@ aws s3 cp s3://sp1-testing-suite/$s3_path/program.bin /tmp/program.bin
 aws s3 cp s3://sp1-testing-suite/$s3_path/stdin.bin /tmp/stdin.bin
 
 # Set environment variables
-# export RUSTFLAGS="-Copt-level=3 -Ctarget-cpu=native"
-# export RUST_BACKTRACE=1
-export RUST_LOG=info
+export RUST_LOG=debug
 export FIX_CORE_SHAPES=true
 export FIX_RECURSION_SHAPES=true
 
 # Run moongate-perf
-cargo run --release -p moongate-perf -- --program-path /tmp/program.bin --stdin-path /tmp/stdin.bin --stage $stage
+RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path /tmp/program.bin --stdin-path /tmp/stdin.bin --stage $stage

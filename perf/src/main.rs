@@ -1,7 +1,9 @@
 use moongate_core::utils::init_tracer;
 use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
 use sp1_core_machine::io::SP1Stdin;
-use sp1_prover::SP1Prover;
+use sp1_prover::{components::DefaultProverComponents, SP1Prover};
+use sp1_stark::SP1CoreOpts;
+use sp1_stark::SP1ProverOpts;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
@@ -18,17 +20,17 @@ use opentelemetry_sdk::Resource;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, default_value = "all")]
+    #[arg(long, default_value = "all")]
     pub program: Program,
-    #[arg(short, long, default_value = "telemetry")]
+    #[arg(long, default_value = "telemetry")]
     pub trace: Trace,
-    #[arg(short, long)]
+    #[arg(long)]
     pub program_path: Option<String>,
-    #[arg(short, long)]
+    #[arg(long)]
     pub stdin_path: Option<String>,
-    #[arg(short, long, default_value = "false")]
+    #[arg(long, default_value = "false")]
     pub skip_verify: bool,
-    #[arg(short, long, default_value = "compress")]
+    #[arg(long, default_value = "compress")]
     pub stage: Stage,
 }
 
