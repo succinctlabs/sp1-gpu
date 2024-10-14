@@ -995,9 +995,9 @@ checksum = "c3ac9f8b63eca6fd385229b3675f6cc0dc5c8a5c8a54a59d4f52ffd670d87b0c"
 
 [[package]]
 name = "bytemuck"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94bbb0ad554ad961ddc5da507a12a29b14e4ae5bda06b19f575a3e6079d2e2ae"
+checksum = "8334215b81e418a0a7bdb8ef0849474f40bb10c8b71f1c4ed315cff49f32494d"
 
 [[package]]
 name = "byteorder"
@@ -4459,9 +4459,9 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "pest"
-version = "2.7.13"
+version = "2.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdbef9d1d47087a895abd220ed25eb4ad973a5e26f6a4367b038c25e28dfc2d9"
+checksum = "879952a81a83930934cbf1786752d6dedc3b1f29e8f8fb2ad1d0a36f377cf442"
 dependencies = [
  "memchr",
  "thiserror",
@@ -5399,9 +5399,9 @@ dependencies = [
 
 [[package]]
 name = "scc"
-version = "2.2.1"
+version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "553f8299af7450cda9a52d3a370199904e7a46b5ffd1bef187c4a6af3bb6db69"
+checksum = "f2c1f7fc6deb21665a9060dfc7d271be784669295a31babdcd4dd2c79ae8cbfb"
 dependencies = [
  "sdd",
 ]
@@ -5852,7 +5852,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5885,7 +5885,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5932,7 +5932,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5948,7 +5948,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5969,7 +5969,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5978,7 +5978,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5999,7 +5999,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "bincode",
  "hex",
@@ -6016,7 +6016,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6057,7 +6057,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6090,7 +6090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6111,7 +6111,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6146,7 +6146,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6155,7 +6155,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6180,7 +6180,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6220,7 +6220,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#5381c8b7b0bbaa19e54126ec1b10ba88bd480e38"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#e89b78833cd92235b728bf2fe901c7ccf3d71460"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
