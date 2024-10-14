@@ -1,7 +1,5 @@
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractField, Field};
-
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use p3_field::extension::BinomialExtensionField;
 
 use crate::{
     cuda_runtime::stream::CudaStream,
@@ -56,7 +54,35 @@ mod ffi {
             a: *const F,
             b: *const F,
             c: *mut F,
+            n_low: usize,
+            n_high: usize,
+            stream: CudaStreamHandle,
+        );
+
+        pub fn ef_hadamard_product(
+            a: *const F,
+            b: *const EF,
+            c: *mut EF,
+            n_low: usize,
+            n_high: usize,
+            stream: CudaStreamHandle,
+        );
+
+        pub fn sum_baby_bear_vec(a: *const F, c: *mut F, n: usize, stream: CudaStreamHandle);
+
+        pub fn sum_baby_bear_vec_challenge(
+            a: *const EF,
+            c: *mut EF,
             n: usize,
+            stream: CudaStreamHandle,
+        );
+
+        pub fn extension_multilinear_evaluator(
+            result: *mut EF,
+            point: *const EF,
+            input_d: *mut EF,
+            n_low: usize,
+            n_high: usize,
             stream: CudaStreamHandle,
         );
     }
@@ -87,9 +113,8 @@ impl CudaScan for EF {
 #[cfg(test)]
 mod tests {
     use p3_field::AbstractField;
-    use p3_util::log2_ceil_usize;
     use rand::{thread_rng, Rng};
-    use spl_multi_pcs::Point;
+    use spl_multi_pcs::{partial_lagrange_eval, Mle, Point};
 
     use crate::{
         cuda_runtime::ffi::cuda_stream_synchronize,
@@ -218,7 +243,7 @@ mod tests {
                 let output = output.to_host();
 
                 let now = std::time::Instant::now();
-                let expected = spl_multi_pcs::partial_lagrange_eval(&Point::new(point));
+                let expected = partial_lagrange_eval(&Point::new(point));
                 let elapsed = now.elapsed();
                 println!("Sequential eq took {:?}", elapsed);
 
@@ -273,31 +298,156 @@ mod tests {
 
     #[test]
     fn test_hadamard_product() {
-        for power in 1..30 {
+        for power in 18..28 {
             let n = 1 << power;
             let mut rng = thread_rng();
             let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
             let b = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+            let c = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
             let a_d = a.to_device().unwrap();
             let b_d = b.to_device().unwrap();
+            let c_d = c.to_device().unwrap();
 
-            let mut c = DeviceBuffer::<F>::with_capacity(n).unwrap();
+            let mut d = DeviceBuffer::<F>::with_capacity(n).unwrap();
+
+            let mut e = DeviceBuffer::<EF>::with_capacity(n).unwrap();
 
             unsafe {
-                c.set_max_len();
+                d.set_max_len();
                 ffi::hadamard_product(
                     a_d.as_ptr(),
                     b_d.as_ptr(),
-                    c.as_mut_ptr(),
+                    d.as_mut_ptr(),
+                    power - 4,
+                    4,
+                    a_d.stream().handle(),
+                );
+                e.set_max_len();
+                ffi::ef_hadamard_product(
+                    a_d.as_ptr(),
+                    c_d.as_ptr(),
+                    e.as_mut_ptr(),
+                    power - 4,
+                    4,
+                    a_d.stream().handle(),
+                );
+            }
+
+            let d = d.to_host();
+            let e = e.to_host();
+            for (i, ((((a, b), c), d), e)) in a.into_iter().zip(b).zip(c).zip(d).zip(e).enumerate()
+            {
+                assert_eq!(a * b, d, "at index {}", i);
+                assert_eq!(c * a, e, "at index {}", i);
+            }
+        }
+    }
+
+    #[test]
+    fn test_sum_vec() {
+        for power in 10..29 {
+            let n = 1 << power;
+            let mut rng = thread_rng();
+            let a = (0..n).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+
+            let mut a_d = a.to_device().unwrap();
+            a_d.stream().synchronize().unwrap();
+            let now = std::time::Instant::now();
+            let mut result: Vec<F> = vec![F::zero(); 512];
+
+            unsafe {
+                ffi::sum_baby_bear_vec(a_d.as_ptr(), result.as_mut_ptr(), n, a_d.stream().handle());
+            }
+
+            let out_sum = result.into_iter().sum();
+            a_d.stream().synchronize().unwrap();
+            let elapsed = now.elapsed();
+
+            drop(a_d);
+
+            println!("Cuda sum took  for log height {} took {:?}", power, elapsed);
+
+            let now = std::time::Instant::now();
+            let sum: F = a.into_iter().sum();
+            let elapsed = now.elapsed();
+            println!("Sequential sum for log_height {} took {:?}", power, elapsed);
+
+            assert_eq!(sum, out_sum);
+        }
+    }
+
+    #[test]
+    fn test_sum_extension_vec() {
+        for power in 9..30 {
+            let n = 1 << power;
+            let mut rng = thread_rng();
+            let a = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+
+            let a_d = a.to_device().unwrap();
+            a_d.stream().synchronize().unwrap();
+            let now = std::time::Instant::now();
+            let mut result: Vec<EF> = vec![EF::zero(); 512];
+
+            unsafe {
+                ffi::sum_baby_bear_vec_challenge(
+                    a_d.as_ptr(),
+                    result.as_mut_ptr(),
                     n,
                     a_d.stream().handle(),
                 );
             }
 
-            let c = c.to_host();
-            for (i, ((a, b), c)) in a.into_iter().zip(b).zip(c).enumerate() {
-                assert_eq!(a * b, c, "at index {}", i);
+            let out_sum = result.into_iter().sum();
+
+            let elapsed = now.elapsed();
+            drop(a_d);
+            println!("Cuda sum took  for log height {} took {:?}", power, elapsed);
+
+            let now = std::time::Instant::now();
+            let sum: EF = a.into_iter().sum();
+            let elapsed = now.elapsed();
+            println!("Sequential sum for log_height {} took {:?}", power, elapsed);
+
+            assert_eq!(sum, out_sum);
+        }
+    }
+
+    #[test]
+    fn test_multilinear_eval() {
+        for power in 10..29 {
+            let n = 1 << power;
+            let mut rng = thread_rng();
+            let a = (0..n).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+            let point = (0..power).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+
+            let mut a_d = a.to_device().unwrap();
+            let point_d = point.to_device().unwrap();
+            a_d.stream().synchronize().unwrap();
+            let mut result: Vec<EF> = vec![EF::zero(); 512];
+            let now = std::time::Instant::now();
+
+            unsafe {
+                ffi::extension_multilinear_evaluator(
+                    result.as_mut_ptr(),
+                    point_d.as_ptr(),
+                    a_d.as_mut_ptr(),
+                    power - 4,
+                    4,
+                    a_d.stream().handle(),
+                );
             }
+
+            let out_sum: EF = result.into_iter().sum();
+            a_d.stream().synchronize().unwrap();
+            let elapsed = now.elapsed();
+            println!("Cuda sum for log height {} took {:?}", power, elapsed);
+
+            let now = std::time::Instant::now();
+            let eval: EF = Mle::eval_at_point(&a.into(), &Point::new(point));
+            let elapsed = now.elapsed();
+            println!("Sequential sum for log_height {} took {:?}", power, elapsed);
+
+            assert_eq!(out_sum, eval);
         }
     }
 }
