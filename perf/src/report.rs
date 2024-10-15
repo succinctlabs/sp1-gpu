@@ -22,6 +22,7 @@ pub fn write_measurements_to_csv(
         "Program Name",
         "Cycles",
         "Shards",
+        "Core kHz",
         "Compress kHz",
         "Total kHz",
         "Core Time (s)",
@@ -43,31 +44,16 @@ pub fn write_measurements_to_csv(
 }
 
 impl Measurement {
-    pub fn new(
-        name: &str,
-        cycles: usize,
-        num_shards: usize,
-        core_time: Duration,
-        compress_time: Duration,
-        shrink_time: Duration,
-        wrap_time: Duration,
-    ) -> Self {
-        Self {
-            name: name.to_string(),
-            cycles,
-            num_shards,
-            core_time,
-            compress_time,
-            shrink_time,
-            wrap_time,
-        }
-    }
-
-    fn to_csv_record(&self) -> (String, usize, usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) {
+    #[allow(clippy::type_complexity)]
+    fn to_csv_record(
+        &self,
+    ) -> (String, usize, usize, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) {
         let total_core_compress_time = self.core_time + self.compress_time;
         let total_time = total_core_compress_time + self.shrink_time + self.wrap_time;
-        let compress_khz = self.cycles as f64 / (total_core_compress_time.as_secs_f64() * 1e3);
-        let khz = self.cycles as f64 / (total_time.as_secs_f64() * 1e3);
+        let core_khz = (self.cycles as f64 / (self.core_time.as_secs_f64() * 1e3)).round();
+        let compress_khz =
+            (self.cycles as f64 / (total_core_compress_time.as_secs_f64() * 1e3)).round();
+        let khz = (self.cycles as f64 / (total_time.as_secs_f64() * 1e3)).round();
         let compress_fraction =
             (self.compress_time.as_secs_f64() / total_time.as_secs_f64()) * 100.0;
 
@@ -75,6 +61,7 @@ impl Measurement {
             self.name.clone(),
             self.cycles,
             self.num_shards,
+            core_khz,
             compress_khz,
             khz,
             self.core_time.as_secs_f64(),
@@ -92,6 +79,7 @@ impl Measurement {
             "Program Name",
             "Cycles",
             "Shards",
+            "Core kHz",
             "Compress kHz",
             "Total kHz",
             "Core Time (s)",

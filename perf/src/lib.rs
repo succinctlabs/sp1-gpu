@@ -56,15 +56,15 @@ pub fn make_measurement<C: SP1ProverComponents>(
     }
 
     if stage == Stage::Core {
-        return Measurement::new(
-            name,
-            num_shards,
+        return Measurement {
+            name: name.to_string(),
             cycles,
+            num_shards,
             core_time,
-            Duration::ZERO,
-            Duration::ZERO,
-            Duration::ZERO,
-        );
+            compress_time: Duration::ZERO,
+            shrink_time: Duration::ZERO,
+            wrap_time: Duration::ZERO,
+        };
     }
 
     tracing::info!("compress");
@@ -78,15 +78,15 @@ pub fn make_measurement<C: SP1ProverComponents>(
     }
 
     if stage == Stage::Compress {
-        return Measurement::new(
-            name,
-            num_shards,
+        return Measurement {
+            name: name.to_string(),
             cycles,
+            num_shards,
             core_time,
             compress_time,
-            Duration::ZERO,
-            Duration::ZERO,
-        );
+            shrink_time: Duration::ZERO,
+            wrap_time: Duration::ZERO,
+        };
     }
 
     tracing::info!("shrink");
@@ -100,15 +100,15 @@ pub fn make_measurement<C: SP1ProverComponents>(
     }
 
     if stage == Stage::Shrink {
-        return Measurement::new(
-            name,
-            num_shards,
+        return Measurement {
+            name: name.to_string(),
             cycles,
+            num_shards,
             core_time,
             compress_time,
             shrink_time,
-            Duration::ZERO,
-        );
+            wrap_time: Duration::ZERO,
+        };
     }
 
     tracing::info!("wrap");
@@ -121,5 +121,13 @@ pub fn make_measurement<C: SP1ProverComponents>(
         prover.verify_wrap_bn254(&wrapped_proof, &vk).unwrap();
     }
 
-    Measurement::new(name, num_shards, cycles, core_time, compress_time, shrink_time, wrap_time)
+    Measurement {
+        name: name.to_string(),
+        cycles,
+        num_shards,
+        core_time,
+        compress_time,
+        shrink_time,
+        wrap_time,
+    }
 }
