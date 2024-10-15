@@ -1,5 +1,4 @@
 use moongate_core::device::memory::ToDevice;
-// use moongate_core::device::memory::ToHost;
 use moongate_core::matrix::ColMajorMatrixDevice;
 use once_cell::sync::Lazy;
 use p3_baby_bear::BabyBear;
@@ -17,7 +16,7 @@ fn main() {
     divan::main();
 }
 
-const NUM_OPS_EACH: u32 = 100000;
+const NUM_OPS_EACH: u32 = 1_000_000;
 static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
     let add_events = (0..NUM_OPS_EACH)
         .flat_map(|i| {
@@ -67,20 +66,6 @@ fn on_device(bencher: divan::Bencher) {
     let shard = Lazy::force(&SHARD);
 
     let work = || on_device_work(shard);
-
-    // let trace: RowMajorMatrix<BabyBear> =
-    //     AddSubChip.generate_trace(shard, &mut ExecutionRecord::default());
-    // let ys: Vec<BabyBear> = baseline_work(shard).to_host().values;
-    // let xs: Vec<BabyBear> = trace.to_device().unwrap().to_column_major().to_host().values;
-    // let xs: Vec<BabyBear> = trace.values;
-    // let ys: Vec<BabyBear> = work().to_host().values;
-    // assert_eq!(xs.len(), ys.len());
-    // for (i, (x, y)) in std::iter::zip(xs, ys).enumerate() {
-    //     // assert_eq!(x, y, "iteration {i}");
-    //     if x != y {
-    //         println!("{i:>4}: {x:<5} {y:<5}");
-    //     }
-    // }
 
     // Warm up.
     for _ in 0..5 {
