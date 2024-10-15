@@ -678,7 +678,7 @@ dependencies = [
  "futures-util",
  "http 0.2.12",
  "http-body 0.4.6",
- "hyper 0.14.30",
+ "hyper 0.14.31",
  "itoa",
  "matchit",
  "memchr",
@@ -706,7 +706,7 @@ dependencies = [
  "http 1.1.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "hyper-util",
  "itoa",
  "matchit",
@@ -2854,9 +2854,9 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "hyper"
-version = "0.14.30"
+version = "0.14.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a152ddd61dfaec7273fe8419ab357f33aee0d914c5f4efbf0d96fa749eea5ec9"
+checksum = "8c08302e8fa335b151b788c775ff56e7a03ae64ff85c548ee820fecb70356e85"
 dependencies = [
  "bytes 1.7.2",
  "futures-channel",
@@ -2878,9 +2878,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "1.4.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50dfd22e0e76d0f662d429a5f80fcaf3855009297eab6a0a9f8543834744ba05"
+checksum = "bbbff0a806a4728c99295b254c8838933b5b082d75e3cb70c8dab21fdfbcfa9a"
 dependencies = [
  "bytes 1.7.2",
  "futures-channel",
@@ -2905,7 +2905,7 @@ checksum = "08afdbb5c31130e3034af566421053ab03787c640246a446327f550d11bcb333"
 dependencies = [
  "futures-util",
  "http 1.1.0",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "hyper-util",
  "rustls 0.23.14",
  "rustls-pki-types",
@@ -2921,7 +2921,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbb958482e8c7be4bc3cf272a766a2b0bf1a6755e7a6ae777f017a31d11b13b1"
 dependencies = [
- "hyper 0.14.30",
+ "hyper 0.14.31",
  "pin-project-lite",
  "tokio",
  "tokio-io-timeout",
@@ -2934,7 +2934,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes 1.7.2",
- "hyper 0.14.30",
+ "hyper 0.14.31",
  "native-tls",
  "tokio",
  "tokio-native-tls",
@@ -2948,7 +2948,7 @@ checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
 dependencies = [
  "bytes 1.7.2",
  "http-body-util",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "hyper-util",
  "native-tls",
  "tokio",
@@ -2967,7 +2967,7 @@ dependencies = [
  "futures-util",
  "http 1.1.0",
  "http-body 1.0.1",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -5002,7 +5002,7 @@ dependencies = [
  "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
- "hyper 0.14.30",
+ "hyper 0.14.31",
  "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
@@ -5043,7 +5043,7 @@ dependencies = [
  "http 1.1.0",
  "http-body 1.0.1",
  "http-body-util",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "hyper-rustls",
  "hyper-tls 0.6.0",
  "hyper-util",
@@ -5316,9 +5316,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e696e35370c65c9c541198af4543ccd580cf17fc25d8e05c5a242b202488c55"
+checksum = "16f1201b3c9a7ee8039bcadc17b7e605e2945b27eee7631788c1bd2b0643674b"
 
 [[package]]
 name = "rustls-webpki"
@@ -5852,7 +5852,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5885,7 +5885,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5932,7 +5932,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5948,7 +5948,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5969,7 +5969,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5978,7 +5978,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5999,7 +5999,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "bincode",
  "hex",
@@ -6016,7 +6016,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6057,7 +6057,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6090,7 +6090,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6111,7 +6111,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6146,7 +6146,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6155,7 +6155,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6180,7 +6180,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6220,7 +6220,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc3"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/verifier#3de2dc02a7472b6ec13d44bcea8fe20444e58b0b"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/l-infinity-drop#87d5de28d86741adb3a62eb1bf57ab17e14fd166"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
@@ -6837,7 +6837,7 @@ dependencies = [
  "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
- "hyper 0.14.30",
+ "hyper 0.14.31",
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
@@ -7055,7 +7055,7 @@ dependencies = [
  "futures",
  "http 1.1.0",
  "http-body-util",
- "hyper 1.4.1",
+ "hyper 1.5.0",
  "prost 0.13.3",
  "reqwest 0.12.8",
  "serde",
