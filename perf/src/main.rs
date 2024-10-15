@@ -28,7 +28,7 @@ struct Args {
     pub stdin_path: Option<String>,
     #[arg(long, default_value = "false")]
     pub skip_verify: bool,
-    #[arg(long, default_value = "compress")]
+    #[arg(long, default_value = "core")]
     pub stage: Stage,
 }
 
