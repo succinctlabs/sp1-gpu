@@ -1,12 +1,10 @@
 use std::sync::Once;
 
 use opentelemetry::global;
-use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::{runtime, trace, Resource};
-use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, Layer, Registry};
+use opentelemetry_sdk::{propagation::TraceContextPropagator, runtime, trace, Resource};
+use tracing_subscriber::{
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer, Registry,
+};
 
 static INIT: Once = Once::new();
 

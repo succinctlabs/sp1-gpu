@@ -1,7 +1,7 @@
-use moongate_core::poseidon2::bn254::DeviceHasherBn254;
-use moongate_core::stark::StarkGpuProver;
 use moongate_core::{
-    merkle_tree::FieldMerkleTreeDeviceCommitter, poseidon2::baby_bear::DeviceHasherBabyBear,
+    merkle_tree::FieldMerkleTreeDeviceCommitter,
+    poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+    stark::StarkGpuProver,
 };
 
 use sp1_core_machine::riscv::RiscvAir;

@@ -1,17 +1,24 @@
-use std::ops::{
-    Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
-    RangeToInclusive,
+use std::{
+    mem,
+    ops::{
+        Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
+        RangeToInclusive,
+    },
+    slice,
+    time::Duration,
 };
-use std::time::Duration;
-use std::{mem, slice};
 
 use p3_field::{ExtensionField, Field, PrimeField32};
 
-use crate::cuda_runtime::stream::{AllocTimeoutError, CudaStream};
-use crate::device::slice::DeviceSlice;
+use crate::{
+    cuda_runtime::stream::{AllocTimeoutError, CudaStream},
+    device::slice::DeviceSlice,
+};
 
-use super::error::CudaError;
-use super::memory::{ToDevice, ToHost};
+use super::{
+    error::CudaError,
+    memory::{ToDevice, ToHost},
+};
 
 /// Fixed-size device-side buffer.
 #[derive(Debug)]
@@ -32,7 +39,12 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
     pub fn with_capacity(capacity: usize) -> Result<Self, CudaError> {
-        Self::try_with_capacity_in(capacity, &CudaStream::default())
+        Self::with_capacity_in(capacity, &CudaStream::default())
+    }
+
+    /// Creates a buffer with a null pointer and zero capacity.
+    pub fn null() -> Self {
+        Self { buf: std::ptr::null_mut(), len: 0, cap: 0, stream: CudaStream::default() }
     }
 
     /// Allocate a new buffer on the device.

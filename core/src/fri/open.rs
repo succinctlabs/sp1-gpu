@@ -1,45 +1,33 @@
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::marker::PhantomData;
+use std::{
+    collections::{BTreeMap, HashMap},
+    marker::PhantomData,
+};
 
 use p3_challenger::FieldChallenger;
 use p3_commit::Mmcs;
-use p3_field::two_adic_coset_zerofier;
-use p3_field::Field;
+use p3_field::{two_adic_coset_zerofier, Field};
 use sp1_core_machine::utils::log2_strict_usize;
-use sp1_stark::Challenge;
-use sp1_stark::Com;
-use sp1_stark::OpeningProof;
+use sp1_stark::{Challenge, Com, OpeningProof};
 use tracing::trace_span;
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
-use p3_challenger::CanObserve;
-use p3_challenger::CanSample;
-use p3_challenger::CanSampleBits;
-use p3_challenger::GrindingChallenger;
+use p3_challenger::{CanObserve, CanSample, CanSampleBits, GrindingChallenger};
 use p3_commit::OpenedValues;
-use p3_field::AbstractExtensionField;
-use p3_field::AbstractField;
-use p3_field::TwoAdicField;
-use p3_fri::CommitPhaseProofStep;
-use p3_fri::FriProof;
-use p3_fri::QueryProof;
-use p3_fri::{BatchOpening, TwoAdicFriPcsProof};
-use sp1_stark::Challenger;
-use sp1_stark::InnerVal;
+use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
+use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof, TwoAdicFriPcsProof};
+use sp1_stark::{Challenger, InnerVal};
 
-use crate::device::memory::ToDevice;
-use crate::device::memory::ToHost;
-use crate::device::DeviceBuffer;
-use crate::fri::TwoAdicFriCommitter;
-use crate::matrix::ColMajorMatrixDevice;
-use crate::matrix::MatrixViewDevice;
-use crate::merkle_tree::MmcsCommitter;
-use crate::merkle_tree::MmcsProverData;
-use crate::stark::BabyBearFriConfig;
-use crate::stark::FriMmcs;
-use crate::stark::PcsConfig;
+use crate::{
+    device::{
+        memory::{ToDevice, ToHost},
+        DeviceBuffer,
+    },
+    fri::TwoAdicFriCommitter,
+    matrix::{ColMajorMatrixDevice, MatrixViewDevice},
+    merkle_tree::{MmcsCommitter, MmcsProverData},
+    stark::{BabyBearFriConfig, FriMmcs, PcsConfig},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct FriOpeningProver<SC>(PhantomData<SC>);
@@ -48,7 +36,7 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
     fn query_open_batch(
         &self,
         query_indices: &[usize],
-        prover_data_slice: &[Self::ProverData],
+        prover_data_slice: &[&Self::ProverData],
         log_global_max_height: usize,
         is_answering: bool,
     ) -> Vec<Vec<BatchOpening<F, ValMmcs>>>;
@@ -60,7 +48,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
         pcs: &SC::Pcs,
-        rounds: Vec<(C::ProverData, Vec<Vec<SC::Challenge>>)>,
+        rounds: Vec<(&C::ProverData, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
     ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
     where
@@ -399,24 +387,21 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 pub(super) mod merkle_tree_opening_prover {
     use std::any::TypeId;
 
-    use serde::de::DeserializeOwned;
-    use serde::Serialize;
+    use serde::{de::DeserializeOwned, Serialize};
 
     use p3_baby_bear::BabyBear;
     use p3_bn254_fr::Bn254Fr;
-    use p3_field::PackedField;
-    use p3_field::PackedValue;
+    use p3_field::{PackedField, PackedValue};
     use p3_fri::BatchOpening;
     use p3_merkle_tree::FieldMerkleTreeMmcs;
-    use p3_symmetric::CryptographicHasher;
-    use p3_symmetric::PseudoCompressionFunction;
+    use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
     use p3_util::log2_ceil_usize;
 
-    use crate::device::memory::ToDevice;
-    use crate::matrix::MatrixViewDevice;
-    use crate::merkle_tree::FieldMerkleTreeDeviceCommitter;
-    use crate::merkle_tree::FieldMerkleTreeHasher;
-    use crate::merkle_tree::MmcsProverData;
+    use crate::{
+        device::memory::ToDevice,
+        matrix::MatrixViewDevice,
+        merkle_tree::{FieldMerkleTreeDeviceCommitter, FieldMerkleTreeHasher, MmcsProverData},
+    };
 
     use super::*;
 
@@ -444,7 +429,7 @@ pub(super) mod merkle_tree_opening_prover {
         fn query_open_batch(
             &self,
             query_indices: &[usize],
-            prover_data_slice: &[Self::ProverData],
+            prover_data_slice: &[&Self::ProverData],
             log_global_max_height: usize,
             is_answering: bool,
         ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
@@ -453,7 +438,8 @@ pub(super) mod merkle_tree_opening_prover {
             //
             // 1. Collect relevant data and calculate offsets based on matrix.width.
             // 2. Run kernel that returns one output buffer full of data:
-            //  Output buffer is 1D representation of 4D: [query_index][data_index][matrix_index][matrix_width]
+            //  Output buffer is 1D representation of 4D:
+            // [query_index][data_index][matrix_index][matrix_width]
             // 3. Slice buffer to proper structure.
             // 4. Calculate proofs for each data.
             let total_data = prover_data_slice.len();
@@ -616,7 +602,7 @@ where
 
     let query_proofs_data = committer.mmcs_committer.query_open_batch(
         &query_indices,
-        &commit_phase_result.data,
+        commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
         log_max_height,
         true,
     );

@@ -1,7 +1,6 @@
 // Based on https://github.com/supranational/sppark/blob/main/rust/build.rs
 
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn main() {
     println!("cargo:rerun-if-changed=../cuda/");

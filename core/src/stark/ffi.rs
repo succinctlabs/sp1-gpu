@@ -14,8 +14,10 @@ extern "C" {
         permutation: MatrixViewMutDevice<BabyBear>,
         preprocessed: MatrixViewDevice<BabyBear>,
         main: MatrixViewDevice<BabyBear>,
-        alpha: BinomialExtensionField<BabyBear, 4>,
-        beta: BinomialExtensionField<BabyBear, 4>,
+        global_alpha: BinomialExtensionField<BabyBear, 4>,
+        global_beta: BinomialExtensionField<BabyBear, 4>,
+        local_alpha: BinomialExtensionField<BabyBear, 4>,
+        local_beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
@@ -24,9 +26,11 @@ extern "C" {
 }
 
 pub(super) mod quotient_gpu {
-    use crate::cuda_runtime::stream::CudaStreamHandle;
-    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
-    use crate::stark::quotient::TwoAdicMultiplicativeCosetDevice;
+    use crate::{
+        cuda_runtime::stream::CudaStreamHandle,
+        matrix::{MatrixViewDevice, MatrixViewMutDevice},
+        stark::quotient::TwoAdicMultiplicativeCosetDevice,
+    };
     use air::operation::Operation;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
@@ -40,7 +44,7 @@ pub(super) mod quotient_gpu {
             eval_program: *const Operation,
             eval_program_len: usize,
             memory_size: usize,
-            cumulative_sum: BinomialExtensionField<BabyBear, 4>,
+            cumulative_sums: *const BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             preprocessed_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,

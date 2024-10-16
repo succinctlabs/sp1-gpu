@@ -1,16 +1,24 @@
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 
-use rand::distributions::{Distribution, Standard};
-use rand::Rng;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 
-use crate::cuda_runtime::stream::CudaStream;
-use crate::device::error::CudaError;
-use crate::device::memory::{ToDevice, ToHost};
-use crate::device::DeviceBuffer;
+use crate::{
+    cuda_runtime::stream::CudaStream,
+    device::{
+        error::CudaError,
+        memory::{ToDevice, ToHost},
+        DeviceBuffer,
+    },
+};
 
-use super::ffi::{transpose_blowup_naive, transpose_naive};
-use super::{ColMajorMatrixDevice, DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice};
+use super::{
+    ffi::{transpose_blowup_naive, transpose_naive},
+    ColMajorMatrixDevice, DeviceMatrix, MatrixViewDevice, MatrixViewMutDevice,
+};
 
 /// A matrix stored on the device in row major form.
 #[derive(Debug)]

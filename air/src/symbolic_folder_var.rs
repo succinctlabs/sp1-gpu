@@ -1,5 +1,7 @@
-use std::fmt::Debug;
-use std::ops::{Add, Mul, Sub};
+use std::{
+    fmt::Debug,
+    ops::{Add, Mul, Sub},
+};
 
 use p3_field::AbstractField;
 
@@ -87,8 +89,8 @@ impl SymbolicFolderVar {
         }
     }
 
-    pub fn cumulative_sum() -> Self {
-        Self { variant: SymbolicFolderVarType::CumulativeSum, f: F::zero(), ef: EF::zero(), idx: 0 }
+    pub fn cumulative_sum(idx: usize) -> Self {
+        Self { variant: SymbolicFolderVarType::CumulativeSum, f: F::zero(), ef: EF::zero(), idx }
     }
 
     pub fn public_value(idx: usize) -> Self {

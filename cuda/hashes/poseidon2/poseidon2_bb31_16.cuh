@@ -172,8 +172,8 @@ class BabyBear {
         F_t t0123 = t01 + t23;
         F_t t01123 = t0123 + state[1];
         F_t t01233 = t0123 + state[3];
-        state[3] = t01233 + (state[0] << 1);
-        state[1] = t01123 + (state[2] << 1);
+        state[3] = t01233 + operator<<(state[0], 1);
+        state[1] = t01123 + operator<<(state[2], 1);
         state[0] = t01123 + t01;
         state[2] = t01233 + t23;
     }

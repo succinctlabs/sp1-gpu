@@ -1,9 +1,7 @@
-use crate::matrix::MatrixViewDevice;
-use crate::merkle_tree::FieldMerkleTreeHasher;
+use crate::{matrix::MatrixViewDevice, merkle_tree::FieldMerkleTreeHasher};
 use p3_baby_bear::BabyBear;
 
-use poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-use poseidon2_baby_bear_16_kernels::WIDTH;
+use poseidon2_baby_bear_16_kernels::{DIGEST_WIDTH, WIDTH};
 
 pub struct DeviceHasherBabyBear {}
 

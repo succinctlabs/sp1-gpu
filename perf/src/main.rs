@@ -1,14 +1,16 @@
 use moongate_core::utils::init_tracer;
+use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
+use sp1_core_machine::io::SP1Stdin;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use clap::{Parser, ValueEnum};
-use moongate_perf::report::write_measurements_to_csv;
-use moongate_perf::tracer;
 use moongate_perf::{
     make_measurement,
     programs::{FIBONACCI_ELF, LOOP_ELF, RETH_ELF, SHA2_CHAIN_ELF, TENDERMINT_BENCHMARK_ELF},
+    report::write_measurements_to_csv,
+    tracer, Stage,
 };
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
@@ -16,10 +18,18 @@ use opentelemetry_sdk::Resource;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, default_value = "all")]
+    #[arg(long, default_value = "all")]
     pub program: Program,
-    #[arg(short, long, default_value = "telemetry")]
+    #[arg(long, default_value = "telemetry")]
     pub trace: Trace,
+    #[arg(long)]
+    pub program_path: Option<String>,
+    #[arg(long)]
+    pub stdin_path: Option<String>,
+    #[arg(long, default_value = "false")]
+    pub skip_verify: bool,
+    #[arg(long, default_value = "core")]
+    pub stage: Stage,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -29,6 +39,8 @@ enum Program {
     Sha2Chain,
     Tendermint,
     Reth,
+    KeyspaceRecord,
+    KeyspaceBatcher,
     All,
 }
 
@@ -66,14 +78,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             vec![("Tendermint Benchmark", TENDERMINT_BENCHMARK_ELF)]
         }
         Program::Reth => vec![("Reth", RETH_ELF)],
+        Program::KeyspaceRecord => vec![("KeyspaceRecord", KEYSPACE_ELF)],
+        Program::KeyspaceBatcher => vec![("KeyspaceBatcher", KEYSPACE_BATCHER_ELF)],
     };
 
     let prover: SP1Prover<GpuProverComponents> = SP1Prover::new();
     let opts = gpu_prover_opts();
+    let verify = !args.skip_verify;
+    let stage = args.stage;
+
+    if args.program_path.is_some() && args.stdin_path.is_some() {
+        let program = std::fs::read(args.program_path.unwrap()).unwrap();
+        let stdin = std::fs::read(args.stdin_path.unwrap()).unwrap();
+        let stdin: SP1Stdin = bincode::deserialize(&stdin).unwrap();
+        let measurement =
+            make_measurement(&prover, "Custom", &program, Some(stdin), opts, verify, stage);
+        println!("{}", measurement);
+        return Ok(());
+    }
 
     let mut measurements = vec![];
     for (name, elf) in named_programs {
-        let measurement = make_measurement(&prover, name, elf, opts);
+        let measurement = make_measurement(&prover, name, elf, None, opts, verify, stage);
         println!("{}", measurement);
         measurements.push(measurement);
     }

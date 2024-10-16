@@ -1,7 +1,5 @@
 use tracing::{event, span, Subscriber};
-use tracing_subscriber::layer::Context;
-use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::Layer;
+use tracing_subscriber::{layer::Context, registry::LookupSpan, Layer};
 
 use super::CudaInstant;
 

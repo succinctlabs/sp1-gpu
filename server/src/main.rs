@@ -1,6 +1,15 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    any::Any,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
+use bytes::Bytes;
+use http::{
+    header::{self},
+    Response, StatusCode,
+};
+use http_body_util::Full;
 use moongate_core::utils::init_tracer;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use sp1_core_executor::SP1Context;
@@ -8,7 +17,11 @@ use sp1_cuda::{
     CompressRequestPayload, ProveCoreRequestPayload, ShrinkRequestPayload, WrapRequestPayload,
 };
 use sp1_prover::SP1Prover;
-use twirp::{axum, internal, Router};
+use tower_http::catch_panic::CatchPanicLayer;
+use twirp::{
+    axum::{self},
+    internal, Router,
+};
 
 struct MoongateProverServer {
     prover: Arc<Mutex<Option<SP1Prover<GpuProverComponents>>>>,
@@ -138,6 +151,31 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
     }
 }
 
+fn handle_panic(err: Box<dyn Any + Send + 'static>) -> Response<Full<Bytes>> {
+    let details = if let Some(s) = err.downcast_ref::<String>() {
+        s.clone()
+    } else if let Some(s) = err.downcast_ref::<&str>() {
+        s.to_string()
+    } else {
+        "Unknown panic message".to_string()
+    };
+    println!("panic: {}", details);
+
+    let body = serde_json::json!({
+        "error": {
+            "kind": "panic",
+            "details": details,
+        }
+    });
+    let body = serde_json::to_string(&body).unwrap();
+
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(header::CONTENT_TYPE, details.to_string())
+        .body(Full::from(body))
+        .unwrap()
+}
+
 #[tokio::main]
 pub async fn main() {
     init_tracer();
@@ -148,7 +186,10 @@ pub async fn main() {
     let twirp_routes =
         Router::new().nest(sp1_cuda::proto::api::SERVICE_FQN, sp1_cuda::proto::api::router(server));
 
-    let app = Router::new().nest("/twirp", twirp_routes).fallback(twirp::server::not_found_handler);
+    let app = Router::new()
+        .nest("/twirp", twirp_routes)
+        .fallback(twirp::server::not_found_handler)
+        .layer(CatchPanicLayer::custom(handle_panic));
 
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     if let Err(e) = axum::serve(tcp_listener, app).await {

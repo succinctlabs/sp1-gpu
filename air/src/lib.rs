@@ -7,15 +7,12 @@ use std::{marker::PhantomData, sync::Mutex};
 
 use lazy_static::lazy_static;
 use operation::Operation;
-use p3_air::Air;
-use p3_air::BaseAir;
+use p3_air::{Air, BaseAir};
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
-use sp1_stark::air::MachineAir;
-use sp1_stark::AirOpenedValues;
-use sp1_stark::Chip;
-use sp1_stark::GenericVerifierConstraintFolder;
-use sp1_stark::PROOF_MAX_NUM_PVS;
+use sp1_stark::{
+    air::MachineAir, AirOpenedValues, Chip, GenericVerifierConstraintFolder, PROOF_MAX_NUM_PVS,
+};
 use symbolic_folder_expr::SymbolicFolderExpr;
 use symbolic_folder_var::SymbolicFolderVar;
 
@@ -78,15 +75,18 @@ where
     };
     let public_values =
         (0..PROOF_MAX_NUM_PVS).map(SymbolicFolderVar::public_value).collect::<Vec<_>>();
-    let perm_challenges = (0..2).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
+    let perm_challenges = (0..4).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
 
     let accumulator = SymbolicFolderExpr::alloc();
+
+    let cumulative_sums = (0..2).map(SymbolicFolderVar::cumulative_sum).collect::<Vec<_>>();
+
     let mut folder = P3EvalFolder {
         preprocessed: preprocessed.view(),
         main: main.view(),
         perm: perm.view(),
         perm_challenges: &perm_challenges,
-        cumulative_sum: SymbolicFolderVar::cumulative_sum(),
+        cumulative_sums: &cumulative_sums,
         public_values: &public_values,
         is_first_row: SymbolicFolderVar::is_first_row(),
         is_last_row: SymbolicFolderVar::is_last_row(),

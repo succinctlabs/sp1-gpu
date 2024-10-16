@@ -5,13 +5,21 @@ pub mod constants;
 pub mod tests {
     #[cfg(test)]
     pub mod baby_bear_tests {
-        use crate::device::memory::{ToDevice, ToHost};
-        use crate::device::DeviceBuffer;
-        use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{
-            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+        use crate::{
+            device::{
+                memory::{ToDevice, ToHost},
+                DeviceBuffer,
+            },
+            poseidon2::{
+                baby_bear::{
+                    poseidon2_baby_bear_16_kernels::{
+                        DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+                    },
+                    DeviceHasherBabyBear,
+                },
+                constants::RC_16_30,
+            },
         };
-        use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
-        use crate::poseidon2::constants::RC_16_30;
         use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
         use p3_field::{AbstractField, PrimeField32};
         use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
@@ -270,12 +278,17 @@ pub mod tests {
 
     #[cfg(test)]
     pub mod bn254_tests {
-        use crate::device::memory::{ToDevice, ToHost};
-        use crate::device::DeviceBuffer;
-        use crate::poseidon2::bn254::poseidon2_bn254_3_kernels::{
-            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+        use crate::{
+            device::{
+                memory::{ToDevice, ToHost},
+                DeviceBuffer,
+            },
+            poseidon2::bn254::{
+                poseidon2_bn254_3_constants,
+                poseidon2_bn254_3_kernels::{DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH},
+                DeviceHasherBn254,
+            },
         };
-        use crate::poseidon2::bn254::{poseidon2_bn254_3_constants, DeviceHasherBn254};
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
         use p3_field::AbstractField;
         use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};

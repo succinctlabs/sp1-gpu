@@ -3,41 +3,34 @@ use sp1_stark::StarkGenericConfig;
 use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
-use p3_field::AbstractExtensionField;
-use p3_field::{Field, TwoAdicField};
-use sp1_stark::air::MachineAir;
-use sp1_stark::quotient_values;
-use sp1_stark::Chip;
-use sp1_stark::Dom;
-use sp1_stark::PackedChallenge;
-use sp1_stark::PcsProverData;
-use sp1_stark::ProverConstraintFolder;
-use sp1_stark::StarkMachine;
-use sp1_stark::StarkProvingKey;
+use p3_field::{AbstractExtensionField, Field, TwoAdicField};
+use sp1_stark::{
+    air::MachineAir, quotient_values, Chip, Dom, PackedChallenge, PcsProverData,
+    ProverConstraintFolder, StarkMachine,
+};
 
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
 
+use crate::fri::FriQueryProver;
 use p3_field::AbstractField;
-use p3_matrix::dense::RowMajorMatrix;
-use p3_matrix::Matrix;
+use p3_matrix::{dense::RowMajorMatrix, Matrix};
 
 use air::P3EvalFolder;
 
-use std::collections::HashMap;
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
-use crate::device::error::CudaError;
-use crate::device::memory::ToDevice;
-use crate::device::DeviceBuffer;
-use crate::fri::TwoAdicFriCommitter;
-use crate::matrix::ColMajorMatrixDevice;
-use crate::merkle_tree::MmcsCommitter;
-use crate::stark::ffi::quotient_gpu;
+use crate::{
+    device::{error::CudaError, memory::ToDevice, DeviceBuffer},
+    fri::TwoAdicFriCommitter,
+    matrix::ColMajorMatrixDevice,
+    merkle_tree::MmcsCommitter,
+    stark::ffi::quotient_gpu,
+};
 
 const NUM_THREADS_PER_BLOCK: usize = 512;
 
-use super::{BabyBearFriConfig, CpuProverData, GpuMatrix};
+use super::{BabyBearFriConfig, CpuProverData, GpuMatrix, StarkProvingKeyDevice};
 
 #[derive(Clone)]
 pub struct QuotientValues<SC: StarkGenericConfig> {
@@ -97,16 +90,21 @@ where
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
         chips: &[&Chip<SC::Val, A>],
-        pk: &StarkProvingKey<SC>,
-        main_traces: &[ColMajorMatrixDevice<SC::Val>],
+        pk: &StarkProvingKeyDevice<SC, C>,
+        main_traces: &[&ColMajorMatrixDevice<SC::Val>],
         domain_and_permutation_traces: &[(Dom<SC>, ColMajorMatrixDevice<SC::Val>)],
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sums: &[SC::Challenge],
+        cumulative_sums: &[Vec<SC::Challenge>],
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
         C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
+            + 'static
+            + Send
+            + Sync
+            + Default,
     {
         let mut results = Vec::with_capacity(chips.len());
 
@@ -143,7 +141,7 @@ where
                 let main_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,
                     quotient_domain,
-                    &main_traces[i],
+                    main_traces[i],
                 )?;
                 let perm_on_quotient_domain = committer.get_evaluations_on_domain(
                     trace_domain,
@@ -173,7 +171,8 @@ where
             let stream = main_on_quotient_domain.stream();
 
             // Move data to device and get generator powers.
-
+            let cumulative_sums_device =
+                cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
             let (operations, memory_size) = self.get_eval_program(chip);
@@ -202,7 +201,7 @@ where
                     operations_device.as_ptr(),
                     operations.len(),
                     *memory_size,
-                    cumulative_sums[i],
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_on_quotient_domain.view(),
@@ -322,7 +321,7 @@ where
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sum: SC::Challenge,
+        cumulative_sums: &[SC::Challenge],
     ) -> QuotientValues<SC> {
         let log_quotient_degree = chip.log_quotient_degree();
 
@@ -359,10 +358,10 @@ where
         // Calculate the quotient values.
         let quotient_values = quotient_values(
             chip,
-            cumulative_sum,
+            cumulative_sums,
             trace_domain,
             quotient_domain,
-            prep_on_quotient_domain,
+            Some(prep_on_quotient_domain),
             main_on_quotient_domain,
             perm_on_quotient_domain,
             &packed_perm_challenges,
@@ -393,28 +392,28 @@ mod tests {
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
-    use p3_field::extension::BinomialExtensionField;
-    use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
+    use p3_field::{
+        extension::BinomialExtensionField, AbstractExtensionField, AbstractField, TwoAdicField,
+    };
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-    use sp1_core_executor::Program;
-    use sp1_core_machine::riscv::RiscvAir;
-    use sp1_core_machine::utils::log2_strict_usize;
-    use sp1_stark::air::MachineAir;
-    use sp1_stark::air::SP1_PROOF_NUM_PV_ELTS;
-    use sp1_stark::StarkGenericConfig;
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
+    use sp1_core_machine::{riscv::RiscvAir, utils::log2_strict_usize};
+    use sp1_stark::{
+        air::{MachineAir, SP1_PROOF_NUM_PV_ELTS},
+        PackedChallenge, StarkGenericConfig,
+    };
 
     use rand::thread_rng;
 
     use tracing::debug;
 
-    use crate::cuda_runtime::ffi::DEFAULT_STREAM;
-    use crate::device::memory::ToHost;
-    use crate::matrix::ColMajorMatrixDevice;
-    use crate::stark::ffi::quotient_gpu;
-    use crate::stark::quotient::quotient_values;
-    use crate::utils::init_tracer;
-    use crate::{device::memory::ToDevice, matrix::RowMajorMatrixDevice};
+    use crate::{
+        cuda_runtime::ffi::DEFAULT_STREAM,
+        device::memory::{ToDevice, ToHost},
+        matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
+        stark::{ffi::quotient_gpu, quotient::quotient_values},
+        utils::init_tracer,
+    };
 
     type F = BabyBear;
     const D: usize = 4;
@@ -447,15 +446,20 @@ mod tests {
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
-            let permutation_challenges = vec![EF::one(), EF::two()];
-            let perm =
+            let permutation_challenges =
+                vec![EF::one(), EF::two(), EF::two() + EF::one(), EF::two() + EF::two()];
+            let packed_permutation_challenges = permutation_challenges
+                .iter()
+                .map(|c| PackedChallenge::<SC>::from_f(*c))
+                .collect::<Vec<_>>();
+            let (perm, global_cumulative_sum, local_cumulative_sum) =
                 chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
 
             let degree = main.height();
             let log_degree = log2_strict_usize(degree);
             let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
-            let cumulative_sum = perm.row_slice(main.height() - 1).last().copied().unwrap();
+            let cumulative_sums = vec![global_cumulative_sum, local_cumulative_sum];
 
             // Calculate evaluations on quotient domain.
 
@@ -506,13 +510,13 @@ mod tests {
             let start = std::time::Instant::now();
             let result = quotient_values::<BabyBearPoseidon2, _, _>(
                 chip,
-                cumulative_sum,
+                &cumulative_sums,
                 trace_domain,
                 quotient_domain,
-                preprocessed_trace_on_quotient_domain.clone(),
+                Some(preprocessed_trace_on_quotient_domain.clone()),
                 main_trace_on_quotient_domain.clone(),
                 permutation_trace_on_quotient_domain.clone(),
-                &permutation_challenges,
+                &packed_permutation_challenges,
                 alpha,
                 &public_values,
             );
@@ -555,6 +559,7 @@ mod tests {
             .to_column_major();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
+            let cumulative_sums_device = cumulative_sums.to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -571,7 +576,7 @@ mod tests {
                     operations_device.as_ptr(),
                     operations.len(),
                     expr_ctr,
-                    cumulative_sum,
+                    cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),

@@ -11,7 +11,7 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
-const MAX_SHARD_SIZE: usize = 1 << 22;
+const MAX_SHARD_SIZE: usize = 1 << 21;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -59,76 +59,193 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 mod tests {
     use std::env;
 
+    use crate::{components::GpuProverComponents, gpu_prover_opts};
     use moongate_core::utils::init_tracer;
-    use sp1_core_machine::utils::tests::FIBONACCI_ELF;
-    use sp1_prover::tests::test_e2e_prover;
-    use sp1_prover::tests::Test;
 
-    use crate::components::GpuProverComponents;
-    use crate::gpu_prover_opts;
+    use serial_test::serial;
+    use sp1_core_machine::{
+        io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
+    };
+    use sp1_prover::{
+        tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
+        SP1Prover,
+    };
+    use sp1_stark::ProofShape;
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
 
     const RETH_ELF: &[u8] = include_bytes!("../../perf/programs/reth/riscv32im-succinct-zkvm-elf");
 
+    const KEYSPACE_RECORD_ELF: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-record/riscv32im-succinct-zkvm-elf");
+
+    const KEYSPACE_RECORD_INPUT: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-record/stdin.bin");
+
+    const KEYSPACE_BATCH_ELF: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-batcher/riscv32im-succinct-zkvm-elf");
+
+    const KEYSPACE_BATCH_INPUT: &[u8] =
+        include_bytes!("../../perf/programs/keyspace-batcher/stdin.bin");
+
     #[test]
+    #[serial]
     fn test_gpu_prover_opts() {
         let opts = gpu_prover_opts();
         println!("{:?}", opts);
     }
 
     #[test]
+    #[serial]
     fn test_e2e_fibonacci() {
         let elf = FIBONACCI_ELF;
         init_tracer();
 
-        if env::var("FRI_QUERIES").is_err() {
-            env::set_var("FRI_QUERIES", "1");
-        }
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    #[serial]
+    fn test_e2e_tendermint() {
+        let elf = TENDERMINT_BENCHMARK_ELF;
+        init_tracer();
 
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Shrink).unwrap()
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    #[serial]
+    #[ignore]
+    fn test_e2e_reth() {
+        let elf = RETH_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = SP1Stdin::new();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin, opts, Test::Wrap).unwrap()
+    }
+
+    #[test]
+    #[serial]
+    #[ignore]
+    fn test_e2e_keyspace_record() {
+        let elf = KEYSPACE_RECORD_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = bincode::deserialize::<SP1Stdin>(KEYSPACE_RECORD_INPUT).unwrap();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
+            .unwrap();
+    }
+
+    #[test]
+    #[ignore]
+    fn test_e2e_keyspace_batcher() {
+        let elf = KEYSPACE_BATCH_ELF;
+        init_tracer();
+
+        let opts = gpu_prover_opts();
+        let stdin = bincode::deserialize::<SP1Stdin>(KEYSPACE_BATCH_INPUT).unwrap();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, stdin.clone(), opts, Test::Wrap)
+            .unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn test_deferred_e2e() {
+        init_tracer();
+        let opts = gpu_prover_opts();
+        test_e2e_with_deferred_proofs_prover::<GpuProverComponents>(opts).unwrap()
     }
 
     fn test_core_elf(elf: &[u8]) {
         init_tracer();
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Core).unwrap()
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, Test::Core)
+            .unwrap()
     }
 
     fn test_compress_elf(elf: &[u8]) {
         init_tracer();
         let opts = gpu_prover_opts();
-        test_e2e_prover::<GpuProverComponents>(elf, opts, Test::Compress).unwrap()
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        test_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, Test::Compress)
+            .unwrap()
+    }
+
+    fn bench_elf(elf: &[u8], kind: Test) {
+        init_tracer();
+        let opts = gpu_prover_opts();
+        let prover = SP1Prover::<GpuProverComponents>::new();
+        bench_e2e_prover::<GpuProverComponents>(&prover, elf, SP1Stdin::new(), opts, kind).unwrap()
     }
 
     #[test]
+    #[serial]
     fn test_core_fibonacci() {
         test_core_elf(FIBONACCI_ELF);
     }
 
     #[test]
+    #[serial]
+    #[ignore]
+    fn bench_core_fibonacci() {
+        bench_elf(FIBONACCI_ELF, Test::Core);
+    }
+
+    #[test]
+    #[serial]
     #[ignore]
     fn test_compress_tendermint() {
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
     }
 
     #[test]
+    #[serial]
     #[ignore]
-    fn test_core_tendermint() {
-        test_core_elf(TENDERMINT_BENCHMARK_ELF);
+    fn bench_compress_tendermint() {
+        bench_elf(TENDERMINT_BENCHMARK_ELF, Test::Compress);
     }
 
     #[test]
+    #[serial]
     #[ignore]
-    fn test_core_reth() {
-        test_core_elf(RETH_ELF);
+    fn bench_core_reth() {
+        bench_elf(RETH_ELF, Test::Core);
     }
 
     #[test]
+    #[serial]
     #[ignore]
-    fn test_compress_reth() {
-        test_compress_elf(RETH_ELF);
+    fn bench_compress_reth() {
+        bench_elf(RETH_ELF, Test::Compress);
+    }
+
+    #[test]
+    #[serial]
+    fn test_shapes() {
+        init_tracer();
+
+        env::set_var("FIX_CORE_SHAPES", "true");
+        env::set_var("FIX_RECURSION_SHAPES", "true");
+        let prover = SP1Prover::<GpuProverComponents>::new();
+
+        let shape_config = prover.core_shape_config.as_ref().unwrap();
+
+        for (i, shape) in shape_config.maximal_core_shapes().into_iter().enumerate() {
+            tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
+            try_generate_dummy_proof(&prover.core_prover, &shape);
+        }
     }
 }
