@@ -100,8 +100,7 @@ ComputeEqHadamard(T* point, T* in, size_t n_low, size_t n_high) {
     }
 }
 
-__global__ void
-BaseSumKernel(const bb31_t* in, bb31_t* out, size_t n) {
+__global__ void BaseSumKernel(const bb31_t* in, bb31_t* out, size_t n) {
     extern __shared__ bb31_t sdata_base[];
 
     unsigned int tid = threadIdx.x;
@@ -193,20 +192,19 @@ __global__ void ExtensionSumKernel(
 
     // Load input into shared memory, performing 1<<n_high loads per thread.
     unsigned int segment = blockDim.x * blockIdx.x;
-    unsigned int i = segment + threadIdx.x;
 
-    if (i < n) {
-        sdata_extension[tid] = in[i];
-    } else {
-        sdata_extension[tid] =
-            bb31_extension_t(0);  // Zero initialization for padding
+    sdata_extension[tid] = bb31_extension_t::zero();
+
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n;
+         i += blockDim.x * gridDim.x) {
+        sdata_extension[tid] += in[i];
     }
 
     __syncthreads();
 
     // Perform block-wise reduction in shared memory
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s && i + s < n) {
+        if (tid < s) {
             sdata_extension[tid] =
                 sdata_extension[tid] + sdata_extension[tid + s];
         }
@@ -231,17 +229,17 @@ void extension_cuda_sum_host_function(
     const size_t block_dim = 512;
 
     size_t num_rounds =
-        (size_t)ceil(log2((double)n + 1) / log2((double)block_dim));
+        (size_t)ceil(log2((double)n) / log2((double)block_dim));
 
     // Allocate temporary buffer
     cudaMalloc(&temp_d, n * sizeof(bb31_extension_t));
 
-    for (size_t i = 0; i < num_rounds - 1; i++) {
+    for (size_t i = 0; i < num_rounds; i++) {
         size_t num_blocks = (new_size + block_dim - 1) / block_dim;
         size_t result_size = num_blocks;
 
         // Allocate result buffer
-        cudaMalloc(&result_d, result_size * sizeof(bb31_extension_t));
+        cudaMallocAsync(&result_d, result_size * sizeof(bb31_extension_t), stream);
 
         // Call the CUDA kernel
         ExtensionSumKernel<<<
@@ -253,7 +251,7 @@ void extension_cuda_sum_host_function(
         cudaStreamSynchronize(stream);
 
         // Swap pointers for next iteration
-        cudaFree(temp_d);
+        cudaFreeAsync(temp_d, stream);
         temp_d = result_d;
 
         new_size = result_size;
@@ -270,7 +268,7 @@ void extension_cuda_sum_host_function(
     cudaStreamSynchronize(stream);
 
     // Clean up
-    cudaFree(temp_d);
+    cudaFreeAsync(temp_d, stream);
 }
 
 template<typename T>
