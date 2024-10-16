@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn test_baby_bear_extension_eq() {
-        let n = 28;
+        let n = 27;
         let num_repetitions = 1;
         let mut output = DeviceBuffer::<EF>::with_capacity(1 << n).unwrap();
         let mut rng = thread_rng();
@@ -386,7 +386,7 @@ mod tests {
             let a_d = a.to_device().unwrap();
             a_d.stream().synchronize().unwrap();
             let now = std::time::Instant::now();
-            let mut result: Vec<EF> = vec![EF::zero(); 512];
+            let mut result: Vec<EF> = vec![EF::zero(); 1];
 
             unsafe {
                 ffi::sum_baby_bear_vec_challenge(
@@ -399,6 +399,7 @@ mod tests {
 
             let out_sum = result.into_iter().sum();
 
+            a_d.stream().synchronize().unwrap();
             let elapsed = now.elapsed();
             drop(a_d);
             println!("Cuda sum took  for log height {} took {:?}", power, elapsed);

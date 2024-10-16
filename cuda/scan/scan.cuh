@@ -59,6 +59,39 @@ ComputeEqPolyVal(size_t i, T* point, size_t n_variables) {
     return result;
 }
 
+template<typename T>
+__device__ __forceinline__ T*
+ComputeEqPolyValBlock(T* d_out, T* point, size_t n_variables) {
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < 1 << n_variables) {
+        d_out[threadIdx.x] = ComputeEqPolyVal(index, point, n_variables);
+    }
+}
+
+__global__ void MultEvalKernelFirstRound(
+    bb31_extension_t* out,
+    bb31_extension_t* point,
+    bb31_extension_t* in,
+    size_t n_variables
+) {
+    extern __shared__ bb31_extension_t eq_block[];
+    ComputeEqPolyValBlock(eq_block, point, n_variables);
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t tid = threadIdx.x;
+    if (index < 1 << n_variables) {
+        eq_block[tid] = eq_block[tid] * in[index];
+    }
+    __syncthreads();
+
+    // Perform block-wise reduction in shared memory
+    BlockSum(eq_block, blockDim.x);
+
+    // Write the result for this block to global memory
+    if (tid == 0) {
+        out[blockIdx.x] = eq_block[0];
+    }
+}
+
 template<typename T, typename S, typename R>
 __global__ void
 HadamardProduct(const T* a, const S* b, R* c, size_t n_low, size_t n_high) {
@@ -181,17 +214,23 @@ void base_cuda_sum_host_function(
     cudaFree(temp_d);
 }
 
-// Kernel function
-__global__ void ExtensionSumKernel(
-    const bb31_extension_t* in,
-    bb31_extension_t* out,
-    size_t n
-) {
-    extern __shared__ bb31_extension_t sdata_extension[];
+__device__ __forceinline__ void
+BlockSum(bb31_extension_t* in, size_t blockSize) {
+    // Perform block-wise reduction in shared memory
     unsigned int tid = threadIdx.x;
+    for (unsigned int s = blockSize / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            in[tid] = in[tid] + in[tid + s];
+        }
+        __syncthreads();
+    }
+}
 
-    // Load input into shared memory, performing 1<<n_high loads per thread.
+__device__ __forceinline__ void
+LoadIntoShared(const bb31_extension_t* in, bb31_extension_t* sdata_extension, size_t n) {
+    // Load input into shared memory.
     unsigned int segment = blockDim.x * blockIdx.x;
+    unsigned int tid = threadIdx.x;
 
     sdata_extension[tid] = bb31_extension_t::zero();
 
@@ -201,15 +240,22 @@ __global__ void ExtensionSumKernel(
     }
 
     __syncthreads();
+}
+
+// Kernel function
+__global__ void ExtensionSumKernel(
+    const bb31_extension_t* in,
+    bb31_extension_t* out,
+    size_t n
+) {
+    extern __shared__ bb31_extension_t sdata_extension[];
+    unsigned int tid = threadIdx.x;
+
+    // Load input into shared memory
+    LoadIntoShared(in, sdata_extension, n);
 
     // Perform block-wise reduction in shared memory
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) {
-            sdata_extension[tid] =
-                sdata_extension[tid] + sdata_extension[tid + s];
-        }
-        __syncthreads();
-    }
+    BlockSum(sdata_extension, blockDim.x);
 
     // Write the result for this block to global memory
     if (tid == 0) {
@@ -228,18 +274,24 @@ void extension_cuda_sum_host_function(
     bb31_extension_t *result_d, *temp_d;
     const size_t block_dim = 512;
 
-    size_t num_rounds =
-        (size_t)ceil(log2((double)n) / log2((double)block_dim));
+    const size_t grid_batch_factor = 4;
+
+    size_t num_rounds = (size_t)ceil(log2((double)n) / log2((double)block_dim));
 
     // Allocate temporary buffer
     cudaMalloc(&temp_d, n * sizeof(bb31_extension_t));
 
     for (size_t i = 0; i < num_rounds; i++) {
-        size_t num_blocks = (new_size + block_dim - 1) / block_dim;
+        size_t num_blocks =
+            ((new_size + block_dim - 1) / block_dim - 1) / grid_batch_factor + 1;
         size_t result_size = num_blocks;
 
         // Allocate result buffer
-        cudaMallocAsync(&result_d, result_size * sizeof(bb31_extension_t), stream);
+        cudaMallocAsync(
+            &result_d,
+            result_size * sizeof(bb31_extension_t),
+            stream
+        );
 
         // Call the CUDA kernel
         ExtensionSumKernel<<<
@@ -271,27 +323,17 @@ void extension_cuda_sum_host_function(
     cudaFreeAsync(temp_d, stream);
 }
 
-template<typename T>
 void extension_multilinear_eval(
     bb31_extension_t* out,
     bb31_extension_t* point,
-    T* in,
+    bb31_extension_t* in,
     size_t n_low,
     size_t n_high,
     cudaStream_t stream
 ) {
     size_t block_dim = 512;
-    size_t num_blocks = ceil((1 << (n_low)) / (float)block_dim);
-    size_t n = 1 << (n_low + n_high);
+    size_t num_after_first_round = ceil((1 << (n_low + n_high)) / (float)block_dim);
 
-    ComputeEqHadamard<<<num_blocks, block_dim, 0, stream>>>(
-        point,
-        in,
-        n_low,
-        n_high
-    );
-
-    num_blocks = ceil(n / (float)block_dim);
 
     cudaStreamSynchronize(stream);
 
