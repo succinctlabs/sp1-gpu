@@ -1,9 +1,11 @@
 // Copyright Supranational LLC
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
+#pragma once
 
 #ifndef __SPPARK_FF_BB31_T_CUH__
 #define __SPPARK_FF_BB31_T_CUH__
+
 
 # include <cstdint>
 
@@ -43,11 +45,8 @@ public:
     inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}
 
     static inline bb31_t from_canonical_u32(uint32_t n) { return bb31_t((uint32_t)(((uint64_t)n << 32) % MOD)); }
-
     static inline bb31_t from_canonical_u16(uint16_t n) { return from_canonical_u32(n); };
-
     static inline bb31_t from_canonical_u8(uint8_t n) { return from_canonical_u32(n); };
-
     static inline bb31_t from_bool(bool b) { return from_canonical_u32(b); };
 
     inline operator uint32_t() const        { return mul_by_1(); }
@@ -402,79 +401,208 @@ public:
 #  undef asm
 // # endif // __CUDA__ARCH__
 
-#else 
-// Just a definition to make the code compile, does not give correct results.
-// typedef uint32_t bb31_t;
+#else
 
-#  if defined(__GNUC__) || defined(__clang__)
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wunused-parameter"
-#  endif
-
-class bb31_t {
-    static const uint32_t M = 0x77ffffff;
-public:
-    using mem_t = bb31_t;
+struct bb31_t {
     uint32_t val;
-    static const uint32_t degree = 1;
-    static const uint32_t nbits = 31;
-    static const uint32_t MOD = 0x78000001;
 
-    inline bb31_t()                     {}
-    inline bb31_t(uint32_t a) : val(a)  {}
+    static const uint32_t MOD = 0x78000001u;
+    static const uint32_t MONTY_BITS = 32;
+    static const uint32_t MONTY_MU = 0x88000001;
+    static const uint32_t MONTY_MASK = ((1ULL << MONTY_BITS) - 1);
+
+    // bb31_t();
+    // explicit bb31_t(uint32_t n);
+
+    inline bb31_t() {}
+
+    inline bb31_t(uint32_t a) : val(a) {}
+
     // this is used in constant declaration, e.g. as bb31_t{11}
-    inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}
+    inline constexpr bb31_t(int a) : val(((uint64_t)a << MONTY_BITS) % MOD) {}
 
-    static inline const bb31_t one()                { return bb31_t(1); }
-    inline bb31_t& operator+=(bb31_t b)             { return *this;     }
-    inline bb31_t& operator-=(bb31_t b)             { return *this;     }
-    inline bb31_t& operator*=(bb31_t b)             { return *this;     }
-    inline bb31_t& operator^=(int b)                { return *this;     }
-    inline bb31_t& sqr()                            { return *this;     }
-    friend bb31_t operator+(bb31_t a, bb31_t b)     { return a += b;    }
-    friend bb31_t operator-(bb31_t a, bb31_t b)     { return a -= b;    }
-    friend bb31_t operator*(bb31_t a, bb31_t b)     { return a *= b;    }
-    friend bb31_t operator^(bb31_t a, uint32_t b)   { return a ^= b;    }
-    inline void zero()                              { val = 0;          }
-    inline bool is_zero() const                     { return val==0;    }
-    inline bb31_t& operator<<=(uint32_t l)
-    {
+    inline bb31_t square() const {
+        return *this * *this;
+    }
+
+    inline bb31_t exp_power_of_2(uintptr_t log_power) const {
+        bb31_t result = *this;
+        for (uintptr_t i = 0; i < log_power; ++i) {
+            result = result.square();
+        }
+        return result;
+    }
+
+    /// @brief Interprets a bb31_t field element as a canonical u32 value.
+    /// @return The value of the element in canonical u32 form.
+    inline uint32_t as_canonical_u32() const {
+        return from_monty(val);
+    }
+
+    /// @brief Adds two bb31_t field elements together.
+    inline bb31_t& operator+=(const bb31_t b) {
+        val += b.val;
+        if (val >= MOD)
+            val -= MOD;
+        return *this;
+    }
+
+    friend inline bb31_t operator+(bb31_t a, const bb31_t b) {
+        return a += b;
+    }
+
+    /// @brief Subtracts one bb31_t field element from another.
+    inline bb31_t& operator-=(const bb31_t b) {
+        if (val < b.val)
+            val += MOD;
+        val -= b.val;
+        return *this;
+    }
+
+    friend inline bb31_t operator-(bb31_t a, const bb31_t b) {
+        return a -= b;
+    }
+
+    /// @brief Multiplies two bb31_t field elements together using Montgomery multiplication.
+    inline bb31_t& operator*=(const bb31_t b) {
+        uint64_t long_prod = (uint64_t)val * (uint64_t)b.val;
+        val = monty_reduce(long_prod);
+        return *this;
+    }
+
+    friend inline bb31_t operator*(bb31_t a, const bb31_t b) {
+        return a *= b;
+    }
+
+    /// @brief Inverts a bb31_t field element using the BabyStep-GiantStep algorithm.
+    /// @return `value^-1`
+    inline bb31_t reciprocal() const {
+        bb31_t p1 = *this;
+        bb31_t p100000000 = p1.exp_power_of_2(8);
+        bb31_t p100000001 = p100000000 * p1;
+        bb31_t p10000000000000000 = p100000000.exp_power_of_2(8);
+        bb31_t p10000000100000001 = p10000000000000000 * p100000001;
+        bb31_t p10000000100000001000 = p10000000100000001.exp_power_of_2(3);
+        bb31_t p1000000010000000100000000 =
+            p10000000100000001000.exp_power_of_2(5);
+        bb31_t p1000000010000000100000001 = p1000000010000000100000000 * p1;
+        bb31_t p1000010010000100100001001 =
+            p1000000010000000100000001 * p10000000100000001000;
+        bb31_t p10000000100000001000000010 =
+            p1000000010000000100000001.square();
+        bb31_t p11000010110000101100001011 =
+            p10000000100000001000000010 * p1000010010000100100001001;
+        bb31_t p100000001000000010000000100 =
+            p10000000100000001000000010.square();
+        bb31_t p111000011110000111100001111 =
+            p100000001000000010000000100 * p11000010110000101100001011;
+        bb31_t p1110000111100001111000011110000 =
+            p111000011110000111100001111.exp_power_of_2(4);
+        bb31_t p1110111111111111111111111111111 =
+            p1110000111100001111000011110000 * p111000011110000111100001111;
+
+        return p1110111111111111111111111111111;
+    }
+
+    /// @brief Divides one bb31_t field element by another.
+    friend inline bb31_t operator/(bb31_t a, bb31_t b) {
+        return a * b.reciprocal();
+    }
+
+    inline bb31_t& operator/=(const bb31_t a) {
+        return *this *= a.reciprocal();
+    }
+
+    inline bb31_t& operator^=(uint32_t p) {
+        bb31_t sqr = *this;
+        if ((p & 1) == 0) 
+            *this = one();
+        while (p >>= 1)
+        {
+            sqr = sqr.square();
+            if (p & 1)
+                *this *= sqr;
+        }
+        return *this;
+    }
+
+    friend inline bb31_t operator^(bb31_t a, uint32_t b) {
+        return a ^= b;
+    }
+
+    /// @brief Checks if two bb31_t field elements are equal.
+    /// @param rhs
+    /// @return `true` if the elements are equal, `false` otherwise.
+    inline bool operator==(const bb31_t rhs) const {
+        return val == rhs.val;
+    }
+
+    inline bb31_t& operator<<=(uint32_t l) {
         while (l--) {
             val <<= 1;
-            if (val >= MOD) val -= MOD;
+            if (val >= MOD)
+                val -= MOD;
         }
 
         return *this;
     }
-    friend inline bb31_t operator<<(bb31_t a, uint32_t l)
-    {   return a <<= l;   }
 
-    inline bb31_t& operator>>=(uint32_t r)
-    {
-        while (r--) {
-            val += val&1 ? MOD : 0;
-            val >>= 1;
-        }
-
-        return *this;
+    friend inline bb31_t operator<<(bb31_t a, uint32_t l) {
+        return a <<= l;
     }
-    inline operator uint32_t() const
-    {   return ((val*M)*(uint64_t)MOD + val) >> 32;  }
-    inline void to()    { val = ((uint64_t)val<<32) % MOD;  }
-    inline void from()  { val = *this; }
 
-    inline bb31_t reciprocal() const { return *this; }
-// #  if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_) // non-standard
-//     friend std::ostream& operator<<(std::ostream& os, const bb31_t& obj)
-//     {
-//         auto f = os.flags();
-//         os << "0x" << std::hex << (uint32_t)obj;
-//         os.flags(f);
-//         return os;
-//     }
-// #  endif
+    inline static uint32_t to_monty(uint32_t x) {
+        return (((uint64_t)x << MONTY_BITS) % MOD);
+    }
+
+    inline static uint32_t from_monty(uint32_t x) {
+        return monty_reduce((uint64_t)x);
+    }
+
+    inline static uint32_t monty_reduce(uint64_t x) {
+        uint64_t t = (x * (uint64_t)MONTY_MU) & (uint64_t)MONTY_MASK;
+        uint64_t u = t * (uint64_t)MOD;
+        uint64_t x_sub_u = x - u;
+        bool over = x < u;  // Check for overflow.
+        uint32_t x_sub_u_hi = (uint32_t)(x_sub_u >> MONTY_BITS);
+        uint32_t corr = over ? MOD : 0;
+        return x_sub_u_hi + corr;
+    }
+
+    /// These functions create a bb31_t field element in Montgomery form from canonical values.
+
+    inline static bb31_t from_canonical_u32(uint32_t n) {
+        // assert(n < MOD);
+        return bb31_t(to_monty(n));
+    }
+
+    inline static bb31_t from_canonical_u16(uint16_t n) {
+        return from_canonical_u32((uint32_t)n);
+    }
+
+    inline static bb31_t from_canonical_u8(uint8_t n) {
+        return from_canonical_u32((uint32_t)n);
+    }
+
+    inline static bb31_t from_bool(bool b) {
+        // Implementation differs from Plonky3.
+        // Uses the fact that 0 is encoded as 0 in Montgomery form.
+        return bb31_t(b * bb31_t::one().val);
+    }
+
+    /// These are useful constants in the bb31_t field.
+    inline static bb31_t zero() {
+        return bb31_t::from_canonical_u32(0);
+    }
+
+    inline static bb31_t one() {
+        return bb31_t::from_canonical_u32(1);
+    }
+
+    inline static bb31_t two() {
+        return bb31_t::from_canonical_u32(2);
+    }
 };
-
 
 #endif // __CUDA__ARCH__
 
