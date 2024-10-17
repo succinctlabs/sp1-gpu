@@ -2,13 +2,13 @@ use crate::matrix::MatrixViewDevice;
 use crate::merkle_tree::FieldMerkleTreeHasher;
 use p3_baby_bear::BabyBear;
 
-use poseidon2_baby_bear_16_kernels::DIGEST_WIDTH;
-use poseidon2_baby_bear_16_kernels::WIDTH;
+use poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH;
+use poseidon2_baby_bear_16_kernels::BB31_WIDTH;
 
 pub struct DeviceHasherBabyBear {}
 
 impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
-    type Digest = [BabyBear; DIGEST_WIDTH];
+    type Digest = [BabyBear; BB31_DIGEST_WIDTH];
 
     unsafe fn first_digest_layer(
         &self,
@@ -57,8 +57,8 @@ impl DeviceHasherBabyBear {
     /// # Safety
     pub unsafe fn permute(
         &self,
-        input: *const [BabyBear; WIDTH],
-        output: *mut [BabyBear; WIDTH],
+        input: *const [BabyBear; BB31_WIDTH],
+        output: *mut [BabyBear; BB31_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -75,9 +75,9 @@ impl DeviceHasherBabyBear {
     /// # Safety
     pub unsafe fn compress(
         &self,
-        left: *const [BabyBear; DIGEST_WIDTH],
-        right: *const [BabyBear; DIGEST_WIDTH],
-        output: *mut [BabyBear; DIGEST_WIDTH],
+        left: *const [BabyBear; BB31_DIGEST_WIDTH],
+        right: *const [BabyBear; BB31_DIGEST_WIDTH],
+        output: *mut [BabyBear; BB31_DIGEST_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -97,7 +97,7 @@ impl DeviceHasherBabyBear {
         &self,
         input: *const BabyBear,
         n_input: usize,
-        output: *mut [BabyBear; DIGEST_WIDTH],
+        output: *mut [BabyBear; BB31_DIGEST_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -119,26 +119,24 @@ pub mod poseidon2_baby_bear_16_kernels {
 
     pub const ROUNDS_F: usize = 8;
     pub const ROUNDS_P: usize = 13;
-    pub const WIDTH: usize = 16;
+    pub const BB31_WIDTH: usize = 16;
     pub const RATE: usize = 8;
-    pub const DIGEST_WIDTH: usize = 8;
+    pub const BB31_DIGEST_WIDTH: usize = 8;
     pub const D_U64: u64 = 7;
 
-    #[allow(unused_attributes)]
-    #[link_name = "poseidon2_baby_bear_16_gpu"]
     extern "C" {
         pub fn permute_baby_bear(
-            input: *const [BabyBear; WIDTH],
-            output: *mut [BabyBear; WIDTH],
+            input: *const [BabyBear; BB31_WIDTH],
+            output: *mut [BabyBear; BB31_WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
 
         pub fn compress_baby_bear(
-            left: *const [BabyBear; DIGEST_WIDTH],
-            right: *const [BabyBear; DIGEST_WIDTH],
-            output: *mut [BabyBear; DIGEST_WIDTH],
+            left: *const [BabyBear; BB31_DIGEST_WIDTH],
+            right: *const [BabyBear; BB31_DIGEST_WIDTH],
+            output: *mut [BabyBear; BB31_DIGEST_WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
@@ -147,28 +145,26 @@ pub mod poseidon2_baby_bear_16_kernels {
         pub fn hash_baby_bear(
             input: *const BabyBear,
             n_input: usize,
-            output: *mut [BabyBear; DIGEST_WIDTH],
+            output: *mut [BabyBear; BB31_DIGEST_WIDTH],
             n: usize,
             n_blocks: usize,
             n_threads_per_block: usize,
         );
     }
 
-    #[allow(unused_attributes)]
-    #[link_name = "merkle_tree_baby_bear_16_gpu"]
     extern "C" {
         pub fn first_digest_layer_baby_bear(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
-            digests: *mut [BabyBear; DIGEST_WIDTH],
+            digests: *mut [BabyBear; BB31_DIGEST_WIDTH],
             max_height: usize,
         );
 
         pub fn compress_and_inject_baby_bear(
-            prev_layer: *const [BabyBear; DIGEST_WIDTH],
+            prev_layer: *const [BabyBear; BB31_DIGEST_WIDTH],
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
-            next_digests: *mut [BabyBear; DIGEST_WIDTH],
+            next_digests: *mut [BabyBear; BB31_DIGEST_WIDTH],
             layer_len: usize,
         );
     }

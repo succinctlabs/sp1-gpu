@@ -1,59 +1,63 @@
-#include "exception.cuh"
+#pragma once
 
 #include <cuda_runtime.h>
 
-extern "C" rustCudaError_t cuda_malloc(void **devPtr, size_t size) {
-    CUDA_OK(cudaMalloc(devPtr, size));
+#include "exception.cuh"
+#include "moongate_cuda_cbindgen.hpp"
+
+namespace moongate {
+
+CudaRustError cuda_malloc(void** ptr, uintptr_t size) {
+    CUDA_OK(cudaMalloc(ptr, size));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_malloc_host(void **devPtr, size_t size) {
-    CUDA_OK(cudaMallocHost(devPtr, size));
+CudaRustError cuda_malloc_host(void** ptr, uintptr_t size) {
+    CUDA_OK(cudaMallocHost(ptr, size));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_host_register(void *hostPtr, size_t size) {
-    CUDA_OK(cudaHostRegister(hostPtr, size, cudaHostRegisterDefault));
+CudaRustError cuda_host_register(void* ptr, uintptr_t size) {
+    CUDA_OK(cudaHostRegister(ptr, size, cudaHostRegisterDefault));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_free(void *devPtr) {
-    CUDA_OK(cudaFree(devPtr));
+CudaRustError cuda_free(void* ptr) {
+    CUDA_OK(cudaFree(ptr));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_free_host(void *devPtr) {
-    CUDA_OK(cudaFreeHost(devPtr));
+CudaRustError cuda_free_host(void* ptr) {
+    CUDA_OK(cudaFreeHost(ptr));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_host_unregister(void *hostPtr) {
-    CUDA_OK(cudaHostUnregister(hostPtr));
+CudaRustError cuda_host_unregister(void* ptr) {
+    CUDA_OK(cudaHostUnregister(ptr));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_get_info(size_t *free, size_t *total) {
+CudaRustError cuda_mem_get_info(uintptr_t* free, uintptr_t* total) {
     CUDA_OK(cudaMemGetInfo(free, total));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_host_to_device(void *dst,
-                                                        const void *src,
-                                                        size_t count) {
-    CUDA_OK(cudaMemcpy(dst, src, count, cudaMemcpyHostToDevice));
+CudaRustError
+cuda_mem_copy_host_to_device(void* dst, const void* src, uintptr_t size) {
+    CUDA_OK(cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_device_to_host(void *dst,
-                                                        const void *src,
-                                                        size_t count) {
-    CUDA_OK(cudaMemcpy(dst, src, count, cudaMemcpyDeviceToHost));
+CudaRustError
+cuda_mem_copy_device_to_host(void* dst, const void* src, uintptr_t size) {
+    CUDA_OK(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_device_to_device(void *dst,
-                                                          const void *src,
-                                                          size_t count) {
-    CUDA_OK(cudaMemcpy(dst, src, count, cudaMemcpyDeviceToDevice));
+CudaRustError
+cuda_mem_copy_device_to_device(void* dst, const void* src, uintptr_t size) {
+    CUDA_OK(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice));
     return CUDA_SUCCESS_MOON;
 }
+
+}  // namespace moongate

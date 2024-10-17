@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../quotient/utils.cuh"
+
 template <typename Val, typename Challenge, size_t N>
 struct ConstraintFolder {
    public:

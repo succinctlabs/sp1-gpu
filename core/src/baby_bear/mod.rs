@@ -16,13 +16,13 @@ mod ffi {
 
     extern "C" {
         pub fn scan_baby_bear(
-            a: *const F,
+            a: *mut F,
             b: *const F,
             n: usize,
             stream: CudaStreamHandle,
         ) -> CudaRustError;
         pub fn scan_baby_bear_challenge(
-            a: *const EF,
+            a: *mut EF,
             b: *const EF,
             n: usize,
             stream: CudaStreamHandle,

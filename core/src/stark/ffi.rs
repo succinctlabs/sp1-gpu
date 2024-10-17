@@ -33,10 +33,7 @@ pub(super) mod quotient_gpu {
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
-    #[link_name = "quotient_gpu"]
-    #[allow(unused_attributes)]
     extern "C" {
-        #[link_name = "computeValues"]
         #[allow(unused)]
         pub fn compute_values(
             eval_program: *const Operation,

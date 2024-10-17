@@ -798,11 +798,8 @@ pub mod opening_gpu {
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
 
-    #[link_name = "opening_gpu"]
-    #[allow(unused_attributes)]
     extern "C" {
 
-        #[link_name = "shiftedPowers"]
         pub fn shifted_powers_raw(
             block_powers: *const F,
             shift: EF,
@@ -812,7 +809,6 @@ pub mod opening_gpu {
             num_blocks: usize,
         );
 
-        #[link_name = "computeInverseDenominators"]
         pub fn compute_inverse_denominators(
             max_rows: usize,
             num_points: usize,
@@ -825,7 +821,6 @@ pub mod opening_gpu {
             inv_denoms: *mut EF,
         );
 
-        #[link_name = "interpolateCosets"]
         pub fn interpolate_cosets_raw(
             polys_evals: *const *const BabyBear,
             num_polys: usize,
@@ -838,7 +833,6 @@ pub mod opening_gpu {
             output: *mut EF,
         );
 
-        #[link_name = "computeReducedOpenings"]
         pub fn compute_reduced_openings(
             mats: *const MatrixViewDevice<F>,
             log_heights: *const usize,
@@ -854,7 +848,6 @@ pub mod opening_gpu {
             reduced_openings: *mut EF,
         );
 
-        #[link_name = "ReduceSums"]
         pub fn reduce_sums(
             log_heights: *const usize,
             max_height: usize,
@@ -865,10 +858,8 @@ pub mod opening_gpu {
             num_points: usize,
         );
 
-        #[link_name = "numBlocksSums"]
         pub fn num_block_sums(max_height: usize) -> usize;
 
-        #[link_name = "calculateOpenings"]
         pub fn calculate_openings(
             matrix_ptr: *const MatrixViewDevice<F>,
             width_offsets: *const usize,
@@ -882,7 +873,6 @@ pub mod opening_gpu {
             output: *mut F,
         );
 
-        #[link_name = "calculateProof"]
         pub fn calculate_proofs(
             query_indices: *const usize,
             log_max_heights: *const usize,
@@ -897,10 +887,8 @@ pub mod opening_gpu {
             field_id: usize,
         );
 
-        #[link_name = "batchMultiplicativeInverse"]
         pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
 
-        #[link_name = "foldEvenOdd"]
         pub fn fold_even_odd_raw(
             evaluations: MatrixViewDevice<F>,
             input_leaves: MatrixViewDevice<F>,

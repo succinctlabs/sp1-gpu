@@ -168,7 +168,7 @@ fn main() {
 
         // Use the `cc` crate to build the library and statically link it to the crate.
         let mut cc_builder = cc::Build::new();
-        cc_builder.cuda(true).flag("-default-stream=per-thread");
+        cc_builder.cuda(true).flag("-std=c++20").flag("-default-stream=per-thread");
         cc_builder.flag("-Xcompiler").flag("-fopenmp");
         cc_builder.flag("-Xptxas").flag("-suppress-stack-size-warning");
         // nvcc.flag("--threads").flag("14");
@@ -188,6 +188,7 @@ fn main() {
             .files(compilation_units.iter().map(DirEntry::path))
             .include(target_include_dir)
             .include(sp1tracegen_include_dir)
+            .std("c++20")
             .compile("moongate_cuda");
     }
 }

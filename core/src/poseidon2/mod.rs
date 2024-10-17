@@ -8,7 +8,7 @@ pub mod tests {
         use crate::device::memory::{ToDevice, ToHost};
         use crate::device::DeviceBuffer;
         use crate::poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{
-            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+            BB31_DIGEST_WIDTH, BB31_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P,
         };
         use crate::poseidon2::baby_bear::DeviceHasherBabyBear;
         use crate::poseidon2::constants::RC_16_30;
@@ -40,7 +40,7 @@ pub mod tests {
                 BabyBear,
                 Poseidon2ExternalMatrixGeneral,
                 DiffusionMatrixBabyBear,
-                WIDTH,
+                BB31_WIDTH,
                 D_U64,
             >::new(
                 ROUNDS_F,
@@ -54,9 +54,9 @@ pub mod tests {
 
         pub fn poseidon2_baby_bear_16_hasher() -> PaddingFreeSponge<
             Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
-            WIDTH,
+            BB31_WIDTH,
             RATE,
-            DIGEST_WIDTH,
+            BB31_DIGEST_WIDTH,
         > {
             let perm = poseidon2_baby_bear_16_perm();
             PaddingFreeSponge::new(perm)
@@ -126,25 +126,25 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n).map(|_| [rng.gen::<BabyBear>(); WIDTH]).collect::<Vec<_>>();
+            let input = (0..n).map(|_| [rng.gen::<BabyBear>(); BB31_WIDTH]).collect::<Vec<_>>();
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
-            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH).unwrap();
+            let mut output_device = DeviceBuffer::with_capacity(n * BB31_DIGEST_WIDTH).unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_baby_bear_16_perm();
             let mut gt = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let state: [BabyBear; WIDTH] = input[i];
+                let state: [BabyBear; BB31_WIDTH] = input[i];
                 gt.push(perm.permute(state));
             }
 
             // Execute the kernel.
             let hasher = DeviceHasherBabyBear::new();
             unsafe {
-                output_device.set_len(n * DIGEST_WIDTH);
+                output_device.set_len(n * BB31_DIGEST_WIDTH);
                 hasher.permute(
                     input_device.as_ptr(),
                     output_device.as_mut_ptr(),
@@ -172,10 +172,12 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let left = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
-            let right = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
-            let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
+            let left =
+                (0..n).map(|_| [rng.gen::<BabyBear>(); BB31_DIGEST_WIDTH]).collect::<Vec<_>>();
+            let right =
+                (0..n).map(|_| [rng.gen::<BabyBear>(); BB31_DIGEST_WIDTH]).collect::<Vec<_>>();
+            let mut output: Vec<[BabyBear; BB31_DIGEST_WIDTH]> = Vec::new();
+            output.resize(n, [BabyBear::zero(); BB31_DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let left_device = left.to_device().unwrap();
@@ -184,16 +186,16 @@ pub mod tests {
 
             // Execute the source implementation.
             let perm = poseidon2_baby_bear_16_perm();
-            let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
+            let mut gt: Vec<[BabyBear; BB31_DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let mut state = [BabyBear::zero(); WIDTH];
+                let mut state = [BabyBear::zero(); BB31_WIDTH];
                 #[allow(clippy::manual_memcpy)]
-                for j in 0..DIGEST_WIDTH {
+                for j in 0..BB31_DIGEST_WIDTH {
                     state[j] = left[i][j];
-                    state[j + DIGEST_WIDTH] = right[i][j];
+                    state[j + BB31_DIGEST_WIDTH] = right[i][j];
                 }
-                gt.push(perm.permute(state)[0..DIGEST_WIDTH].try_into().unwrap());
+                gt.push(perm.permute(state)[0..BB31_DIGEST_WIDTH].try_into().unwrap());
             }
 
             // Execute the kernel.
@@ -230,8 +232,8 @@ pub mod tests {
             // Generate the input data on the host.
             let input =
                 (0..n).flat_map(|_| [rng.gen::<BabyBear>(); N_INPUT].to_vec()).collect::<Vec<_>>();
-            let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
+            let mut output: Vec<[BabyBear; BB31_DIGEST_WIDTH]> = Vec::new();
+            output.resize(n, [BabyBear::zero(); BB31_DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -240,7 +242,7 @@ pub mod tests {
             // Execute the source implementation.
             let sponge = poseidon2_baby_bear_16_hasher();
 
-            let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
+            let mut gt: Vec<[BabyBear; BB31_DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
                 let data = input[i * N_INPUT..(i + 1) * N_INPUT].to_vec();
@@ -273,7 +275,7 @@ pub mod tests {
         use crate::device::memory::{ToDevice, ToHost};
         use crate::device::DeviceBuffer;
         use crate::poseidon2::bn254::poseidon2_bn254_3_kernels::{
-            DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+            BN254_DIGEST_WIDTH, BN254_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P,
         };
         use crate::poseidon2::bn254::{poseidon2_bn254_3_constants, DeviceHasherBn254};
         use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
@@ -289,7 +291,13 @@ pub mod tests {
         {
             let (internal_round_constants, external_round_constants, _) =
                 poseidon2_bn254_3_constants();
-            Poseidon2::<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, WIDTH, D_U64>::new(
+            Poseidon2::<
+                Bn254Fr,
+                Poseidon2ExternalMatrixGeneral,
+                DiffusionMatrixBN254,
+                BN254_WIDTH,
+                D_U64,
+            >::new(
                 ROUNDS_F,
                 external_round_constants,
                 Poseidon2ExternalMatrixGeneral,
@@ -301,9 +309,9 @@ pub mod tests {
 
         pub fn poseidon2_bn254_3_hasher() -> PaddingFreeSponge<
             Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
-            WIDTH,
+            BN254_WIDTH,
             RATE,
-            DIGEST_WIDTH,
+            BN254_DIGEST_WIDTH,
         > {
             let perm = poseidon2_bn254_3_perm();
             PaddingFreeSponge::new(perm)
@@ -330,25 +338,25 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let input = (0..n).map(|_| [rng.gen::<Bn254Fr>(); WIDTH]).collect::<Vec<_>>();
+            let input = (0..n).map(|_| [rng.gen::<Bn254Fr>(); BN254_WIDTH]).collect::<Vec<_>>();
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
-            let mut output_device = DeviceBuffer::with_capacity(n * DIGEST_WIDTH).unwrap();
+            let mut output_device = DeviceBuffer::with_capacity(n * BN254_DIGEST_WIDTH).unwrap();
 
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
             let mut gt = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let state: [Bn254Fr; WIDTH] = input[i];
+                let state: [Bn254Fr; BN254_WIDTH] = input[i];
                 gt.push(perm.permute(state));
             }
 
             // Execute the kernel.
             let hasher = DeviceHasherBn254::new();
             unsafe {
-                output_device.set_len(n * DIGEST_WIDTH);
+                output_device.set_len(n * BN254_DIGEST_WIDTH);
                 hasher.permute(
                     input_device.as_ptr(),
                     output_device.as_mut_ptr(),
@@ -376,10 +384,12 @@ pub mod tests {
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
-            let left = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
-            let right = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
-            let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
+            let left =
+                (0..n).map(|_| [rng.gen::<Bn254Fr>(); BN254_DIGEST_WIDTH]).collect::<Vec<_>>();
+            let right =
+                (0..n).map(|_| [rng.gen::<Bn254Fr>(); BN254_DIGEST_WIDTH]).collect::<Vec<_>>();
+            let mut output: Vec<[Bn254Fr; BN254_DIGEST_WIDTH]> = Vec::new();
+            output.resize(n, [Bn254Fr::zero(); BN254_DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let left_device = left.to_device().unwrap();
@@ -388,16 +398,16 @@ pub mod tests {
 
             // Execute the source implementation.
             let perm = poseidon2_bn254_3_perm();
-            let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
+            let mut gt: Vec<[Bn254Fr; BN254_DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let mut state = [Bn254Fr::zero(); WIDTH];
+                let mut state = [Bn254Fr::zero(); BN254_WIDTH];
                 #[allow(clippy::manual_memcpy)]
-                for j in 0..DIGEST_WIDTH {
+                for j in 0..BN254_DIGEST_WIDTH {
                     state[j] = left[i][j];
-                    state[j + DIGEST_WIDTH] = right[i][j];
+                    state[j + BN254_DIGEST_WIDTH] = right[i][j];
                 }
-                gt.push(perm.permute(state)[0..DIGEST_WIDTH].try_into().unwrap());
+                gt.push(perm.permute(state)[0..BN254_DIGEST_WIDTH].try_into().unwrap());
             }
 
             // Execute the kernel.
@@ -434,8 +444,8 @@ pub mod tests {
             // Generate the input data on the host.
             let input =
                 (0..n).flat_map(|_| [rng.gen::<Bn254Fr>(); N_INPUT].to_vec()).collect::<Vec<_>>();
-            let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
+            let mut output: Vec<[Bn254Fr; BN254_DIGEST_WIDTH]> = Vec::new();
+            output.resize(n, [Bn254Fr::zero(); BN254_DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -443,7 +453,7 @@ pub mod tests {
 
             // Execute the source implementation.
             let sponge = poseidon2_bn254_3_hasher();
-            let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
+            let mut gt: Vec<[Bn254Fr; BN254_DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
                 let data = input[i * N_INPUT..(i + 1) * N_INPUT].to_vec();
