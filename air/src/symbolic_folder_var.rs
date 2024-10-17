@@ -1,5 +1,7 @@
-use std::fmt::Debug;
-use std::ops::{Add, Mul, Sub};
+use std::{
+    fmt::Debug,
+    ops::{Add, Mul, Sub},
+};
 
 use p3_field::AbstractField;
 

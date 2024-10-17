@@ -1,8 +1,4 @@
-use std::hint;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::time::Duration;
-use std::{ffi::c_void, mem, ptr};
+use std::{ffi::c_void, hint, mem, ops::Deref, ptr, sync::Arc, time::Duration};
 
 use thiserror::Error;
 

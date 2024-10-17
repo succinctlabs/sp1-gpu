@@ -1,17 +1,19 @@
-use crate::cuda_runtime::stream::CudaStream;
-use crate::device::error::CudaError;
-use crate::device::memory::ToDevice;
-use crate::device::memory::ToHost;
-use crate::device::DeviceBuffer;
-use crate::matrix::ColMajorMatrixDevice;
+use crate::{
+    cuda_runtime::stream::CudaStream,
+    device::{
+        error::CudaError,
+        memory::{ToDevice, ToHost},
+        DeviceBuffer,
+    },
+    matrix::ColMajorMatrixDevice,
+};
 
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 use p3_merkle_tree::FieldMerkleTree;
-use std::cmp::Reverse;
-use std::marker::PhantomData;
+use std::{cmp::Reverse, marker::PhantomData};
 
 mod hasher;
 mod mmcs;
@@ -148,16 +150,21 @@ where
 #[cfg(test)]
 mod tests {
     pub mod baby_bear_tests {
-        use crate::device::memory::{ToDevice, ToHost};
-        use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
-        use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
-        use crate::poseidon2::tests::baby_bear_tests::{
-            poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
-        };
         use crate::{
-            device::DeviceBuffer,
-            poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH,
-            poseidon2::baby_bear::DeviceHasherBabyBear,
+            device::{
+                memory::{ToDevice, ToHost},
+                DeviceBuffer,
+            },
+            matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
+            merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher},
+            poseidon2::{
+                baby_bear::{
+                    poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH, DeviceHasherBabyBear,
+                },
+                tests::baby_bear_tests::{
+                    poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
+                },
+            },
         };
 
         use p3_baby_bear::BabyBear;
@@ -175,7 +182,8 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices =
                 vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
-            let mut digests = DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(n).unwrap();
+            let mut digests =
+                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
                 digests.set_len(n);
@@ -299,15 +307,17 @@ mod tests {
         }
     }
     pub mod bn254_tests {
-        use crate::device::memory::{ToDevice, ToHost};
-        use crate::matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice};
-        use crate::merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher};
-        use crate::poseidon2::tests::bn254_tests::{
-            poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm,
-        };
         use crate::{
-            device::DeviceBuffer, poseidon2::bn254::poseidon2_bn254_3_kernels::BN254_DIGEST_WIDTH,
-            poseidon2::bn254::DeviceHasherBn254,
+            device::{
+                memory::{ToDevice, ToHost},
+                DeviceBuffer,
+            },
+            matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
+            merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher},
+            poseidon2::{
+                bn254::{poseidon2_bn254_3_kernels::BN254_DIGEST_WIDTH, DeviceHasherBn254},
+                tests::bn254_tests::{poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm},
+            },
         };
 
         use p3_baby_bear::BabyBear;
@@ -334,7 +344,8 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices =
                 vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
-            let mut digests = DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(n).unwrap();
+            let mut digests =
+                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
                 digests.set_len(n);

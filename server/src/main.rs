@@ -153,6 +153,7 @@ fn handle_panic(err: Box<dyn Any + Send + 'static>) -> Response<Full<Bytes>> {
     } else {
         "Unknown panic message".to_string()
     };
+    println!("panic: {}", details);
 
     let body = serde_json::json!({
         "error": {
@@ -164,7 +165,7 @@ fn handle_panic(err: Box<dyn Any + Send + 'static>) -> Response<Full<Bytes>> {
 
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::CONTENT_TYPE, details.to_string())
         .body(Full::from(body))
         .unwrap()
 }

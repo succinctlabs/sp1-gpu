@@ -499,24 +499,18 @@ impl<F: Field> ToDevice for HostInteractions<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::memory::ToHost;
-    use crate::matrix::RowMajorMatrixDevice;
-    use crate::time::CudaInstant;
+    use crate::{device::memory::ToHost, matrix::RowMajorMatrixDevice, time::CudaInstant};
 
     use super::*;
-    use p3_air::Air;
-    use p3_air::BaseAir;
+    use p3_air::{Air, BaseAir};
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use p3_uni_stark::SymbolicAirBuilder;
-    use rand::thread_rng;
-    use rand::Rng;
+    use rand::{thread_rng, Rng};
 
-    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-    use sp1_core_executor::Program;
-    use sp1_core_machine::memory::MemoryLocalChip;
-    use sp1_core_machine::riscv::ByteChip;
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
+    use sp1_core_machine::{memory::MemoryLocalChip, riscv::ByteChip};
     use sp1_stark::InteractionBuilder;
 
     type F = BabyBear;

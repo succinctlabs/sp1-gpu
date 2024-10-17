@@ -8,57 +8,37 @@ use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
 use p3_field::AbstractExtensionField;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
-use sp1_stark::Com;
-use sp1_stark::DebugConstraintBuilder;
-use sp1_stark::MachineProof;
-use sp1_stark::MachineProver;
-use sp1_stark::MachineProvingKey;
-use sp1_stark::MachineRecord;
-use sp1_stark::PcsProverData;
-use sp1_stark::ProverConstraintFolder;
-use sp1_stark::SP1CoreOpts;
-use sp1_stark::ShardCommitment;
-use sp1_stark::ShardMainData;
-use sp1_stark::ShardOpenedValues;
-use sp1_stark::ShardProof;
-use sp1_stark::StarkMachine;
-use sp1_stark::StarkProvingKey;
-use sp1_stark::StarkVerifyingKey;
-use sp1_stark::Val;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
-    AirOpenedValues, Chip, ChipOpenedValues,
+    AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
+    MachineProver, MachineProvingKey, MachineRecord, PcsProverData, ProverConstraintFolder,
+    SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkMachine,
+    StarkProvingKey, StarkVerifyingKey, Val,
 };
 
 use itertools::Itertools;
 use tracing::info;
 
 use p3_field::AbstractField;
-use std::array;
-use std::cmp::Reverse;
-use std::marker::PhantomData;
+use std::{array, cmp::Reverse, marker::PhantomData};
 
 use air::P3EvalFolder;
 
-use crate::cuda_runtime::stream::CudaStream;
-use crate::fri::FriOpeningProver;
-use crate::fri::FriQueryProver;
-use crate::stark::DeviceQuotientValues;
-use crate::stark::DeviceQuotientValuesGenerator;
-use crate::utils::ChipStatistics;
 use crate::{
+    cuda_runtime::stream::CudaStream,
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
     },
-    fri::TwoAdicFriCommitter,
+    fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH,
+    stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    utils::ChipStatistics,
 };
 
-use super::BabyBearFriConfig;
-use super::PermutationTraceGenerator;
+use super::{BabyBearFriConfig, PermutationTraceGenerator};
 
 use super::natural_domain_for_degree;
 
@@ -688,7 +668,6 @@ where
             opened_values: ShardOpenedValues { chips: opened_values },
             opening_proof,
             chip_ordering: all_chips_ordering,
-            chip_scopes: all_chip_scopes,
             public_values: local_public_values,
         })
     }
@@ -826,12 +805,8 @@ where
 #[cfg(test)]
 pub mod tests {
 
-    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-    use sp1_core_executor::ExecutionRecord;
-    use sp1_core_executor::Executor;
-    use sp1_core_executor::Program;
-    use sp1_core_machine::riscv::RiscvAir;
-    use sp1_core_machine::utils::run_test;
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
+    use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
     use sp1_stark::StarkGenericConfig;
 

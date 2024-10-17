@@ -6,29 +6,29 @@ use sp1_prover::SP1Prover;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 
 use clap::{Parser, ValueEnum};
-use moongate_perf::report::write_measurements_to_csv;
 use moongate_perf::{
     make_measurement,
     programs::{FIBONACCI_ELF, LOOP_ELF, RETH_ELF, SHA2_CHAIN_ELF, TENDERMINT_BENCHMARK_ELF},
+    report::write_measurements_to_csv,
+    tracer, Stage,
 };
-use moongate_perf::{tracer, Stage};
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long, default_value = "all")]
+    #[arg(long, default_value = "all")]
     pub program: Program,
-    #[arg(short, long, default_value = "telemetry")]
+    #[arg(long, default_value = "telemetry")]
     pub trace: Trace,
-    #[arg(short, long)]
+    #[arg(long)]
     pub program_path: Option<String>,
-    #[arg(short, long)]
+    #[arg(long)]
     pub stdin_path: Option<String>,
-    #[arg(short, long, default_value = "false")]
+    #[arg(long, default_value = "false")]
     pub skip_verify: bool,
-    #[arg(short, long, default_value = "compress")]
+    #[arg(long, default_value = "core")]
     pub stage: Stage,
 }
 
