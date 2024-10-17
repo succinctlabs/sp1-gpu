@@ -3290,9 +3290,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.159"
+version = "0.2.160"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "561d97a539a36e26a9a5fad1ea11a3039a67714694aaa379433e580854bc3dc5"
+checksum = "f0b21006cd1874ae9e650973c565615676dc4a274c965bb0a73796dac838ce4f"
 
 [[package]]
 name = "libgit2-sys"
@@ -3862,9 +3862,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.67"
+version = "0.10.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b8cefcf97f41316955f9294cd61f639bdcfa9f2f230faac6cb896aa8ab64704"
+checksum = "6174bc48f102d208783c2c84bf931bb75927a617866870de8a4ea85597f871f5"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
@@ -5843,7 +5843,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5876,7 +5876,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5923,7 +5923,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5939,7 +5939,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5960,7 +5960,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5969,7 +5969,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5990,7 +5990,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "bincode",
  "hex",
@@ -6007,7 +6007,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6048,7 +6048,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6081,7 +6081,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6102,7 +6102,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6137,7 +6137,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6146,7 +6146,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6171,7 +6171,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6211,7 +6211,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#8f1749e31f92d2587fdf9e6f708708a10947d41f"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-debug#5e025e8054351a8b06c1fae2ba6ffc399fa9b455"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
