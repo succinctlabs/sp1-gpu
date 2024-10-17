@@ -192,9 +192,7 @@ __global__ void reducedOpeningsKernel(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t* openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings,
-    Matrix<bb31_t>* reducedLeaves,
-    size_t * heightIndices
+    bb31_extension_t* reducedOpenings
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     size_t pointIdx = blockIdx.y * blockDim.y + threadIdx.y;
@@ -431,9 +429,7 @@ extern "C" void computeReducedOpenings(
     bb31_extension_t* alphaPowOffsets,
     bb31_extension_t * openedValues,
     size_t * openedValuesIndices,
-    bb31_extension_t* reducedOpenings,
-    Matrix<bb31_t>* reducedLeaves,
-    size_t * heightIndices
+    bb31_extension_t* reducedOpenings
 ) {
     size_t numThreads = MAX_THREADS;
     size_t numBlocksX = (maxHeight - 1) / numThreads + 1; 
@@ -451,9 +447,7 @@ extern "C" void computeReducedOpenings(
         alphaPowOffsets,
         openedValues,
         openedValuesIndices,
-        reducedOpenings,
-        reducedLeaves,
-        heightIndices
+        reducedOpenings
     );
 }
 
