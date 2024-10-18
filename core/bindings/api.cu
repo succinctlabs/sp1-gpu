@@ -1,51 +1,224 @@
-#include "../../cuda/mmcs/merkle_tree.cuh"
-#include "../../cuda/matrix/matrix.cuh"
-#include "../../cuda/utils/memory.cuh"
-#include "../../cuda/ntt/sppark.cuh"
-#include "../../cuda/utils/runtime.cuh"
-#include "../../cuda/tests/tests.cuh"
-#include "../../cuda/stark/stark.cuh"
-#include "../../cuda/scan/scan.cuh"
-#include "../../cuda/quotient/quotient.cuh"
-#include "../../cuda/opening/opening.cuh"
+#include <bit>
 
+#include "../../cuda/matrix/matrix.cuh"
+#include "../../cuda/mmcs/merkle_tree.cuh"
+#include "../../cuda/ntt/sppark.cuh"
+#include "../../cuda/opening/opening.cuh"
+#include "../../cuda/quotient/quotient.cuh"
+#include "../../cuda/scan/scan.cuh"
+#include "../../cuda/stark/stark.cuh"
+#include "../../cuda/tests/tests.cuh"
+#include "../../cuda/utils/memory.cuh"
+#include "../../cuda/utils/runtime.cuh"
 #include "moongate_cuda.cuh"
 #include "sp1tracegen.hpp"
 
-namespace moongate {
+namespace tracegen_kernels {
+template<class Field, template<class> class Cols, class Event, auto func>
+__global__ void event_to_row_kernel(
+    decltype(Field::val)* mat,
+    uintptr_t width,
+    uintptr_t height,
+    const Event* events,
+    uintptr_t nb_events
+) {
+    using Val = decltype(Field::val);
+    const size_t COL_COUNT = sizeof(Cols<Val>) / sizeof(Val);
 
-static const size_t ADD_SUB_COL_CT = sizeof(sp1::AddSubCols<sp1::BabyBearMonty>) / sizeof(sp1::BabyBearMonty);
-
-__global__ void add_sub_events_to_rows_babybear_kernel(MatrixViewMutDevice<F> mat, const AluEvent* events, uintptr_t nb_events) {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < nb_events) {
-        sp1::AddSubCols<decltype(bb31_t::val)> cols{};
-        // if mat is a row major matrix:
-        // sp1::AddSubCols<decltype(bb31_t::val)>* cols = reinterpret_cast<sp1::AddSubCols<decltype(bb31_t::val)>*>(&mat.values[i * ADD_SUB_COL_CT]);
-        sp1::add_sub::event_to_row<bb31_t>(*reinterpret_cast<const sp1::AluEvent*>(&events[i]), cols);
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < nb_events;
+         i += blockDim.x * gridDim.x) {
+        Cols<Val> cols {};
+        func(events[i], cols);
         // Copy populated cols to col major matrix.
-        const F* arr = reinterpret_cast<F*>(&cols);
-        for (size_t j = 0; j < ADD_SUB_COL_CT; ++j) {
+        const Val* arr = std::bit_cast<Val*>(&cols);
+        for (size_t j = 0; j < COL_COUNT; ++j) {
             // i, j index row, col
             // column major means the successor cell is the next row
-            mat.values[i + j * mat.height] = arr[j];
+            mat[i + j * height] = arr[j];
         }
     }
 }
+}  // namespace tracegen_kernels
 
-extern "C" CudaRustError add_sub_events_to_rows_babybear(
+namespace moongate {
+// Not an implementation of an extern function.
+template<class Field, template<class> class Cols, class Event, auto func>
+CudaRustError generic_populate_babybear(
     MatrixViewMutDevice<F> mat,
-    const AluEvent* events,
-    uintptr_t nb_events
+    const Event* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
 ) {
+    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
     static const int M = 256;
     // Set to zero.
-    cudaError_t code = cudaMemset(mat.values, 0, mat.width * mat.height * sizeof(F));
+    cudaError_t code = cudaMemsetAsync(
+        mat.values,
+        0,
+        mat.width * mat.height * sizeof(F),
+        stream
+    );
     if (code != cudaSuccess) {
-        return CudaRustError{message : cudaGetErrorString(code)};
+        return CudaRustError {message: cudaGetErrorString(code)};
     }
-    add_sub_events_to_rows_babybear_kernel<<<(nb_events - 1)/M + 1, M>>>(mat, events, nb_events);
-    return CudaRustError{message: cudaGetErrorString(cudaSuccess)};
+    tracegen_kernels::event_to_row_kernel<Field, Cols, Event, func>
+        <<<(nb_events - 1) / M + 1, M, 0, stream>>>(
+            mat.values,
+            mat.width,
+            mat.height,
+            events,
+            nb_events
+        );
+    return CudaRustError {message: cudaGetErrorString(cudaSuccess)};
 }
-
 }  // namespace moongate
+
+namespace moongate {
+extern CudaRustError add_sub_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::AddSubCols,
+        sp1::AluEvent,
+        sp1::add_sub::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream
+    );
+}
+}  // namespace moongate
+
+template __device__ void sp1::add_sub::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::AddSubCols<sp1::BabyBearMonty>& cols
+);
+
+// namespace moongate {
+// extern CudaRustError bitwise_populate_babybear(
+//     MatrixViewMutDevice<F> mat,
+//     const AluEvent* events,
+//     uintptr_t nb_events,
+//     CudaStreamHandle stream
+// ) {
+//     return generic_populate_babybear<
+//         bb31_t,
+//         sp1::BitwiseCols,
+//         sp1::AluEvent,
+//         sp1::bitwise::event_to_row<bb31_t>>(
+//         mat,
+//         std::bit_cast<const sp1::AluEvent*>(events),
+//         nb_events,
+//         stream
+//     );
+// }
+// }  // namespace moongate
+
+// template __device__ void sp1::bitwise::event_to_row<bb31_t>(
+//     const sp1::AluEvent& event,
+//     sp1::BitwiseCols<sp1::BabyBearMonty>& cols
+// );
+
+// namespace moongate {
+// extern CudaRustError lt_populate_babybear(
+//     MatrixViewMutDevice<F> mat,
+//     const AluEvent* events,
+//     uintptr_t nb_events,
+//     CudaStreamHandle stream_handle
+// ) {
+//     return generic_populate_babybear<
+//         bb31_t,
+//         sp1::LtCols,
+//         sp1::AluEvent,
+//         sp1::lt::event_to_row<bb31_t>>(
+//         mat,
+//         std::bit_cast<const sp1::AluEvent*>(events),
+//         nb_events,
+//         stream_handle
+//     );
+// }
+// }  // namespace moongate
+
+// template __device__ void sp1::lt::event_to_row<bb31_t>(
+//     const sp1::AluEvent& event,
+//     sp1::LtCols<sp1::BabyBearMonty>& cols
+// );
+
+// namespace moongate {
+// extern CudaRustError sll_populate_babybear(
+//     MatrixViewMutDevice<F> mat,
+//     const AluEvent* events,
+//     uintptr_t nb_events,
+//     CudaStreamHandle stream_handle
+// ) {
+//     return generic_populate_babybear<
+//         bb31_t,
+//         sp1::ShiftLeftCols,
+//         sp1::AluEvent,
+//         sp1::sll::event_to_row<bb31_t>>(
+//         mat,
+//         std::bit_cast<const sp1::AluEvent*>(events),
+//         nb_events,
+//         stream_handle
+//     );
+// }
+// }  // namespace moongate
+
+// template __device__ void sp1::sll::event_to_row<bb31_t>(
+//     const sp1::AluEvent& event,
+//     sp1::ShiftLeftCols<sp1::BabyBearMonty>& cols
+// );
+
+// namespace moongate {
+// extern CudaRustError sr_populate_babybear(
+//     MatrixViewMutDevice<F> mat,
+//     const AluEvent* events,
+//     uintptr_t nb_events,
+//     CudaStreamHandle stream_handle
+// ) {
+//     return generic_populate_babybear<
+//         bb31_t,
+//         sp1::ShiftRightCols,
+//         sp1::AluEvent,
+//         sp1::sr::event_to_row<bb31_t>>(
+//         mat,
+//         std::bit_cast<const sp1::AluEvent*>(events),
+//         nb_events,
+//         stream_handle
+//     );
+// }
+// }  // namespace moongate
+
+// template __device__ void sp1::sr::event_to_row<bb31_t>(
+//     const sp1::AluEvent& event,
+//     sp1::ShiftRightCols<sp1::BabyBearMonty>& cols
+// );
+
+// namespace moongate {
+// extern CudaRustError cpu_populate_babybear(
+//     MatrixViewMutDevice<F> mat,
+//     const AluEvent* events,
+//     uintptr_t nb_events,
+//     CudaStreamHandle stream_handle
+// ) {
+//     return generic_populate_babybear<
+//         bb31_t,
+//         sp1::CpuCols,
+//         sp1::CpuEventFfi,
+//         sp1::cpu::event_to_row<bb31_t>>(
+//         mat,
+//         std::bit_cast<const sp1::CpuEventFfi*>(events),
+//         nb_events,
+//         stream_handle
+//     );
+// }
+// }  // namespace moongate
+
+// template __device__ void sp1::cpu::event_to_row<bb31_t>(
+//     const sp1::CpuEventFfi& event,
+//     sp1::CpuCols<sp1::BabyBearMonty>& cols
+// );

@@ -1,7 +1,10 @@
+#pragma once
 
 #include <cuda.h>
 
 #include <bit>
+
+#include "../../cuda/utils/exception.cuh"
 
 #if defined(FEATURE_BLS12_381)
     #include <ff/bls12-381.hpp>

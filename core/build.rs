@@ -108,6 +108,7 @@ fn main() {
             "p3-bn254-fr",
             "p3-field",
             "sp1-core-executor",
+            "sp1-core-machine",
         ])
         .with_namespace("moongate")
         .with_crate(crate_dir)
@@ -174,6 +175,9 @@ fn main() {
         // nvcc.flag("--threads").flag("14");
         cc_builder.flag("-lnvToolsExt");
         cc_builder.flag("-ldl");
+        // Allow constexpr function calls in device code.
+        // Although this flag is "experimental",  it has been around for a long time.
+        cc_builder.flag("--expt-relaxed-constexpr");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
