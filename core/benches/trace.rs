@@ -1,3 +1,4 @@
+use moongate_core::cuda_runtime::stream::CudaStream;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::matrix::ColMajorMatrixDevice;
 use once_cell::sync::Lazy;
@@ -75,7 +76,11 @@ fn on_device(bencher: divan::Bencher) {
 }
 
 fn on_device_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
-    let mat = moongate_core::stark::trace::add_sub_generate_trace(&shard.add_events).unwrap();
+    let mat = moongate_core::stark::trace::add_sub_generate_trace(
+        &shard.add_events,
+        &CudaStream::default(),
+    )
+    .unwrap();
     mat.stream().synchronize().unwrap();
     mat
 }

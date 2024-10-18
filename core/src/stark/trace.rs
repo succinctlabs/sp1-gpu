@@ -15,6 +15,7 @@ pub trait AccelAir<T: PrimeField32>: MachineAir<T> {
         &self,
         input: &Self::Record,
         output: &mut Self::Record,
+        stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<T>, CudaError>;
 }
 
@@ -22,17 +23,19 @@ impl AccelAir<F> for RiscvAir<F> {
     fn generate_trace_accel(
         &self,
         input: &Self::Record,
-        output_record: &mut Self::Record,
+        output: &mut Self::Record,
+        stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
         match self {
-            // RiscvAir::Cpu(_) => cpu_generate_trace(
-            //     // Eventually, we'll make CPU events FFI compatible.
-            //     &input
-            //         .cpu_events
-            //         .iter()
-            //         .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
-            //         .collect::<Vec<_>>(),
-            // ),
+            RiscvAir::Cpu(_) => cpu_generate_trace(
+                // Eventually, we'll make CPU events FFI compatible.
+                &input
+                    .cpu_events
+                    .iter()
+                    .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
+                    .collect::<Vec<_>>(),
+                stream,
+            ),
             RiscvAir::Add(_) => add_sub_generate_trace(
                 // &[&input.add_events, &input.sub_events]
                 //     .into_iter()
@@ -40,14 +43,15 @@ impl AccelAir<F> for RiscvAir<F> {
                 //     .cloned()
                 //     .collect::<Vec<_>>(),
                 &input.add_events, // Ignore sub_events for now. Should be combined later.
+                stream,
             ),
-            // RiscvAir::Bitwise(_) => bitwise_generate_trace(&input.bitwise_events),
-            // RiscvAir::Lt(_) => lt_generate_trace(&input.lt_events),
-            // RiscvAir::ShiftLeft(_) => sll_generate_trace(&input.shift_left_events),
-            // RiscvAir::ShiftRight(_) => sr_generate_trace(&input.shift_right_events),
+            RiscvAir::Bitwise(_) => bitwise_generate_trace(&input.bitwise_events, stream),
+            RiscvAir::Lt(_) => lt_generate_trace(&input.lt_events, stream),
+            RiscvAir::ShiftLeft(_) => sll_generate_trace(&input.shift_left_events, stream),
+            RiscvAir::ShiftRight(_) => sr_generate_trace(&input.shift_right_events, stream),
             // Fallback for other chips.
             other => {
-                let mat = other.generate_trace(input, output_record).to_device()?.to_column_major();
+                let mat = other.generate_trace(input, output).to_device()?.to_column_major();
                 mat.stream().synchronize()?;
                 Ok(mat)
             }
@@ -66,187 +70,169 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn add_sub_generate_trace(events: &[AluEvent]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+pub fn add_sub_generate_trace(
+    events: &[AluEvent],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::NUM_ADD_SUB_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-    // let stream = CudaStream::create()?;
-    let stream = CudaStream::default();
-    let add_events = events.to_device_async(&stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, &stream)?;
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
     unsafe { mat.values.set_max_len() };
 
     unsafe {
-        add_sub_populate_babybear(
-            mat.view_mut(),
-            add_events.as_ptr(),
-            add_events.len(),
-            stream.handle(),
-        )
+        add_sub_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
     }
     .to_result()?;
 
     Ok(mat)
 }
 
-// extern "C" {
-//     pub fn bitwise_populate_babybear(
-//         mat: MatrixViewMutDevice<F>,
-//         events: *const AluEvent,
-//         nb_events: usize,
-//         stream: CudaStreamHandle,
-//     ) -> CudaRustError;
-// }
+extern "C" {
+    pub fn bitwise_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const AluEvent,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
 
-// pub fn bitwise_generate_trace(events: &[AluEvent]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-//     const NUM_COLS: usize = sp1_core_machine::alu::bitwise::NUM_BITWISE_COLS;
-//     const ROWS_PER_EVENT: usize = 1;
+pub fn bitwise_generate_trace(
+    events: &[AluEvent],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    const NUM_COLS: usize = sp1_core_machine::alu::bitwise::NUM_BITWISE_COLS;
+    const ROWS_PER_EVENT: usize = 1;
 
-//     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-//     let add_events = events.to_device()?;
-//     let mut mat = ColMajorMatrixDevice::<F>::with_capacity(NUM_COLS, nb_rows)?;
-//     unsafe { mat.values.set_max_len() };
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
+    unsafe { mat.values.set_max_len() };
 
-//     unsafe {
-//         bitwise_populate_babybear(
-//             mat.view_mut(),
-//             add_events.as_ptr(),
-//             add_events.len(),
-//             mat.stream().handle(),
-//         )
-//     }
-//     .to_result()?;
+    unsafe {
+        bitwise_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    }
+    .to_result()?;
 
-//     Ok(mat)
-// }
+    Ok(mat)
+}
 
-// extern "C" {
-//     pub fn lt_populate_babybear(
-//         mat: MatrixViewMutDevice<F>,
-//         events: *const AluEvent,
-//         nb_events: usize,
-//         stream: CudaStreamHandle,
-//     ) -> CudaRustError;
-// }
+extern "C" {
+    pub fn lt_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const AluEvent,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
 
-// pub fn lt_generate_trace(events: &[AluEvent]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-//     const NUM_COLS: usize = sp1_core_machine::alu::lt::NUM_LT_COLS;
-//     const ROWS_PER_EVENT: usize = 1;
+pub fn lt_generate_trace(
+    events: &[AluEvent],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    const NUM_COLS: usize = sp1_core_machine::alu::lt::NUM_LT_COLS;
+    const ROWS_PER_EVENT: usize = 1;
 
-//     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-//     let add_events = events.to_device()?;
-//     let mut mat = ColMajorMatrixDevice::<F>::with_capacity(NUM_COLS, nb_rows)?;
-//     unsafe { mat.values.set_max_len() };
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
+    unsafe { mat.values.set_max_len() };
 
-//     unsafe {
-//         lt_populate_babybear(
-//             mat.view_mut(),
-//             add_events.as_ptr(),
-//             add_events.len(),
-//             mat.stream().handle(),
-//         )
-//     }
-//     .to_result()?;
+    unsafe { lt_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
+        .to_result()?;
 
-//     Ok(mat)
-// }
+    Ok(mat)
+}
 
-// extern "C" {
-//     pub fn sll_populate_babybear(
-//         mat: MatrixViewMutDevice<F>,
-//         events: *const AluEvent,
-//         nb_events: usize,
-//         stream: CudaStreamHandle,
-//     ) -> CudaRustError;
-// }
+extern "C" {
+    pub fn sll_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const AluEvent,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
 
-// pub fn sll_generate_trace(events: &[AluEvent]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-//     const NUM_COLS: usize = sp1_core_machine::alu::sll::NUM_SHIFT_LEFT_COLS;
-//     const ROWS_PER_EVENT: usize = 1;
+pub fn sll_generate_trace(
+    events: &[AluEvent],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    const NUM_COLS: usize = sp1_core_machine::alu::sll::NUM_SHIFT_LEFT_COLS;
+    const ROWS_PER_EVENT: usize = 1;
 
-//     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-//     let add_events = events.to_device()?;
-//     let mut mat = ColMajorMatrixDevice::<F>::with_capacity(NUM_COLS, nb_rows)?;
-//     unsafe { mat.values.set_max_len() };
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
+    unsafe { mat.values.set_max_len() };
 
-//     unsafe {
-//         sll_populate_babybear(
-//             mat.view_mut(),
-//             add_events.as_ptr(),
-//             add_events.len(),
-//             mat.stream().handle(),
-//         )
-//     }
-//     .to_result()?;
+    unsafe {
+        sll_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    }
+    .to_result()?;
 
-//     Ok(mat)
-// }
+    Ok(mat)
+}
 
-// extern "C" {
-//     pub fn sr_populate_babybear(
-//         mat: MatrixViewMutDevice<F>,
-//         events: *const AluEvent,
-//         nb_events: usize,
-//         stream: CudaStreamHandle,
-//     ) -> CudaRustError;
-// }
+extern "C" {
+    pub fn sr_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const AluEvent,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
 
-// pub fn sr_generate_trace(events: &[AluEvent]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-//     const NUM_COLS: usize = sp1_core_machine::alu::sr::NUM_SHIFT_RIGHT_COLS;
-//     const ROWS_PER_EVENT: usize = 1;
+pub fn sr_generate_trace(
+    events: &[AluEvent],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    const NUM_COLS: usize = sp1_core_machine::alu::sr::NUM_SHIFT_RIGHT_COLS;
+    const ROWS_PER_EVENT: usize = 1;
 
-//     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-//     let add_events = events.to_device()?;
-//     let mut mat = ColMajorMatrixDevice::<F>::with_capacity(NUM_COLS, nb_rows)?;
-//     unsafe { mat.values.set_max_len() };
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
+    unsafe { mat.values.set_max_len() };
 
-//     unsafe {
-//         sr_populate_babybear(
-//             mat.view_mut(),
-//             add_events.as_ptr(),
-//             add_events.len(),
-//             mat.stream().handle(),
-//         )
-//     }
-//     .to_result()?;
+    unsafe { sr_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
+        .to_result()?;
 
-//     Ok(mat)
-// }
+    Ok(mat)
+}
 
-// extern "C" {
-//     pub fn cpu_populate_babybear(
-//         mat: MatrixViewMutDevice<F>,
-//         events: *const CpuEventFfi,
-//         nb_events: usize,
-//         stream: CudaStreamHandle,
-//     ) -> CudaRustError;
-// }
+extern "C" {
+    pub fn cpu_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const CpuEventFfi,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
 
-// pub fn cpu_generate_trace(events: &[CpuEventFfi]) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-//     const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
-//     const ROWS_PER_EVENT: usize = 1;
+pub fn cpu_generate_trace(
+    events: &[CpuEventFfi],
+    stream: &CudaStream,
+) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
+    const ROWS_PER_EVENT: usize = 1;
 
-//     let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
 
-//     let add_events = events.to_device()?;
-//     let mut mat = ColMajorMatrixDevice::<F>::with_capacity(NUM_COLS, nb_rows)?;
-//     unsafe { mat.values.set_max_len() };
+    let events = events.to_device_async(stream)?;
+    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
+    unsafe { mat.values.set_max_len() };
 
-//     unsafe {
-//         cpu_populate_babybear(
-//             mat.view_mut(),
-//             add_events.as_ptr(),
-//             add_events.len(),
-//             mat.stream().handle(),
-//         )
-//     }
-//     .to_result()?;
+    unsafe {
+        cpu_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    }
+    .to_result()?;
 
-//     Ok(mat)
-// }
+    Ok(mat)
+}

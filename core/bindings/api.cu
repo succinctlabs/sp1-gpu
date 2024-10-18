@@ -98,127 +98,127 @@ template __device__ void sp1::add_sub::event_to_row<bb31_t>(
     sp1::AddSubCols<sp1::BabyBearMonty>& cols
 );
 
-// namespace moongate {
-// extern CudaRustError bitwise_populate_babybear(
-//     MatrixViewMutDevice<F> mat,
-//     const AluEvent* events,
-//     uintptr_t nb_events,
-//     CudaStreamHandle stream
-// ) {
-//     return generic_populate_babybear<
-//         bb31_t,
-//         sp1::BitwiseCols,
-//         sp1::AluEvent,
-//         sp1::bitwise::event_to_row<bb31_t>>(
-//         mat,
-//         std::bit_cast<const sp1::AluEvent*>(events),
-//         nb_events,
-//         stream
-//     );
-// }
-// }  // namespace moongate
+namespace moongate {
+extern CudaRustError bitwise_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::BitwiseCols,
+        sp1::AluEvent,
+        sp1::bitwise::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream
+    );
+}
+}  // namespace moongate
 
-// template __device__ void sp1::bitwise::event_to_row<bb31_t>(
-//     const sp1::AluEvent& event,
-//     sp1::BitwiseCols<sp1::BabyBearMonty>& cols
-// );
+template __device__ void sp1::bitwise::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::BitwiseCols<sp1::BabyBearMonty>& cols
+);
 
-// namespace moongate {
-// extern CudaRustError lt_populate_babybear(
-//     MatrixViewMutDevice<F> mat,
-//     const AluEvent* events,
-//     uintptr_t nb_events,
-//     CudaStreamHandle stream_handle
-// ) {
-//     return generic_populate_babybear<
-//         bb31_t,
-//         sp1::LtCols,
-//         sp1::AluEvent,
-//         sp1::lt::event_to_row<bb31_t>>(
-//         mat,
-//         std::bit_cast<const sp1::AluEvent*>(events),
-//         nb_events,
-//         stream_handle
-//     );
-// }
-// }  // namespace moongate
+namespace moongate {
+extern CudaRustError lt_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::LtCols,
+        sp1::AluEvent,
+        sp1::lt::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream_handle
+    );
+}
+}  // namespace moongate
 
-// template __device__ void sp1::lt::event_to_row<bb31_t>(
-//     const sp1::AluEvent& event,
-//     sp1::LtCols<sp1::BabyBearMonty>& cols
-// );
+template __device__ void sp1::lt::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::LtCols<sp1::BabyBearMonty>& cols
+);
 
-// namespace moongate {
-// extern CudaRustError sll_populate_babybear(
-//     MatrixViewMutDevice<F> mat,
-//     const AluEvent* events,
-//     uintptr_t nb_events,
-//     CudaStreamHandle stream_handle
-// ) {
-//     return generic_populate_babybear<
-//         bb31_t,
-//         sp1::ShiftLeftCols,
-//         sp1::AluEvent,
-//         sp1::sll::event_to_row<bb31_t>>(
-//         mat,
-//         std::bit_cast<const sp1::AluEvent*>(events),
-//         nb_events,
-//         stream_handle
-//     );
-// }
-// }  // namespace moongate
+namespace moongate {
+extern CudaRustError sll_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::ShiftLeftCols,
+        sp1::AluEvent,
+        sp1::sll::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream_handle
+    );
+}
+}  // namespace moongate
 
-// template __device__ void sp1::sll::event_to_row<bb31_t>(
-//     const sp1::AluEvent& event,
-//     sp1::ShiftLeftCols<sp1::BabyBearMonty>& cols
-// );
+template __device__ void sp1::sll::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::ShiftLeftCols<sp1::BabyBearMonty>& cols
+);
 
-// namespace moongate {
-// extern CudaRustError sr_populate_babybear(
-//     MatrixViewMutDevice<F> mat,
-//     const AluEvent* events,
-//     uintptr_t nb_events,
-//     CudaStreamHandle stream_handle
-// ) {
-//     return generic_populate_babybear<
-//         bb31_t,
-//         sp1::ShiftRightCols,
-//         sp1::AluEvent,
-//         sp1::sr::event_to_row<bb31_t>>(
-//         mat,
-//         std::bit_cast<const sp1::AluEvent*>(events),
-//         nb_events,
-//         stream_handle
-//     );
-// }
-// }  // namespace moongate
+namespace moongate {
+extern CudaRustError sr_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::ShiftRightCols,
+        sp1::AluEvent,
+        sp1::sr::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream_handle
+    );
+}
+}  // namespace moongate
 
-// template __device__ void sp1::sr::event_to_row<bb31_t>(
-//     const sp1::AluEvent& event,
-//     sp1::ShiftRightCols<sp1::BabyBearMonty>& cols
-// );
+template __device__ void sp1::sr::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::ShiftRightCols<sp1::BabyBearMonty>& cols
+);
 
-// namespace moongate {
-// extern CudaRustError cpu_populate_babybear(
-//     MatrixViewMutDevice<F> mat,
-//     const AluEvent* events,
-//     uintptr_t nb_events,
-//     CudaStreamHandle stream_handle
-// ) {
-//     return generic_populate_babybear<
-//         bb31_t,
-//         sp1::CpuCols,
-//         sp1::CpuEventFfi,
-//         sp1::cpu::event_to_row<bb31_t>>(
-//         mat,
-//         std::bit_cast<const sp1::CpuEventFfi*>(events),
-//         nb_events,
-//         stream_handle
-//     );
-// }
-// }  // namespace moongate
+namespace moongate {
+extern CudaRustError cpu_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    return generic_populate_babybear<
+        bb31_t,
+        sp1::CpuCols,
+        sp1::CpuEventFfi,
+        sp1::cpu::event_to_row<bb31_t>>(
+        mat,
+        std::bit_cast<const sp1::CpuEventFfi*>(events),
+        nb_events,
+        stream_handle
+    );
+}
+}  // namespace moongate
 
-// template __device__ void sp1::cpu::event_to_row<bb31_t>(
-//     const sp1::CpuEventFfi& event,
-//     sp1::CpuCols<sp1::BabyBearMonty>& cols
-// );
+template __device__ void sp1::cpu::event_to_row<bb31_t>(
+    const sp1::CpuEventFfi& event,
+    sp1::CpuCols<sp1::BabyBearMonty>& cols
+);
