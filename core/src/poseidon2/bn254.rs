@@ -9,12 +9,12 @@ use p3_field::AbstractField;
 
 pub struct DeviceHasherBn254 {
     internal_rounds_constats_device: DeviceBuffer<Bn254Fr>,
-    external_rounds_constats_device: DeviceBuffer<[Bn254Fr; WIDTH]>,
+    external_rounds_constats_device: DeviceBuffer<[Bn254Fr; BN254_WIDTH]>,
     diffusion_matrix_m1_device: DeviceBuffer<Bn254Fr>,
 }
 
 impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
-    type Digest = [Bn254Fr; DIGEST_WIDTH];
+    type Digest = [Bn254Fr; BN254_DIGEST_WIDTH];
 
     unsafe fn first_digest_layer(
         &self,
@@ -75,8 +75,8 @@ impl DeviceHasherBn254 {
     /// # Safety
     pub unsafe fn permute(
         self,
-        input: *const [Bn254Fr; WIDTH],
-        output: *mut [Bn254Fr; WIDTH],
+        input: *const [Bn254Fr; BN254_WIDTH],
+        output: *mut [Bn254Fr; BN254_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -96,9 +96,9 @@ impl DeviceHasherBn254 {
     /// # Safety
     pub unsafe fn compress(
         &self,
-        left: *const [Bn254Fr; DIGEST_WIDTH],
-        right: *const [Bn254Fr; DIGEST_WIDTH],
-        output: *mut [Bn254Fr; DIGEST_WIDTH],
+        left: *const [Bn254Fr; BN254_DIGEST_WIDTH],
+        right: *const [Bn254Fr; BN254_DIGEST_WIDTH],
+        output: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -121,7 +121,7 @@ impl DeviceHasherBn254 {
         &self,
         input: *const Bn254Fr,
         n_input: usize,
-        output: *mut [Bn254Fr; DIGEST_WIDTH],
+        output: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
         n: usize,
         n_blocks: usize,
         n_threads_per_block: usize,
@@ -146,21 +146,19 @@ pub mod poseidon2_bn254_3_kernels {
     use p3_baby_bear::BabyBear;
     use p3_bn254_fr::Bn254Fr;
 
-    pub const DIGEST_WIDTH: usize = 1;
+    pub const BN254_DIGEST_WIDTH: usize = 1;
     pub const RATE: usize = 2;
-    pub const WIDTH: usize = 3;
+    pub const BN254_WIDTH: usize = 3;
     pub const ROUNDS_F: usize = 8;
     pub const ROUNDS_P: usize = 56;
     pub const D_U64: u64 = 5;
 
-    #[allow(unused_attributes)]
-    #[link_name = "poseidon2_bn254_3_gpu"]
     extern "C" {
         pub fn permute_bn254(
-            input: *const [Bn254Fr; WIDTH],
-            output: *mut [Bn254Fr; WIDTH],
+            input: *const [Bn254Fr; BN254_WIDTH],
+            output: *mut [Bn254Fr; BN254_WIDTH],
             internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
+            external_round_constants: *const [Bn254Fr; BN254_WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
@@ -168,11 +166,11 @@ pub mod poseidon2_bn254_3_kernels {
         );
 
         pub fn compress_bn254(
-            left: *const [Bn254Fr; DIGEST_WIDTH],
-            right: *const [Bn254Fr; DIGEST_WIDTH],
-            output: *mut [Bn254Fr; DIGEST_WIDTH],
+            left: *const [Bn254Fr; BN254_DIGEST_WIDTH],
+            right: *const [Bn254Fr; BN254_DIGEST_WIDTH],
+            output: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
             internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
+            external_round_constants: *const [Bn254Fr; BN254_WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
@@ -182,9 +180,9 @@ pub mod poseidon2_bn254_3_kernels {
         pub fn hash_bn254(
             input: *const Bn254Fr,
             n_input: usize,
-            output: *mut [Bn254Fr; DIGEST_WIDTH],
+            output: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
             internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
+            external_round_constants: *const [Bn254Fr; BN254_WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             n: usize,
             n_blocks: usize,
@@ -192,37 +190,35 @@ pub mod poseidon2_bn254_3_kernels {
         );
     }
 
-    #[allow(unused_attributes)]
-    #[link_name = "merkle_tree_bn254_16_gpu"]
     extern "C" {
         pub fn first_digest_layer_bn254(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,
-            digests: *mut [Bn254Fr; DIGEST_WIDTH],
+            digests: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
             internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
+            external_round_constants: *const [Bn254Fr; BN254_WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             max_height: usize,
         );
 
         pub fn compress_and_inject_bn254(
-            prev_layer: *const [Bn254Fr; DIGEST_WIDTH],
+            prev_layer: *const [Bn254Fr; BN254_DIGEST_WIDTH],
             //n_prev_layer: usize,
             matrices_to_inject: *const MatrixViewDevice<BabyBear>,
             n_matrices_to_inject: usize,
-            next_digests: *mut [Bn254Fr; DIGEST_WIDTH],
+            next_digests: *mut [Bn254Fr; BN254_DIGEST_WIDTH],
             internal_round_constants: *const Bn254Fr,
-            external_round_constants: *const [Bn254Fr; WIDTH],
+            external_round_constants: *const [Bn254Fr; BN254_WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             max_height: usize,
         );
     }
 }
 
-use poseidon2_bn254_3_kernels::{DIGEST_WIDTH, ROUNDS_F, ROUNDS_P, WIDTH};
+use poseidon2_bn254_3_kernels::{BN254_DIGEST_WIDTH, BN254_WIDTH, ROUNDS_F, ROUNDS_P};
 use sp1_recursion_core::stark::bn254_poseidon2_rc3;
 
-pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Vec<Bn254Fr>) {
+pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; BN254_WIDTH]>, Vec<Bn254Fr>) {
     let mut round_constants = bn254_poseidon2_rc3();
     let internal_start = ROUNDS_F / 2;
     let internal_end = (ROUNDS_F / 2) + ROUNDS_P;

@@ -34,8 +34,6 @@ pub(super) mod ffi {
 
     use super::{MatrixViewDevice, MatrixViewMutDevice};
 
-    #[link_name = "matrix_transpose"]
-    #[allow(unused_attributes)]
     extern "C" {
         pub fn transpose_naive(
             output: *mut BabyBear,
@@ -51,8 +49,6 @@ pub(super) mod ffi {
         );
     }
 
-    #[link_name = "matrix_strided"]
-    #[allow(unused_attributes)]
     extern "C" {
         pub fn strided_matrix(
             output: MatrixViewMutDevice<BabyBear>,

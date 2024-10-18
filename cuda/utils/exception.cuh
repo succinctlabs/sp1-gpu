@@ -9,11 +9,11 @@
 #include <thrust/system/cuda/error.h>
 #include <thrust/system_error.h>
 
-struct RustCudaError {
-    const char *message;
-};
+#include "moongate_cuda_cbindgen.hpp"
 
-typedef struct RustCudaError rustCudaError_t;
+using RustCudaError = moongate::CudaRustError;
+
+using rustCudaError_t = RustCudaError;
 
 extern "C" const rustCudaError_t CUDA_SUCCESS_MOON =
 rustCudaError_t{message : cudaGetErrorString(cudaSuccess)};

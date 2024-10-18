@@ -1,7 +1,7 @@
 use p3_air::BaseAir;
 use sp1_core_machine::riscv::RiscvAir;
 use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2};
-use std::fs::{self};
+use std::fs;
 
 const TEMPLATE: &str = include_str!("template.txt");
 

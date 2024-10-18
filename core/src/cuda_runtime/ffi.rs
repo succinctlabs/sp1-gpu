@@ -44,25 +44,25 @@ extern "C" {
     pub(crate) fn cuda_mem_copy_device_to_device_async(
         dst: *mut c_void,
         src: *const c_void,
-        count: usize,
+        size: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
     pub(crate) fn cuda_mem_copy_host_to_device_async(
         dst: *mut c_void,
         src: *const c_void,
-        count: usize,
+        size: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
     pub(crate) fn cuda_mem_copy_device_to_host_async(
         dst: *mut c_void,
         src: *const c_void,
-        count: usize,
+        size: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
     pub(crate) fn cuda_mem_copy_host_to_host_async(
         dst: *mut c_void,
         src: *const c_void,
-        count: usize,
+        size: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
 

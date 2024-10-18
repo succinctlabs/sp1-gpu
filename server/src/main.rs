@@ -5,10 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use http::{
-    header::{self},
-    Response, StatusCode,
-};
+use http::{header, Response, StatusCode};
 use http_body_util::Full;
 use moongate_core::utils::init_tracer;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
@@ -18,10 +15,7 @@ use sp1_cuda::{
 };
 use sp1_prover::SP1Prover;
 use tower_http::catch_panic::CatchPanicLayer;
-use twirp::{
-    axum::{self},
-    internal, Router,
-};
+use twirp::{axum, internal, Router};
 
 struct MoongateProverServer {
     prover: Arc<Mutex<Option<SP1Prover<GpuProverComponents>>>>,

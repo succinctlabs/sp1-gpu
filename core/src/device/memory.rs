@@ -71,7 +71,7 @@ pub unsafe fn cuda_malloc_host<T>(len: usize) -> Result<*mut T, CudaError> {
 /// The memory will not be unregistered until `cudaHostUnregister` is called.
 pub unsafe fn cuda_host_register<T>(ptr: *const T, len: usize) -> Result<(), CudaError> {
     Result::<(), CudaError>::from(ffi::cuda_host_register(
-        ptr as *const c_void,
+        ptr as *mut c_void,
         len * mem::size_of::<T>(),
     ))
 }
@@ -81,7 +81,7 @@ pub unsafe fn cuda_host_register<T>(ptr: *const T, len: usize) -> Result<(), Cud
 /// # Safety
 /// The caller must guarantee that after this call no data will point to the value of the pointer.
 pub unsafe fn cuda_free_host<T>(ptr: *const T) -> Result<(), CudaError> {
-    Result::<(), CudaError>::from(ffi::cuda_free_host(ptr as *const c_void))
+    Result::<(), CudaError>::from(ffi::cuda_free_host(ptr as *mut c_void))
 }
 
 /// A Rust interface for cudaHostUnregister.
@@ -89,7 +89,7 @@ pub unsafe fn cuda_free_host<T>(ptr: *const T) -> Result<(), CudaError> {
 /// # Safety
 /// The caller must guarantee that after this call no data will point to the value of the pointer.
 pub unsafe fn cuda_host_unregister<T>(ptr: *const T) -> Result<(), CudaError> {
-    Result::<(), CudaError>::from(ffi::cuda_host_unregister(ptr as *const c_void))
+    Result::<(), CudaError>::from(ffi::cuda_host_unregister(ptr as *mut c_void))
 }
 
 /// A Rust interface for cudaFree.

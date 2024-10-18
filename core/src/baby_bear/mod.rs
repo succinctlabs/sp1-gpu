@@ -6,9 +6,9 @@ use crate::{
     device::{error::CudaRustError, CudaScan},
 };
 
-type F = BabyBear;
-const D: usize = 4;
-type EF = BinomialExtensionField<F, D>;
+pub type F = BabyBear;
+pub const D: usize = 4;
+pub type EF = BinomialExtensionField<F, D>;
 
 mod ffi {
     use super::*;
@@ -16,13 +16,13 @@ mod ffi {
 
     extern "C" {
         pub fn scan_baby_bear(
-            a: *const F,
+            a: *mut F,
             b: *const F,
             n: usize,
             stream: CudaStreamHandle,
         ) -> CudaRustError;
         pub fn scan_baby_bear_challenge(
-            a: *const EF,
+            a: *mut EF,
             b: *const EF,
             n: usize,
             stream: CudaStreamHandle,

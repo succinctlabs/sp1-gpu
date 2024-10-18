@@ -158,7 +158,9 @@ mod tests {
             matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
             merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher},
             poseidon2::{
-                baby_bear::{poseidon2_baby_bear_16_kernels::DIGEST_WIDTH, DeviceHasherBabyBear},
+                baby_bear::{
+                    poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH, DeviceHasherBabyBear,
+                },
                 tests::baby_bear_tests::{
                     poseidon2_baby_bear_16_compressor, poseidon2_baby_bear_16_hasher,
                 },
@@ -169,7 +171,7 @@ mod tests {
         use p3_merkle_tree::FieldMerkleTree;
 
         pub type BabyBearFieldMerkleTreeGpu<M> =
-            FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M>;
+            FieldMerkleTreeGpu<BabyBear, [BabyBear; BB31_DIGEST_WIDTH], M>;
 
         #[test]
         fn test_first_digest_layer() {
@@ -180,7 +182,8 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices =
                 vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
-            let mut digests = DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n).unwrap();
+            let mut digests =
+                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
                 digests.set_len(n);
@@ -213,7 +216,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1.view()].to_device().unwrap();
             let mut first_layer_digests =
-                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n).unwrap();
+                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(n).unwrap();
 
             let hasher_gpu = DeviceHasherBabyBear::new();
             unsafe {
@@ -228,7 +231,7 @@ mod tests {
 
             let matrices_to_inject = vec![matrix_device_2.view()].to_device().unwrap();
             let mut next_digests =
-                DeviceBuffer::<[BabyBear; DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
+                DeviceBuffer::<[BabyBear; BB31_DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
             unsafe {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(
@@ -278,7 +281,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-            let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+            let root_host: [BabyBear; BB31_DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
         }
@@ -298,7 +301,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-            let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
+            let root_host: [BabyBear; BB31_DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
         }
@@ -312,7 +315,7 @@ mod tests {
             matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
             merkle_tree::{FieldMerkleTreeGpu, FieldMerkleTreeHasher},
             poseidon2::{
-                bn254::{poseidon2_bn254_3_kernels::DIGEST_WIDTH, DeviceHasherBn254},
+                bn254::{poseidon2_bn254_3_kernels::BN254_DIGEST_WIDTH, DeviceHasherBn254},
                 tests::bn254_tests::{poseidon2_bn254_3_compressor, poseidon2_bn254_3_perm},
             },
         };
@@ -329,7 +332,7 @@ mod tests {
         pub type OuterHash = MultiField32PaddingFreeSponge<OuterVal, Bn254Fr, OuterPerm, 3, 16, 1>;
 
         pub type Bn254FieldMerkleTreeGpu<M> =
-            FieldMerkleTreeGpu<BabyBear, [Bn254Fr; DIGEST_WIDTH], M>;
+            FieldMerkleTreeGpu<BabyBear, [Bn254Fr; BN254_DIGEST_WIDTH], M>;
 
         #[test]
         fn test_first_digest_layer() {
@@ -341,7 +344,8 @@ mod tests {
             let (matrix_host_2, matrix_device_2) = RowMajorMatrixDevice::<BabyBear>::dummy(4, n);
             let tallest_matrices =
                 vec![matrix_device_1.view(), matrix_device_2.view()].to_device().unwrap();
-            let mut digests = DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n).unwrap();
+            let mut digests =
+                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(n).unwrap();
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
                 digests.set_len(n);
@@ -375,7 +379,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1.view()].to_device().unwrap();
             let mut first_layer_digests =
-                DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n).unwrap();
+                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(n).unwrap();
 
             let hasher_gpu = DeviceHasherBn254::new();
             unsafe {
@@ -390,7 +394,7 @@ mod tests {
 
             let matrices_to_inject = vec![matrix_device_2.view()].to_device().unwrap();
             let mut next_digests =
-                DeviceBuffer::<[Bn254Fr; DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
+                DeviceBuffer::<[Bn254Fr; BN254_DIGEST_WIDTH]>::with_capacity(n >> 1).unwrap();
             unsafe {
                 next_digests.set_len(n / 2);
                 hasher_gpu.compress_and_inject(
@@ -441,7 +445,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-            let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let root_host: [Bn254Fr; BN254_DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
         }
@@ -462,7 +466,7 @@ mod tests {
 
             let tallest_matrices = vec![matrix_host_1];
             let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
-            let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
+            let root_host: [Bn254Fr; BN254_DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
         }

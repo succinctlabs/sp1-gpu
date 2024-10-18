@@ -33,7 +33,7 @@ use crate::{
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
     matrix::ColMajorMatrixDevice,
     merkle_tree::FieldMerkleTreeGpu,
-    poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
+    poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
     utils::ChipStatistics,
 };
@@ -134,7 +134,7 @@ where
 pub type GpuMatrix<F> = ColMajorMatrixDevice<F>;
 
 pub type GpuProverData<SC> =
-    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
+    FieldMerkleTreeGpu<Val<SC>, [Val<SC>; BB31_DIGEST_WIDTH], GpuMatrix<Val<SC>>>;
 
 pub type CpuProverData<SC> = PcsProverData<SC>;
 
