@@ -19,15 +19,6 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-# sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-# sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/v1.3.0-rc2" }
-
-# sp1-wip
 sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tqn/core-basic-ffi" }
 sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tqn/core-basic-ffi" }
 sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tqn/core-basic-ffi" }
@@ -60,13 +51,6 @@ p3-bn254-fr = "0.1.4-succinct"
 p3-interpolation = "0.1.4-succinct"
 
 # for local development
-
-# sp1-core-executor = { path = "../sp1/crates/core/executor" }
-# sp1-core-machine = { path = "../sp1/crates/core/machine" }
-# sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
-# sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-# sp1-stark = { path = "../sp1/crates/stark" }
-# sp1-cuda = { path = "../sp1/crates/cuda" }
 
 # sp1-core-executor = { path = "../sp1-wip/crates/core/executor" }
 # sp1-core-machine = { path = "../sp1-wip/crates/core/machine" }
