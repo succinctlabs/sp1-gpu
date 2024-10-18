@@ -205,6 +205,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_compress_tendermint() {
         test_compress_elf(TENDERMINT_BENCHMARK_ELF);
