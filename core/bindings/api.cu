@@ -201,7 +201,7 @@ template __device__ void sp1::sr::event_to_row<bb31_t>(
 namespace moongate {
 extern CudaRustError cpu_populate_babybear(
     MatrixViewMutDevice<F> mat,
-    const AluEvent* events,
+    const CpuEventFfi* events,
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
