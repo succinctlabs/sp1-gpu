@@ -67,9 +67,10 @@ pub fn make_measurement<C: SP1ProverComponents>(
         };
     }
 
+    let deferred_proofs = stdin.proofs.iter().map(|(proof, _)| proof.clone()).collect::<Vec<_>>();
     tracing::info!("compress");
     let time = std::time::Instant::now();
-    let compressed_proof = prover.compress(&vk, core_proof, vec![], opts).unwrap();
+    let compressed_proof = prover.compress(&vk, core_proof, deferred_proofs, opts).unwrap();
     let compress_time = time.elapsed();
 
     if verify {
