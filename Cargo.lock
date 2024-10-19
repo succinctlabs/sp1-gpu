@@ -308,9 +308,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.89"
+version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86fdf8605db99b54d3cd748a44c6d04df638eb5dafb219b135d0149bd0db01f6"
+checksum = "37bf3594c4c988a53154954629820791dde498571819ae4ca50ca811e060cc95"
 
 [[package]]
 name = "ark-ff"
@@ -5553,9 +5553,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.129"
+version = "1.0.131"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dbcf9b78a125ee667ae19388837dd12294b858d101fdd393cb9d5501ef09eb2"
+checksum = "67d42a0bd4ac281beff598909bb56a86acaf979b84483e1c79c10dcaf98f8cf3"
 dependencies = [
  "itoa",
  "memchr",
@@ -5842,8 +5842,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5875,8 +5875,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5922,8 +5922,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5938,8 +5938,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5959,8 +5959,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5968,8 +5968,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5989,8 +5989,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "bincode",
  "hex",
@@ -6006,8 +6006,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6047,8 +6047,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6080,8 +6080,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6101,8 +6101,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6136,8 +6136,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6145,8 +6145,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6170,8 +6170,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6210,8 +6210,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "3.0.0-rc4"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/deferred-fix#e3f12c10ecd7d132f240c44e6af57eacf6a642ee"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#bc5245ecbabdf3d837abf53b31746a2ec608d796"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
@@ -7089,12 +7089,9 @@ checksum = "eaea85b334db583fe3274d12b4cd1880032beab409c0d774be044d4480ab9a94"
 
 [[package]]
 name = "unicase"
-version = "2.7.0"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7d2d4dafb69621809a81864c9c1b864479e1235c0dd4e199924b9742439ed89"
-dependencies = [
- "version_check",
-]
+checksum = "7e51b68083f157f853b6379db119d1c1be0e6e4dec98101079dec41f6f5cf6df"
 
 [[package]]
 name = "unicode-bidi"

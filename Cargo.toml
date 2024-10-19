@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "tamir/deferred-fix" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 
 # p3
 p3-air = "0.1.4-succinct"
