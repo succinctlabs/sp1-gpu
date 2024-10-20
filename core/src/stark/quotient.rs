@@ -85,6 +85,18 @@ where
         (0..num_chunks).map(|i| evals.vertically_strided(num_chunks, i)).collect()
     }
 
+    pub fn compute_values<C>(
+        &self,
+        chip: &Chip<SC::Val, A>,
+        trace_domain: Dom<SC>,
+        preprocessed_evaluations: &DeviceBuffer<SC::Val>,
+        main_evaluations: &DeviceBuffer<SC::Val>,
+        permutation_evaluations: &DeviceBuffer<SC::Val>,
+        public_values: &DeviceBuffer<SC::Val>,
+        cumulative_sums: &DeviceBuffer<SC::Val>,
+    ) {
+    }
+
     #[allow(clippy::type_complexity)]
     pub fn generate_quotient_values<C>(
         &self,
@@ -181,12 +193,6 @@ where
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
-            let generator_powers = quotient_domain_generator
-                .powers()
-                .take(NUM_THREADS_PER_BLOCK)
-                .collect::<Vec<_>>()
-                .to_device_async(stream)
-                .unwrap();
 
             // Compute quotient values.
             let quotient_flat = unsafe {
@@ -211,10 +217,8 @@ where
                     folding_challenge,
                     public_values_device.as_ptr(),
                     trace_domain_generator,
-                    generator_powers.as_ptr(),
+                    quotient_domain_generator,
                     quotient_flat.view_mut(),
-                    quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
-                    NUM_THREADS_PER_BLOCK,
                     stream.handle(),
                 );
                 quotient_flat
@@ -524,12 +528,6 @@ mod tests {
             debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
-            let generator_powers = quotient_domain_generator
-                .powers()
-                .take(512)
-                .collect::<Vec<_>>()
-                .to_device()
-                .unwrap();
 
             let trace_domain_device = trace_domain.to_device().unwrap();
             let quotient_domain_device = quotient_domain.to_device().unwrap();
@@ -586,10 +584,8 @@ mod tests {
                     alpha,
                     public_values_device.as_ptr(),
                     trace_domain_generator,
-                    generator_powers.as_ptr(),
+                    quotient_domain_generator,
                     quotient_output.view_mut(),
-                    (num_rows << pcs.fri_config().log_blowup) / 512,
-                    512,
                     DEFAULT_STREAM,
                 );
             }

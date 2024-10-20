@@ -103,9 +103,9 @@ struct TwoAdicMultiplicativeCoset {
     size_t log_n;
     Val shift;
 
-    __device__ __forceinline__ size_t size() const { return 1 << log_n; }
+    __host__ __device__ __forceinline__ size_t size() const { return 1 << log_n; }
 
-    __device__ __forceinline__ LagrangeSelectorsAtPoint<Val> selectors_at_point(Val gen, Val point) const {
+    __host__ __device__ __forceinline__ LagrangeSelectorsAtPoint<Val> selectors_at_point(Val gen, Val point) const {
         Val unshifted_point = point / shift;
         Val z_h = unshifted_point.exp_power_of_two(log_n) - Val::one();
 
