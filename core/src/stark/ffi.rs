@@ -54,10 +54,8 @@ pub(super) mod quotient_gpu {
             alpha: BinomialExtensionField<BabyBear, 4>,
             public_values: *const BabyBear,
             trace_domain_generator: BabyBear,
-            generator_powers: *const BabyBear,
+            quotient_domain_generator: BabyBear,
             quotient_values: MatrixViewMutDevice<BabyBear>,
-            num_blocks: usize,
-            num_threads_per_block: usize,
             stream: CudaStreamHandle,
         );
     }
