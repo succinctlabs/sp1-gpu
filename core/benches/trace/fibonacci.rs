@@ -51,6 +51,7 @@ fn host_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
     env.machine
         .chips()
         .par_iter()
+        .filter(|chip| chip.included(&env.record))
         .map(|chip| {
             let trace: RowMajorMatrix<BabyBear> =
                 chip.generate_trace(&env.record, &mut ExecutionRecord::default());
@@ -78,6 +79,7 @@ fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
     env.machine
         .chips()
         .par_iter()
+        .filter(|chip| chip.included(&env.record))
         .map(|chip| {
             let mat = chip
                 .inner()

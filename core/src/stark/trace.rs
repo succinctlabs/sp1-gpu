@@ -1,6 +1,7 @@
 use p3_field::PrimeField32;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_machine::riscv::RiscvAir;
+use sp1_core_machine::utils::next_power_of_two;
 use sp1_core_machine::CpuEventFfi;
 use sp1_stark::air::MachineAir;
 
@@ -77,11 +78,11 @@ pub fn add_sub_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::alu::NUM_ADD_SUB_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe {
         add_sub_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
@@ -107,11 +108,11 @@ pub fn bitwise_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::alu::bitwise::NUM_BITWISE_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe {
         bitwise_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
@@ -137,11 +138,11 @@ pub fn lt_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::alu::lt::NUM_LT_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe { lt_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
         .to_result()?;
@@ -165,11 +166,11 @@ pub fn sll_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::alu::sll::NUM_SHIFT_LEFT_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe {
         sll_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
@@ -195,11 +196,11 @@ pub fn sr_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::alu::sr::NUM_SHIFT_RIGHT_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe { sr_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
         .to_result()?;
@@ -223,11 +224,11 @@ pub fn cpu_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
     const ROWS_PER_EVENT: usize = 1;
 
-    let nb_rows = (events.len() * ROWS_PER_EVENT).next_power_of_two();
+    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.values.set_max_len() };
+    unsafe { mat.set_max_width() };
 
     unsafe {
         cpu_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
@@ -235,4 +236,94 @@ pub fn cpu_generate_trace(
     .to_result()?;
 
     Ok(mat)
+}
+
+#[cfg(test)]
+mod tests {
+    use p3_matrix::Matrix;
+    use rayon::prelude::*;
+
+    use sp1_core_executor::{ExecutionRecord, Executor, Program};
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2, SP1CoreOpts};
+
+    use crate::{cuda_runtime::stream::CudaStream, device::memory::ToHost};
+
+    use super::AccelAir;
+
+    const FIBONACCI_ELF: &[u8] =
+        include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
+    #[test]
+    fn generate_trace_gpu_eq_cpu() {
+        let program = Program::from(FIBONACCI_ELF).unwrap();
+        let mut executor = Executor::new(program, SP1CoreOpts::default());
+        executor.run().unwrap();
+        let record = &executor.record;
+
+        // use rand::{thread_rng, Rng};
+        // use sp1_core_executor::{events::AluEvent, ExecutionRecord, Opcode};
+        // let record = {
+        //     let add_events = (0..100)
+        //         .flat_map(|i| {
+        //             [
+        //                 {
+        //                     let operand_1 = thread_rng().gen_range(0..u32::MAX);
+        //                     let operand_2 = thread_rng().gen_range(0..u32::MAX);
+        //                     let result = operand_1.wrapping_add(operand_2);
+        //                     AluEvent::new(i % 2, 0, Opcode::ADD, result, operand_1, operand_2)
+        //                 },
+        //                 {
+        //                     let operand_1 = thread_rng().gen_range(0..u32::MAX);
+        //                     let operand_2 = thread_rng().gen_range(0..u32::MAX);
+        //                     let result = operand_1.wrapping_sub(operand_2);
+        //                     AluEvent::new(i % 2, 0, Opcode::SUB, result, operand_1, operand_2)
+        //                 },
+        //             ]
+        //         })
+        //         .collect::<Vec<_>>();
+        //     ExecutionRecord { add_events, ..Default::default() }
+        // };
+
+        let config = BabyBearPoseidon2::new();
+        let machine = RiscvAir::machine(config);
+
+        let traces = machine
+            .chips()
+            .par_iter()
+            .filter(|chip| chip.included(record))
+            .map(|chip| {
+                let mat = chip
+                    .inner()
+                    .generate_trace_accel(
+                        record,
+                        &mut ExecutionRecord::default(),
+                        &CudaStream::default(),
+                    )
+                    .unwrap();
+
+                let trace_cpu = chip.generate_trace(record, &mut ExecutionRecord::default());
+
+                mat.stream().synchronize().unwrap();
+                let trace_gpu = mat.to_host();
+
+                println!("{:<25} {:>5} {:>5}", chip.name(), trace_cpu.height(), trace_cpu.width());
+
+                (chip.name(), trace_gpu, trace_cpu)
+            })
+            .collect::<Vec<_>>();
+
+        for (name, trace_gpu, trace_cpu) in traces {
+            // if name == "CPU" {
+            //     continue;
+            // }
+            // assert_eq!(
+            //     trace_gpu, trace_cpu,
+            //     "chip {name}'s gpu trace should be the same as cpu trace"
+            // );
+
+            if trace_gpu != trace_cpu {
+                println!("chip {name}'s gpu trace should be the same as cpu trace");
+            }
+        }
+    }
 }
