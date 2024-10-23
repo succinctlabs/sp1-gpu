@@ -18,10 +18,18 @@ extern "C" {
         stream: CudaStreamHandle,
     ) -> CudaRustError;
 
-    #[link_name = "sumBabyBear"]
+    #[link_name = "vectorSumBabyBear"]
     pub fn sum_baby_bear(
         input: *mut BabyBear,
         result: *mut BabyBear,
+        len: usize,
+        stream: CudaStreamHandle,
+    );
+
+    #[link_name = "vectorSumBabyBearExtension"]
+    pub fn sum_baby_bear_extension(
+        input: *mut BinomialExtensionField<BabyBear, 4>,
+        result: *mut BinomialExtensionField<BabyBear, 4>,
         len: usize,
         stream: CudaStreamHandle,
     );

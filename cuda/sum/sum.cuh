@@ -4,6 +4,7 @@
 #include <cooperative_groups/reduce.h>
 #include <cuda/atomic>
 #include "../fields/bb31_t.cuh"
+#include "../fields/bb31_extension_t.cuh"
 
 namespace cg = cooperative_groups;
 
@@ -17,36 +18,20 @@ template<typename F> __device__ int reduce_sum(cg::thread_group g, F *temp, F va
     for (int i = g.size() / 2; i > 0; i /= 2)
     {
         temp[lane] = val;
-        g.sync(); // wait for all threads to store
+        g.sync();
         if(lane<i) val += temp[lane + i];
-        g.sync(); // wait for all threads to load
+        g.sync(); 
     }
     return val; // note: only thread 0 will return full sum
 }
 
-
 template<typename F> __global__ void partialBlockSum(F* A, F* partial_sums, size_t len) {
-    // auto block = cg::this_thread_block();
-
-    // F thread_sum = F::zero();
-
-    // for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
-    //     thread_sum += A[i];
-    // }
-
-    // extern __shared__ bb31_t temp[];
-    // thread_sum = reduce_sum(block, temp, thread_sum);
-
-    // // Store the result for this block
-    // if (block.thread_rank() == 0) {
-    //     partial_sums[blockIdx.x] = thread_sum;
-    // }
-
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
     // Allocate shared memory
-    extern __shared__ F shared_sum[];
+    extern __shared__ unsigned char memory[];
+    F* shared_sum = reinterpret_cast<F*>(memory);
 
     F thread_sum = F::zero();
 
@@ -90,26 +75,40 @@ template<typename F> __global__ void blockSum(F* A, F* total_sum, size_t len) {
     auto tile = cg::tiled_partition<32>(block);
 
     F thread_sum = F::zero();
-
+    
     for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
         thread_sum += A[i];
     }
-
-    cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(total_sum[0]);
-
+    cuda::atomic_ref<F, cuda::thread_scope_block> atomic(total_sum[0]);
     // reduce thread sums across the tile, add the result to the atomic
     cg::reduce_update_async(tile, atomic, thread_sum, cg::plus<F>());
-
     // synchronize the block, to ensure all async reductions are ready
     block.sync();
 }
 
-template<typename F> void sum(F* in, F* result, size_t len, cudaStream_t stream) {
+template<typename F, typename EF> __global__ void blockSumExtension(EF* A, EF* total_sum, size_t len) {
+    auto block = cg::this_thread_block();
+    auto tile = cg::tiled_partition<32>(block);
+
+    EF thread_sum = EF::zero();
+    
+    for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
+        thread_sum += A[i];
+    }
+
+    for(int j=0 ; j<= EF::D; j++) {
+        cuda::atomic_ref<F, cuda::thread_scope_block> atomic(total_sum[0].value[j]);
+        cg::reduce_update_async(tile, atomic, thread_sum.value[j], cg::plus<F>());
+    }
+    block.sync();
+}
+
+template<typename F> void vectorSum(F* in, F* result, size_t len, cudaStream_t stream) {
     size_t numThreads = 512;
     size_t numBlocks = (((len - 1)/numThreads + 1) - 1) / 8 + 1;
 
     // Allocate the partial sums and set them to zero. 
-    bb31_t * partial_sums;
+    F * partial_sums;
 
     CUDA_UNWRAP(cudaMallocAsync(&partial_sums, sizeof(F) * numBlocks, stream));
 
@@ -123,8 +122,31 @@ template<typename F> void sum(F* in, F* result, size_t len, cudaStream_t stream)
     CUDA_UNWRAP(cudaFreeAsync(partial_sums, stream));
 }
 
-extern "C" void sumBabyBear(bb31_t* in, bb31_t* result, size_t len, cudaStream_t stream) {
-    sum(in, result, len, stream);
+template<typename F, typename EF> void vectorSumExtension(EF* in, EF* result, size_t len, cudaStream_t stream) {
+    size_t numThreads = 512;
+    size_t numBlocks = (((len - 1)/numThreads + 1) - 1) / 8 + 1;
+
+    // Allocate the partial sums and set them to zero. 
+    EF * partial_sums;
+
+    CUDA_UNWRAP(cudaMallocAsync(&partial_sums, sizeof(EF) * numBlocks, stream));
+
+    size_t numTiles = numThreads/32;
+    partialBlockSum<<<numBlocks, numThreads, numTiles * sizeof(EF), stream>>>(in, partial_sums, len);
+    
+    size_t new_len = numBlocks;
+    numBlocks = (((new_len - 1)/numThreads + 1) - 1) / 8 + 1;
+    blockSumExtension<F, EF><<<numBlocks, numThreads, 0, stream>>>(partial_sums, result, new_len);
+
+    CUDA_UNWRAP(cudaFreeAsync(partial_sums, stream));
+}
+
+extern "C" void vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t len, cudaStream_t stream) {
+    vectorSum(in, result, len, stream);
+}
+
+extern "C" void vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t len, cudaStream_t stream) {
+    vectorSumExtension<bb31_t, bb31_extension_t>(in, result, len, stream);
 }
 
 extern "C" void partialSumBabyBear(bb31_t* in, bb31_t*  out, size_t len, cudaStream_t stream) {
