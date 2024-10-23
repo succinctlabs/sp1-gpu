@@ -34,33 +34,33 @@ __global__ void computeValues(Operation *evalProgram,
         return;
     }
 
-    Val generatorPower = quotientDomaingenerator^((blockIdx.x * blockDim.x) + threadIdx.x);
+    // Val generatorPower = quotientDomaingenerator^((blockIdx.x * blockDim.x) + threadIdx.x);
 
-    Val point = generatorPower * quotientDomain.shift; 
+    // Val point = generatorPower * quotientDomain.shift; 
 
-    LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
+    // LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
 
-    Val isFirstRow = selectors.is_first_row[quotientIdx];
-    Val isLastRow = selectors.is_last_row[quotientIdx];
-    Val isTransition = selectors.is_transition[quotientIdx];
-    Val invZeroifier = selectors.inv_zeroifier[quotientIdx];
+    // Val isFirstRow = selectors.is_first_row[quotientIdx];
+    // Val isLastRow = selectors.is_last_row[quotientIdx];
+    // Val isTransition = selectors.is_transition[quotientIdx];
+    // Val invZeroifier = selectors.inv_zeroifier[quotientIdx];
 
-    ConstraintFolder<Val, Challenge, 2> folder =
-        ConstraintFolder<Val, Challenge, 2>();
-    folder.prep = preprocessedTraceOnQuotientDomain;
-    folder.main = mainTraceOnQuotientDomain;
-    folder.publicValues = publicValues;
-    folder.perm = permutationTraceOnQuotientDomain;
-    folder.permChallenges = permChallenges;
-    folder.cumulativeSums = cumulativeSums;
-    folder.isFirstRow = isFirstRow;
-    folder.isLastRow = isLastRow;
-    folder.isTransition = isTransition;
-    folder.alpha = alpha;
-    folder.accumulator = Challenge::zero();
-    folder.quotientIdx = quotientIdx;
-    folder.quotientSize = quotientSize;
-    folder.nextStep = nextStep;
+    // ConstraintFolder<Val, Challenge, 2> folder =
+    //     ConstraintFolder<Val, Challenge, 2>();
+    // folder.prep = preprocessedTraceOnQuotientDomain;
+    // folder.main = mainTraceOnQuotientDomain;
+    // folder.publicValues = publicValues;
+    // folder.perm = permutationTraceOnQuotientDomain;
+    // folder.permChallenges = permChallenges;
+    // folder.cumulativeSums = cumulativeSums;
+    // folder.isFirstRow = isFirstRow;
+    // folder.isLastRow = isLastRow;
+    // folder.isTransition = isTransition;
+    // folder.alpha = alpha;
+    // folder.accumulator = Challenge::zero();
+    // folder.quotientIdx = quotientIdx;
+    // folder.quotientSize = quotientSize;
+    // folder.nextStep = nextStep;
 
     Challenge expr[MEMORY_SIZE];
     for (size_t i = 0; i < MEMORY_SIZE; i++) {
@@ -70,100 +70,113 @@ __global__ void computeValues(Operation *evalProgram,
         Operation op = evalProgram[i];
         switch (op.variant) {
             case OperationType::AssignF:
-                expr[op.a.value] = bb31_extension_t(op.b_f);
+                expr[0] = bb31_extension_t(op.b_f);
                 break;
             case OperationType::AssignEF:
-                expr[op.a.value] = op.b_ef;
+                expr[0] = op.b_ef;
                 break;
             case OperationType::AssignV:
-                expr[op.a.value] = folder.var(op.b_var);
+                // expr[op.a.value] = folder.var(op.b_var);
+                expr[0] = expr[0];
                 break;
             case OperationType::AssignE:
-                expr[op.a.value] = expr[op.b_expr.value];
+                expr[0] = expr[op.b_expr.value];
                 break;
 
             case OperationType::AddVF:
-                expr[op.a.value] = folder.var(op.b_var) + op.c_f;
+                // expr[op.a.value] = folder.var(op.b_var) + op.c_f;
+                expr[0] = expr[0] + op.c_f;
                 break;
             case OperationType::AddVV:
-                expr[op.a.value] = folder.var(op.b_var) + folder.var(op.c_var);
+                // expr[op.a.value] = folder.var(op.b_var) + folder.var(op.c_var);
+                expr[0] = expr[0] + expr[0];
                 break;
             case OperationType::AddVE:
-                expr[op.a.value] = folder.var(op.b_var) + expr[op.c_expr.value];
+                // expr[op.a.value] = folder.var(op.b_var) + expr[op.c_expr.value];
+                expr[0] = expr[0] + expr[op.c_expr.value];
                 break;
             case OperationType::AddEF:
-                expr[op.a.value] = expr[op.b_expr.value] + op.c_f;
+                expr[0] = expr[op.b_expr.value] + op.c_f;
                 break;
             case OperationType::AddEV:
-                expr[op.a.value] = expr[op.b_expr.value] + folder.var(op.c_var);
+                // expr[op.a.value] = expr[op.b_expr.value] + folder.var(op.c_var);
+                expr[0] = expr[op.b_expr.value] + expr[0];
                 break;
             case OperationType::AddEE:
-                expr[op.a.value] =
+                expr[0] =
                     expr[op.b_expr.value] + expr[op.c_expr.value];
                 break;
             case OperationType::AddAssignE:
-                expr[op.a.value] += expr[op.b_expr.value];
+                expr[0] += expr[op.b_expr.value];
                 break;
 
             case OperationType::SubVF:
-                expr[op.a.value] = folder.var(op.b_var) - op.c_f;
+                // expr[op.a.value] = folder.var(op.b_var) - op.c_f;
+                expr[0] = expr[0] - op.c_f;
                 break;
             case OperationType::SubVV:
-                expr[op.a.value] = folder.var(op.b_var) - folder.var(op.c_var);
+                // expr[op.a.value] = folder.var(op.b_var) - folder.var(op.c_var);
+                expr[0] = expr[0] - expr[0];
                 break;
             case OperationType::SubVE:
-                expr[op.a.value] = folder.var(op.b_var) - expr[op.c_expr.value];
+                // expr[op.a.value] = folder.var(op.b_var) - expr[op.c_expr.value];
+                expr[0] = expr[0] - expr[op.c_expr.value];
                 break;
             case OperationType::SubEF:
-                expr[op.a.value] = expr[op.b_expr.value] - op.c_f;
+                expr[0] = expr[op.b_expr.value] - op.c_f;
                 break;
             case OperationType::SubEV:
-                expr[op.a.value] = expr[op.b_expr.value] - folder.var(op.c_var);
+                // expr[op.a.value] = expr[op.b_expr.value] - folder.var(op.c_var);
+                expr[0] = expr[op.b_expr.value] - expr[0];
                 break;
             case OperationType::SubEE:
-                expr[op.a.value] =
+                expr[0] =
                     expr[op.b_expr.value] - expr[op.c_expr.value];
                 break;
             case OperationType::SubAssignE:
-                expr[op.a.value] = expr[op.a.value] - expr[op.b_expr.value];
+                expr[0] = expr[op.a.value] - expr[op.b_expr.value];
                 break;
 
             case OperationType::MulVF:
-                expr[op.a.value] = folder.var(op.b_var) * op.c_f;
+                // expr[op.a.value] = folder.var(op.b_var) * op.c_f;
+                expr[0] = expr[0] * op.c_f;
                 break;
             case OperationType::MulVV:
-                expr[op.a.value] = folder.var(op.b_var) * folder.var(op.c_var);
+                // expr[op.a.value] = folder.var(op.b_var) * folder.var(op.c_var);
+                expr[0] = expr[0] * expr[0];
                 break;
             case OperationType::MulVE:
-                expr[op.a.value] = folder.var(op.b_var) * expr[op.c_expr.value];
+                // expr[op.a.value] = folder.var(op.b_var) * expr[op.c_expr.value];
+                expr[0] = expr[0] * expr[op.c_expr.value];
                 break;
             case OperationType::MulEF:
-                expr[op.a.value] = expr[op.b_expr.value] * op.c_f;
+                expr[0] = expr[op.b_expr.value] * op.c_f;
                 break;
             case OperationType::MulEV:
-                expr[op.a.value] = expr[op.b_expr.value] * folder.var(op.c_var);
+                // expr[op.a.value] = expr[op.b_expr.value] * folder.var(op.c_var);
+                expr[0] = expr[op.b_expr.value] * expr[0];
                 break;
             case OperationType::MulEE:
-                expr[op.a.value] =
+                expr[0] =
                     expr[op.b_expr.value] * expr[op.c_expr.value];
                 break;
             case OperationType::MulAssignE:
-                expr[op.a.value] *= expr[op.b_expr.value];
+                expr[0] *= expr[op.b_expr.value];
                 break;
             case OperationType::MulAssignEF:
-                expr[op.a.value] *= op.b_ef;
+                expr[0] *= op.b_ef;
                 break;
 
             case OperationType::NegE:
-                expr[op.a.value] =
+                expr[0] =
                     (bb31_extension_t::zero() - bb31_extension_t::one()) *
                     expr[op.b_expr.value];
                 break;
         }
     }
 
-    folder.accumulator = expr[0];
-    bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
+    // folder.accumulator = expr[0];
+    bb31_extension_t quotient_value = expr[0];
 
     #pragma unroll
         for (size_t k = 0; k < bb31_extension_t::D; k++) {
