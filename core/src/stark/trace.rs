@@ -38,12 +38,12 @@ impl AccelAir<F> for RiscvAir<F> {
                 stream,
             ),
             RiscvAir::Add(_) => add_sub_generate_trace(
-                // &[&input.add_events, &input.sub_events]
-                //     .into_iter()
-                //     .flatten()
-                //     .cloned()
-                //     .collect::<Vec<_>>(),
-                &input.add_events, // Ignore sub_events for now. Should be combined later.
+                // These two vectors should be combined in the record struct.
+                &[&input.add_events, &input.sub_events]
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+                    .collect::<Vec<_>>(),
                 stream,
             ),
             RiscvAir::Bitwise(_) => bitwise_generate_trace(&input.bitwise_events, stream),
@@ -240,11 +240,10 @@ pub fn cpu_generate_trace(
 
 #[cfg(test)]
 mod tests {
-    use p3_matrix::Matrix;
     use rayon::prelude::*;
 
     use sp1_core_executor::{ExecutionRecord, Executor, Program};
-    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_core_machine::{riscv::RiscvAir, utils::setup_logger};
     use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2, SP1CoreOpts};
 
     use crate::{cuda_runtime::stream::CudaStream, device::memory::ToHost};
@@ -253,76 +252,47 @@ mod tests {
 
     const FIBONACCI_ELF: &[u8] =
         include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
+
     #[test]
     fn generate_trace_gpu_eq_cpu() {
-        let program = Program::from(FIBONACCI_ELF).unwrap();
-        let mut executor = Executor::new(program, SP1CoreOpts::default());
-        executor.run().unwrap();
-        let record = &executor.record;
-
-        // use rand::{thread_rng, Rng};
-        // use sp1_core_executor::{events::AluEvent, ExecutionRecord, Opcode};
-        // let record = {
-        //     let add_events = (0..100)
-        //         .flat_map(|i| {
-        //             [
-        //                 {
-        //                     let operand_1 = thread_rng().gen_range(0..u32::MAX);
-        //                     let operand_2 = thread_rng().gen_range(0..u32::MAX);
-        //                     let result = operand_1.wrapping_add(operand_2);
-        //                     AluEvent::new(i % 2, 0, Opcode::ADD, result, operand_1, operand_2)
-        //                 },
-        //                 {
-        //                     let operand_1 = thread_rng().gen_range(0..u32::MAX);
-        //                     let operand_2 = thread_rng().gen_range(0..u32::MAX);
-        //                     let result = operand_1.wrapping_sub(operand_2);
-        //                     AluEvent::new(i % 2, 0, Opcode::SUB, result, operand_1, operand_2)
-        //                 },
-        //             ]
-        //         })
-        //         .collect::<Vec<_>>();
-        //     ExecutionRecord { add_events, ..Default::default() }
-        // };
-
+        setup_logger();
         let config = BabyBearPoseidon2::new();
         let machine = RiscvAir::machine(config);
 
-        let traces = machine
-            .chips()
-            .par_iter()
-            .filter(|chip| chip.included(record))
-            .map(|chip| {
-                let mat = chip
-                    .inner()
-                    .generate_trace_accel(
-                        record,
-                        &mut ExecutionRecord::default(),
-                        &CudaStream::default(),
-                    )
-                    .unwrap();
+        let program = Program::from(FIBONACCI_ELF).unwrap();
+        let mut executor = Executor::new(program, SP1CoreOpts::default());
+        executor.run().unwrap();
+        let records = &executor.records;
 
-                let trace_cpu = chip.generate_trace(record, &mut ExecutionRecord::default());
+        for record in records {
+            let traces = machine
+                .chips()
+                .par_iter()
+                .filter(|chip| chip.included(record))
+                .map(|chip| {
+                    let mat = chip
+                        .inner()
+                        .generate_trace_accel(
+                            record,
+                            &mut ExecutionRecord::default(),
+                            &CudaStream::default(),
+                        )
+                        .unwrap();
 
-                mat.stream().synchronize().unwrap();
-                let trace_gpu = mat.to_host();
+                    let trace_cpu = chip.generate_trace(record, &mut ExecutionRecord::default());
 
-                println!("{:<25} {:>5} {:>5}", chip.name(), trace_cpu.height(), trace_cpu.width());
+                    mat.stream().synchronize().unwrap();
+                    let trace_gpu = mat.to_host();
 
-                (chip.name(), trace_gpu, trace_cpu)
-            })
-            .collect::<Vec<_>>();
+                    (chip.name(), trace_gpu, trace_cpu)
+                })
+                .collect::<Vec<_>>();
 
-        for (name, trace_gpu, trace_cpu) in traces {
-            // if name == "CPU" {
-            //     continue;
-            // }
-            // assert_eq!(
-            //     trace_gpu, trace_cpu,
-            //     "chip {name}'s gpu trace should be the same as cpu trace"
-            // );
-
-            if trace_gpu != trace_cpu {
-                println!("chip {name}'s gpu trace should be the same as cpu trace");
+            for (name, trace_gpu, trace_cpu) in traces {
+                assert_eq!(
+                    trace_gpu, trace_cpu,
+                    "chip {name}'s gpu trace should be the same as cpu trace"
+                );
             }
         }
     }
