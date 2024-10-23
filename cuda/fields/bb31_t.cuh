@@ -119,9 +119,10 @@ public:
     {   return cneg(*this, true);   }
 
     static inline const bb31_t one()    { return bb31_t{ONE}; }
+    static inline const bb31_t zero()    { return bb31_t(0); }
     inline bool is_one() const          { return val == ONE;  }
     inline bool is_zero() const         { return val == 0;    }
-    inline void zero()                  { val = 0;            }
+    inline void set_to_zero()                  { val = 0;            }
 
     friend inline bb31_t czero(const bb31_t a, int set_z)
     {
@@ -418,6 +419,7 @@ public:
     inline constexpr bb31_t(int a) : val(((uint64_t)a << 32) % MOD) {}
 
     static inline const bb31_t one()                { return bb31_t(1); }
+    static inline const bb31_t zero()               { return bb31_t(0); }
     inline bb31_t& operator+=(bb31_t b)             { return *this;     }
     inline bb31_t& operator-=(bb31_t b)             { return *this;     }
     inline bb31_t& operator*=(bb31_t b)             { return *this;     }
@@ -427,7 +429,7 @@ public:
     friend bb31_t operator-(bb31_t a, bb31_t b)     { return a -= b;    }
     friend bb31_t operator*(bb31_t a, bb31_t b)     { return a *= b;    }
     friend bb31_t operator^(bb31_t a, uint32_t b)   { return a ^= b;    }
-    inline void zero()                              { val = 0;          }
+    inline void set_to_zero()                       { val = 0;          }
     inline bool is_zero() const                     { return val==0;    }
     inline bb31_t& operator<<=(uint32_t l)
     {
