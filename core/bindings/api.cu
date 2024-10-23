@@ -1,9 +1,6 @@
 #include <bit>
 #include <concepts>
-#include <functional>
-#include <optional>
 #include <type_traits>
-#include <utility>
 
 #include "../../cuda/matrix/matrix.cuh"
 #include "../../cuda/mmcs/merkle_tree.cuh"
@@ -22,7 +19,7 @@ namespace tracegen {
 
 template<class T>
 concept PopulateParams =
-    requires(T::Val* mat, const T::Event& event, T::Cols& cols) {
+    requires(typename T::Val* mat, const typename T::Event& event, typename T::Cols& cols) {
         typename T::Field;
         typename T::Val;
         requires std::same_as<typename T::Val, decltype(T::Field::val)>;
