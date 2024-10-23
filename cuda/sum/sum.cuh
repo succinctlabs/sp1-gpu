@@ -29,9 +29,61 @@ template<typename F> __global__ void partialBlockSum(F* A, F* partial_sums, size
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
+    F thread_sum = F::zero();
+
+    // Stride loop to accumulate partial sum
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
+        thread_sum += A[i];
+    }
+
+    // Warp-level reduction within tiles
+    thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
+
     // Allocate shared memory
     extern __shared__ unsigned char memory[];
     F* shared_sum = reinterpret_cast<F*>(memory);
+
+    // Only the first thread of each warp writes to shared memory
+    if (tile.thread_rank() == 0) {
+        shared_sum[tile.meta_group_rank()] = thread_sum;
+    }
+    block.sync();  // Synchronize after warp-level reduction
+
+    // Block-wide reduction in shared memory
+    if (block.thread_rank() < (block.size() / tile.size())) {
+        thread_sum = shared_sum[block.thread_rank()];
+    }
+    block.sync();  // Synchronize before the final reduction
+
+    // Perform tree-based reduction on shared memory
+    for (int stride = (block.size() / tile.size()) / 2; stride > 0; stride /= 2) {
+        if (block.thread_rank() < stride) {
+            shared_sum[block.thread_rank()] += shared_sum[block.thread_rank() + stride];
+        }
+        block.sync();  // Synchronize after each step
+    }
+
+    // Write the result to the partial_sums array
+    if (block.thread_rank() == 0) {
+        partial_sums[blockIdx.x] = shared_sum[0];
+    }
+}
+
+/// @brief An operator for element-wise addition
+/// @tparam F 
+/// @tparam N 
+template <typename F, int N>
+struct BatchedSumOp {
+    __device__ void operator()(F (&a)[N], const F (&b)[N]) const {
+        #pragma unroll
+        for (int i = 0; i < N; i++) {
+        }
+    }
+};
+
+template<typename F, int N> __global__ void partialBlockSumBatch(F* A, F* partial_sums, size_t len) {
+    auto block = cg::this_thread_block();
+    auto tile = cg::tiled_partition<32>(block);
 
     F thread_sum = F::zero();
 
@@ -42,6 +94,10 @@ template<typename F> __global__ void partialBlockSum(F* A, F* partial_sums, size
 
     // Warp-level reduction within tiles
     thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
+
+    // Allocate shared memory
+    extern __shared__ unsigned char memory[];
+    F* shared_sum = reinterpret_cast<F*>(memory);
 
     // Only the first thread of each warp writes to shared memory
     if (tile.thread_rank() == 0) {
@@ -96,6 +152,7 @@ template<typename F, typename EF> __global__ void blockSumExtension(EF* A, EF* t
         thread_sum += A[i];
     }
 
+    #pragma unroll
     for(int j=0 ; j<= EF::D; j++) {
         cuda::atomic_ref<F, cuda::thread_scope_block> atomic(total_sum[0].value[j]);
         cg::reduce_update_async(tile, atomic, thread_sum.value[j], cg::plus<F>());

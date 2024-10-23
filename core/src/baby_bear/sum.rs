@@ -116,7 +116,7 @@ mod tests {
             let elapsed = time.elapsed();
             println!("host time: {:?}", elapsed);
 
-            // assert_eq!(sum_device, sum_host);
+            assert_eq!(sum_device, sum_host);
 
             println!("------------------------");
         }
