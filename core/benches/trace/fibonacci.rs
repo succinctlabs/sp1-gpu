@@ -19,19 +19,19 @@ const FIBONACCI_ELF: &[u8] =
     include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
 
 struct Env {
-    record: ExecutionRecord,
+    records: Vec<ExecutionRecord>,
     machine: StarkMachine<BabyBearPoseidon2, RiscvAir<BabyBear>>,
 }
 
 static SHARD: Lazy<Env> = Lazy::new(|| {
     let mut executor = Executor::new(Program::from(FIBONACCI_ELF).unwrap(), SP1CoreOpts::default());
     executor.run().unwrap();
-    let record = executor.record;
+    let records = executor.records;
 
     let config = BabyBearPoseidon2::new();
     let machine = RiscvAir::machine(config);
 
-    Env { record, machine }
+    Env { records, machine }
 });
 
 #[divan::bench]
@@ -48,18 +48,23 @@ fn host(bencher: divan::Bencher) {
 }
 
 fn host_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
-    env.machine
-        .chips()
-        .par_iter()
-        .filter(|chip| chip.included(&env.record))
-        .map(|chip| {
-            let trace: RowMajorMatrix<BabyBear> =
-                chip.generate_trace(&env.record, &mut ExecutionRecord::default());
-            let mat = trace.to_device().unwrap().to_column_major();
-            mat.stream().synchronize().unwrap();
-            mat
+    env.records
+        .first()
+        .map(|record| {
+            env.machine
+                .chips()
+                .par_iter()
+                .filter(|chip| chip.included(record))
+                .map(|chip| {
+                    let trace: RowMajorMatrix<BabyBear> =
+                        chip.generate_trace(record, &mut ExecutionRecord::default());
+                    let mat = trace.to_device().unwrap().to_column_major();
+                    mat.stream().synchronize().unwrap();
+                    mat
+                })
+                .collect::<Vec<_>>()
         })
-        .collect()
+        .unwrap()
 }
 
 #[divan::bench]
@@ -76,21 +81,26 @@ fn on_device(bencher: divan::Bencher) {
 }
 
 fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
-    env.machine
-        .chips()
-        .par_iter()
-        .filter(|chip| chip.included(&env.record))
-        .map(|chip| {
-            let mat = chip
-                .inner()
-                .generate_trace_accel(
-                    &env.record,
-                    &mut ExecutionRecord::default(),
-                    &CudaStream::default(),
-                )
-                .unwrap();
-            mat.stream().synchronize().unwrap();
-            mat
+    env.records
+        .first()
+        .map(|record| {
+            env.machine
+                .chips()
+                .par_iter()
+                .filter(|chip| chip.included(record))
+                .map(|chip| {
+                    let mat = chip
+                        .inner()
+                        .generate_trace_accel(
+                            record,
+                            &mut ExecutionRecord::default(),
+                            &CudaStream::default(),
+                        )
+                        .unwrap();
+                    mat.stream().synchronize().unwrap();
+                    mat
+                })
+                .collect::<Vec<_>>()
         })
-        .collect()
+        .unwrap()
 }

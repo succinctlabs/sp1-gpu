@@ -1,4 +1,5 @@
 use p3_field::PrimeField32;
+use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_machine::riscv::RiscvAir;
 use sp1_core_machine::utils::next_power_of_two;
@@ -32,7 +33,7 @@ impl AccelAir<F> for RiscvAir<F> {
                 // Eventually, we'll make CPU events FFI compatible.
                 &input
                     .cpu_events
-                    .iter()
+                    .par_iter()
                     .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
                     .collect::<Vec<_>>(),
                 stream,
@@ -40,7 +41,7 @@ impl AccelAir<F> for RiscvAir<F> {
             RiscvAir::Add(_) => add_sub_generate_trace(
                 // These two vectors should be combined in the record struct.
                 &[&input.add_events, &input.sub_events]
-                    .into_iter()
+                    .into_par_iter()
                     .flatten()
                     .cloned()
                     .collect::<Vec<_>>(),
