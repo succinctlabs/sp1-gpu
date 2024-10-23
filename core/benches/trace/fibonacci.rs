@@ -38,7 +38,7 @@ static SHARD: Lazy<Env> = Lazy::new(|| {
 fn host(bencher: divan::Bencher) {
     let env = Lazy::force(&SHARD);
 
-    let work = || host_work(env);
+    let work = || divan::black_box(host_work(env));
 
     // Warm up.
     for _ in 0..5 {
@@ -71,7 +71,7 @@ fn host_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
 fn on_device(bencher: divan::Bencher) {
     let env = Lazy::force(&SHARD);
 
-    let work = || on_device_work(env);
+    let work = || divan::black_box(on_device_work(env));
 
     // Warm up.
     for _ in 0..5 {

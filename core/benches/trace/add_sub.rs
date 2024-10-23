@@ -39,7 +39,7 @@ static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
 fn host(bencher: divan::Bencher) {
     let shard = Lazy::force(&SHARD);
 
-    let work = || host_work(shard);
+    let work = || divan::black_box(host_work(shard));
 
     // Warm up.
     for _ in 0..5 {
@@ -61,7 +61,7 @@ fn host_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
 fn on_device(bencher: divan::Bencher) {
     let shard = Lazy::force(&SHARD);
 
-    let work = || on_device_work(shard);
+    let work = || divan::black_box(on_device_work(shard));
 
     // Warm up.
     for _ in 0..5 {
