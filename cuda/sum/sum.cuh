@@ -8,82 +8,129 @@
 namespace cg = cooperative_groups;
 
 
-template<typename F> __device__ void block_sum_batch(
-    const F* A,
-    int batch_size, 
-    int count,
-    cuda::atomic_ref<F, cuda::thread_scope_block>& total_sum) {
-    // auto block = cg::this_thread_block();
-    // auto tile = cg::tiled_partition<32>(block);
-    // bb31_t thread_sum = F::zero();
+template<typename F> __device__ int reduce_sum(cg::thread_group g, F *temp, F val)
+{
+    int lane = g.thread_rank();
 
-    // // Stride loop over all values, each thread accumulates its part of the array.
-    // for (int i = block.thread_rank(); i < count; i += block.size()) {
+    // Each iteration halves the number of active threads
+    // Each thread adds its partial sum[i] to sum[lane+i]
+    for (int i = g.size() / 2; i > 0; i /= 2)
+    {
+        temp[lane] = val;
+        g.sync(); // wait for all threads to store
+        if(lane<i) val += temp[lane + i];
+        g.sync(); // wait for all threads to load
+    }
+    return val; // note: only thread 0 will return full sum
+}
+
+
+template<typename F> __global__ void partialBlockSum(F* A, F* partial_sums, size_t len) {
+    // auto block = cg::this_thread_block();
+
+    // F thread_sum = F::zero();
+
+    // for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
     //     thread_sum += A[i];
     // }
 
-    // // reduce thread sums across the tile, add the result to the atomic
-    // // cg::plus<int> allows cg::reduce() to know it can use hardware acceleration for addition
-    //   cg::reduce_update_async(tile, total_sum, thread_sum, cg::plus<F>());
+    // extern __shared__ bb31_t temp[];
+    // thread_sum = reduce_sum(block, temp, thread_sum);
 
-    // // synchronize the block, to ensure all async reductions are ready
-    // block.sync();
-}
+    // // Store the result for this block
+    // if (block.thread_rank() == 0) {
+    //     partial_sums[blockIdx.x] = thread_sum;
+    // }
 
-
-template<typename F> __device__ void block_sum(
-    const F* A, 
-    int count,
-    cuda::atomic<F, cuda::thread_scope_block>& total_sum) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
-    bb31_t thread_sum = F::zero();
 
-    // Stride loop over all values, each thread accumulates its part of the array.
-    for (int i = block.thread_rank(); i < count; i += block.size()) {
+    // Allocate shared memory
+    extern __shared__ F shared_sum[];
+
+    F thread_sum = F::zero();
+
+    // Stride loop to accumulate partial sum
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
         thread_sum += A[i];
     }
 
+    // Warp-level reduction within tiles
+    thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
+
+    // Only the first thread of each warp writes to shared memory
+    if (tile.thread_rank() == 0) {
+        shared_sum[tile.meta_group_rank()] = thread_sum;
+    }
+    block.sync();  // Synchronize after warp-level reduction
+
+    // Block-wide reduction in shared memory
+    if (block.thread_rank() < (block.size() / tile.size())) {
+        thread_sum = shared_sum[block.thread_rank()];
+    }
+    block.sync();  // Synchronize before the final reduction
+
+    // Perform tree-based reduction on shared memory
+    for (int stride = (block.size() / tile.size()) / 2; stride > 0; stride /= 2) {
+        if (block.thread_rank() < stride) {
+            shared_sum[block.thread_rank()] += shared_sum[block.thread_rank() + stride];
+        }
+        block.sync();  // Synchronize after each step
+    }
+
+    // Write the result to the partial_sums array
+    if (block.thread_rank() == 0) {
+        partial_sums[blockIdx.x] = shared_sum[0];
+    }
+}
+
+
+template<typename F> __global__ void blockSum(F* A, F* total_sum, size_t len) {
+    auto block = cg::this_thread_block();
+    auto tile = cg::tiled_partition<32>(block);
+
+    F thread_sum = F::zero();
+
+    for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
+        thread_sum += A[i];
+    }
+
+    cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(total_sum[0]);
+
     // reduce thread sums across the tile, add the result to the atomic
-    // cg::plus<int> allows cg::reduce() to know it can use hardware acceleration for addition
-      cg::reduce_update_async(tile, total_sum, thread_sum, cg::plus<F>());
+    cg::reduce_update_async(tile, atomic, thread_sum, cg::plus<F>());
 
     // synchronize the block, to ensure all async reductions are ready
     block.sync();
 }
 
-__global__ void block_sum_bb31_t(
-    const bb31_t* A, 
-    int count,
-    cuda::atomic<bb31_t, cuda::thread_scope_block>& total_sum) {
-       block_sum(A, count, total_sum); 
+template<typename F> void sum(F* in, F* result, size_t len, cudaStream_t stream) {
+    size_t numThreads = 512;
+    size_t numBlocks = (((len - 1)/numThreads + 1) - 1) / 8 + 1;
+
+    // Allocate the partial sums and set them to zero. 
+    bb31_t * partial_sums;
+
+    CUDA_UNWRAP(cudaMallocAsync(&partial_sums, sizeof(F) * numBlocks, stream));
+
+    size_t numTiles = numThreads/32;
+    partialBlockSum<<<numBlocks, numThreads, numTiles * sizeof(F), stream>>>(in, partial_sums, len);
+    
+    size_t new_len = numBlocks;
+    numBlocks = (((new_len - 1)/numThreads + 1) - 1) / 8 + 1;
+    blockSum<<<numBlocks, numThreads, 0, stream>>>(partial_sums, result, new_len);
+
+    CUDA_UNWRAP(cudaFreeAsync(partial_sums, stream));
 }
 
-__device__ void block_sum_bb31_t_batch(
-    const bb31_t* A, 
-    int count,
-    int batch_size,
-    cuda::atomic_ref<bb31_t, cuda::thread_scope_block>& total_sum) {
-       block_sum_batch(A, count, batch_size, total_sum); 
+extern "C" void sumBabyBear(bb31_t* in, bb31_t* result, size_t len, cudaStream_t stream) {
+    sum(in, result, len, stream);
 }
 
-__device__ void block_sum_int(
-    const int* A, 
-    int count,
-    cuda::atomic<int, cuda::thread_scope_block>& total_sum) {
-    auto block = cg::this_thread_block();
-    auto tile = cg::tiled_partition<32>(block);
-    int thread_sum = 0;
+extern "C" void partialSumBabyBear(bb31_t* in, bb31_t*  out, size_t len, cudaStream_t stream) {
+    size_t numThreads = 512;
+    size_t numBlocks = (((len - 1)/numThreads + 1) - 1) + 1;
+    // printf("{}", )
+    partialBlockSum<<<numBlocks, numThreads, numThreads * sizeof(bb31_t), stream>>>(in, out, len);
+} 
 
-    // Stride loop over all values, each thread accumulates its part of the array.
-    for (int i = block.thread_rank(); i < count; i += block.size()) {
-        thread_sum += A[i];
-    }
-
-    // reduce thread sums across the tile, add the result to the atomic
-    // cg::plus<int> allows cg::reduce() to know it can use hardware acceleration for addition
-      cg::reduce_update_async(tile, total_sum, thread_sum, cg::plus<int>());
-
-    // synchronize the block, to ensure all async reductions are ready
-    block.sync();
-}
