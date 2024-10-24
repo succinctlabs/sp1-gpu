@@ -23,6 +23,7 @@ pub enum SymbolicVarEFKind {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub union SymbolicVarEFArgs {
     pub empty: (),
     pub ef: EF,

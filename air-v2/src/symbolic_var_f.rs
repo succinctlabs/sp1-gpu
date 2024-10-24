@@ -27,6 +27,7 @@ pub enum SymbolicVarFKind {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub union SymbolicVarFArgs {
     pub empty: (),
     pub f: F,

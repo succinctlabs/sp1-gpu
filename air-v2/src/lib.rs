@@ -145,7 +145,6 @@ pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> Vec<Instruction>
 where
     A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
 {
-    println!("codegen_cuda_eval");
     let preprocessed_width = chip.preprocessed_width();
     let width = chip.width();
     let permutation_width = chip.permutation_width();
@@ -176,26 +175,21 @@ where
         is_transition: SymbolicVarF::is_transition(),
     };
 
-    println!("evaluating constraints");
     chip.eval(&mut folder);
-    println!("done evaluating constraints");
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
     println!("{:?}", code.len());
 
-    // let (code, f_ctr, ef_ctr) = optimizer::optimize(code);
     CUDA_P3_EVAL_CODE_RESET();
     CUDA_P3_EVAL_EXPR_CTR_RESET();
 
     code
 }
 
-/// Resets [CUDA_P3_EVAL_CODE] for the next compilation.
 #[allow(non_snake_case)]
 pub fn CUDA_P3_EVAL_CODE_RESET() {
     *CUDA_P3_EVAL_CODE.lock().unwrap() = Vec::new();
 }
 
-/// Resets [CUDA_P3_EVAL_EXPR_CTR] for the next compilation.
 #[allow(non_snake_case)]
 pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
     *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap() = 0;

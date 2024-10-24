@@ -3,83 +3,283 @@
 #include <cstdint>
 #include "../fields/bb31_extension_t.cuh"
 
-enum class SymbolicFolderVarType : std::uint32_t {
-    Base = 0,
-    Extension = 1,
+enum SymbolicVarFKind {
+    EmptyF = 0,
+    ConstantF = 1,
     PreprocessedLocal = 2,
     PreprocessedNext = 3,
     MainLocal = 4,
     MainNext = 5,
-    PermutationLocal = 6,
-    PermutationNext = 7,
-    PermutationChallenge = 8,
-    CumulativeSum = 9,
-    PublicValue = 10,
-    IsFirstRow = 11,
-    IsLastRow = 12,
-    IsTransition = 13,
-    Alpha = 14,
-    Accumulator = 15,
-    Empty = 16,
+    IsFirstRow = 6,
+    IsLastRow = 7,
+    IsTransition = 8,
+    PublicValue = 9,
 };
 
-struct SymbolicFolderVar {
-    SymbolicFolderVarType variant;
-    bb31_t f;
-    bb31_extension_t ef;
-    size_t idx;
+union SymbolicVarFArgs {
+    bb31_t f; 
+    uint16_t idx;
 };
 
-struct SymbolicFolderExpr {
-    size_t value;
+struct SymbolicVarF {
+    SymbolicVarFKind variant;
+    SymbolicVarFArgs args;
 };
 
-enum class OperationType : std::uint32_t {
-    AssignF = 0,
-    AssignEF = 1,
-    AssignV = 2,
-    AssignE = 3,
+enum SymbolicVarEFKind {
+    EmptyEF = 0,
+    ConstantEF = 1,
+    PermutationLocal = 2,
+    PermutationNext = 3,
+    PermutationChallenge = 4,
+    CumulativeSum = 5,
+};  
 
-    AddVF = 4,
-    AddVV = 5,
-    AddVE = 6,
-    AddEF = 7,
-    AddEV = 8,
-    AddEE = 9,
-    AddAssignE = 10,
-
-    SubVF = 11,
-    SubVV = 12,
-    SubVE = 13,
-    SubEF = 14,
-    SubEV = 15,
-    SubEE = 16,
-    SubAssignE = 17,
-
-    MulVF = 18,
-    MulVV = 19,
-    MulVE = 20,
-    MulEF = 21,
-    MulEV = 22,
-    MulEE = 23,
-    MulAssignE = 24,
-    MulAssignEF = 25,
-
-    NegE = 26,
-    Empty = 27, 
+union SymbolicVarEFArgs {
+    bb31_t ef;
+    uint16_t idx;
 };
 
-struct Operation {
-    OperationType variant;
-    SymbolicFolderExpr a;
-    bb31_t b_f;
-    bb31_extension_t b_ef;
-    SymbolicFolderVar b_var;
-    SymbolicFolderExpr b_expr;
-    bb31_t c_f;
-    bb31_extension_t c_ef;
-    SymbolicFolderVar c_var;
-    SymbolicFolderExpr c_expr;
+struct SymbolicVarEF {
+    SymbolicVarEFKind variant;
+    SymbolicVarEFArgs args;
+};
+
+struct SymbolicExprF {
+    uint32_t id;
+};
+
+struct SymbolicExprEF {
+    uint32_t id;
+};
+
+enum Opcode {
+    Empty = 0,
+
+    FAssignC = 1,
+    FAssignV = 2,
+    FAssignE = 3,
+
+    FAddVC = 4,
+    FAddVV = 5,
+    FAddVE = 6,
+
+    FAddEC = 7,
+    FAddEV = 8,
+    FAddEE = 9,
+    FAddAssignE = 10,
+
+    FSubVC = 11,
+    FSubVV = 12,
+    FSubVE = 13,
+
+    FSubEC = 14,
+    FSubEV = 15,
+    FSubEE = 16,
+    FSubAssignE = 17,
+
+    FMulVC = 18,
+    FMulVV = 19,
+    FMulVE = 20,
+
+    FMulEC = 21,
+    FMulEV = 22,
+    FMulEE = 23,
+    FMulAssignE = 24,
+
+    FNegE = 25,
+
+    EAssignC = 26,
+    EAssignV = 27,
+    EAssignE = 28,
+
+    EAddVC = 29,
+    EAddVV = 30,
+    EAddVE = 31,
+
+    EAddEC = 32,
+    EAddEV = 33,
+    EAddEE = 34,
+    EAddAssignE = 35,
+
+    ESubVC = 36,
+    ESubVV = 37,
+    ESubVE = 38,
+
+    ESubEC = 39,
+    ESubEV = 40,
+    ESubEE = 41,
+    ESubAssignE = 42,
+
+    EMulVC = 43,
+    EMulVV = 44,
+    EMulVE = 45,
+
+    EMulEC = 46,
+    EMulEV = 47,
+    EMulEE = 48,
+    EMulAssignE = 49,
+
+    ENegE = 50,
+
+    EFFromE = 51,
+    EFAddEE = 52,
+    EFAddAssignE = 53,
+    EFSubEE = 54,
+    EFSubAssignE = 55,
+    EFMulEE = 56,
+    EFMulAssignE = 57,
+    EFAsBaseSlice = 58,
+
+    FAssertZero = 59,
+    EAssertZero = 60,
+};
+
+struct FOperationC {
+    SymbolicExprF a;
+    bb31_t b;
+};
+
+struct FOperationV {
+    SymbolicExprF a;
+    SymbolicVarF b;
+};
+
+struct FOperationE {
+    SymbolicExprF a;
+    SymbolicExprEF b;
+};
+
+struct FOperationVC {
+    SymbolicExprF a;
+    SymbolicVarF b;
+    bb31_t c;
+};
+
+struct FOperationVV {
+    SymbolicExprF a;
+    SymbolicVarF b;
+    SymbolicVarF c;
+};
+
+struct FOperationVE {
+    SymbolicExprF a;
+    SymbolicVarF b;
+    SymbolicExprEF c;
+};
+
+struct FOperationEC {
+    SymbolicExprF a;
+    SymbolicExprEF b;
+    bb31_t c;
+};
+
+struct FOperationEV {
+    SymbolicExprF a;
+    SymbolicExprEF b;
+    SymbolicVarF c;
+};
+
+struct FOperationEE {
+    SymbolicExprF a;
+    SymbolicExprEF b;
+    SymbolicExprEF c;
+};
+
+struct EOperationC {
+    SymbolicExprEF a;
+    bb31_t b;
+};
+
+struct EOperationV {
+    SymbolicExprEF a;
+    SymbolicVarEF b;
+};
+
+struct EOperationE {
+    SymbolicExprEF a;
+    SymbolicExprEF b;
+};
+
+struct EOperationVC {
+    SymbolicExprEF a;
+    SymbolicVarEF b;
+    bb31_t c;
+};
+
+struct EOperationVV {
+    SymbolicExprEF a;
+    SymbolicVarEF b;
+    SymbolicVarEF c;
+};
+
+struct EOperationVE {
+    SymbolicExprEF a;
+    SymbolicVarEF b;
+    SymbolicExprEF c;
+};
+
+struct EOperationEC {
+    SymbolicExprEF a;
+    SymbolicExprEF b;
+    bb31_t c;
+};
+
+struct EOperationEV {
+    SymbolicExprEF a;
+    SymbolicExprEF b;
+    SymbolicVarEF c;
+};
+
+struct EOperationEE {
+    SymbolicExprEF a;
+    SymbolicExprEF b;
+    SymbolicExprEF c;
+};
+
+struct EFOperationE {
+    SymbolicExprEF a;
+    SymbolicExprF b;
+};
+
+struct EFOperationEE {
+    SymbolicExprEF a;
+    SymbolicExprEF b;
+    SymbolicExprF c;
+};
+
+union Arguments {
+    FOperationC f_op_c;
+    FOperationV f_op_v;
+    FOperationE f_op_e;
+
+    FOperationVC f_op_vc;
+    FOperationVV f_op_vv;
+    FOperationVE f_op_ve;
+
+    FOperationEC f_op_ec;
+    FOperationEV f_op_ev;
+    FOperationEE f_op_ee;
+
+    EOperationC e_op_c;
+    EOperationV e_op_v;
+    EOperationE e_op_e;
+
+    EOperationVC e_op_vc;
+    EOperationVV e_op_vv;
+    EOperationVE e_op_ve;
+
+    EOperationEC e_op_ec;
+    EOperationEV e_op_ev;
+    EOperationEE e_op_ee;
+
+    EFOperationE ef_op_e;
+    EFOperationEE ef_op_ee;
+};
+
+struct Instruction {
+    Opcode opcode;
+    Arguments args;
 };
 
 template <typename Val>

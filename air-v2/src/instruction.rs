@@ -100,6 +100,7 @@ pub enum Opcode {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub union Arguments {
     pub empty: (),
 
