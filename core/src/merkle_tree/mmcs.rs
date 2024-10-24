@@ -24,6 +24,8 @@ pub trait MmcsCommitter<T: Send + Sync, M: Mmcs<T>> {
 pub trait MmcsProverData<Matrix> {
     fn matrices(&self) -> &[Matrix];
 
+    fn matrices_mut(&mut self) -> &mut [Matrix];
+
     fn clear_matrices(&mut self);
 
     fn push_matrix(&mut self, matrix: Matrix);
@@ -72,6 +74,11 @@ impl<F: Copy, D: Copy, M: DeviceMatrix<F>> MmcsProverData<M> for FieldMerkleTree
     #[inline]
     fn matrices(&self) -> &[M] {
         &self.leaves
+    }
+
+    #[inline]
+    fn matrices_mut(&mut self) -> &mut [M] {
+        &mut self.leaves
     }
 
     #[inline]

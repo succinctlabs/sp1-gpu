@@ -32,7 +32,7 @@ use crate::{
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
     matrix::ColMajorMatrixDevice,
-    merkle_tree::FieldMerkleTreeGpu,
+    merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
     utils::ChipStatistics,
@@ -333,7 +333,7 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let (global_traces, global_main_commit, global_main_data, global_chip_ordering) =
+        let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
             if let Some(global_data) = global_data {
                 let ShardMainData {
                     traces: global_traces,
@@ -350,7 +350,7 @@ where
         let ShardMainData {
             traces: local_traces,
             main_commit: local_main_commit,
-            main_data: local_main_data,
+            main_data: mut local_main_data,
             chip_ordering: local_chip_ordering,
             public_values: local_public_values,
         } = local_data;
@@ -362,7 +362,7 @@ where
             &local_traces,
             &local_chip_ordering,
         );
-        let all_traces = all_shard_data.into_iter().map(|data| data.trace).collect::<Vec<_>>();
+        let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
 
         assert!(shard_chips.len() == all_traces.len());
@@ -428,7 +428,7 @@ where
         // Commit to the permutation traces.
         let perm_domains_and_traces =
             domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
-        let (permutation_commit, perm_prover_data) =
+        let (permutation_commit, mut perm_prover_data) =
             self.committer.commit(&perm_domains_and_traces);
         permutation_span.exit();
 
@@ -457,18 +457,145 @@ where
             .copied()
             .collect::<Vec<_>>();
 
-        // Compute values
-        let quotient_values = self.quotient_generator.generate_quotient_values(
-            &self.committer,
-            &shard_chips,
-            pk,
-            &all_traces,
-            &perm_domains_and_traces,
-            &permutation_challenges,
-            folding_challenge,
-            &local_public_values,
-            &cumulative_sums,
-        )?;
+        // For each chip, get the quotient domains, evaluations on the quotient domain, and compute
+        // the quotient values.
+
+        let permutation_challenges_device = permutation_challenges.to_device().unwrap();
+        let public_values_device = local_public_values.to_device().unwrap();
+
+        let mut quotient_values = vec![];
+
+        for (i, chip) in shard_chips.iter().enumerate() {
+            let log_quotient_degree = chip.log_quotient_degree();
+            let trace = &all_traces[i];
+            let trace_domain = domains[i];
+
+            let stream = trace.stream();
+
+            let quotient_domain =
+                trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
+
+            let cumulative_sums_device =
+                cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
+
+            // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
+            // just bit-reverse them to match the expected quotient kernel.
+            let use_lde = chip.log_quotient_degree() == self.committer.log_blowup;
+
+            let chip_quotient_values = if use_lde {
+                let prep_eval = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| {
+                        pk.traces[index].to_device_async(stream).unwrap().to_column_major()
+                    })
+                    .map(|prep_trace| {
+                        self.committer.get_evaluations_on_domain(
+                            trace_domain,
+                            quotient_domain,
+                            &prep_trace,
+                        )
+                    })
+                    .transpose()
+                    .unwrap();
+                let prep_eval = prep_eval.unwrap_or_else(ColMajorMatrixDevice::null);
+
+                let main_eval = match chip.commit_scope() {
+                    InteractionScope::Local => {
+                        &mut local_main_data.matrices_mut()[local_chip_ordering[&chip.name()]]
+                    }
+                    InteractionScope::Global => {
+                        &mut global_main_data.as_mut().unwrap().matrices_mut()
+                            [global_chip_ordering[&chip.name()]]
+                    }
+                };
+                main_eval.bit_reverse_rows().unwrap();
+
+                let perm_eval = &mut perm_prover_data.matrices_mut()[i];
+                perm_eval.bit_reverse_rows().unwrap();
+
+                stream.synchronize().unwrap();
+
+                let quotient_values = self.quotient_generator.compute_values(
+                    chip,
+                    trace_domain,
+                    quotient_domain,
+                    &prep_eval,
+                    main_eval,
+                    perm_eval,
+                    &public_values_device,
+                    &cumulative_sums_device,
+                    folding_challenge,
+                    &permutation_challenges_device,
+                );
+                stream.synchronize().unwrap();
+
+                // Since we reversed the lde bits, we need to reverse them back.
+                main_eval.bit_reverse_rows().unwrap();
+                perm_eval.bit_reverse_rows().unwrap();
+
+                quotient_values
+            } else {
+                let prep_eval = pk
+                    .chip_ordering
+                    .get(&chip.name())
+                    .map(|&index| {
+                        pk.traces[index].to_device_async(stream).unwrap().to_column_major()
+                    })
+                    .map(|prep_trace| {
+                        self.committer.get_evaluations_on_domain(
+                            trace_domain,
+                            quotient_domain,
+                            &prep_trace,
+                        )
+                    })
+                    .transpose()
+                    .unwrap();
+                let prep_eval = prep_eval.unwrap_or_else(ColMajorMatrixDevice::null);
+
+                let main_eval = self
+                    .committer
+                    .get_evaluations_on_domain(trace_domain, quotient_domain, all_traces[i])
+                    .unwrap();
+                let perm_eval = self
+                    .committer
+                    .get_evaluations_on_domain(
+                        trace_domain,
+                        quotient_domain,
+                        &perm_domains_and_traces[i].1,
+                    )
+                    .unwrap();
+
+                self.quotient_generator.compute_values(
+                    chip,
+                    trace_domain,
+                    quotient_domain,
+                    &prep_eval,
+                    &main_eval,
+                    &perm_eval,
+                    &public_values_device,
+                    &cumulative_sums_device,
+                    folding_challenge,
+                    &permutation_challenges_device,
+                )
+            }
+            .unwrap();
+
+            quotient_values.push(chip_quotient_values);
+        }
+
+        // // Compute values
+        // let quotient_values = self.quotient_generator.generate_quotient_values(
+        //     &self.committer,
+        //     &shard_chips,
+        //     pk,
+        //     &all_traces,
+        //     &perm_domains_and_traces,
+        //     &permutation_challenges,
+        //     folding_challenge,
+        //     &local_public_values,
+        //     &cumulative_sums,
+        // )?;
 
         // Commit to the quotient values
         let quotient_domains_and_chunks = quotient_values
