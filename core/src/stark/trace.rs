@@ -52,11 +52,7 @@ impl AccelAir<F> for RiscvAir<F> {
             RiscvAir::ShiftLeft(_) => sll_generate_trace(&input.shift_left_events, stream),
             RiscvAir::ShiftRight(_) => sr_generate_trace(&input.shift_right_events, stream),
             // Fallback for other chips.
-            other => {
-                let mat = other.generate_trace(input, output).to_device()?.to_column_major();
-                mat.stream().synchronize()?;
-                Ok(mat)
-            }
+            other => Ok(other.generate_trace(input, output).to_device()?.to_column_major()),
         }
     }
 }
