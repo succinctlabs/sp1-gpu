@@ -24,7 +24,7 @@ extern "C" {
         result: *mut BabyBear,
         len: usize,
         stream: CudaStreamHandle,
-    );
+    ) -> CudaRustError;
 
     #[link_name = "vectorSumBabyBearExtension"]
     pub fn sum_baby_bear_extension(
@@ -32,13 +32,5 @@ extern "C" {
         result: *mut BinomialExtensionField<BabyBear, 4>,
         len: usize,
         stream: CudaStreamHandle,
-    );
-
-    #[link_name = "partialSumBabyBear"]
-    pub fn partial_sum_baby_bear(
-        input: *mut BabyBear,
-        output: *mut BabyBear,
-        len: usize,
-        stream: CudaStreamHandle,
-    );
+    ) -> CudaRustError;
 }
