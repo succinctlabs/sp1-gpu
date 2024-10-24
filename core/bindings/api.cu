@@ -9,4 +9,4 @@
 #include "../../cuda/quotient/quotient.cuh"
 #include "../../cuda/opening/opening.cuh"
 #include "../../cuda/univariate/eval.cuh" 
-#include "../../cuda/sum/sum.cuh" 
+#include "../../cuda/reduce/reduce.cuh" 
