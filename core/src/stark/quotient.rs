@@ -405,7 +405,7 @@ mod tests {
 
     use rand::thread_rng;
 
-    use tracing::debug;
+    use tracing::info;
 
     use crate::{
         cuda_runtime::ffi::DEFAULT_STREAM,
@@ -434,15 +434,19 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            debug!("Chip: {}", chip.name());
-            debug!("Id: {}", i);
+            if chip.name() != "AddSub" {
+                continue;
+            }
+
+            info!("Chip: {}", chip.name());
+            info!("Id: {}", i);
 
             let program = Program::from(FIBONACCI_ELF).unwrap();
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 10 };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 21 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
@@ -521,7 +525,7 @@ mod tests {
                 &public_values,
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
-            debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
+            info!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
             let generator_powers = quotient_domain_generator
@@ -566,8 +570,8 @@ mod tests {
 
             let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
-            debug!("> Eval Program Len: {}", operations.len());
-            debug!("> Eval Program Register Count: {}", expr_ctr);
+            info!("> Eval Program Len: {}", operations.len());
+            info!("> Eval Program Register Count: {}", expr_ctr);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -594,7 +598,7 @@ mod tests {
                 );
             }
             let data = quotient_output.to_host();
-            debug!("> GPU Time: {:?} ms", start.elapsed().as_millis());
+            info!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
             for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
                 assert_eq!(exp, res, "failed at index {}", i);

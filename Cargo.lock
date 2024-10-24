@@ -137,6 +137,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "air-v2"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "p3-air",
+ "p3-baby-bear",
+ "p3-field",
+ "p3-matrix",
+ "sp1-core-machine",
+ "sp1-stark",
+ "tracing",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

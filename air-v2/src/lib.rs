@@ -9,16 +9,26 @@ use std::sync::Mutex;
 
 use instruction::Instruction;
 use lazy_static::lazy_static;
+use p3_air::BaseAir;
+use p3_air::{
+    Air, AirBuilder, AirBuilderWithPublicValues, ExtensionBuilder, PairBuilder,
+    PermutationAirBuilder,
+};
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_matrix::{dense::RowMajorMatrixView, stack::VerticalPair};
 use sp1_stark::{
-    air::MachineAir, AirOpenedValues, Chip, GenericVerifierConstraintFolder, PROOF_MAX_NUM_PVS,
+    air::{EmptyMessageBuilder, MachineAir, MultiTableAirBuilder},
+    Chip,
 };
+use sp1_stark::{AirOpenedValues, PROOF_MAX_NUM_PVS};
+use symbolic_expr_ef::SymbolicExprEF;
+use symbolic_expr_f::SymbolicExprF;
+use symbolic_var_ef::SymbolicVarEF;
+use symbolic_var_f::SymbolicVarF;
 
-/// The type of the field used for base elements.
 pub type F = BabyBear;
 
-/// The type of the field used for extension elements.
 pub type EF = BinomialExtensionField<F, 4>;
 
 lazy_static! {
@@ -28,116 +38,192 @@ lazy_static! {
     pub static ref CUDA_P3_EVAL_EXPR_EF_CTR: Mutex<u32> = Mutex::new(0);
 }
 
-// pub struct SymbolicProverFolder<'a> {
-//     pub preprocessed:
-//         VerticalPair<RowMajorMatrixView<'a, SymbolicVarF>, RowMajorMatrixView<'a, SymbolicVarF>>,
-//     pub main:
-//         VerticalPair<RowMajorMatrixView<'a, SymbolicVarF>, RowMajorMatrixView<'a, SymbolicVarF>>,
-//     pub perm:
-//         VerticalPair<RowMajorMatrixView<'a, SymbolicVarEF>, RowMajorMatrixView<'a, SymbolicVarEF>>,
-//     pub perm_challenges: &'a [SymbolicVarEF],
-//     pub cumulative_sum: SymbolicVarEF,
-//     pub is_first_row: SymbolicVarF,
-//     pub is_last_row: SymbolicVarF,
-//     pub is_transition: SymbolicVarF,
-//     pub public_values: &'a [SymbolicVarF],
-//     pub _marker: PhantomData<(F, EF)>,
-// }
+pub struct SymbolicProverFolder<'a> {
+    pub preprocessed:
+        VerticalPair<RowMajorMatrixView<'a, SymbolicVarF>, RowMajorMatrixView<'a, SymbolicVarF>>,
+    pub main:
+        VerticalPair<RowMajorMatrixView<'a, SymbolicVarF>, RowMajorMatrixView<'a, SymbolicVarF>>,
+    pub perm:
+        VerticalPair<RowMajorMatrixView<'a, SymbolicVarEF>, RowMajorMatrixView<'a, SymbolicVarEF>>,
+    pub perm_challenges: &'a [SymbolicVarEF],
+    pub cumulative_sums: &'a [SymbolicVarEF],
+    pub is_first_row: SymbolicVarF,
+    pub is_last_row: SymbolicVarF,
+    pub is_transition: SymbolicVarF,
+    pub public_values: &'a [SymbolicVarF],
+}
 
-// /// Generates code in CUDA for evaluating the constraint polynomial on the device.
-// pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Operation>, usize)
-// where
-//     A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<F>,
-// {
-//     // Get a lock for compiling the folder, making sure that only one thread is compiling at a time.
-//     let _guard = CUDA_P3_EVAL_LOCK.lock().unwrap();
+impl<'a> AirBuilder for SymbolicProverFolder<'a> {
+    type F = F;
+    type Var = SymbolicVarF;
+    type Expr = SymbolicExprF;
+    type M =
+        VerticalPair<RowMajorMatrixView<'a, SymbolicVarF>, RowMajorMatrixView<'a, SymbolicVarF>>;
 
-//     CUDA_P3_EVAL_CODE_RESET();
-//     CUDA_P3_EVAL_EXPR_CTR_RESET();
+    fn main(&self) -> Self::M {
+        self.main
+    }
 
-//     let preprocessed_width = chip.preprocessed_width();
-//     let width = chip.width();
-//     let permutation_width = chip.permutation_width();
+    fn is_first_row(&self) -> Self::Expr {
+        self.is_first_row.into()
+    }
 
-//     let preprocessed = AirOpenedValues {
-//         local: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_local).collect(),
-//         next: (0..preprocessed_width).map(SymbolicFolderVar::preprocessed_next).collect(),
-//     };
-//     let main = AirOpenedValues {
-//         local: (0..width).map(SymbolicFolderVar::main_local).collect(),
-//         next: (0..width).map(SymbolicFolderVar::main_next).collect(),
-//     };
-//     let perm = AirOpenedValues {
-//         local: (0..permutation_width).map(SymbolicFolderVar::permutation_local).collect(),
-//         next: (0..permutation_width).map(SymbolicFolderVar::permutation_next).collect(),
-//     };
-//     let public_values =
-//         (0..PROOF_MAX_NUM_PVS).map(SymbolicFolderVar::public_value).collect::<Vec<_>>();
-//     let perm_challenges = (0..4).map(SymbolicFolderVar::permutation_challenge).collect::<Vec<_>>();
+    fn is_last_row(&self) -> Self::Expr {
+        self.is_last_row.into()
+    }
 
-//     let accumulator = SymbolicFolderExpr::alloc();
+    fn is_transition_window(&self, size: usize) -> Self::Expr {
+        if size == 2 {
+            self.is_transition.into()
+        } else {
+            panic!("uni-stark only supports a window size of 2")
+        }
+    }
 
-//     let cumulative_sums = (0..2).map(SymbolicFolderVar::cumulative_sum).collect::<Vec<_>>();
+    fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
+        let x: Self::Expr = x.into();
+        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+        code.push(Instruction::f_assert_zero(x));
+        drop(code);
+    }
+}
 
-//     let mut folder = P3EvalFolder {
-//         preprocessed: preprocessed.view(),
-//         main: main.view(),
-//         perm: perm.view(),
-//         perm_challenges: &perm_challenges,
-//         cumulative_sums: &cumulative_sums,
-//         public_values: &public_values,
-//         is_first_row: SymbolicFolderVar::is_first_row(),
-//         is_last_row: SymbolicFolderVar::is_last_row(),
-//         is_transition: SymbolicFolderVar::is_transition(),
-//         alpha: SymbolicFolderVar::alpha(),
-//         accumulator,
-//         _marker: PhantomData,
-//     };
-//     chip.eval(&mut folder);
+impl<'a> ExtensionBuilder for SymbolicProverFolder<'a> {
+    type EF = EF;
+    type ExprEF = SymbolicExprEF;
+    type VarEF = SymbolicVarEF;
 
-//     let code = CUDA_P3_EVAL_CODE.lock().unwrap().clone();
+    fn assert_zero_ext<I>(&mut self, x: I)
+    where
+        I: Into<Self::ExprEF>,
+    {
+        let x: SymbolicExprEF = x.into();
+        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+        code.push(Instruction::e_assert_zero(x));
+        drop(code);
+    }
+}
 
-//     CUDA_P3_EVAL_CODE_RESET();
-//     CUDA_P3_EVAL_EXPR_CTR_RESET();
+impl<'a> PermutationAirBuilder for SymbolicProverFolder<'a> {
+    type MP =
+        VerticalPair<RowMajorMatrixView<'a, SymbolicVarEF>, RowMajorMatrixView<'a, SymbolicVarEF>>;
+    type RandomVar = SymbolicVarEF;
 
-//     let (code, ctr) = optimizer::optimize(code);
+    fn permutation(&self) -> Self::MP {
+        self.perm
+    }
+    fn permutation_randomness(&self) -> &[Self::RandomVar] {
+        self.perm_challenges
+    }
+}
+impl<'a> MultiTableAirBuilder<'a> for SymbolicProverFolder<'a> {
+    type Sum = SymbolicVarEF;
 
-//     (code, ctr)
-// }
+    fn cumulative_sums(&self) -> &'a [Self::Sum] {
+        self.cumulative_sums
+    }
+}
 
-// /// Resets [CUDA_P3_EVAL_CODE] for the next compilation.
-// #[allow(non_snake_case)]
-// pub fn CUDA_P3_EVAL_CODE_RESET() {
-//     *CUDA_P3_EVAL_CODE.lock().unwrap() = Vec::new();
-// }
+impl<'a> PairBuilder for SymbolicProverFolder<'a> {
+    fn preprocessed(&self) -> Self::M {
+        self.preprocessed
+    }
+}
 
-// /// Resets [CUDA_P3_EVAL_EXPR_CTR] for the next compilation.
-// #[allow(non_snake_case)]
-// pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
-//     *CUDA_P3_EVAL_EXPR_CTR.lock().unwrap() = 0;
-// }
+impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
+    type PublicVar = SymbolicVarF;
 
-// #[cfg(test)]
-// mod tests {
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.public_values
+    }
+}
 
-//     use sp1_core_machine::riscv::RiscvAir;
-//     use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2};
+impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
 
-//     use crate::{codegen_cuda_eval, optimizer};
+/// Generates code in CUDA for evaluating the constraint polynomial on the device.
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> Vec<Instruction>
+where
+    A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
+{
+    println!("codegen_cuda_eval");
+    let preprocessed_width = chip.preprocessed_width();
+    let width = chip.width();
+    let permutation_width = chip.permutation_width();
+    let preprocessed = AirOpenedValues {
+        local: (0..preprocessed_width).map(SymbolicVarF::preprocessed_local).collect(),
+        next: (0..preprocessed_width).map(SymbolicVarF::preprocessed_next).collect(),
+    };
+    let main = AirOpenedValues {
+        local: (0..width).map(SymbolicVarF::main_local).collect(),
+        next: (0..width).map(SymbolicVarF::main_next).collect(),
+    };
+    let perm = AirOpenedValues {
+        local: (0..permutation_width).map(SymbolicVarEF::permutation_local).collect(),
+        next: (0..permutation_width).map(SymbolicVarEF::permutation_next).collect(),
+    };
+    let public_values = (0..PROOF_MAX_NUM_PVS).map(SymbolicVarF::public_value).collect::<Vec<_>>();
+    let perm_challenges = (0..4).map(SymbolicVarEF::permutation_challenge).collect::<Vec<_>>();
 
-//     #[test]
-//     pub fn test_add() {
-//         let config = BabyBearPoseidon2::default();
-//         let machine = RiscvAir::machine(config);
-//         let chips = machine.chips();
-//         for chip in chips {
-//             if chip.name() == "AddSub" {
-//                 let (code, _) = codegen_cuda_eval(chip);
-//                 let code = optimizer::optimize(code);
-//                 println!("{:?}", code);
-//                 return;
-//             }
-//         }
-//         panic!("no AddSub chip found");
-//     }
-// }
+    let mut folder = SymbolicProverFolder {
+        preprocessed: preprocessed.view(),
+        main: main.view(),
+        perm: perm.view(),
+        perm_challenges: &perm_challenges,
+        cumulative_sums: &[SymbolicVarEF::cumulative_sum(), SymbolicVarEF::cumulative_sum()],
+        public_values: &public_values,
+        is_first_row: SymbolicVarF::is_first_row(),
+        is_last_row: SymbolicVarF::is_last_row(),
+        is_transition: SymbolicVarF::is_transition(),
+    };
+
+    println!("evaluating constraints");
+    chip.eval(&mut folder);
+    println!("done evaluating constraints");
+    let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
+    println!("{:?}", code.len());
+
+    // let (code, f_ctr, ef_ctr) = optimizer::optimize(code);
+    CUDA_P3_EVAL_CODE_RESET();
+    CUDA_P3_EVAL_EXPR_CTR_RESET();
+
+    code
+}
+
+/// Resets [CUDA_P3_EVAL_CODE] for the next compilation.
+#[allow(non_snake_case)]
+pub fn CUDA_P3_EVAL_CODE_RESET() {
+    *CUDA_P3_EVAL_CODE.lock().unwrap() = Vec::new();
+}
+
+/// Resets [CUDA_P3_EVAL_EXPR_CTR] for the next compilation.
+#[allow(non_snake_case)]
+pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
+    *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap() = 0;
+    *CUDA_P3_EVAL_EXPR_EF_CTR.lock().unwrap() = 0;
+}
+
+#[cfg(test)]
+mod tests {
+
+    use sp1_core_machine::{riscv::RiscvAir, utils::setup_logger};
+    use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2};
+
+    use crate::codegen_cuda_eval;
+
+    #[test]
+    pub fn test_add() {
+        setup_logger();
+
+        let config = BabyBearPoseidon2::default();
+        let machine = RiscvAir::machine(config);
+        let chips = machine.chips();
+        for chip in chips {
+            if chip.name() == "AddSub" {
+                let code = codegen_cuda_eval(chip);
+                println!("{:#?}", code);
+                return;
+            }
+        }
+        panic!("no AddSub chip found");
+    }
+}
