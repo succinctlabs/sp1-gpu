@@ -34,7 +34,7 @@ use crate::{
     matrix::ColMajorMatrixDevice,
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::BB31_DIGEST_WIDTH,
-    stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    stark::{trace::AccelAir, DeviceQuotientValues, DeviceQuotientValuesGenerator},
     utils::ChipStatistics,
 };
 
@@ -145,7 +145,7 @@ where
     SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
-        + MachineAir<BabyBear>,
+        + AccelAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static
@@ -186,28 +186,35 @@ where
 
     fn generate_traces(
         &self,
-        record: &A::Record,
-        interaction_scope: InteractionScope,
+        _record: &A::Record,
+        _interaction_scope: InteractionScope,
     ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        let chips = self
-            .shard_chips(record)
-            .filter(|chip| chip.commit_scope() == interaction_scope)
-            .collect::<Vec<_>>();
-
-        chips
-            .par_iter()
-            .map(|chip| {
-                let trace = chip.generate_trace(record, &mut A::Record::default());
-                (chip.name(), trace)
-            })
-            .collect::<Vec<_>>()
+        vec![]
     }
 
     fn commit(
         &self,
         shard: &A::Record,
-        mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        mut _named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        interaction_scope: InteractionScope,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
+        let chips = self
+            .shard_chips(shard)
+            .filter(|chip| chip.commit_scope() == interaction_scope)
+            .collect::<Vec<_>>();
+
+        let mut named_traces = chips
+            .par_iter()
+            .zip(&self.chip_streams)
+            .map(|(chip, stream)| {
+                let trace: Self::DeviceMatrix = chip
+                    .air
+                    .generate_trace_accel(shard, &mut A::Record::default(), stream)
+                    .unwrap();
+                (chip.name(), trace)
+            })
+            .collect::<Vec<_>>();
+
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
 
@@ -224,15 +231,6 @@ where
 
         let span = tracing::Span::current();
         let _span = span.enter();
-        let span = tracing::Span::current();
-        let _span = span.enter();
-
-        // Copy the traces to device.
-        let traces: Vec<_> = traces
-            .iter()
-            .zip(self.chip_streams.iter())
-            .map(|(trace, stream)| trace.to_device_async(stream).unwrap().to_column_major())
-            .collect();
 
         // Commit to the traces.
         let domains_and_traces = domains.iter().copied().zip(traces.iter()).collect::<Vec<_>>();
@@ -832,7 +830,7 @@ where
                 if contains_global_bus {
                     let global_named_traces =
                         self.generate_traces(record, InteractionScope::Global);
-                    Some(self.commit(record, global_named_traces))
+                    Some(self.commit(record, global_named_traces, InteractionScope::Global))
                 } else {
                     None
                 }
@@ -867,7 +865,7 @@ where
             .zip(global_data.into_iter())
             .map(|(record, global_shard_data)| {
                 let traces = self.generate_traces(record, InteractionScope::Local);
-                let local_shard_data = self.commit(record, traces);
+                let local_shard_data = self.commit(record, traces, InteractionScope::Local);
 
                 let span = tracing::Span::current();
                 let _span = span.enter();

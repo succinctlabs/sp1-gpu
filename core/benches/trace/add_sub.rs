@@ -72,7 +72,8 @@ fn on_device(bencher: divan::Bencher) {
 
 fn on_device_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
     let mat = moongate_core::stark::trace::add_sub_generate_trace(
-        &shard.add_events,
+        shard,
+        &mut ExecutionRecord::default(),
         &CudaStream::default(),
     )
     .unwrap();

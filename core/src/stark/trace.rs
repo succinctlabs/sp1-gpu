@@ -1,9 +1,11 @@
 use p3_field::PrimeField32;
 use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
+use sp1_core_executor::ExecutionRecord;
 use sp1_core_machine::riscv::RiscvAir;
 use sp1_core_machine::sys::CpuEventFfi;
 use sp1_core_machine::utils::next_power_of_two;
+use sp1_recursion_core::machine::RecursionAir;
 use sp1_stark::air::MachineAir;
 
 use crate::baby_bear::F;
@@ -12,13 +14,13 @@ use crate::device::error::{CudaError, CudaRustError};
 use crate::device::memory::ToDevice;
 use crate::matrix::{ColMajorMatrixDevice, MatrixViewMutDevice};
 
-pub trait AccelAir<T: PrimeField32>: MachineAir<T> {
+pub trait AccelAir<F: PrimeField32>: MachineAir<F> {
     fn generate_trace_accel(
         &self,
         input: &Self::Record,
         output: &mut Self::Record,
         stream: &CudaStream,
-    ) -> Result<ColMajorMatrixDevice<T>, CudaError>;
+    ) -> Result<ColMajorMatrixDevice<F>, CudaError>;
 }
 
 impl AccelAir<F> for RiscvAir<F> {
@@ -29,31 +31,28 @@ impl AccelAir<F> for RiscvAir<F> {
         stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
         match self {
-            RiscvAir::Cpu(_) => cpu_generate_trace(
-                // Eventually, we'll make CPU events FFI compatible.
-                &input
-                    .cpu_events
-                    .par_iter()
-                    .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
-                    .collect::<Vec<_>>(),
-                stream,
-            ),
-            RiscvAir::Add(_) => add_sub_generate_trace(
-                // These two vectors should be combined in the record struct.
-                &[&input.add_events, &input.sub_events]
-                    .into_par_iter()
-                    .flatten()
-                    .cloned()
-                    .collect::<Vec<_>>(),
-                stream,
-            ),
-            RiscvAir::Bitwise(_) => bitwise_generate_trace(&input.bitwise_events, stream),
-            RiscvAir::Lt(_) => lt_generate_trace(&input.lt_events, stream),
-            RiscvAir::ShiftLeft(_) => sll_generate_trace(&input.shift_left_events, stream),
-            RiscvAir::ShiftRight(_) => sr_generate_trace(&input.shift_right_events, stream),
+            RiscvAir::Cpu(_) => cpu_generate_trace(input, output, stream),
+            RiscvAir::Add(_) => add_sub_generate_trace(input, output, stream),
+            RiscvAir::Bitwise(_) => bitwise_generate_trace(input, output, stream),
+            RiscvAir::Lt(_) => lt_generate_trace(input, output, stream),
+            RiscvAir::ShiftLeft(_) => sll_generate_trace(input, output, stream),
+            RiscvAir::ShiftRight(_) => sr_generate_trace(input, output, stream),
             // Fallback for other chips.
             other => Ok(other.generate_trace(input, output).to_device()?.to_column_major()),
         }
+    }
+}
+
+impl<const DEGREE: usize> AccelAir<F> for RecursionAir<F, DEGREE> {
+    fn generate_trace_accel(
+        &self,
+        input: &Self::Record,
+        output: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+        let mat = self.generate_trace(input, output).to_device_async(stream)?.to_column_major();
+        // mat.stream().synchronize()?;
+        Ok(mat)
     }
 }
 
@@ -69,11 +68,18 @@ extern "C" {
 }
 
 pub fn add_sub_generate_trace(
-    events: &[AluEvent],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::NUM_ADD_SUB_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    // These two vectors should be combined in the record struct.
+    let events = &[&input.add_events, &input.sub_events]
+        .into_par_iter()
+        .flatten()
+        .cloned()
+        .collect::<Vec<_>>();
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
@@ -99,11 +105,13 @@ extern "C" {
 }
 
 pub fn bitwise_generate_trace(
-    events: &[AluEvent],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::bitwise::NUM_BITWISE_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    let events = &input.bitwise_events;
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
@@ -129,11 +137,13 @@ extern "C" {
 }
 
 pub fn lt_generate_trace(
-    events: &[AluEvent],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::lt::NUM_LT_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    let events = &input.lt_events;
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
@@ -157,11 +167,13 @@ extern "C" {
 }
 
 pub fn sll_generate_trace(
-    events: &[AluEvent],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::sll::NUM_SHIFT_LEFT_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    let events = &input.shift_left_events;
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
@@ -187,11 +199,13 @@ extern "C" {
 }
 
 pub fn sr_generate_trace(
-    events: &[AluEvent],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::sr::NUM_SHIFT_RIGHT_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    let events = &input.shift_right_events;
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
@@ -215,11 +229,18 @@ extern "C" {
 }
 
 pub fn cpu_generate_trace(
-    events: &[CpuEventFfi],
+    input: &ExecutionRecord,
+    _output: &mut ExecutionRecord,
     stream: &CudaStream,
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
     const ROWS_PER_EVENT: usize = 1;
+    // Eventually, we'll make CPU events FFI compatible.
+    let events = &input
+        .cpu_events
+        .par_iter()
+        .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
+        .collect::<Vec<_>>();
 
     let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
 
