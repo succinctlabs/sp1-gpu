@@ -54,13 +54,11 @@ template <>
 };
 
 
-template<typename F, typename Op> __global__ void partialBlockReduce(F* A, F* partial_sums, size_t len) {
+template<typename F> __global__ void partialBlockReduce(F* A, F* partial_sums, size_t len) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
     F thread_sum = F::zero();
-
-    Op op;
 
     // Stride loop to accumulate partial sum
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
