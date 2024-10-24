@@ -621,7 +621,7 @@ where
 
         let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
         for chip in shard_chips.iter() {
-            let log_quotient_degree = chip.log_quotient_degree;
+            let log_quotient_degree = chip.log_quotient_degree();
             let degree = 1 << log_quotient_degree;
             let slice = quotient_values.drain(0..degree);
             quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());

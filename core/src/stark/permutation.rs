@@ -43,7 +43,7 @@ where
 
         let batch_size = chip.logup_batch_size();
         let (grouped_sends, grouped_receives, grouped_widths) =
-            get_grouped_maps(&chip.sends, &chip.receives, batch_size);
+            get_grouped_maps(chip.sends(), chip.receives(), batch_size);
 
         let device_interactions = HostInteractions::new(
             grouped_sends,

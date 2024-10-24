@@ -121,7 +121,7 @@ where
                 let stream = permutation_trace.stream();
 
                 // Get the quotient domain.
-                let log_quotient_degree = chip.log_quotient_degree;
+                let log_quotient_degree = chip.log_quotient_degree();
                 let quotient_domain =
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
                 // Compute the evaluations of the traces on the quotient domain.
@@ -159,7 +159,7 @@ where
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         for (i, (chip, evaluations)) in chips.iter().zip(evaluations).enumerate() {
-            let log_quotient_degree = chip.log_quotient_degree;
+            let log_quotient_degree = chip.log_quotient_degree();
             let (
                 trace_domain,
                 quotient_domain,
@@ -323,7 +323,7 @@ where
         public_values: &[SC::Val],
         cumulative_sums: &[SC::Challenge],
     ) -> QuotientValues<SC> {
-        let log_quotient_degree = chip.log_quotient_degree;
+        let log_quotient_degree = chip.log_quotient_degree();
 
         let quotient_domain =
             trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
@@ -457,7 +457,7 @@ mod tests {
 
             let degree = main.height();
             let log_degree = log2_strict_usize(degree);
-            let log_quotient_degree = chip.log_quotient_degree;
+            let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
             let cumulative_sums = vec![global_cumulative_sum, local_cumulative_sum];
 
