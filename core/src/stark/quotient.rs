@@ -28,8 +28,6 @@ use crate::{
     stark::ffi::quotient_gpu,
 };
 
-const NUM_THREADS_PER_BLOCK: usize = 512;
-
 use super::{BabyBearFriConfig, CpuProverData, GpuMatrix, StarkProvingKeyDevice};
 
 #[derive(Clone)]
@@ -83,6 +81,63 @@ where
         evals: &ColMajorMatrixDevice<SC::Val>,
     ) -> Result<Vec<GpuMatrix<SC::Val>>, CudaError> {
         (0..num_chunks).map(|i| evals.vertically_strided(num_chunks, i)).collect()
+    }
+
+    pub fn compute_values(
+        &self,
+        chip: &Chip<SC::Val, A>,
+        trace_domain: Dom<SC>,
+        quotient_domain: Dom<SC>,
+        preprocessed_evaluations: &ColMajorMatrixDevice<SC::Val>,
+        main_evaluations: &ColMajorMatrixDevice<SC::Val>,
+        permutation_evaluations: &ColMajorMatrixDevice<SC::Val>,
+        public_values: &DeviceBuffer<SC::Val>,
+        cumulative_sums: &DeviceBuffer<SC::Challenge>,
+        folding_challenge: SC::Challenge,
+        permutation_challenges: &DeviceBuffer<SC::Challenge>,
+    ) -> Result<DeviceQuotientValues<SC>, CudaError> {
+        let stream = main_evaluations.stream();
+        let (operations, memory_size) = self.get_eval_program(chip);
+        let operations_device = operations.to_device_async(stream).unwrap();
+
+        let trace_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
+        let quotient_domain_generator =
+            <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
+        let quotient_flat = unsafe {
+            let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity_in(
+                <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                quotient_domain.size(),
+                stream,
+            )
+            .unwrap();
+            quotient_flat.set_max_width();
+            quotient_gpu::compute_values(
+                operations_device.as_ptr(),
+                operations.len(),
+                *memory_size,
+                cumulative_sums.as_ptr(),
+                trace_domain.to_device_async(stream).unwrap(),
+                quotient_domain.to_device_async(stream).unwrap(),
+                preprocessed_evaluations.view(),
+                main_evaluations.view(),
+                permutation_evaluations.view(),
+                permutation_challenges.as_ptr(),
+                folding_challenge,
+                public_values.as_ptr(),
+                trace_domain_generator,
+                quotient_domain_generator,
+                quotient_flat.view_mut(),
+                stream.handle(),
+            );
+            quotient_flat
+        };
+
+        let quotient_degree = 1 << chip.log_quotient_degree();
+        let quotient_chunks = self.split_evals(quotient_degree, &quotient_flat)?;
+        let quotient_chunk_domains = quotient_domain.split_domains(quotient_degree);
+
+        Ok(DeviceQuotientValues { quotient_chunks, quotient_chunk_domains })
     }
 
     #[allow(clippy::type_complexity)]
@@ -181,12 +236,6 @@ where
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
-            let generator_powers = quotient_domain_generator
-                .powers()
-                .take(NUM_THREADS_PER_BLOCK)
-                .collect::<Vec<_>>()
-                .to_device_async(stream)
-                .unwrap();
 
             // Compute quotient values.
             let quotient_flat = unsafe {
@@ -211,10 +260,8 @@ where
                     folding_challenge,
                     public_values_device.as_ptr(),
                     trace_domain_generator,
-                    generator_powers.as_ptr(),
+                    quotient_domain_generator,
                     quotient_flat.view_mut(),
-                    quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
-                    NUM_THREADS_PER_BLOCK,
                     stream.handle(),
                 );
                 quotient_flat
@@ -524,12 +571,6 @@ mod tests {
             debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
-            let generator_powers = quotient_domain_generator
-                .powers()
-                .take(512)
-                .collect::<Vec<_>>()
-                .to_device()
-                .unwrap();
 
             let trace_domain_device = trace_domain.to_device().unwrap();
             let quotient_domain_device = quotient_domain.to_device().unwrap();
@@ -586,10 +627,8 @@ mod tests {
                     alpha,
                     public_values_device.as_ptr(),
                     trace_domain_generator,
-                    generator_powers.as_ptr(),
+                    quotient_domain_generator,
                     quotient_output.view_mut(),
-                    (num_rows << pcs.fri_config().log_blowup) / 512,
-                    512,
                     DEFAULT_STREAM,
                 );
             }
