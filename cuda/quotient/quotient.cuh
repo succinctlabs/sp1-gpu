@@ -23,7 +23,7 @@ __global__ void computeValues(
     Challenge alpha,
     Val* publicValues,
     Val traceDomainGenerator,
-    Val* generatorPowers,
+    Val quotientDomaingenerator,
     Matrix<Val> quotientValues
 ) {
     size_t quotientSize = quotientDomain.size();
@@ -38,11 +38,10 @@ __global__ void computeValues(
         return;
     }
 
-    Val generator = generatorPowers[1];
-    Val blockGenerator = generator ^ (blockIdx.x * blockDim.x);
+    Val generatorPower =
+        quotientDomaingenerator ^ ((blockIdx.x * blockDim.x) + threadIdx.x);
 
-    Val point =
-        blockGenerator * generatorPowers[threadIdx.x] * quotientDomain.shift;
+    Val point = generatorPower * quotientDomain.shift;
 
     LagrangeSelectorsAtPoint<Val> selectors =
         traceDomain.selectors_at_point(traceDomainGenerator, point);
@@ -195,12 +194,12 @@ void computeValues(
     bb31_extension_t alpha,
     bb31_t* publicValues,
     bb31_t traceDomainGenerator,
-    bb31_t* generatorPowers,
+    bb31_t quotientDomaingenerator,
     Matrix<bb31_t> quotientValues,
-    size_t numBlocks,
-    size_t numThreadsPerBlock,
     cudaStream_t stream
 ) {
+    size_t numThreadsPerBlock = 512;
+    size_t numBlocks = (quotientDomain.size() - 1) / numThreadsPerBlock + 1;
     if (memorySize <= 32) {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32>
             <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
@@ -216,7 +215,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else if (memorySize <= 64) {
@@ -234,7 +233,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else if (memorySize <= 128) {
@@ -252,7 +251,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else if (memorySize <= 256) {
@@ -270,7 +269,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else if (memorySize <= 512) {
@@ -288,7 +287,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else if (memorySize <= 1024) {
@@ -306,7 +305,7 @@ void computeValues(
                 alpha,
                 publicValues,
                 traceDomainGenerator,
-                generatorPowers,
+                quotientDomaingenerator,
                 quotientValues
             );
     } else {
@@ -330,10 +329,8 @@ void compute_values(
     BinomialExtensionField<BabyBear, 4> alpha,
     const BabyBear* public_values,
     BabyBear trace_domain_generator,
-    const BabyBear* generator_powers,
+    BabyBear quotient_domain_generator,
     MatrixViewMutDevice<BabyBear> quotient_values,
-    uintptr_t num_blocks,
-    uintptr_t num_threads_per_block,
     CudaStreamHandle stream
 ) {
     quotient_gpu::computeValues(
@@ -350,10 +347,8 @@ void compute_values(
         std::bit_cast<bb31_extension_t>(alpha),
         std::bit_cast<bb31_t*>(public_values),
         std::bit_cast<bb31_t>(trace_domain_generator),
-        std::bit_cast<bb31_t*>(generator_powers),
+        std::bit_cast<bb31_t>(quotient_domain_generator),
         std::bit_cast<Matrix<bb31_t>>(quotient_values),
-        std::bit_cast<size_t>(num_blocks),
-        std::bit_cast<size_t>(num_threads_per_block),
         std::bit_cast<cudaStream_t>(stream)
     );
 }

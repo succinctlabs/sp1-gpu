@@ -2,6 +2,8 @@
 
 #include <bit>
 
+#include "../fields/bb31_extension_t.cuh"
+#include "../fields/bb31_t.cuh"
 #include "interaction.cuh"
 #include "moongate_cuda_cbindgen.hpp"
 #include "permutation.cu"
@@ -31,14 +33,14 @@ void populate_permutation_rows_flattened(
         num_threads_per_block,
         0,
         std::bit_cast<cudaStream_t>(stream)>>>(
-        std::bit_cast<Interactions<bb31_t> const>(interactions),
+        std::bit_cast<Interactions<bb31_t>>(interactions),
         std::bit_cast<Matrix<bb31_t>>(permutation),
-        std::bit_cast<Matrix<bb31_t> const>(preprocessed),
-        std::bit_cast<Matrix<bb31_t> const>(main),
-        std::bit_cast<bb31_extension_t const>(global_alpha),
-        std::bit_cast<bb31_extension_t const>(global_beta),
-        std::bit_cast<bb31_extension_t const>(local_alpha),
-        std::bit_cast<bb31_extension_t const>(local_beta),
+        std::bit_cast<Matrix<bb31_t>>(preprocessed),
+        std::bit_cast<Matrix<bb31_t>>(main),
+        std::bit_cast<bb31_extension_t>(global_alpha),
+        std::bit_cast<bb31_extension_t>(global_beta),
+        std::bit_cast<bb31_extension_t>(local_alpha),
+        std::bit_cast<bb31_extension_t>(local_beta),
         batch_size
     );
 }

@@ -243,6 +243,42 @@ impl<T: Copy> DeviceBuffer<T> {
         self.len += src.len();
     }
 
+    /// Appends all the elements from `src` into `self`, using a cudaMemcpy.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the resulting length will extend the buffer's capacity or if
+    /// cudaMalloc returned an error.
+    pub fn extend_from_device_slice(&mut self, src: &[T]) -> Result<(), CudaError> {
+        // The panic code path was put into a cold function to not bloat the
+        // call site.
+        #[inline(never)]
+        #[cold]
+        #[track_caller]
+        fn capacity_fail(dst_len: usize, src_len: usize, cap: usize) -> ! {
+            panic!(
+                "source slice length ({}) too long for buffer of length ({}) and capacity ({})",
+                src_len, dst_len, cap
+            );
+        }
+
+        if self.len() + src.len() > self.cap {
+            capacity_fail(self.len(), src.len(), self.cap);
+        }
+
+        unsafe {
+            self.stream.cuda_memcpy_device_to_device_async(
+                self.offset(),
+                src.as_ptr(),
+                src.len(),
+            )?;
+        }
+
+        // Extend the length of the buffer to include the new elements.
+        self.len += src.len();
+        Ok(())
+    }
+
     /// # Safety
     ///
     /// A device slice of type `T` should be castable to device slice of type `B`.
