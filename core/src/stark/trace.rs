@@ -2,8 +2,8 @@ use p3_field::PrimeField32;
 use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_machine::riscv::RiscvAir;
+use sp1_core_machine::sys::CpuEventFfi;
 use sp1_core_machine::utils::next_power_of_two;
-use sp1_core_machine::CpuEventFfi;
 use sp1_stark::air::MachineAir;
 
 use crate::baby_bear::F;
@@ -272,7 +272,7 @@ mod tests {
                 .filter(|chip| chip.included(record))
                 .map(|chip| {
                     let mat = chip
-                        .inner()
+                        .air
                         .generate_trace_accel(
                             record,
                             &mut ExecutionRecord::default(),

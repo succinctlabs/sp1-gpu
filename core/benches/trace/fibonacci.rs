@@ -90,7 +90,7 @@ fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
                 .filter(|chip| chip.included(record))
                 .map(|chip| {
                     let mat = chip
-                        .inner()
+                        .air
                         .generate_trace_accel(
                             record,
                             &mut ExecutionRecord::default(),
