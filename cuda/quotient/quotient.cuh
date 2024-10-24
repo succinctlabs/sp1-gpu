@@ -34,6 +34,13 @@ __global__ void computeValues(Instruction *evalProgram,
         return;
     }
 
+    if (quotientIdx == 0) {
+        printf("evalProgram[0].opcode: %d\n", evalProgram[0].opcode);
+        printf("evalProgram[1].opcode: %d\n", evalProgram[1].opcode);
+        printf("evalProgram[2].opcode: %d\n", evalProgram[2].opcode);
+        printf("evalProgram[3].opcode: %d\n", evalProgram[3].opcode);
+    }
+
     Val generator = generatorPowers[1];
     Val blockGenerator = generator^(blockIdx.x * blockDim.x);
 
@@ -68,6 +75,7 @@ __global__ void computeValues(Instruction *evalProgram,
     for (size_t i = 0; i < MEMORY_SIZE; i++) {
         expr[i] = Challenge::zero();
     }
+
     for (size_t i = 0; i < evalProgramLen; i++) {
         Instruction op = evalProgram[i];
         // switch (op.opcode) {

@@ -31,7 +31,7 @@ pub(super) mod quotient_gpu {
         matrix::{MatrixViewDevice, MatrixViewMutDevice},
         stark::quotient::TwoAdicMultiplicativeCosetDevice,
     };
-    use air::operation::Operation;
+    use air_v2::instruction::Instruction;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
@@ -41,7 +41,7 @@ pub(super) mod quotient_gpu {
         #[link_name = "computeValues"]
         #[allow(unused)]
         pub fn compute_values(
-            eval_program: *const Operation,
+            eval_program: *const Instruction,
             eval_program_len: usize,
             memory_size: usize,
             cumulative_sums: *const BinomialExtensionField<BabyBear, 4>,

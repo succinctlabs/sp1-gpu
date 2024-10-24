@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "../fields/bb31_extension_t.cuh"
 
-enum SymbolicVarFKind {
+enum SymbolicVarFKind : size_t {
     EmptyF = 0,
     ConstantF = 1,
     PreprocessedLocal = 2,
@@ -53,7 +53,7 @@ struct SymbolicExprEF {
     uint32_t id;
 };
 
-enum Opcode {
+enum Opcode : size_t {
     Empty = 0,
 
     FAssignC = 1,
@@ -147,7 +147,7 @@ struct FOperationV {
 
 struct FOperationE {
     SymbolicExprF a;
-    SymbolicExprEF b;
+    SymbolicExprF b;
 };
 
 struct FOperationVC {
@@ -165,25 +165,25 @@ struct FOperationVV {
 struct FOperationVE {
     SymbolicExprF a;
     SymbolicVarF b;
-    SymbolicExprEF c;
+    SymbolicExprF c;
 };
 
 struct FOperationEC {
     SymbolicExprF a;
-    SymbolicExprEF b;
+    SymbolicExprF b;
     bb31_t c;
 };
 
 struct FOperationEV {
     SymbolicExprF a;
-    SymbolicExprEF b;
+    SymbolicExprF b;
     SymbolicVarF c;
 };
 
 struct FOperationEE {
     SymbolicExprF a;
-    SymbolicExprEF b;
-    SymbolicExprEF c;
+    SymbolicExprF b;
+    SymbolicExprF c;
 };
 
 struct EOperationC {

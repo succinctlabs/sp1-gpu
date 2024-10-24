@@ -3477,6 +3477,7 @@ name = "moongate-core"
 version = "0.1.0"
 dependencies = [
  "air",
+ "air-v2",
  "cc",
  "hashbrown 0.14.5",
  "itertools 0.13.0",

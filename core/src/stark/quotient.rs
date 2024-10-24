@@ -197,26 +197,26 @@ where
                 )
                 .unwrap();
                 quotient_flat.set_max_width();
-                quotient_gpu::compute_values(
-                    operations_device.as_ptr(),
-                    operations.len(),
-                    *memory_size,
-                    cumulative_sums_device.as_ptr(),
-                    trace_domain_device,
-                    quotient_domain_device,
-                    preprocessed_on_quotient_domain.view(),
-                    main_on_quotient_domain.view(),
-                    perm_on_quotient_domain.view(),
-                    permutation_challenges_device.as_ptr(),
-                    folding_challenge,
-                    public_values_device.as_ptr(),
-                    trace_domain_generator,
-                    generator_powers.as_ptr(),
-                    quotient_flat.view_mut(),
-                    quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
-                    NUM_THREADS_PER_BLOCK,
-                    stream.handle(),
-                );
+                // quotient_gpu::compute_values(
+                //     operations_device.as_ptr(),
+                //     operations.len(),
+                //     *memory_size,
+                //     cumulative_sums_device.as_ptr(),
+                //     trace_domain_device,
+                //     quotient_domain_device,
+                //     preprocessed_on_quotient_domain.view(),
+                //     main_on_quotient_domain.view(),
+                //     perm_on_quotient_domain.view(),
+                //     permutation_challenges_device.as_ptr(),
+                //     folding_challenge,
+                //     public_values_device.as_ptr(),
+                //     trace_domain_generator,
+                //     generator_powers.as_ptr(),
+                //     quotient_flat.view_mut(),
+                //     quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
+                //     NUM_THREADS_PER_BLOCK,
+                //     stream.handle(),
+                // );
                 quotient_flat
             };
 
@@ -568,10 +568,14 @@ mod tests {
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-            let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
+            let (operations, expr_ctr) = air_v2::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
             info!("> Eval Program Len: {}", operations.len());
             info!("> Eval Program Register Count: {}", expr_ctr);
+            info!(
+                "Operations: {:#?}",
+                &operations.iter().map(|op| op.opcode).collect::<Vec<_>>()[0..10]
+            );
 
             let start = std::time::Instant::now();
             unsafe {
@@ -579,7 +583,7 @@ mod tests {
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
-                    expr_ctr,
+                    expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,

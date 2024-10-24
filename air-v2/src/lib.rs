@@ -141,7 +141,7 @@ impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
 impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
 
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
-pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> Vec<Instruction>
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32)
 where
     A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
 {
@@ -177,12 +177,13 @@ where
 
     chip.eval(&mut folder);
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
+    let ctr = *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap();
     println!("{:?}", code.len());
 
     CUDA_P3_EVAL_CODE_RESET();
     CUDA_P3_EVAL_EXPR_CTR_RESET();
 
-    code
+    (code, ctr)
 }
 
 #[allow(non_snake_case)]
@@ -213,8 +214,9 @@ mod tests {
         let chips = machine.chips();
         for chip in chips {
             if chip.name() == "AddSub" {
-                let code = codegen_cuda_eval(chip);
+                let (code, ctr) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
+                println!("{}", ctr);
                 return;
             }
         }

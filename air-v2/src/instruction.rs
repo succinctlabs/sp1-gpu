@@ -133,24 +133,28 @@ pub union Arguments {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationC {
     pub a: SymbolicExprF,
     pub b: F,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationV {
     pub a: SymbolicExprF,
     pub b: SymbolicVarF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationE {
     pub a: SymbolicExprF,
     pub b: SymbolicExprF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationVC {
     pub a: SymbolicExprF,
     pub b: SymbolicVarF,
@@ -158,6 +162,7 @@ pub struct FOperationVC {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationVV {
     pub a: SymbolicExprF,
     pub b: SymbolicVarF,
@@ -165,6 +170,7 @@ pub struct FOperationVV {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationVE {
     pub a: SymbolicExprF,
     pub b: SymbolicVarF,
@@ -172,6 +178,7 @@ pub struct FOperationVE {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationEC {
     pub a: SymbolicExprF,
     pub b: SymbolicExprF,
@@ -179,6 +186,7 @@ pub struct FOperationEC {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationEV {
     pub a: SymbolicExprF,
     pub b: SymbolicExprF,
@@ -186,6 +194,7 @@ pub struct FOperationEV {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct FOperationEE {
     pub a: SymbolicExprF,
     pub b: SymbolicExprF,
@@ -193,24 +202,28 @@ pub struct FOperationEE {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationC {
     pub a: SymbolicExprEF,
     pub b: EF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationV {
     pub a: SymbolicExprEF,
     pub b: SymbolicVarEF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationE {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprEF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationVC {
     pub a: SymbolicExprEF,
     pub b: SymbolicVarEF,
@@ -218,6 +231,7 @@ pub struct EOperationVC {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationVV {
     pub a: SymbolicExprEF,
     pub b: SymbolicVarEF,
@@ -225,6 +239,7 @@ pub struct EOperationVV {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationVE {
     pub a: SymbolicExprEF,
     pub b: SymbolicVarEF,
@@ -232,6 +247,7 @@ pub struct EOperationVE {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationEC {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprEF,
@@ -239,6 +255,7 @@ pub struct EOperationEC {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationEV {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprEF,
@@ -246,6 +263,7 @@ pub struct EOperationEV {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EOperationEE {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprEF,
@@ -253,12 +271,14 @@ pub struct EOperationEE {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EFOperationE {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprF,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct EFOperationEE {
     pub a: SymbolicExprEF,
     pub b: SymbolicExprEF,
