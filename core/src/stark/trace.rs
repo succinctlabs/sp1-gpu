@@ -2,6 +2,8 @@ use p3_field::PrimeField32;
 use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_executor::ExecutionRecord;
+use sp1_core_machine::alu::{AddSubChip, BitwiseChip, LtChip, ShiftLeftChip, ShiftRightChip};
+use sp1_core_machine::cpu::CpuChip;
 use sp1_core_machine::riscv::RiscvAir;
 use sp1_core_machine::sys::CpuEventFfi;
 use sp1_core_machine::utils::next_power_of_two;
@@ -31,12 +33,12 @@ impl AccelAir<F> for RiscvAir<F> {
         stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
         match self {
-            RiscvAir::Cpu(_) => cpu_generate_trace(input, output, stream),
-            RiscvAir::Add(_) => add_sub_generate_trace(input, output, stream),
-            RiscvAir::Bitwise(_) => bitwise_generate_trace(input, output, stream),
-            RiscvAir::Lt(_) => lt_generate_trace(input, output, stream),
-            RiscvAir::ShiftLeft(_) => sll_generate_trace(input, output, stream),
-            RiscvAir::ShiftRight(_) => sr_generate_trace(input, output, stream),
+            RiscvAir::Cpu(chip) => cpu_generate_trace(chip, input, output, stream),
+            RiscvAir::Add(chip) => add_sub_generate_trace(chip, input, output, stream),
+            RiscvAir::Bitwise(chip) => bitwise_generate_trace(chip, input, output, stream),
+            RiscvAir::Lt(chip) => lt_generate_trace(chip, input, output, stream),
+            RiscvAir::ShiftLeft(chip) => sll_generate_trace(chip, input, output, stream),
+            RiscvAir::ShiftRight(chip) => sr_generate_trace(chip, input, output, stream),
             // Fallback for other chips.
             other => Ok(other.generate_trace(input, output).to_device()?.to_column_major()),
         }
@@ -68,6 +70,7 @@ extern "C" {
 }
 
 pub fn add_sub_generate_trace(
+    chip: &AddSubChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -81,7 +84,8 @@ pub fn add_sub_generate_trace(
         .cloned()
         .collect::<Vec<_>>();
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
@@ -105,6 +109,7 @@ extern "C" {
 }
 
 pub fn bitwise_generate_trace(
+    chip: &BitwiseChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -113,7 +118,8 @@ pub fn bitwise_generate_trace(
     const ROWS_PER_EVENT: usize = 1;
     let events = &input.bitwise_events;
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
@@ -137,6 +143,7 @@ extern "C" {
 }
 
 pub fn lt_generate_trace(
+    chip: &LtChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -145,7 +152,8 @@ pub fn lt_generate_trace(
     const ROWS_PER_EVENT: usize = 1;
     let events = &input.lt_events;
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
@@ -167,6 +175,7 @@ extern "C" {
 }
 
 pub fn sll_generate_trace(
+    chip: &ShiftLeftChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -175,7 +184,8 @@ pub fn sll_generate_trace(
     const ROWS_PER_EVENT: usize = 1;
     let events = &input.shift_left_events;
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
@@ -199,6 +209,7 @@ extern "C" {
 }
 
 pub fn sr_generate_trace(
+    chip: &ShiftRightChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -207,7 +218,8 @@ pub fn sr_generate_trace(
     const ROWS_PER_EVENT: usize = 1;
     let events = &input.shift_right_events;
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
@@ -229,6 +241,7 @@ extern "C" {
 }
 
 pub fn cpu_generate_trace(
+    chip: &CpuChip,
     input: &ExecutionRecord,
     _output: &mut ExecutionRecord,
     stream: &CudaStream,
@@ -242,7 +255,8 @@ pub fn cpu_generate_trace(
         .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
         .collect::<Vec<_>>();
 
-    let nb_rows = next_power_of_two(events.len() * ROWS_PER_EVENT, None);
+    let nb_rows =
+        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
 
     let events = events.to_device_async(stream)?;
     let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
