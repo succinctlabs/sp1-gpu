@@ -240,10 +240,10 @@ mod tests {
     use rayon::prelude::*;
 
     use sp1_core_executor::{ExecutionRecord, Executor, Program};
-    use sp1_core_machine::{riscv::RiscvAir, utils::setup_logger};
+    use sp1_core_machine::riscv::RiscvAir;
     use sp1_stark::{air::MachineAir, baby_bear_poseidon2::BabyBearPoseidon2, SP1CoreOpts};
 
-    use crate::{cuda_runtime::stream::CudaStream, device::memory::ToHost};
+    use crate::{cuda_runtime::stream::CudaStream, device::memory::ToHost, utils::init_tracer};
 
     use super::AccelAir;
 
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn generate_trace_gpu_eq_cpu() {
-        setup_logger();
+        init_tracer();
         let config = BabyBearPoseidon2::new();
         let machine = RiscvAir::machine(config);
 

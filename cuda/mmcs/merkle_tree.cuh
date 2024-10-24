@@ -67,7 +67,7 @@ __device__ void compressAndInject(
 
     F_t defaultDigest[HashParams::DIGEST_WIDTH];
     for (int i = 0; i < HashParams::DIGEST_WIDTH; i++) {
-        defaultDigest[i].zero();
+        defaultDigest[i].set_to_zero();
     }
 
     F_t digest[HashParams::DIGEST_WIDTH];

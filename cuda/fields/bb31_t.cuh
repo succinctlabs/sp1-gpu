@@ -134,6 +134,7 @@ public:
     inline bool is_one() const          { return val == ONE;  }
     inline bool is_zero() const         { return val == 0;    }
     static inline const bb31_t two()          { return bb31_t::from_canonical_u32(2); }
+    inline void set_to_zero()           { val = 0; }
 
     friend inline bb31_t czero(const bb31_t a, int set_z)
     {
@@ -606,6 +607,10 @@ struct bb31_t {
 
     inline static bb31_t two() {
         return bb31_t::from_canonical_u32(2);
+    }
+
+    inline void set_to_zero() {
+        val = 0;
     }
 };
 
