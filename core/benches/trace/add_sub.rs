@@ -1,9 +1,9 @@
+use moongate_core::cuda_runtime::stream::CudaStream;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::matrix::ColMajorMatrixDevice;
 use once_cell::sync::Lazy;
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
-// use p3_matrix::Matrix;
 use rand::thread_rng;
 use rand::Rng;
 use sp1_core_executor::events::AluEvent;
@@ -12,11 +12,7 @@ use sp1_core_executor::Opcode;
 use sp1_core_machine::alu::AddSubChip;
 use sp1_stark::air::MachineAir;
 
-fn main() {
-    divan::main();
-}
-
-const NUM_OPS_EACH: u32 = 1_000_000;
+const NUM_OPS_EACH: u32 = 100_000;
 static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
     let add_events = (0..NUM_OPS_EACH)
         .flat_map(|i| {
@@ -40,10 +36,10 @@ static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
 });
 
 #[divan::bench]
-fn baseline(bencher: divan::Bencher) {
+fn host(bencher: divan::Bencher) {
     let shard = Lazy::force(&SHARD);
 
-    let work = || baseline_work(shard);
+    let work = || divan::black_box(host_work(shard));
 
     // Warm up.
     for _ in 0..5 {
@@ -52,7 +48,7 @@ fn baseline(bencher: divan::Bencher) {
     bencher.bench(work);
 }
 
-fn baseline_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
+fn host_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
     let chip = AddSubChip;
     let trace: RowMajorMatrix<BabyBear> =
         chip.generate_trace(shard, &mut ExecutionRecord::default());
@@ -65,7 +61,7 @@ fn baseline_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
 fn on_device(bencher: divan::Bencher) {
     let shard = Lazy::force(&SHARD);
 
-    let work = || on_device_work(shard);
+    let work = || divan::black_box(on_device_work(shard));
 
     // Warm up.
     for _ in 0..5 {
@@ -75,7 +71,11 @@ fn on_device(bencher: divan::Bencher) {
 }
 
 fn on_device_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
-    let mat = moongate_core::stark::trace::add_sub_generate_trace(&shard.add_events).unwrap();
+    let mat = moongate_core::stark::trace::add_sub_generate_trace(
+        &shard.add_events,
+        &CudaStream::default(),
+    )
+    .unwrap();
     mat.stream().synchronize().unwrap();
     mat
 }

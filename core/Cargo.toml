@@ -17,7 +17,7 @@ p3-matrix = { workspace = true }
 p3-commit = { workspace = true }
 itertools = "0.13.0"
 sp1-core-executor = { workspace = true, features = ["programs"] }
-sp1-core-machine = { workspace = true }
+sp1-core-machine = { workspace = true, features = ["sys"] }
 sp1-stark = { workspace = true }
 sp1-recursion-core = { workspace = true }
 p3-air = { workspace = true }
@@ -50,6 +50,7 @@ p3-uni-stark = { workspace = true }
 sp1-core-executor = { workspace = true, features = ["programs"] }
 divan = "0.1.14"
 once_cell = "1.20.2"
+rayon = "1.10.0"
 
 [[bench]]
 name = "trace"

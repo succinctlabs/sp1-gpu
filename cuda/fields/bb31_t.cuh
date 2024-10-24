@@ -60,6 +60,10 @@ public:
         }
         return ret;
     }
+    
+    inline uint32_t as_canonical_u32() const {
+        return mul_by_1();
+    }
 
     inline bb31_t& operator+=(const bb31_t b)
     {
@@ -125,10 +129,11 @@ public:
     inline bb31_t operator-() const
     {   return cneg(*this, true);   }
 
+    static inline const bb31_t zero()   { return bb31_t{0};   }
     static inline const bb31_t one()    { return bb31_t{ONE}; }
     inline bool is_one() const          { return val == ONE;  }
     inline bool is_zero() const         { return val == 0;    }
-    inline void zero()                  { val = 0;            }
+    static inline const bb31_t two()          { return bb31_t::from_canonical_u32(2); }
 
     friend inline bb31_t czero(const bb31_t a, int set_z)
     {
