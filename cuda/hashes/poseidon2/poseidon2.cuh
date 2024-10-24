@@ -103,7 +103,7 @@ class Hasher {
         stateWidth[0] = *reinterpret_cast<FDW_t*>(left);
         stateWidth[1] = *reinterpret_cast<FDW_t*>(right);
         for (int i = 2 * Params::DIGEST_WIDTH; i < Params::WIDTH; i++) {
-            state[i].zero();
+            state[i].set_to_zero();
         }
         permute(state, state, roundConstants);
         *reinterpret_cast<FDW_t*>(out) = stateWidth[0];
@@ -117,7 +117,7 @@ class Hasher {
     ) {
         F_t state[Params::WIDTH];
         for (int i = 0; i < Params::WIDTH; i++) {
-            state[i].zero();
+            state[i].set_to_zero();
         }
 
         for (int i = 0; i < nIn; i += Params::RATE) {
@@ -218,7 +218,7 @@ struct HasherState {
 
     __device__ HasherState() : index(0) {
         for (int i = 0; i < Params::WIDTH; ++i) {
-            data[i].zero();
+            data[i].set_to_zero();
         }
     }
 

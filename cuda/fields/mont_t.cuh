@@ -579,7 +579,7 @@ public:
         return is_zero == 0;
     }
 
-    inline void zero()
+    inline void set_to_zero()
     {
         if (n%4 == 0) {
             uint4* p = (uint4*)even;

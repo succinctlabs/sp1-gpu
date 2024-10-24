@@ -140,7 +140,7 @@ __device__ bn254_t reduceBabyBear(
 ) {
     const bn254_t po2 = bn254_t(ALT_BN128_1ls32);
     bn254_t res;
-    res.zero();
+    res.set_to_zero();
     if (n2 > 0) {
         for (int ii = (n2 - 1) * stride2; ii >= 0; ii -= stride2) {
             res = res * po2 + bb31_to_bn254(src2[ii]);
