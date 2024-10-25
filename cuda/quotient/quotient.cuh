@@ -269,7 +269,6 @@ __global__ void computeValues(Instruction *evalProgram,
             case 41:
                 DEBUG("ESubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
                 expr_ef[instr.a] = expr_ef[instr.b] - expr_ef[instr.c];
-                DEBUG("ESubEE Output: %d, %d, %d, %d\n", expr_ef[instr.a].value[0], expr_ef[instr.a].value[1], expr_ef[instr.a].value[2], expr_ef[instr.a].value[3]);
                 break;
             case 42:
                 DEBUG("ESubAssignE: %d <- %d\n", instr.a, instr.b);
@@ -346,7 +345,7 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
             case 58:
                 DEBUG("EFAsBaseSlice: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
-                // TODO:
+                // UNSUPPORTED
                 break;
 
             case 59:
