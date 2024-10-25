@@ -9,4 +9,5 @@
 #include "../../cuda/quotient/quotient.cuh"
 #include "../../cuda/opening/opening.cuh"
 #include "../../cuda/univariate/eval.cuh" 
-#include "../../cuda/reduce/reduce.cuh" 
+#include "../../cuda/reduce/reduce.cuh"
+#include "../../cuda/reduce/air_point.cuh"  

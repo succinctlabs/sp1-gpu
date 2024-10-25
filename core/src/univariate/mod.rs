@@ -6,7 +6,10 @@ use crate::{
     matrix::ColMajorMatrixDevice,
 };
 
+mod air_point;
 pub(super) mod ffi;
+
+pub use air_point::*;
 
 pub fn subgroup_normalizer<F: TwoAdicField>(log_order: usize) -> F {
     let domain_generator = F::two_adic_generator(log_order);
