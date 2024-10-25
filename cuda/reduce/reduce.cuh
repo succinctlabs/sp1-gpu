@@ -184,13 +184,18 @@ template<typename F> RustCudaError vectorSum(
     
     size_t new_height = gridDim.x;
     gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 32 + 1;
-    blockReduce<<<gridDim, blockDim, 0, stream>>>(partial_sums, result, width, new_height, op);
 
+    // Initialize the result value.
+    //
+    // *Warning*: this assumes the zero of `F` is just given by the zero byte pattern.
+    CUDA_OK(cudaMemsetAsync(result, 0, sizeof(F) * width, stream));
+    // Compute the final results from the partial evaluations.
+    blockReduce<<<gridDim, blockDim, 0, stream>>>(partial_sums, result, width, new_height, op);
+    // Free the memory used for partial sums.
     CUDA_OK(cudaFreeAsync(partial_sums, stream));
 
     return CUDA_SUCCESS_MOON;
 }
-
 
 extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t width, size_t height, cudaStream_t stream) {
     return vectorSum(in, result, width, height, stream);

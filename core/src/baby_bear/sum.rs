@@ -78,7 +78,10 @@ mod tests {
     use rand::{thread_rng, Rng};
 
     use crate::{
-        device::memory::{ToDevice, ToHost},
+        device::{
+            memory::{ToDevice, ToHost},
+            DeviceBuffer,
+        },
         matrix::ColMajorMatrixDevice,
     };
     use rayon::prelude::*;
@@ -136,7 +139,10 @@ mod tests {
 
                 assert_eq!(input_device.height(), input_height);
 
-                let mut results = vec![BabyBear::zero(); width].to_device().unwrap();
+                let mut results = DeviceBuffer::<BabyBear>::with_capacity(width).unwrap();
+                unsafe {
+                    results.set_max_len();
+                }
                 assert_eq!(results.len(), width);
 
                 input_device.stream().synchronize().unwrap();
@@ -188,7 +194,10 @@ mod tests {
                 assert_eq!(input_device.height(), input_height);
                 assert_eq!(input_device.width(), width);
 
-                let mut results = vec![EF::zero(); width].to_device().unwrap();
+                let mut results = DeviceBuffer::<EF>::with_capacity(width).unwrap();
+                unsafe {
+                    results.set_max_len();
+                }
                 assert_eq!(results.len(), width);
 
                 input_device.stream().synchronize().unwrap();
