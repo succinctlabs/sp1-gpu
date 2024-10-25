@@ -158,9 +158,7 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
             case 16:
                 DEBUG("FSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
-                DEBUG("FSubEE Input: %d, %d\n", expr_f[instr.b], expr_f[instr.c]);
                 expr_f[instr.a] = expr_f[instr.b] - expr_f[instr.c];
-                DEBUG("FSubEE Output: %d\n", expr_f[instr.a]);
                 break;
             case 17:
                 DEBUG("FSubAssignE: %d <- %d\n", instr.a, instr.b);
