@@ -100,13 +100,9 @@ mod tests {
                 assert_eq!(results.len(), width);
 
                 let point: EF = rng.gen();
-                let time = Instant::now();
-                let vanishing_poly = point.exp_power_of_2(input_log_height) - EF::one();
-                let elapsed = time.elapsed();
-                println!("Time to compute vanishing poly: {:?}", elapsed);
-
                 input_device.stream().synchronize().unwrap();
                 let time = Instant::now();
+                let vanishing_poly = point.exp_power_of_2(input_log_height) - EF::one();
                 input_device.eval(&mut results, domain_normalizer, point, vanishing_poly).unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();
