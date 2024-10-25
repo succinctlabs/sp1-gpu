@@ -169,7 +169,7 @@ template<typename F> RustCudaError vectorSum(
     size_t height,
     cudaStream_t stream) {
     dim3 blockDim(512, 1, 1);
-    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 32 + 1;
+    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
     dim3 gridDim(numReduceBlocks, width, 1);
 
     // Allocate the partial sums and set them to zero. 
