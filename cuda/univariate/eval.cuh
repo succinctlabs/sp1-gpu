@@ -29,6 +29,7 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     size_t height = 1U << log_height;
 
     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
+    // F domainPoint = domainGenerator;
     EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
     largrangePolynomial *= domainNormalizer * domainPoint; 
 

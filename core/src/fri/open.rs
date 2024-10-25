@@ -113,7 +113,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         }
         reduced_leaves.push(reduced_leaf);
 
-        let get_data_for_device_span = tracing::trace_span!("Get data for device").entered();
+        let get_data_for_device_span = tracing::trace_span!("get data for device").entered();
         mats_and_points.iter().for_each(|(mats, points)| {
             mats.iter().zip(points.iter()).for_each(|(mat, points_for_mat)| {
                 let log_height = log2_strict_usize(mat.height);
@@ -267,7 +267,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 
         assert_eq!(ys_output.len(), total_polys);
 
-        let compute_openings_span = tracing::trace_span!("Compute opened values").entered();
+        let compute_openings_span = tracing::trace_span!("compute opened values").entered();
         let mut point_index = 0;
         let all_opened_values = {
             let mut reduced_openings_device =
@@ -275,7 +275,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
 
             // Compute openings fused.
             let compute_reduced_openings_span =
-                tracing::trace_span!("Compute reduced openings on device").entered();
+                tracing::trace_span!("compute reduced openings on device").entered();
             let alpha_pow_offsets_device = alpha_pow_offsets.to_device().unwrap();
             let log_heights = matrices_for_openings
                 .iter()

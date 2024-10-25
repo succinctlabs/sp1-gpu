@@ -79,7 +79,7 @@ mod tests {
             let domain_normalizer = subgroup_normalizer(input_log_height);
             println!("domain normalizer {}", domain_normalizer);
 
-            for width in [1, 50, 100, 200] {
+            for width in [1, 50, 100, 200, 400] {
                 if input_log_height > 22 && width > 50 {
                     continue;
                 }
