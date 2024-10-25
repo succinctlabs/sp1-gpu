@@ -8,7 +8,7 @@
 
 template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     EF* partialEvaluations,
-    const F* polynomailBatch,
+    const F* polynomialBatch,
     const F domainGenerator,
     const F domainNormalizer,
     const EF evalPoint,
@@ -26,26 +26,15 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     }
 
     // Compute the lagrange polynomial.
-
-    // First, compute `z^height`
-    // EF pointPower = evalPoint;
-    // for (size_t k = 0; k < log_height; k++) {
-    //     pointPower *= pointPower; 
-    // }
-
     size_t height = 1U << log_height;
 
-    // The vanishing polynomial on the domain is `z^height - 1`
-    // EF vanishingPoly = pointPower - EF::one();
-
-    // The un-normalized lagrange polynomial is given by `(z^height - 1) / (z - point)`
     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
-    EF largrangePolynomial = vanishingPoly / (evalPoint - EF(domainPoint));
-    largrangePolynomial *= (domainNormalizer * domainPoint); 
+    EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
+    largrangePolynomial *= domainNormalizer * domainPoint; 
 
     // Stride loop to accumulate partial sum
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
-        thread_val += largrangePolynomial * polynomailBatch[batchIdx * height + i];
+        thread_val += largrangePolynomial * polynomialBatch[batchIdx * height + i];
     }
 
     // Allocate shared memory
@@ -99,7 +88,7 @@ template<typename F, typename EF> RustCudaError univariateEval(
     // Initialize the result value.
     //
     // *Warning*: this assumes the zero of `F` is just given by the zero byte pattern.
-    CUDA_OK(cudaMemsetAsync(result, 0, sizeof(F) * width, stream));
+    CUDA_OK(cudaMemsetAsync(result, 0, sizeof(EF) * width, stream));
     // Compute the result from the partially reduced evalutations.
     AddOp<EF> op;
     blockReduce<<<gridDim, blockDim, 0, stream>>>(partialEvaluations, result, width, new_height, op);
