@@ -20,7 +20,7 @@ extern "C" {
 
     #[link_name = "vectorSumBabyBear"]
     pub fn sum_baby_bear(
-        input: *mut BabyBear,
+        input: *const BabyBear,
         result: *mut BabyBear,
         width: usize,
         height: usize,
@@ -29,7 +29,7 @@ extern "C" {
 
     #[link_name = "vectorSumBabyBearExtension"]
     pub fn sum_baby_bear_extension(
-        input: *mut BinomialExtensionField<BabyBear, 4>,
+        input: *const BinomialExtensionField<BabyBear, 4>,
         result: *mut BinomialExtensionField<BabyBear, 4>,
         width: usize,
         height: usize,

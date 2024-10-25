@@ -68,7 +68,7 @@ template <>
         bb31_extension_t val) {
         // Split the extension into a slice of base field elements and make a separate atomic update.
         #pragma unroll
-        for(int j = 0 ; j<= bb31_extension_t::D; j++) {
+        for(int j = 0 ; j < bb31_extension_t::D; j++) {
             cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(dst[0].value[j]);
             cg::reduce_update_async(group, atomic, val.value[j], cg::plus<bb31_t>());
         }
@@ -169,7 +169,7 @@ template<typename F> RustCudaError vectorSum(
     size_t height,
     cudaStream_t stream) {
     dim3 blockDim(512, 1, 1);
-    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
+    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 32 + 1;
     dim3 gridDim(numReduceBlocks, width, 1);
 
     // Allocate the partial sums and set them to zero. 
@@ -180,10 +180,10 @@ template<typename F> RustCudaError vectorSum(
 
     AddOp<F> op;
 
-    partialBlockReduceKernel<<<gridDim, blockDim, numTiles * sizeof(F), stream>>>(in, partial_sums, width, height, op);
+    partialBlockReduceKernel<<<gridDim, blockDim, numTiles * blockDim.y * sizeof(F), stream>>>(in, partial_sums, width, height, op);
     
     size_t new_height = gridDim.x;
-    gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 8 + 1;
+    gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 32 + 1;
     blockReduce<<<gridDim, blockDim, 0, stream>>>(partial_sums, result, width, new_height, op);
 
     CUDA_OK(cudaFreeAsync(partial_sums, stream));
@@ -197,6 +197,6 @@ extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t wi
 }
 
 extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t width, size_t height, cudaStream_t stream) {
-    return vectorSum<bb31_extension_t>(in, result, width, height, stream);
+    return vectorSum(in, result, width, height, stream);
 }
 

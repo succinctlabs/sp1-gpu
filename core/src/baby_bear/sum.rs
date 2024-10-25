@@ -12,14 +12,8 @@ impl DeviceBuffer<BabyBear> {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn sum(&self, result: *mut BabyBear) -> Result<(), CudaError> {
         unsafe {
-            ffi::sum_baby_bear(
-                self.as_ptr() as *mut BabyBear,
-                result,
-                1,
-                self.len(),
-                self.stream().handle(),
-            )
-            .to_result()
+            ffi::sum_baby_bear(self.as_ptr(), result, 1, self.len(), self.stream().handle())
+                .to_result()
         }
     }
 }
@@ -28,7 +22,7 @@ impl ColMajorMatrixDevice<BabyBear> {
     pub fn column_sum(&self, results: &mut DeviceBuffer<BabyBear>) -> Result<(), CudaError> {
         unsafe {
             ffi::sum_baby_bear(
-                self.values.as_ptr() as *mut BabyBear,
+                self.values.as_ptr(),
                 results.as_mut_ptr(),
                 self.width(),
                 self.height,
@@ -44,7 +38,7 @@ impl DeviceBuffer<BinomialExtensionField<BabyBear, 4>> {
     pub fn sum(&self, result: *mut BinomialExtensionField<BabyBear, 4>) -> Result<(), CudaError> {
         unsafe {
             ffi::sum_baby_bear_extension(
-                self.as_ptr() as *mut BinomialExtensionField<BabyBear, 4>,
+                self.as_ptr(),
                 result,
                 1,
                 self.len(),
@@ -62,7 +56,7 @@ impl ColMajorMatrixDevice<BinomialExtensionField<BabyBear, 4>> {
     ) -> Result<(), CudaError> {
         unsafe {
             ffi::sum_baby_bear_extension(
-                self.values.as_ptr() as *mut BinomialExtensionField<BabyBear, 4>,
+                self.values.as_ptr(),
                 results.as_mut_ptr(),
                 self.width(),
                 self.height,
@@ -83,7 +77,10 @@ mod tests {
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use rand::{thread_rng, Rng};
 
-    use crate::device::memory::{ToDevice, ToHost};
+    use crate::{
+        device::memory::{ToDevice, ToHost},
+        matrix::ColMajorMatrixDevice,
+    };
     use rayon::prelude::*;
 
     #[test]
@@ -127,7 +124,7 @@ mod tests {
         let mut rng = thread_rng();
 
         for input_log_height in 12..24 {
-            for width in 200..201 {
+            for width in [50, 100, 150, 200] {
                 println!("(Input log height, input width) : ({}, {})", input_log_height, width);
                 let input_height = 1 << input_log_height;
                 let input_host =
@@ -153,6 +150,58 @@ mod tests {
 
                 let time = Instant::now();
                 let mut column_sums = vec![BabyBear::zero(); width];
+                for row in input_host.rows() {
+                    for (element, accum) in row.zip_eq(column_sums.iter_mut()) {
+                        *accum += element;
+                    }
+                }
+                let elapsed = time.elapsed();
+                println!("host time: {:?}", elapsed);
+
+                for (i, (elem, expected)) in sums_device.into_iter().zip(column_sums).enumerate() {
+                    assert_eq!(elem, expected, "failed at column {}", i);
+                }
+
+                println!("------------------------");
+            }
+        }
+    }
+
+    #[test]
+    fn test_column_sum_extension_baby_bear() {
+        let mut rng = thread_rng();
+
+        type EF = BinomialExtensionField<BabyBear, 4>;
+        for input_log_height in 16..22 {
+            for width in [10, 50, 100, 200] {
+                println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+                let input_height = 1 << input_log_height;
+                let input_host =
+                    (0..input_height * width).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
+
+                let input_host = RowMajorMatrix::new(input_host, width);
+
+                let input_device_values =
+                    input_host.clone().transpose().values.to_device().unwrap();
+                let input_device = ColMajorMatrixDevice::new(input_device_values, input_height);
+
+                assert_eq!(input_device.height(), input_height);
+                assert_eq!(input_device.width(), width);
+
+                let mut results = vec![EF::zero(); width].to_device().unwrap();
+                assert_eq!(results.len(), width);
+
+                input_device.stream().synchronize().unwrap();
+                let time = Instant::now();
+                input_device.column_sum(&mut results).unwrap();
+                input_device.stream().synchronize().unwrap();
+                let elapsed = time.elapsed();
+                println!("Device time: {:?}", elapsed);
+
+                let sums_device = results.to_host();
+
+                let time = Instant::now();
+                let mut column_sums = vec![EF::zero(); width];
                 for row in input_host.rows() {
                     for (element, accum) in row.zip_eq(column_sums.iter_mut()) {
                         *accum += element;
