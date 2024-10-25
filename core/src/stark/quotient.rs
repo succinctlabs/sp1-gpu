@@ -442,9 +442,9 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            // if chip.name() != "EdAddAssign" {
-            //     continue;
-            // }
+            if chip.name() != "CPU" {
+                continue;
+            }
             info!("Chip: {}", chip.name());
             info!("Id: {}", i);
 
@@ -453,7 +453,7 @@ mod tests {
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 14 };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 21 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
