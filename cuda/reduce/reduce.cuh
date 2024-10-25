@@ -105,16 +105,22 @@ template<typename F, typename TyOp, typename TyBlock, typename TyTile> __device_
 template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
     F* A, 
     F* partial, 
-    size_t len,
+    size_t width,
+    size_t height,
     TyOp&& op) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
     F thread_val = op.initial();
 
+    size_t batchIdx = blockDim.y * blockIdx.y + threadIdx.y;
+    if (batchIdx >= width) {
+        return;
+    }
+
     // Stride loop to accumulate partial sum
-    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
-        op.evalAssign(thread_val, A[i]);
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+        op.evalAssign(thread_val, A[batchIdx * height + i]);
     }
 
     // Allocate shared memory
@@ -126,7 +132,7 @@ template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
 
     // Write the result to the partial_sums array
     if (block.thread_rank() == 0) {
-        partial[blockIdx.x] = shared[0];
+        partial[batchIdx * height + blockIdx.x] = shared[0];
     }
 }
 
@@ -134,40 +140,51 @@ template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
 template<typename F, typename TyOp> __global__ void blockReduce(
     F* A, 
     F* result, 
-    size_t len,
+    size_t width,
+    size_t height,
     TyOp&& op) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
-    F thread_val = op.initial();
-
-    for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < len; i += blockDim.x * gridDim.x) {
-        op.evalAssign(thread_val, A[i]);
+    size_t batchIdx = blockDim.y * blockIdx.y + threadIdx.y;
+    if (batchIdx >= width) {
+        return;
     }
 
-    op.final_block_reduction_async(tile, result, thread_val); 
+    F thread_val = op.initial();
+
+    for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+        op.evalAssign(thread_val, A[batchIdx * height + i]);
+    }
+
+    op.final_block_reduction_async(tile, &result[batchIdx], thread_val); 
     block.sync();
 }
 
 
-template<typename F> RustCudaError vectorSum(F* in, F* result, size_t len, cudaStream_t stream) {
-    size_t numThreads = 512;
-    size_t numBlocks = (((len - 1)/numThreads + 1) - 1) / 8 + 1;
+template<typename F> RustCudaError vectorSum(
+    F* in, F* result,
+    size_t width, 
+    size_t height,
+    cudaStream_t stream) {
+    dim3 blockDim(512, 1, 1);
+    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
+    dim3 gridDim(numReduceBlocks, width, 1);
 
     // Allocate the partial sums and set them to zero. 
     F * partial_sums;
 
-    CUDA_OK(cudaMallocAsync(&partial_sums, sizeof(F) * numBlocks, stream));
+    CUDA_OK(cudaMallocAsync(&partial_sums, sizeof(F) * gridDim.x, stream));
 
-    size_t numTiles = numThreads / 32;
+    size_t numTiles = blockDim.x / 32;
 
     AddOp<F> op;
 
-    partialBlockReduceKernel<<<numBlocks, numThreads, numTiles * sizeof(F), stream>>>(in, partial_sums, len, op);
+    partialBlockReduceKernel<<<gridDim, blockDim, numTiles * sizeof(F), stream>>>(in, partial_sums, width, height, op);
     
-    size_t new_len = numBlocks;
-    numBlocks = (((new_len - 1)/numThreads + 1) - 1) / 8 + 1;
-    blockReduce<<<numBlocks, numThreads, 0, stream>>>(partial_sums, result, new_len, op);
+    size_t new_height = gridDim.x;
+    gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 8 + 1;
+    blockReduce<<<gridDim, blockDim, 0, stream>>>(partial_sums, result, width, new_height, op);
 
     CUDA_OK(cudaFreeAsync(partial_sums, stream));
 
@@ -175,11 +192,11 @@ template<typename F> RustCudaError vectorSum(F* in, F* result, size_t len, cudaS
 }
 
 
-extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t len, cudaStream_t stream) {
-    return vectorSum(in, result, len, stream);
+extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t height, cudaStream_t stream) {
+    return vectorSum(in, result, 1, height, stream);
 }
 
-extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t len, cudaStream_t stream) {
-    return vectorSum<bb31_extension_t>(in, result, len, stream);
+extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t height, cudaStream_t stream) {
+    return vectorSum<bb31_extension_t>(in, result, 1, height, stream);
 }
 
