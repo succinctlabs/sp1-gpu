@@ -132,7 +132,7 @@ template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
 
     // Write the result to the partial_sums array
     if (block.thread_rank() == 0) {
-        partial[batchIdx * height + blockIdx.x] = shared[0];
+        partial[batchIdx * gridDim.x + blockIdx.x] = shared[0];
     }
 }
 
@@ -163,7 +163,8 @@ template<typename F, typename TyOp> __global__ void blockReduce(
 
 
 template<typename F> RustCudaError vectorSum(
-    F* in, F* result,
+    F* in, 
+    F* result,
     size_t width, 
     size_t height,
     cudaStream_t stream) {
@@ -173,8 +174,7 @@ template<typename F> RustCudaError vectorSum(
 
     // Allocate the partial sums and set them to zero. 
     F * partial_sums;
-
-    CUDA_OK(cudaMallocAsync(&partial_sums, sizeof(F) * gridDim.x, stream));
+    CUDA_OK(cudaMallocAsync(&partial_sums, sizeof(F) * gridDim.x * width, stream));
 
     size_t numTiles = blockDim.x / 32;
 
