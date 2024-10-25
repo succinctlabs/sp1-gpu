@@ -34,6 +34,7 @@ pub type EF = BinomialExtensionField<F, 4>;
 lazy_static! {
     pub static ref CUDA_P3_EVAL_LOCK: Mutex<()> = Mutex::new(());
     pub static ref CUDA_P3_EVAL_CODE: Mutex<Vec<Instruction>> = Mutex::new(Vec::new());
+    pub static ref CUDA_P3_EVAL_EF_CONSTANTS: Mutex<Vec<EF>> = Mutex::new(Vec::new());
     pub static ref CUDA_P3_EVAL_EXPR_F_CTR: Mutex<u32> = Mutex::new(0);
     pub static ref CUDA_P3_EVAL_EXPR_EF_CTR: Mutex<u32> = Mutex::new(0);
 }
@@ -141,13 +142,13 @@ impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
 impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
 
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
-pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32)
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32, Vec<EF>)
 where
     A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
 {
-    let preprocessed_width = chip.preprocessed_width();
-    let width = chip.width();
-    let permutation_width = chip.permutation_width();
+    let preprocessed_width = chip.preprocessed_width() as u32;
+    let width = chip.width() as u32;
+    let permutation_width = chip.permutation_width() as u32;
     let preprocessed = AirOpenedValues {
         local: (0..preprocessed_width).map(SymbolicVarF::preprocessed_local).collect(),
         next: (0..preprocessed_width).map(SymbolicVarF::preprocessed_next).collect(),
@@ -160,7 +161,8 @@ where
         local: (0..permutation_width).map(SymbolicVarEF::permutation_local).collect(),
         next: (0..permutation_width).map(SymbolicVarEF::permutation_next).collect(),
     };
-    let public_values = (0..PROOF_MAX_NUM_PVS).map(SymbolicVarF::public_value).collect::<Vec<_>>();
+    let public_values =
+        (0..PROOF_MAX_NUM_PVS as u32).map(SymbolicVarF::public_value).collect::<Vec<_>>();
     let perm_challenges = (0..4).map(SymbolicVarEF::permutation_challenge).collect::<Vec<_>>();
 
     let mut folder = SymbolicProverFolder {
@@ -168,7 +170,7 @@ where
         main: main.view(),
         perm: perm.view(),
         perm_challenges: &perm_challenges,
-        cumulative_sums: &[SymbolicVarEF::cumulative_sum(), SymbolicVarEF::cumulative_sum()],
+        cumulative_sums: &[SymbolicVarEF::cumulative_sum(0), SymbolicVarEF::cumulative_sum(1)],
         public_values: &public_values,
         is_first_row: SymbolicVarF::is_first_row(),
         is_last_row: SymbolicVarF::is_last_row(),
@@ -178,21 +180,17 @@ where
     chip.eval(&mut folder);
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
     let ctr = *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap();
-    println!("{:?}", code.len());
+    let constants = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap().to_vec();
 
-    CUDA_P3_EVAL_CODE_RESET();
-    CUDA_P3_EVAL_EXPR_CTR_RESET();
+    CUDA_P3_EVAL_RESET();
 
-    (code, ctr)
+    (code, ctr, constants)
 }
 
 #[allow(non_snake_case)]
-pub fn CUDA_P3_EVAL_CODE_RESET() {
+pub fn CUDA_P3_EVAL_RESET() {
     *CUDA_P3_EVAL_CODE.lock().unwrap() = Vec::new();
-}
-
-#[allow(non_snake_case)]
-pub fn CUDA_P3_EVAL_EXPR_CTR_RESET() {
+    *CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap() = Vec::new();
     *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap() = 0;
     *CUDA_P3_EVAL_EXPR_EF_CTR.lock().unwrap() = 0;
 }
@@ -214,9 +212,10 @@ mod tests {
         let chips = machine.chips();
         for chip in chips {
             if chip.name() == "AddSub" {
-                let (code, ctr) = codegen_cuda_eval(chip);
+                let (code, ctr, constants) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
                 println!("{}", ctr);
+                println!("{:?}", constants);
                 return;
             }
         }

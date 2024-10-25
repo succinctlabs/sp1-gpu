@@ -4,62 +4,59 @@ use tracing::instrument;
 
 use crate::{instruction::Instruction, symbolic_expr_ef::SymbolicExprEF, CUDA_P3_EVAL_CODE, EF};
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct SymbolicVarEF {
-    pub variant: SymbolicVarEFKind,
-    pub args: SymbolicVarEFArgs,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(C)]
-pub enum SymbolicVarEFKind {
-    Empty = 0,
-    Constant = 1,
-    PermutationLocal = 2,
-    PermutationNext = 3,
-    PermutationChallenge = 4,
-    CumulativeSum = 5,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub union SymbolicVarEFArgs {
-    pub empty: (),
-    pub ef: EF,
-    pub idx: u16,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolicVarEF {
+    Empty,
+    PermutationLocal(u32),
+    PermutationNext(u32),
+    PermutationChallenge(u32),
+    CumulativeSum(u32),
 }
 
 impl SymbolicVarEF {
     #[instrument(skip_all, name = "Empty for SymbolicVarEF")]
     pub fn empty() -> Self {
-        Self { variant: SymbolicVarEFKind::Empty, args: SymbolicVarEFArgs { empty: () } }
+        Self::Empty
     }
 
     #[instrument(skip_all, name = "PermutationLocal for SymbolicVarEF")]
-    pub fn permutation_local(idx: usize) -> Self {
-        Self {
-            variant: SymbolicVarEFKind::PermutationLocal,
-            args: SymbolicVarEFArgs { idx: idx as u16 },
-        }
+    pub fn permutation_local(idx: u32) -> Self {
+        Self::PermutationLocal(idx)
     }
 
     #[instrument(skip_all, name = "PermutationNext for SymbolicVarEF")]
-    pub fn permutation_next(idx: usize) -> Self {
-        Self {
-            variant: SymbolicVarEFKind::PermutationNext,
-            args: SymbolicVarEFArgs { idx: idx as u16 },
-        }
+    pub fn permutation_next(idx: u32) -> Self {
+        Self::PermutationNext(idx)
     }
 
     #[instrument(skip_all, name = "PermutationChallenge for SymbolicVarEF")]
-    pub fn permutation_challenge(idx: u16) -> Self {
-        Self { variant: SymbolicVarEFKind::PermutationChallenge, args: SymbolicVarEFArgs { idx } }
+    pub fn permutation_challenge(idx: u32) -> Self {
+        Self::PermutationChallenge(idx)
     }
 
     #[instrument(skip_all, name = "CumulativeSum for SymbolicVarEF")]
-    pub fn cumulative_sum() -> Self {
-        Self { variant: SymbolicVarEFKind::CumulativeSum, args: SymbolicVarEFArgs { empty: () } }
+    pub fn cumulative_sum(idx: u32) -> Self {
+        Self::CumulativeSum(idx)
+    }
+
+    pub fn variant(&self) -> u8 {
+        match self {
+            Self::Empty => 0x00,
+            Self::PermutationLocal(_) => 0x01,
+            Self::PermutationNext(_) => 0x02,
+            Self::PermutationChallenge(_) => 0x03,
+            Self::CumulativeSum(_) => 0x04,
+        }
+    }
+
+    pub fn data(&self) -> u32 {
+        match self {
+            Self::Empty => 0,
+            Self::PermutationLocal(idx) => *idx,
+            Self::PermutationNext(idx) => *idx,
+            Self::PermutationChallenge(idx) => *idx,
+            Self::CumulativeSum(idx) => *idx,
+        }
     }
 }
 
@@ -188,28 +185,5 @@ impl Mul<SymbolicExprEF> for SymbolicVarEF {
         code.push(Instruction::e_mul_ve(output, self, rhs));
         drop(code);
         output
-    }
-}
-
-impl Debug for SymbolicVarEF {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unsafe {
-            match self.variant {
-                SymbolicVarEFKind::Empty => write!(f, "SymbolicVarEF::Empty"),
-                SymbolicVarEFKind::Constant => {
-                    write!(f, "SymbolicVarEF::Constant({})", self.args.ef)
-                }
-                SymbolicVarEFKind::PermutationLocal => {
-                    write!(f, "SymbolicVarEF::PermutationLocal({})", self.args.idx)
-                }
-                SymbolicVarEFKind::PermutationNext => {
-                    write!(f, "SymbolicVarEF::PermutationNext({})", self.args.idx)
-                }
-                SymbolicVarEFKind::PermutationChallenge => {
-                    write!(f, "SymbolicVarEF::PermutationChallenge({})", self.args.idx)
-                }
-                SymbolicVarEFKind::CumulativeSum => write!(f, "SymbolicVarEF::CumulativeSum"),
-            }
-        }
     }
 }

@@ -437,7 +437,6 @@ mod tests {
             if chip.name() != "AddSub" {
                 continue;
             }
-
             info!("Chip: {}", chip.name());
             info!("Id: {}", i);
 
@@ -568,14 +567,14 @@ mod tests {
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-            let (operations, expr_ctr) = air_v2::codegen_cuda_eval(chip);
+            let (operations, expr_ctr, constants) = air_v2::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
+            let constants_device = constants.to_device().unwrap();
             info!("> Eval Program Len: {}", operations.len());
             info!("> Eval Program Register Count: {}", expr_ctr);
-            info!(
-                "Operations: {:#?}",
-                &operations.iter().map(|op| op.opcode).collect::<Vec<_>>()[0..10]
-            );
+            info!("> Quotient Size: {}", quotient_domain.size());
+            // info!("> Eval Program: {:#?}", operations);
+            // info!("> Eval Program Constants: {:#?}", constants);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -583,6 +582,7 @@ mod tests {
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
+                    constants_device.as_ptr(),
                     expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
@@ -604,8 +604,10 @@ mod tests {
             let data = quotient_output.to_host();
             info!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-            for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
-                assert_eq!(exp, res, "failed at index {}", i);
+            for (j, (exp, res)) in result_flat.values.into_iter().zip_eq(data.values).enumerate() {
+                // if j == 0 {
+                assert_eq!(exp, res, "failed at row {}", j);
+                // }
             }
         }
     }

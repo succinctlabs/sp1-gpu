@@ -1,84 +1,93 @@
+use p3_field::PrimeField32;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 use tracing::instrument;
 
 use crate::{instruction::Instruction, symbolic_expr_f::SymbolicExprF, CUDA_P3_EVAL_CODE, F};
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct SymbolicVarF {
-    pub variant: SymbolicVarFKind,
-    pub args: SymbolicVarFArgs,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(C)]
-pub enum SymbolicVarFKind {
-    Empty = 0,
-    Constant = 1,
-    PreprocessedLocal = 2,
-    PreprocessedNext = 3,
-    MainLocal = 4,
-    MainNext = 5,
-    IsFirstRow = 6,
-    IsLastRow = 7,
-    IsTransition = 8,
-    PublicValue = 9,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub union SymbolicVarFArgs {
-    pub empty: (),
-    pub f: F,
-    pub idx: u16,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SymbolicVarF {
+    Empty,
+    Constant(F),
+    PreprocessedLocal(u32),
+    PreprocessedNext(u32),
+    MainLocal(u32),
+    MainNext(u32),
+    IsFirstRow,
+    IsLastRow,
+    IsTransition,
+    PublicValue(u32),
 }
 
 impl SymbolicVarF {
     pub fn empty() -> Self {
-        Self { variant: SymbolicVarFKind::Empty, args: SymbolicVarFArgs { empty: () } }
+        Self::Empty
     }
 
     pub fn constant(f: F) -> Self {
-        Self { variant: SymbolicVarFKind::Constant, args: SymbolicVarFArgs { f } }
+        Self::Constant(f)
     }
 
-    pub fn preprocessed_local(idx: usize) -> Self {
-        Self {
-            variant: SymbolicVarFKind::PreprocessedLocal,
-            args: SymbolicVarFArgs { idx: idx as u16 },
-        }
+    pub fn preprocessed_local(idx: u32) -> Self {
+        Self::PreprocessedLocal(idx)
     }
 
-    pub fn preprocessed_next(idx: usize) -> Self {
-        Self {
-            variant: SymbolicVarFKind::PreprocessedNext,
-            args: SymbolicVarFArgs { idx: idx as u16 },
-        }
+    pub fn preprocessed_next(idx: u32) -> Self {
+        Self::PreprocessedNext(idx)
     }
 
-    pub fn main_local(idx: usize) -> Self {
-        Self { variant: SymbolicVarFKind::MainLocal, args: SymbolicVarFArgs { idx: idx as u16 } }
+    pub fn main_local(idx: u32) -> Self {
+        Self::MainLocal(idx)
     }
 
-    pub fn main_next(idx: usize) -> Self {
-        Self { variant: SymbolicVarFKind::MainNext, args: SymbolicVarFArgs { idx: idx as u16 } }
+    pub fn main_next(idx: u32) -> Self {
+        Self::MainNext(idx)
     }
 
     pub fn is_first_row() -> Self {
-        Self { variant: SymbolicVarFKind::IsFirstRow, args: SymbolicVarFArgs { empty: () } }
+        Self::IsFirstRow
     }
 
     pub fn is_last_row() -> Self {
-        Self { variant: SymbolicVarFKind::IsLastRow, args: SymbolicVarFArgs { empty: () } }
+        Self::IsLastRow
     }
 
     pub fn is_transition() -> Self {
-        Self { variant: SymbolicVarFKind::IsTransition, args: SymbolicVarFArgs { empty: () } }
+        Self::IsTransition
     }
 
-    pub fn public_value(idx: usize) -> Self {
-        Self { variant: SymbolicVarFKind::PublicValue, args: SymbolicVarFArgs { idx: idx as u16 } }
+    pub fn public_value(idx: u32) -> Self {
+        Self::PublicValue(idx)
+    }
+
+    pub fn variant(&self) -> u8 {
+        match self {
+            Self::Empty => 0x00,
+            Self::Constant(_) => 0x01,
+            Self::PreprocessedLocal(_) => 0x02,
+            Self::PreprocessedNext(_) => 0x03,
+            Self::MainLocal(_) => 0x04,
+            Self::MainNext(_) => 0x05,
+            Self::IsFirstRow => 0x06,
+            Self::IsLastRow => 0x07,
+            Self::IsTransition => 0x08,
+            Self::PublicValue(_) => 0x09,
+        }
+    }
+
+    pub fn data(&self) -> u32 {
+        match self {
+            Self::Empty => 0,
+            Self::Constant(f) => f.as_canonical_u32(),
+            Self::PreprocessedLocal(idx) => *idx,
+            Self::PreprocessedNext(idx) => *idx,
+            Self::MainLocal(idx) => *idx,
+            Self::MainNext(idx) => *idx,
+            Self::IsFirstRow => 0,
+            Self::IsLastRow => 0,
+            Self::IsTransition => 0,
+            Self::PublicValue(idx) => *idx,
+        }
     }
 }
 
@@ -207,34 +216,5 @@ impl Mul<SymbolicExprF> for SymbolicVarF {
         code.push(Instruction::f_mul_ve(output, self, rhs));
         drop(code);
         output
-    }
-}
-
-impl Debug for SymbolicVarF {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unsafe {
-            match self.variant {
-                SymbolicVarFKind::Empty => write!(f, "SymbolicVarF::Empty"),
-                SymbolicVarFKind::Constant => write!(f, "SymbolicVarF::Constant({})", self.args.f),
-                SymbolicVarFKind::PreprocessedLocal => {
-                    write!(f, "SymbolicVarF::PreprocessedLocal({})", self.args.idx)
-                }
-                SymbolicVarFKind::PreprocessedNext => {
-                    write!(f, "SymbolicVarF::PreprocessedNext({})", self.args.idx)
-                }
-                SymbolicVarFKind::MainLocal => {
-                    write!(f, "SymbolicVarF::MainLocal({})", self.args.idx)
-                }
-                SymbolicVarFKind::MainNext => {
-                    write!(f, "SymbolicVarF::MainNext({})", self.args.idx)
-                }
-                SymbolicVarFKind::IsFirstRow => write!(f, "SymbolicVarF::IsFirstRow"),
-                SymbolicVarFKind::IsLastRow => write!(f, "SymbolicVarF::IsLastRow"),
-                SymbolicVarFKind::IsTransition => write!(f, "SymbolicVarF::IsTransition"),
-                SymbolicVarFKind::PublicValue => {
-                    write!(f, "SymbolicVarF::PublicValue({})", self.args.idx)
-                }
-            }
-        }
     }
 }

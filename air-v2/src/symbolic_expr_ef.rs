@@ -29,6 +29,14 @@ impl SymbolicExprEF {
         drop(tmp);
         Self(id)
     }
+
+    pub fn variant(&self) -> u8 {
+        0
+    }
+
+    pub fn data(&self) -> u32 {
+        self.0
+    }
 }
 
 impl Default for SymbolicExprEF {
