@@ -1,5 +1,5 @@
 pub mod instruction;
-// pub mod optimizer;
+pub mod optimizer;
 pub mod symbolic_expr_ef;
 pub mod symbolic_expr_f;
 pub mod symbolic_var_ef;
@@ -142,7 +142,7 @@ impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
 impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
 
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
-pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32, Vec<EF>)
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32, u32, Vec<EF>)
 where
     A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
 {
@@ -184,7 +184,9 @@ where
 
     CUDA_P3_EVAL_RESET();
 
-    (code, ctr, constants)
+    let (code, f_ctr, ef_ctr) = optimizer::optimize(code);
+
+    (code, f_ctr as u32, ef_ctr as u32, constants)
 }
 
 #[allow(non_snake_case)]
@@ -212,9 +214,9 @@ mod tests {
         let chips = machine.chips();
         for chip in chips {
             if chip.name() == "AddSub" {
-                let (code, ctr, constants) = codegen_cuda_eval(chip);
+                let (code, f_ctr, ef_ctr, constants) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
-                println!("{}", ctr);
+                println!("{}", f_ctr);
                 println!("{:?}", constants);
                 return;
             }

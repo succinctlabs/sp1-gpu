@@ -14,27 +14,27 @@ pub enum SymbolicVarEF {
 }
 
 impl SymbolicVarEF {
-    #[instrument(skip_all, name = "Empty for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Empty for SymbolicVarEF")]
     pub fn empty() -> Self {
         Self::Empty
     }
 
-    #[instrument(skip_all, name = "PermutationLocal for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "PermutationLocal for SymbolicVarEF")]
     pub fn permutation_local(idx: u32) -> Self {
         Self::PermutationLocal(idx)
     }
 
-    #[instrument(skip_all, name = "PermutationNext for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "PermutationNext for SymbolicVarEF")]
     pub fn permutation_next(idx: u32) -> Self {
         Self::PermutationNext(idx)
     }
 
-    #[instrument(skip_all, name = "PermutationChallenge for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "PermutationChallenge for SymbolicVarEF")]
     pub fn permutation_challenge(idx: u32) -> Self {
         Self::PermutationChallenge(idx)
     }
 
-    #[instrument(skip_all, name = "CumulativeSum for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "CumulativeSum for SymbolicVarEF")]
     pub fn cumulative_sum(idx: u32) -> Self {
         Self::CumulativeSum(idx)
     }
@@ -61,7 +61,7 @@ impl SymbolicVarEF {
 }
 
 impl From<SymbolicVarEF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "From<SymbolicVarEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<SymbolicVarEF> for SymbolicExprEF")]
     fn from(value: SymbolicVarEF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -74,7 +74,7 @@ impl From<SymbolicVarEF> for SymbolicExprEF {
 impl Add<EF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Add<EF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<EF> for SymbolicVarEF")]
     fn add(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -87,7 +87,7 @@ impl Add<EF> for SymbolicVarEF {
 impl Add<SymbolicVarEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Add<SymbolicVarEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<SymbolicVarEF> for SymbolicVarEF")]
     fn add(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -100,7 +100,7 @@ impl Add<SymbolicVarEF> for SymbolicVarEF {
 impl Add<SymbolicExprEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Add<SymbolicExprEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<SymbolicExprEF> for SymbolicVarEF")]
     fn add(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -113,7 +113,7 @@ impl Add<SymbolicExprEF> for SymbolicVarEF {
 impl Sub<EF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Sub<EF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<EF> for SymbolicVarEF")]
     fn sub(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -126,7 +126,7 @@ impl Sub<EF> for SymbolicVarEF {
 impl Sub<SymbolicVarEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Sub<SymbolicVarEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<SymbolicVarEF> for SymbolicVarEF")]
     fn sub(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -139,7 +139,7 @@ impl Sub<SymbolicVarEF> for SymbolicVarEF {
 impl Sub<SymbolicExprEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Sub<SymbolicExprEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<SymbolicExprEF> for SymbolicVarEF")]
     fn sub(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -152,7 +152,7 @@ impl Sub<SymbolicExprEF> for SymbolicVarEF {
 impl Mul<EF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Mul<EF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<EF> for SymbolicVarEF")]
     fn mul(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -165,7 +165,7 @@ impl Mul<EF> for SymbolicVarEF {
 impl Mul<SymbolicVarEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Mul<SymbolicVarEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<SymbolicVarEF> for SymbolicVarEF")]
     fn mul(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -178,7 +178,7 @@ impl Mul<SymbolicVarEF> for SymbolicVarEF {
 impl Mul<SymbolicExprEF> for SymbolicVarEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Mul<SymbolicExprEF> for SymbolicVarEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<SymbolicExprEF> for SymbolicVarEF")]
     fn mul(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();

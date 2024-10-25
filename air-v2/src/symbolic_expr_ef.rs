@@ -16,12 +16,12 @@ use crate::{
 pub struct SymbolicExprEF(pub u32);
 
 impl SymbolicExprEF {
-    #[instrument(skip_all, name = "Empty for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Empty for SymbolicExprEF")]
     pub fn empty() -> Self {
         Self(u32::MAX)
     }
 
-    #[instrument(skip_all, name = "Alloc for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Alloc for SymbolicExprEF")]
     pub fn alloc() -> Self {
         let mut tmp = CUDA_P3_EVAL_EXPR_EF_CTR.lock().unwrap();
         let id = *tmp;
@@ -40,7 +40,7 @@ impl SymbolicExprEF {
 }
 
 impl Default for SymbolicExprEF {
-    #[instrument(skip_all, name = "Default for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Default for SymbolicExprEF")]
     fn default() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -51,7 +51,7 @@ impl Default for SymbolicExprEF {
 }
 
 impl From<EF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "From<EF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<EF> for SymbolicExprEF")]
     fn from(f: EF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -64,7 +64,7 @@ impl From<EF> for SymbolicExprEF {
 impl Add<EF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Add<EF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<EF> for SymbolicExprEF")]
     fn add(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -77,7 +77,7 @@ impl Add<EF> for SymbolicExprEF {
 impl Add<SymbolicVarEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Add<SymbolicVarEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<SymbolicVarEF> for SymbolicExprEF")]
     fn add(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -90,7 +90,7 @@ impl Add<SymbolicVarEF> for SymbolicExprEF {
 impl Add<SymbolicExprEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Add<SymbolicExprEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<SymbolicExprEF> for SymbolicExprEF")]
     fn add(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -101,7 +101,7 @@ impl Add<SymbolicExprEF> for SymbolicExprEF {
 }
 
 impl AddAssign for SymbolicExprEF {
-    #[instrument(skip_all, name = "AddAssign for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "AddAssign for SymbolicExprEF")]
     fn add_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::e_add_assign_e(*self, rhs));
@@ -112,7 +112,7 @@ impl AddAssign for SymbolicExprEF {
 impl Sub<EF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Sub<EF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<EF> for SymbolicExprEF")]
     fn sub(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -125,7 +125,7 @@ impl Sub<EF> for SymbolicExprEF {
 impl Sub<SymbolicVarEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Sub<SymbolicVarEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<SymbolicVarEF> for SymbolicExprEF")]
     fn sub(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -138,7 +138,7 @@ impl Sub<SymbolicVarEF> for SymbolicExprEF {
 impl Sub<SymbolicExprEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Sub<SymbolicExprEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<SymbolicExprEF> for SymbolicExprEF")]
     fn sub(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -149,7 +149,7 @@ impl Sub<SymbolicExprEF> for SymbolicExprEF {
 }
 
 impl SubAssign for SymbolicExprEF {
-    #[instrument(skip_all, name = "SubAssign for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "SubAssign for SymbolicExprEF")]
     fn sub_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::e_sub_assign_e(*self, rhs));
@@ -160,7 +160,7 @@ impl SubAssign for SymbolicExprEF {
 impl Mul<EF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Mul<EF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<EF> for SymbolicExprEF")]
     fn mul(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -173,7 +173,7 @@ impl Mul<EF> for SymbolicExprEF {
 impl Mul<SymbolicVarEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Mul<SymbolicVarEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<SymbolicVarEF> for SymbolicExprEF")]
     fn mul(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -186,7 +186,7 @@ impl Mul<SymbolicVarEF> for SymbolicExprEF {
 impl Mul<SymbolicExprEF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Mul<SymbolicExprEF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<SymbolicExprEF> for SymbolicExprEF")]
     fn mul(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -197,7 +197,7 @@ impl Mul<SymbolicExprEF> for SymbolicExprEF {
 }
 
 impl MulAssign for SymbolicExprEF {
-    #[instrument(skip_all, name = "MulAssign for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "MulAssign for SymbolicExprEF")]
     fn mul_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::e_mul_assign_e(*self, rhs));
@@ -208,7 +208,7 @@ impl MulAssign for SymbolicExprEF {
 impl Neg for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Neg for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Neg for SymbolicExprEF")]
     fn neg(self) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -219,9 +219,9 @@ impl Neg for SymbolicExprEF {
 }
 
 impl Sum for SymbolicExprEF {
-    #[instrument(skip_all, name = "Sum for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sum for SymbolicExprEF")]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        let mut output = SymbolicExprEF::alloc();
+        let mut output = SymbolicExprEF::zero();
         for item in iter {
             output += item;
         }
@@ -230,9 +230,9 @@ impl Sum for SymbolicExprEF {
 }
 
 impl Product for SymbolicExprEF {
-    #[instrument(skip_all, name = "Product for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Product for SymbolicExprEF")]
     fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
-        let mut output = SymbolicExprEF::alloc();
+        let mut output = SymbolicExprEF::one();
         for item in iter {
             output *= item;
         }
@@ -242,7 +242,7 @@ impl Product for SymbolicExprEF {
 
 impl Clone for SymbolicExprEF {
     #[allow(clippy::non_canonical_clone_impl)]
-    #[instrument(skip_all, name = "Clone for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Clone for SymbolicExprEF")]
     fn clone(&self) -> Self {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         let output = SymbolicExprEF::alloc();
@@ -255,7 +255,7 @@ impl Clone for SymbolicExprEF {
 impl AbstractField for SymbolicExprEF {
     type F = EF;
 
-    #[instrument(skip_all, name = "Zero for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Zero for SymbolicExprEF")]
     fn zero() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -264,7 +264,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "One for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "One for SymbolicExprEF")]
     fn one() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -273,7 +273,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "Two for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Two for SymbolicExprEF")]
     fn two() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -282,7 +282,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "NegOne for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "NegOne for SymbolicExprEF")]
     fn neg_one() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -291,7 +291,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<EF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<EF> for SymbolicExprEF")]
     fn from_f(f: Self::F) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -300,7 +300,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<bool> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<bool> for SymbolicExprEF")]
     fn from_bool(b: bool) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -309,7 +309,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u8> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u8> for SymbolicExprEF")]
     fn from_canonical_u8(n: u8) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -318,7 +318,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u16> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u16> for SymbolicExprEF")]
     fn from_canonical_u16(n: u16) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -327,7 +327,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u32> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u32> for SymbolicExprEF")]
     fn from_canonical_u32(n: u32) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -336,7 +336,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u64> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u64> for SymbolicExprEF")]
     fn from_canonical_u64(n: u64) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -345,7 +345,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<usize> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<usize> for SymbolicExprEF")]
     fn from_canonical_usize(n: usize) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -354,7 +354,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u32> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u32> for SymbolicExprEF")]
     fn from_wrapped_u32(n: u32) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -363,7 +363,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "From<u64> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<u64> for SymbolicExprEF")]
     fn from_wrapped_u64(n: u64) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -372,7 +372,7 @@ impl AbstractField for SymbolicExprEF {
         output
     }
 
-    #[instrument(skip_all, name = "Generator for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Generator for SymbolicExprEF")]
     fn generator() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -383,7 +383,7 @@ impl AbstractField for SymbolicExprEF {
 }
 
 impl From<SymbolicExprF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "From<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "From<SymbolicExprF> for SymbolicExprEF")]
     fn from(value: SymbolicExprF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -396,7 +396,7 @@ impl From<SymbolicExprF> for SymbolicExprEF {
 impl Add<SymbolicExprF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Add<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Add<SymbolicExprF> for SymbolicExprEF")]
     fn add(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -407,7 +407,7 @@ impl Add<SymbolicExprF> for SymbolicExprEF {
 }
 
 impl AddAssign<SymbolicExprF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "AddAssign<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "AddAssign<SymbolicExprF> for SymbolicExprEF")]
     fn add_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::ef_add_assign_e(*self, rhs));
@@ -418,7 +418,7 @@ impl AddAssign<SymbolicExprF> for SymbolicExprEF {
 impl Sub<SymbolicExprF> for SymbolicExprEF {
     type Output = Self;
 
-    #[instrument(skip_all, name = "Sub<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Sub<SymbolicExprF> for SymbolicExprEF")]
     fn sub(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -429,7 +429,7 @@ impl Sub<SymbolicExprF> for SymbolicExprEF {
 }
 
 impl SubAssign<SymbolicExprF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "SubAssign<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "SubAssign<SymbolicExprF> for SymbolicExprEF")]
     fn sub_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::ef_sub_assign_e(*self, rhs));
@@ -440,7 +440,7 @@ impl SubAssign<SymbolicExprF> for SymbolicExprEF {
 impl Mul<SymbolicExprF> for SymbolicExprEF {
     type Output = SymbolicExprEF;
 
-    #[instrument(skip_all, name = "Mul<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "Mul<SymbolicExprF> for SymbolicExprEF")]
     fn mul(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
@@ -451,7 +451,7 @@ impl Mul<SymbolicExprF> for SymbolicExprEF {
 }
 
 impl MulAssign<SymbolicExprF> for SymbolicExprEF {
-    #[instrument(skip_all, name = "MulAssign<SymbolicExprF> for SymbolicExprEF")]
+    // #[instrument(skip_all, level = "trace", name = "MulAssign<SymbolicExprF> for SymbolicExprEF")]
     fn mul_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::ef_mul_assign_e(*self, rhs));

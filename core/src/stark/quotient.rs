@@ -434,7 +434,7 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            if chip.name() != "AddSub" {
+            if chip.name() != "CPU" {
                 continue;
             }
             info!("Chip: {}", chip.name());
@@ -567,14 +567,13 @@ mod tests {
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-            let (operations, expr_ctr, constants) = air_v2::codegen_cuda_eval(chip);
+            let (operations, f_expr_ctr, ef_expr_ctr, constants) = air_v2::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
             let constants_device = constants.to_device().unwrap();
             info!("> Eval Program Len: {}", operations.len());
-            info!("> Eval Program Register Count: {}", expr_ctr);
-            info!("> Quotient Size: {}", quotient_domain.size());
+            info!("> Eval Program Register Count: f={}, ef={}", f_expr_ctr, ef_expr_ctr);
+            info!("> Eval Program Constants: {:#?}", constants.len());
             // info!("> Eval Program: {:#?}", operations);
-            // info!("> Eval Program Constants: {:#?}", constants);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -583,7 +582,7 @@ mod tests {
                     operations_device.as_ptr(),
                     operations.len(),
                     constants_device.as_ptr(),
-                    expr_ctr as usize,
+                    f_expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,

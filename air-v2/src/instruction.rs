@@ -103,6 +103,92 @@ pub enum Opcode {
     EAssertZero = 60,
 }
 
+impl Opcode {
+    pub fn is_f_assign(&self) -> bool {
+        let value = *self as u8;
+        (1..26).contains(&value) || value == 59
+    }
+
+    pub fn is_e_assign(&self) -> bool {
+        let value = *self as u8;
+        (26..59).contains(&value) || value == 60
+    }
+
+    pub fn is_f_arg1(&self) -> bool {
+        matches!(
+            self,
+            Opcode::FAssignE
+                | Opcode::FAddEC
+                | Opcode::FAddEV
+                | Opcode::FAddEE
+                | Opcode::FAddAssignE
+                | Opcode::FSubEC
+                | Opcode::FSubEV
+                | Opcode::FSubEE
+                | Opcode::FSubAssignE
+                | Opcode::FMulEC
+                | Opcode::FMulEV
+                | Opcode::FMulEE
+                | Opcode::FMulAssignE
+                | Opcode::FNegE
+                | Opcode::EFFromE
+                | Opcode::EFAddAssignE
+                | Opcode::EFSubAssignE
+                | Opcode::EFMulAssignE
+        )
+    }
+
+    pub fn is_f_arg2(&self) -> bool {
+        matches!(
+            self,
+            Opcode::FAddVE
+                | Opcode::FAddEE
+                | Opcode::FSubVE
+                | Opcode::FSubEE
+                | Opcode::FMulVE
+                | Opcode::FMulEE
+                | Opcode::EFAddEE
+                | Opcode::EFSubEE
+                | Opcode::EFMulEE
+        )
+    }
+
+    pub fn is_e_arg1(&self) -> bool {
+        matches!(
+            self,
+            Opcode::EAssignE
+                | Opcode::EAddEC
+                | Opcode::EAddEV
+                | Opcode::EAddEE
+                | Opcode::EAddAssignE
+                | Opcode::ESubEC
+                | Opcode::ESubEV
+                | Opcode::ESubEE
+                | Opcode::ESubAssignE
+                | Opcode::EMulEC
+                | Opcode::EMulEV
+                | Opcode::EMulEE
+                | Opcode::EMulAssignE
+                | Opcode::ENegE
+                | Opcode::EFAddEE
+                | Opcode::EFSubEE
+                | Opcode::EFMulEE
+        )
+    }
+
+    pub fn is_e_arg2(&self) -> bool {
+        matches!(
+            self,
+            Opcode::EAddVE
+                | Opcode::EAddEE
+                | Opcode::ESubVE
+                | Opcode::ESubEE
+                | Opcode::EMulVE
+                | Opcode::EMulEE
+        )
+    }
+}
+
 impl From<u8> for Opcode {
     fn from(value: u8) -> Self {
         unsafe { std::mem::transmute(value) }

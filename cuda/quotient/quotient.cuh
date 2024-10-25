@@ -75,12 +75,12 @@ __global__ void computeValues(Instruction *evalProgram,
     folder.nextStep = nextStep;
 
 
-    Val expr_f[2048];
-    for (size_t i = 0; i < 2048; i++) {
+    Val expr_f[64];
+    for (size_t i = 0; i < 64; i++) {
         expr_f[i] = Val{0};
     }
-    Challenge expr_ef[2048];
-    for (size_t i = 0; i < 2048; i++) {
+    Challenge expr_ef[16];
+    for (size_t i = 0; i < 16; i++) {
         expr_ef[i] = Challenge::zero();
     }
 
@@ -367,9 +367,9 @@ __global__ void computeValues(Instruction *evalProgram,
     bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
 
     #pragma unroll
-        for (size_t k = 0; k < bb31_extension_t::D; k++) {
-            quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
-        }
+    for (size_t k = 0; k < bb31_extension_t::D; k++) {
+        quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+    }
 }
 }  // namespace quotient_kernels
 
