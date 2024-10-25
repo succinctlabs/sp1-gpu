@@ -214,7 +214,7 @@ impl Neg for SymbolicExprF {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction::f_neg_e(output, self));
         drop(code);
-        self
+        output
     }
 }
 

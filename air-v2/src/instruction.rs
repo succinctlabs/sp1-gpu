@@ -556,9 +556,12 @@ impl Instruction {
 
     pub fn e_add_ec(a: SymbolicExprEF, b: SymbolicExprEF, c: EF) -> Self {
         let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = tmp.len();
-        tmp.push(c);
-        drop(tmp);
+        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
+            pos
+        } else {
+            tmp.push(c);
+            tmp.len() - 1
+        };
 
         Self {
             opcode: Opcode::EAddEC as u8,
@@ -605,9 +608,12 @@ impl Instruction {
 
     pub fn e_sub_vc(a: SymbolicExprEF, b: SymbolicVarEF, c: EF) -> Self {
         let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = tmp.len();
-        tmp.push(c);
-        drop(tmp);
+        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
+            pos
+        } else {
+            tmp.push(c);
+            tmp.len() - 1
+        };
 
         Self {
             opcode: Opcode::ESubVC as u8,
@@ -643,9 +649,12 @@ impl Instruction {
 
     pub fn e_sub_ec(a: SymbolicExprEF, b: SymbolicExprEF, c: EF) -> Self {
         let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = tmp.len();
-        tmp.push(c);
-        drop(tmp);
+        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
+            pos
+        } else {
+            tmp.push(c);
+            tmp.len() - 1
+        };
 
         Self {
             opcode: Opcode::ESubEC as u8,

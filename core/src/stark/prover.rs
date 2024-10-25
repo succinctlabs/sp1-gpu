@@ -145,6 +145,7 @@ where
     SC: BabyBearFriConfig,
     A: for<'a> Air<P3EvalFolder<'a>>
         + for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + for<'a> Air<air_v2::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
@@ -560,8 +561,13 @@ where
             permutation_values,
             mut quotient_values,
         ) = if global_main_data.is_some() {
-            let [preprocessed_values, global_main_values, local_main_values, permutation_values, quotient_values] =
-                openings.try_into().unwrap();
+            let [
+                preprocessed_values,
+                global_main_values,
+                local_main_values,
+                permutation_values,
+                quotient_values,
+            ] = openings.try_into().unwrap();
             (
                 preprocessed_values,
                 Some(global_main_values),

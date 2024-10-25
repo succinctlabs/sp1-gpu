@@ -1,3 +1,4 @@
+use air_v2::instruction::Instruction;
 use sp1_stark::StarkGenericConfig;
 
 use air::operation::Operation;
@@ -44,8 +45,8 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 }
 
 #[derive(Clone, Debug)]
-pub struct DeviceQuotientValuesGenerator<SC, A> {
-    eval_programs: HashMap<String, (Vec<Operation>, usize)>,
+pub struct DeviceQuotientValuesGenerator<SC: StarkGenericConfig, A> {
+    eval_programs: HashMap<String, (Vec<Instruction>, u32, Vec<SC::Challenge>)>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -62,18 +63,23 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
     SC: BabyBearFriConfig,
-    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
+    A: for<'a> Air<P3EvalFolder<'a>>
+        + MachineAir<SC::Val>
+        + for<'a> p3_air::Air<air_v2::SymbolicProverFolder<'a>>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut eval_programs = HashMap::new();
         for chip in machine.chips() {
-            let (operations, max) = air::codegen_cuda_eval(chip);
-            eval_programs.insert(chip.name().to_owned(), (operations, max));
+            let (operations, f_ctr, _, constants) = air_v2::codegen_cuda_eval(chip);
+            eval_programs.insert(chip.name().to_owned(), (operations, f_ctr, constants));
         }
         Self { eval_programs, _marker: PhantomData }
     }
 
-    pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &(Vec<Operation>, usize) {
+    pub fn get_eval_program(
+        &self,
+        chip: &Chip<SC::Val, A>,
+    ) -> &(Vec<Instruction>, u32, Vec<SC::Challenge>) {
         self.eval_programs.get(&chip.name()).unwrap()
     }
 
@@ -175,8 +181,9 @@ where
                 cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
-            let (operations, memory_size) = self.get_eval_program(chip);
+            let (operations, memory_size, constants) = self.get_eval_program(chip);
             let operations_device = operations.to_device_async(stream).unwrap();
+            let constants_device = constants.to_device_async(stream).unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -197,26 +204,27 @@ where
                 )
                 .unwrap();
                 quotient_flat.set_max_width();
-                // quotient_gpu::compute_values(
-                //     operations_device.as_ptr(),
-                //     operations.len(),
-                //     *memory_size,
-                //     cumulative_sums_device.as_ptr(),
-                //     trace_domain_device,
-                //     quotient_domain_device,
-                //     preprocessed_on_quotient_domain.view(),
-                //     main_on_quotient_domain.view(),
-                //     perm_on_quotient_domain.view(),
-                //     permutation_challenges_device.as_ptr(),
-                //     folding_challenge,
-                //     public_values_device.as_ptr(),
-                //     trace_domain_generator,
-                //     generator_powers.as_ptr(),
-                //     quotient_flat.view_mut(),
-                //     quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
-                //     NUM_THREADS_PER_BLOCK,
-                //     stream.handle(),
-                // );
+                quotient_gpu::compute_values(
+                    operations_device.as_ptr(),
+                    operations.len(),
+                    constants_device.as_ptr(),
+                    *memory_size as usize,
+                    cumulative_sums_device.as_ptr(),
+                    trace_domain_device,
+                    quotient_domain_device,
+                    preprocessed_on_quotient_domain.view(),
+                    main_on_quotient_domain.view(),
+                    perm_on_quotient_domain.view(),
+                    permutation_challenges_device.as_ptr(),
+                    folding_challenge,
+                    public_values_device.as_ptr(),
+                    trace_domain_generator,
+                    generator_powers.as_ptr(),
+                    quotient_flat.view_mut(),
+                    quotient_domain.size().div_ceil(NUM_THREADS_PER_BLOCK),
+                    NUM_THREADS_PER_BLOCK,
+                    stream.handle(),
+                );
                 quotient_flat
             };
 
@@ -434,9 +442,9 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            if chip.name() != "CPU" {
-                continue;
-            }
+            // if chip.name() != "EdAddAssign" {
+            //     continue;
+            // }
             info!("Chip: {}", chip.name());
             info!("Id: {}", i);
 
@@ -445,7 +453,7 @@ mod tests {
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 21 };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 14 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 

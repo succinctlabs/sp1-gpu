@@ -75,12 +75,12 @@ __global__ void computeValues(Instruction *evalProgram,
     folder.nextStep = nextStep;
 
 
-    Val expr_f[64];
-    for (size_t i = 0; i < 64; i++) {
+    Val expr_f[MEMORY_SIZE];
+    for (size_t i = 0; i < MEMORY_SIZE; i++) {
         expr_f[i] = Val{0};
     }
-    Challenge expr_ef[16];
-    for (size_t i = 0; i < 16; i++) {
+    Challenge expr_ef[10];
+    for (size_t i = 0; i < 10; i++) {
         expr_ef[i] = Challenge::zero();
     }
 
