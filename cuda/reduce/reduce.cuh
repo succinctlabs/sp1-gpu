@@ -13,26 +13,38 @@ namespace cg = cooperative_groups;
 
 
 template <typename Ty>
+  struct AddOpFinalReduce {
+    template<typename TyGroup>
+    __device__ __forceinline__ static void final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val);
+};
+
+template <typename Ty>
  struct AddOp {
     __device__ __forceinline__ Ty operator()(const Ty arg1, const Ty arg2) const {
         return arg1 + arg2;
     }
 
-    __device__ __forceinline__ void operator()(Ty& arg1, const Ty arg2) const {
+    __device__ __forceinline__ void evalAssign(Ty& arg1, const Ty arg2) const {
         arg1 += arg2;
     }
 
     template<typename TyGroup>
-    __device__ __forceinline__ Ty reduce(const TyGroup& group, Ty&& val) {
+    __device__ __forceinline__ Ty reduce(const TyGroup& group, Ty val) {
         return cg::reduce(group, val, cg::plus<Ty>());
+    }
+
+    template<typename TyGroup>
+    __device__ __forceinline__ static void final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val) {
+       return AddOpFinalReduce<Ty>::final_block_reduction_async(group, dst, val); 
     }
  };
 
 
+
 template <>
-  struct AddOp<bb31_t> {
+  struct AddOpFinalReduce<bb31_t> {
     template<typename TyGroup>
-    __device__ __forceinline__ void final_block_reduction_async(const TyGroup& group, bb31_t* dst, bb31_t val) {
+    __device__ __forceinline__ static void final_block_reduction_async(const TyGroup& group, bb31_t* dst, bb31_t val) {
         cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(dst[0]);
         // reduce thread sums across the tile, add the result to the atomic
         return cg::reduce_update_async(group, atomic, val, cg::plus<bb31_t>());
@@ -41,9 +53,9 @@ template <>
 
 
 template <>
-  struct AddOp<bb31_extension_t> {
+  struct AddOpFinalReduce<bb31_extension_t> {
     template<typename TyGroup>
-    __device__ __forceinline__ void final_block_reduction_async(const TyGroup& group, bb31_extension_t* dst, bb31_extension_t val) {
+    __device__ __forceinline__ static void final_block_reduction_async(const TyGroup& group, bb31_extension_t* dst, bb31_extension_t val) {
         // Split the extension into a slice of base field elements and make a separate atomic update.
         #pragma unroll
         for(int j = 0 ; j<= bb31_extension_t::D; j++) {
@@ -66,9 +78,9 @@ template<typename F> __global__ void partialBlockReduce(F* A, F* partial_sums, s
     }
 
     // Warp-level reduction within tiles
-    thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
-    // AddOp<bb31_t> op;
-    // thread_sum = op.reduce(tile, thread_sum);
+    // thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
+    AddOp<F> op;
+    thread_sum = op.reduce(tile, thread_sum);
 
     // Allocate shared memory
     extern __shared__ unsigned char memory[];
@@ -105,8 +117,7 @@ template<typename F> __global__ void blockReduce(F* A, F* total_sum, size_t len)
         thread_sum += A[i];
     }
 
-    AddOp<F> op;   
-    op.final_block_reduction_async(tile, total_sum, thread_sum); 
+    AddOp<F>::final_block_reduction_async(tile, total_sum, thread_sum); 
     block.sync();
 }
 
