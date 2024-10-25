@@ -11,7 +11,8 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     const F* polynomailBatch,
     const F domainGenerator,
     const F domainNormalizer,
-    const EF evalPoint, 
+    const EF evalPoint,
+    const EF vanishingPoly, 
     size_t width,
     size_t log_height) {
     auto block = cg::this_thread_block();
@@ -27,15 +28,15 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     // Compute the lagrange polynomial.
 
     // First, compute `z^height`
-    EF pointPower = evalPoint;
-    for (size_t k = 0; k < log_height; k++) {
-        pointPower *= pointPower; 
-    }
+    // EF pointPower = evalPoint;
+    // for (size_t k = 0; k < log_height; k++) {
+    //     pointPower *= pointPower; 
+    // }
 
     size_t height = 1U << log_height;
 
     // The vanishing polynomial on the domain is `z^height - 1`
-    EF vanishingPoly = pointPower - EF::one();
+    // EF vanishingPoly = pointPower - EF::one();
 
     // The un-normalized lagrange polynomial is given by `(z^height - 1) / (z - point)`
     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
@@ -67,7 +68,8 @@ template<typename F, typename EF> RustCudaError univariateEval(
     const F* polynomailBatch, 
     const F domainGenerator,
     const F domainNormalizer,
-    const EF evalPoint, 
+    const EF evalPoint,
+    const EF vanishingPoly, 
     size_t width, 
     size_t log_height,
     cudaStream_t stream) {
@@ -87,7 +89,8 @@ template<typename F, typename EF> RustCudaError univariateEval(
         polynomailBatch, 
         domainGenerator,
         domainNormalizer,
-        evalPoint, 
+        evalPoint,
+        vanishingPoly, 
         width, 
         log_height);
     
@@ -113,7 +116,8 @@ extern "C" RustCudaError evalUnivariateBabyBear(
     const bb31_t* polynomailBatch, 
     const bb31_t domainGenerator,
     const bb31_t domainNormalizer,
-    const bb31_extension_t evalPoint, 
+    const bb31_extension_t evalPoint,
+    const bb31_extension_t vanishingPoly,  
     size_t width, 
     size_t log_height,
     cudaStream_t stream) {
@@ -123,6 +127,7 @@ extern "C" RustCudaError evalUnivariateBabyBear(
         domainGenerator, 
         domainNormalizer,
         evalPoint,
+        vanishingPoly,
         width,
         log_height, 
         stream);

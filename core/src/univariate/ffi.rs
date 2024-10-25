@@ -11,6 +11,7 @@ extern "C" {
         domain_generator: BabyBear,
         domain_normalizer: BabyBear,
         evaluation_point: BinomialExtensionField<BabyBear, 4>,
+        vanishing_poly_eval: BinomialExtensionField<BabyBear, 4>,
         width: usize,
         log_height: usize,
         stream: CudaStreamHandle,
