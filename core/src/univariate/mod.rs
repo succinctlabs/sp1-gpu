@@ -67,7 +67,49 @@ mod tests {
             DeviceBuffer,
         },
         univariate::subgroup_normalizer,
+        utils::init_tracer,
     };
+
+    #[test]
+    fn test_profile_univariate_evaluation_babybear() {
+        let mut rng = thread_rng();
+
+        init_tracer();
+
+        type F = BabyBear;
+        type EF = BinomialExtensionField<BabyBear, 4>;
+
+        let input_log_height = 21;
+        let width = 400;
+
+        let input_height = 1 << input_log_height;
+        let domain_normalizer = subgroup_normalizer(input_log_height);
+        println!("domain normalizer {}", domain_normalizer);
+
+        println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+        let input_host = (0..input_height * width).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
+
+        let input_host = RowMajorMatrix::new(input_host, width);
+
+        let input_device = input_host.to_device().unwrap().to_column_major();
+
+        assert_eq!(input_device.height(), input_height);
+
+        let mut results = DeviceBuffer::<EF>::with_capacity(width).unwrap();
+        unsafe {
+            results.set_max_len();
+        }
+        assert_eq!(results.len(), width);
+
+        let point: EF = rng.gen();
+        input_device.stream().synchronize().unwrap();
+        let time = Instant::now();
+        let vanishing_poly = point.exp_power_of_2(input_log_height) - EF::one();
+        input_device.eval(&mut results, domain_normalizer, point, vanishing_poly).unwrap();
+        input_device.stream().synchronize().unwrap();
+        let elapsed = time.elapsed();
+        println!("Device time: {:?}", elapsed);
+    }
 
     #[test]
     fn test_univariate_evaluation_babybear() {
