@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 use tracing::instrument;
 
-use crate::{instruction::Instruction, symbolic_expr_ef::SymbolicExprEF, CUDA_P3_EVAL_CODE, EF};
+use crate::{instruction::Instruction32, symbolic_expr_ef::SymbolicExprEF, CUDA_P3_EVAL_CODE, EF};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SymbolicVarEF {
@@ -65,7 +65,7 @@ impl From<SymbolicVarEF> for SymbolicExprEF {
     fn from(value: SymbolicVarEF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_v(output, value));
+        code.push(Instruction32::e_assign_v(output, value));
         drop(code);
         output
     }
@@ -78,7 +78,7 @@ impl Add<EF> for SymbolicVarEF {
     fn add(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_vc(output, self, rhs));
+        code.push(Instruction32::e_add_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -91,7 +91,7 @@ impl Add<SymbolicVarEF> for SymbolicVarEF {
     fn add(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_vv(output, self, rhs));
+        code.push(Instruction32::e_add_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -104,7 +104,7 @@ impl Add<SymbolicExprEF> for SymbolicVarEF {
     fn add(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_ve(output, self, rhs));
+        code.push(Instruction32::e_add_ve(output, self, rhs));
         drop(code);
         output
     }
@@ -117,7 +117,7 @@ impl Sub<EF> for SymbolicVarEF {
     fn sub(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_vc(output, self, rhs));
+        code.push(Instruction32::e_sub_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -130,7 +130,7 @@ impl Sub<SymbolicVarEF> for SymbolicVarEF {
     fn sub(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_vv(output, self, rhs));
+        code.push(Instruction32::e_sub_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -143,7 +143,7 @@ impl Sub<SymbolicExprEF> for SymbolicVarEF {
     fn sub(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_ve(output, self, rhs));
+        code.push(Instruction32::e_sub_ve(output, self, rhs));
         drop(code);
         output
     }
@@ -156,7 +156,7 @@ impl Mul<EF> for SymbolicVarEF {
     fn mul(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_vc(output, self, rhs));
+        code.push(Instruction32::e_mul_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -169,7 +169,7 @@ impl Mul<SymbolicVarEF> for SymbolicVarEF {
     fn mul(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_vv(output, self, rhs));
+        code.push(Instruction32::e_mul_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -182,7 +182,7 @@ impl Mul<SymbolicExprEF> for SymbolicVarEF {
     fn mul(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_ve(output, self, rhs));
+        code.push(Instruction32::e_mul_ve(output, self, rhs));
         drop(code);
         output
     }

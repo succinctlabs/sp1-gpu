@@ -7,7 +7,7 @@ use tracing::instrument;
 use p3_field::{AbstractExtensionField, AbstractField};
 
 use crate::{
-    instruction::Instruction, symbolic_expr_f::SymbolicExprF, symbolic_var_ef::SymbolicVarEF,
+    instruction::Instruction32, symbolic_expr_f::SymbolicExprF, symbolic_var_ef::SymbolicVarEF,
     CUDA_P3_EVAL_CODE, CUDA_P3_EVAL_EXPR_EF_CTR, EF,
 };
 
@@ -44,7 +44,7 @@ impl Default for SymbolicExprEF {
     fn default() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::zero()));
+        code.push(Instruction32::e_assign_c(output, EF::zero()));
         drop(code);
         output
     }
@@ -55,7 +55,7 @@ impl From<EF> for SymbolicExprEF {
     fn from(f: EF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, f));
+        code.push(Instruction32::e_assign_c(output, f));
         drop(code);
         output
     }
@@ -68,7 +68,7 @@ impl Add<EF> for SymbolicExprEF {
     fn add(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_ec(output, self, rhs));
+        code.push(Instruction32::e_add_ec(output, self, rhs));
         drop(code);
         output
     }
@@ -81,7 +81,7 @@ impl Add<SymbolicVarEF> for SymbolicExprEF {
     fn add(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_ev(output, self, rhs));
+        code.push(Instruction32::e_add_ev(output, self, rhs));
         drop(code);
         output
     }
@@ -94,7 +94,7 @@ impl Add<SymbolicExprEF> for SymbolicExprEF {
     fn add(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_ee(output, self, rhs));
+        code.push(Instruction32::e_add_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -104,7 +104,7 @@ impl AddAssign for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "AddAssign for SymbolicExprEF")]
     fn add_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_add_assign_e(*self, rhs));
+        code.push(Instruction32::e_add_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -116,7 +116,7 @@ impl Sub<EF> for SymbolicExprEF {
     fn sub(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_ec(output, self, rhs));
+        code.push(Instruction32::e_sub_ec(output, self, rhs));
         drop(code);
         output
     }
@@ -129,7 +129,7 @@ impl Sub<SymbolicVarEF> for SymbolicExprEF {
     fn sub(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_ev(output, self, rhs));
+        code.push(Instruction32::e_sub_ev(output, self, rhs));
         drop(code);
         output
     }
@@ -142,7 +142,7 @@ impl Sub<SymbolicExprEF> for SymbolicExprEF {
     fn sub(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_ee(output, self, rhs));
+        code.push(Instruction32::e_sub_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -152,7 +152,7 @@ impl SubAssign for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "SubAssign for SymbolicExprEF")]
     fn sub_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_sub_assign_e(*self, rhs));
+        code.push(Instruction32::e_sub_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -164,7 +164,7 @@ impl Mul<EF> for SymbolicExprEF {
     fn mul(self, rhs: EF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_ec(output, self, rhs));
+        code.push(Instruction32::e_mul_ec(output, self, rhs));
         drop(code);
         output
     }
@@ -177,7 +177,7 @@ impl Mul<SymbolicVarEF> for SymbolicExprEF {
     fn mul(self, rhs: SymbolicVarEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_ev(output, self, rhs));
+        code.push(Instruction32::e_mul_ev(output, self, rhs));
         drop(code);
         output
     }
@@ -190,7 +190,7 @@ impl Mul<SymbolicExprEF> for SymbolicExprEF {
     fn mul(self, rhs: SymbolicExprEF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_ee(output, self, rhs));
+        code.push(Instruction32::e_mul_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -200,7 +200,7 @@ impl MulAssign for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "MulAssign for SymbolicExprEF")]
     fn mul_assign(&mut self, rhs: Self) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_mul_assign_e(*self, rhs));
+        code.push(Instruction32::e_mul_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -212,7 +212,7 @@ impl Neg for SymbolicExprEF {
     fn neg(self) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_neg_e(output, self));
+        code.push(Instruction32::e_neg_e(output, self));
         drop(code);
         output
     }
@@ -223,7 +223,7 @@ impl Sum for SymbolicExprEF {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         let mut output = SymbolicExprEF::zero();
         for item in iter {
-            output += item;
+            output = output + item;
         }
         output
     }
@@ -234,7 +234,7 @@ impl Product for SymbolicExprEF {
     fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
         let mut output = SymbolicExprEF::one();
         for item in iter {
-            output *= item;
+            output = output * item;
         }
         output
     }
@@ -244,11 +244,12 @@ impl Clone for SymbolicExprEF {
     #[allow(clippy::non_canonical_clone_impl)]
     // #[instrument(skip_all, level = "trace", name = "Clone for SymbolicExprEF")]
     fn clone(&self) -> Self {
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        let output = SymbolicExprEF::alloc();
-        code.push(Instruction::e_assign_e(output, *self));
-        drop(code);
-        output
+        // let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+        // let output = SymbolicExprEF::alloc();
+        // code.push(Instruction32::e_assign_e(output, *self));
+        // drop(code);
+        // output
+        *self
     }
 }
 
@@ -259,7 +260,7 @@ impl AbstractField for SymbolicExprEF {
     fn zero() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::zero()));
+        code.push(Instruction32::e_assign_c(output, EF::zero()));
         drop(code);
         output
     }
@@ -268,7 +269,7 @@ impl AbstractField for SymbolicExprEF {
     fn one() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::one()));
+        code.push(Instruction32::e_assign_c(output, EF::one()));
         drop(code);
         output
     }
@@ -277,7 +278,7 @@ impl AbstractField for SymbolicExprEF {
     fn two() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::two()));
+        code.push(Instruction32::e_assign_c(output, EF::two()));
         drop(code);
         output
     }
@@ -286,7 +287,7 @@ impl AbstractField for SymbolicExprEF {
     fn neg_one() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::neg_one()));
+        code.push(Instruction32::e_assign_c(output, EF::neg_one()));
         drop(code);
         output
     }
@@ -295,7 +296,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_f(f: Self::F) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, f));
+        code.push(Instruction32::e_assign_c(output, f));
         drop(code);
         output
     }
@@ -304,7 +305,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_bool(b: bool) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_bool(b)));
+        code.push(Instruction32::e_assign_c(output, EF::from_bool(b)));
         drop(code);
         output
     }
@@ -313,7 +314,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_canonical_u8(n: u8) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_canonical_u8(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_canonical_u8(n)));
         drop(code);
         output
     }
@@ -322,7 +323,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_canonical_u16(n: u16) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_canonical_u16(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_canonical_u16(n)));
         drop(code);
         output
     }
@@ -331,7 +332,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_canonical_u32(n: u32) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_canonical_u32(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_canonical_u32(n)));
         drop(code);
         output
     }
@@ -340,7 +341,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_canonical_u64(n: u64) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_canonical_u64(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_canonical_u64(n)));
         drop(code);
         output
     }
@@ -349,7 +350,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_canonical_usize(n: usize) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_canonical_usize(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_canonical_usize(n)));
         drop(code);
         output
     }
@@ -358,7 +359,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_wrapped_u32(n: u32) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_wrapped_u32(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_wrapped_u32(n)));
         drop(code);
         output
     }
@@ -367,7 +368,7 @@ impl AbstractField for SymbolicExprEF {
     fn from_wrapped_u64(n: u64) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::from_wrapped_u64(n)));
+        code.push(Instruction32::e_assign_c(output, EF::from_wrapped_u64(n)));
         drop(code);
         output
     }
@@ -376,7 +377,7 @@ impl AbstractField for SymbolicExprEF {
     fn generator() -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assign_c(output, EF::generator()));
+        code.push(Instruction32::e_assign_c(output, EF::generator()));
         drop(code);
         output
     }
@@ -387,7 +388,7 @@ impl From<SymbolicExprF> for SymbolicExprEF {
     fn from(value: SymbolicExprF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_from_e(output, value));
+        code.push(Instruction32::ef_from_e(output, value));
         drop(code);
         output
     }
@@ -400,7 +401,7 @@ impl Add<SymbolicExprF> for SymbolicExprEF {
     fn add(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_add_ee(output, self, rhs));
+        code.push(Instruction32::ef_add_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -410,7 +411,7 @@ impl AddAssign<SymbolicExprF> for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "AddAssign<SymbolicExprF> for SymbolicExprEF")]
     fn add_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_add_assign_e(*self, rhs));
+        code.push(Instruction32::ef_add_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -422,7 +423,7 @@ impl Sub<SymbolicExprF> for SymbolicExprEF {
     fn sub(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_sub_ee(output, self, rhs));
+        code.push(Instruction32::ef_sub_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -432,7 +433,7 @@ impl SubAssign<SymbolicExprF> for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "SubAssign<SymbolicExprF> for SymbolicExprEF")]
     fn sub_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_sub_assign_e(*self, rhs));
+        code.push(Instruction32::ef_sub_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -444,7 +445,7 @@ impl Mul<SymbolicExprF> for SymbolicExprEF {
     fn mul(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_mul_ee(output, self, rhs));
+        code.push(Instruction32::ef_mul_ee(output, self, rhs));
         drop(code);
         output
     }
@@ -454,7 +455,7 @@ impl MulAssign<SymbolicExprF> for SymbolicExprEF {
     // #[instrument(skip_all, level = "trace", name = "MulAssign<SymbolicExprF> for SymbolicExprEF")]
     fn mul_assign(&mut self, rhs: SymbolicExprF) {
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_mul_assign_e(*self, rhs));
+        code.push(Instruction32::ef_mul_assign_e(*self, rhs));
         drop(code);
     }
 }
@@ -465,7 +466,7 @@ impl AbstractExtensionField<SymbolicExprF> for SymbolicExprEF {
     fn from_base(value: SymbolicExprF) -> Self {
         let output = SymbolicExprEF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::ef_from_e(output, value));
+        code.push(Instruction32::ef_from_e(output, value));
         drop(code);
         output
     }

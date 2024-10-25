@@ -18,7 +18,8 @@ namespace quotient_kernels {
 template <typename Val, typename Challenge, size_t MEMORY_SIZE>
 __global__ void computeValues(Instruction *evalProgram,
                               size_t evalProgramLen, 
-                              Challenge *evalConstants,
+                              Val *evalConstantsF,
+                              Challenge *evalConstantsEF,
                               Challenge *cumulativeSums,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
@@ -93,8 +94,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 1:
                 DEBUG("FAssignC: %d <- %d\n", instr.a, instr.b);
-                expr_f[instr.a] = bb31_t{instr.b};
-                DEBUG("FAssignC Output: %d\n", expr_f[instr.a]);
+                expr_f[instr.a] = evalConstantsF[instr.b];
                 break;
             case 2:
                 DEBUG("FAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
@@ -107,7 +107,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 4:
                 DEBUG("FAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + bb31_t{instr.c};
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + evalConstantsF[instr.c];
                 break;
             case 5:
                 DEBUG("FAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -120,7 +120,7 @@ __global__ void computeValues(Instruction *evalProgram,
             
             case 7:
                 DEBUG("FAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = expr_f[instr.b] + bb31_t{instr.c};
+                expr_f[instr.a] = expr_f[instr.b] + evalConstantsF[instr.c];
                 break;
             case 8:
                 DEBUG("FAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -137,7 +137,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 11:
                 DEBUG("FSubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - bb31_t{instr.c};
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - evalConstantsF[instr.c];
                 break;
             case 12:
                 DEBUG("FSubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -150,7 +150,7 @@ __global__ void computeValues(Instruction *evalProgram,
             
             case 14:
                 DEBUG("FSubEC: %d <- %d - %d\n", instr.a, instr.b, instr.c);
-                expr_f[instr.a] = expr_f[instr.b] - bb31_t{instr.c};
+                expr_f[instr.a] = expr_f[instr.b] - evalConstantsF[instr.c];
                 break;
             case 15:
                 DEBUG("FSubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -167,7 +167,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 18:
                 DEBUG("FMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * bb31_t{instr.c};
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * evalConstantsF[instr.c];
                 break;
             case 19:
                 DEBUG("FMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -180,7 +180,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 21:
                 DEBUG("FMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = expr_f[instr.b] * bb31_t{instr.c};
+                expr_f[instr.a] = expr_f[instr.b] * evalConstantsF[instr.c];
                 break;
             case 22:
                 DEBUG("FMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -204,7 +204,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 26:
                 DEBUG("EAssignC: %d <- %d\n", instr.a, instr.b);
-                expr_ef[instr.a] = evalConstants[instr.b];
+                expr_ef[instr.a] = evalConstantsEF[instr.b];
                 break;
             case 27:
                 DEBUG("EAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
@@ -217,7 +217,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 29:
                 DEBUG("EAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + bb31_t{instr.c};
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + evalConstantsEF[instr.c];
                 break;
             case 30:
                 DEBUG("EAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -230,7 +230,7 @@ __global__ void computeValues(Instruction *evalProgram,
             
             case 32:
                 DEBUG("EAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = expr_ef[instr.b] + bb31_t{instr.c};
+                expr_ef[instr.a] = expr_ef[instr.b] + evalConstantsEF[instr.b];
                 break;
             case 33:
                 DEBUG("EAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -247,7 +247,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 36:
                 DEBUG("ESubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - bb31_t{instr.c};
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - evalConstantsEF[instr.c];
                 break;
             case 37:
                 DEBUG("ESubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -260,7 +260,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 39:
                 DEBUG("ESubEC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = expr_ef[instr.b] - bb31_t{instr.c};
+                expr_ef[instr.a] = expr_ef[instr.b] - evalConstantsEF[instr.b];
                 break;
             case 40:
                 DEBUG("ESubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -277,7 +277,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 43:
                 DEBUG("EMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * bb31_t{instr.c};
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * evalConstantsEF[instr.c];
                 break;
             case 44:
                 DEBUG("EMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
@@ -290,7 +290,7 @@ __global__ void computeValues(Instruction *evalProgram,
 
             case 46:
                 DEBUG("EMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = expr_ef[instr.b] * bb31_t{instr.c};
+                expr_ef[instr.a] = expr_ef[instr.b] * evalConstantsEF[instr.b];
                 break;
             case 47:
                 DEBUG("EMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
@@ -374,7 +374,8 @@ namespace quotient_gpu {
 extern "C" void computeValues(
     Instruction *evalProgram, 
     size_t evalProgramLen,
-    bb31_extension_t *evalConstants,
+    bb31_t *evalConstantsF,
+    bb31_extension_t *evalConstantsEF,
     size_t memorySize,
     bb31_extension_t *cumulativeSums,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
@@ -394,7 +395,7 @@ extern "C" void computeValues(
 
     if (memorySize <= 32) {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); 
@@ -402,7 +403,7 @@ extern "C" void computeValues(
     else if (memorySize <= 64)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
@@ -410,7 +411,7 @@ extern "C" void computeValues(
     else if (memorySize <= 128)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
@@ -418,7 +419,7 @@ extern "C" void computeValues(
     else if (memorySize <= 256)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
@@ -426,7 +427,7 @@ extern "C" void computeValues(
     else if (memorySize <= 512)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
@@ -434,7 +435,7 @@ extern "C" void computeValues(
     else if (memorySize <= 1024)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstants, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);

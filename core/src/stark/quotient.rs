@@ -1,4 +1,4 @@
-use air_v2::instruction::Instruction;
+use air_v2::instruction::{Instruction16, Instruction32};
 use sp1_stark::StarkGenericConfig;
 
 use air::operation::Operation;
@@ -46,7 +46,7 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceQuotientValuesGenerator<SC: StarkGenericConfig, A> {
-    eval_programs: HashMap<String, (Vec<Instruction>, u32, Vec<SC::Challenge>)>,
+    eval_programs: HashMap<String, (Vec<Instruction16>, u32, Vec<SC::Val>, Vec<SC::Challenge>)>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -70,8 +70,9 @@ where
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut eval_programs = HashMap::new();
         for chip in machine.chips() {
-            let (operations, f_ctr, _, constants) = air_v2::codegen_cuda_eval(chip);
-            eval_programs.insert(chip.name().to_owned(), (operations, f_ctr, constants));
+            let (operations, f_ctr, _, f_constants, ef_constants) = air_v2::codegen_cuda_eval(chip);
+            eval_programs
+                .insert(chip.name().to_owned(), (operations, f_ctr, f_constants, ef_constants));
         }
         Self { eval_programs, _marker: PhantomData }
     }
@@ -79,7 +80,7 @@ where
     pub fn get_eval_program(
         &self,
         chip: &Chip<SC::Val, A>,
-    ) -> &(Vec<Instruction>, u32, Vec<SC::Challenge>) {
+    ) -> &(Vec<Instruction16>, u32, Vec<SC::Val>, Vec<SC::Challenge>) {
         self.eval_programs.get(&chip.name()).unwrap()
     }
 
@@ -181,9 +182,10 @@ where
                 cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
-            let (operations, memory_size, constants) = self.get_eval_program(chip);
+            let (operations, memory_size, f_constants, ef_constants) = self.get_eval_program(chip);
             let operations_device = operations.to_device_async(stream).unwrap();
-            let constants_device = constants.to_device_async(stream).unwrap();
+            let f_constants_device = f_constants.to_device_async(stream).unwrap();
+            let ef_constants_device = ef_constants.to_device_async(stream).unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -207,7 +209,8 @@ where
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
-                    constants_device.as_ptr(),
+                    f_constants_device.as_ptr(),
+                    ef_constants_device.as_ptr(),
                     *memory_size as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
@@ -575,12 +578,14 @@ mod tests {
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-            let (operations, f_expr_ctr, ef_expr_ctr, constants) = air_v2::codegen_cuda_eval(chip);
+            let (operations, f_expr_ctr, ef_expr_ctr, f_constants, ef_constants) =
+                air_v2::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
-            let constants_device = constants.to_device().unwrap();
+            let f_constants_device = f_constants.to_device().unwrap();
+            let ef_constants_device = ef_constants.to_device().unwrap();
             info!("> Eval Program Len: {}", operations.len());
             info!("> Eval Program Register Count: f={}, ef={}", f_expr_ctr, ef_expr_ctr);
-            info!("> Eval Program Constants: {:#?}", constants.len());
+            info!("> Eval Program Constants: {:#?}", f_constants.len());
             // info!("> Eval Program: {:#?}", operations);
 
             let start = std::time::Instant::now();
@@ -589,7 +594,8 @@ mod tests {
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
-                    constants_device.as_ptr(),
+                    f_constants_device.as_ptr(),
+                    ef_constants_device.as_ptr(),
                     f_expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,

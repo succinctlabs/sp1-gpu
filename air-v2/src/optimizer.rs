@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::instruction::{Instruction, Opcode};
+use crate::instruction::{Instruction16, Instruction32, Opcode};
 
 struct RegisterAllocator {
     f_used: Vec<bool>,
@@ -76,7 +76,7 @@ impl RegisterAllocator {
     }
 }
 
-pub fn optimize(instructions: Vec<Instruction>) -> (Vec<Instruction>, usize, usize) {
+pub fn optimize(instructions: Vec<Instruction32>) -> (Vec<Instruction16>, usize, usize) {
     let mut f_first_time_vreg_used: HashMap<u32, u32> = HashMap::new();
     let mut f_last_time_vreg_used: HashMap<u32, u32> = HashMap::new();
     let mut ef_first_time_vreg_used: HashMap<u32, u32> = HashMap::new();
@@ -180,5 +180,20 @@ pub fn optimize(instructions: Vec<Instruction>) -> (Vec<Instruction>, usize, usi
             allocator.ef_free(instr.c);
         }
     }
-    (optimized_instructions, allocator.f_max, allocator.ef_max)
+
+    (
+        optimized_instructions
+            .into_iter()
+            .map(|instr| Instruction16 {
+                opcode: instr.opcode,
+                b_variant: instr.b_variant,
+                c_variant: instr.c_variant,
+                a: instr.a as u16,
+                b: instr.b as u16,
+                c: instr.c as u16,
+            })
+            .collect(),
+        allocator.f_max,
+        allocator.ef_max,
+    )
 }

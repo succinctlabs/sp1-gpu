@@ -3,20 +3,32 @@ use std::mem::size_of;
 
 use crate::{
     symbolic_expr_ef::SymbolicExprEF, symbolic_expr_f::SymbolicExprF,
-    symbolic_var_ef::SymbolicVarEF, symbolic_var_f::SymbolicVarF, CUDA_P3_EVAL_EF_CONSTANTS, EF, F,
+    symbolic_var_ef::SymbolicVarEF, symbolic_var_f::SymbolicVarF, CUDA_P3_EVAL_EF_CONSTANTS,
+    CUDA_P3_EVAL_F_CONSTANTS, EF, F,
 };
 
-pub const INSTRUCTION_SIZE: usize = size_of::<Instruction>();
+pub const INSTRUCTION_32_SIZE: usize = size_of::<Instruction32>();
+pub const INSTRUCTION_16_SIZE: usize = size_of::<Instruction16>();
 
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct Instruction {
+pub struct Instruction32 {
     pub opcode: u8,
     pub b_variant: u8,
     pub c_variant: u8,
     pub a: u32,
     pub b: u32,
     pub c: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct Instruction16 {
+    pub opcode: u8,
+    pub b_variant: u8,
+    pub c_variant: u8,
+    pub a: u16,
+    pub b: u16,
+    pub c: u16,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -195,16 +207,10 @@ impl From<u8> for Opcode {
     }
 }
 
-impl Instruction {
+impl Instruction32 {
     pub fn f_assign_c(a: SymbolicExprF, b: F) -> Self {
-        Self {
-            opcode: Opcode::FAssignC as u8,
-            a: a.data(),
-            b_variant: 0,
-            b: unsafe { std::mem::transmute::<F, u32>(b) },
-            c_variant: 0,
-            c: 0,
-        }
+        let b = f_constant(b);
+        Self { opcode: Opcode::FAssignC as u8, a: a.data(), b_variant: 0, b, c_variant: 0, c: 0 }
     }
 
     pub fn f_assign_v(a: SymbolicExprF, b: SymbolicVarF) -> Self {
@@ -230,13 +236,14 @@ impl Instruction {
     }
 
     pub fn f_add_vc(a: SymbolicExprF, b: SymbolicVarF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FAddVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -263,13 +270,14 @@ impl Instruction {
     }
 
     pub fn f_add_ec(a: SymbolicExprF, b: SymbolicExprF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FAddEC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -307,13 +315,14 @@ impl Instruction {
     }
 
     pub fn f_sub_vc(a: SymbolicExprF, b: SymbolicVarF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FSubVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -340,13 +349,14 @@ impl Instruction {
     }
 
     pub fn f_sub_ec(a: SymbolicExprF, b: SymbolicExprF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FSubEC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -384,13 +394,14 @@ impl Instruction {
     }
 
     pub fn f_mul_vc(a: SymbolicExprF, b: SymbolicVarF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FMulVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -417,13 +428,14 @@ impl Instruction {
     }
 
     pub fn f_mul_ec(a: SymbolicExprF, b: SymbolicExprF, c: F) -> Self {
+        let c = f_constant(c);
         Self {
             opcode: Opcode::FMulEC as u8,
             a: a.data(),
             b_variant: 0,
             b: b.data(),
             c_variant: 0,
-            c: unsafe { std::mem::transmute::<F, u32>(c) },
+            c,
         }
     }
 
@@ -472,23 +484,8 @@ impl Instruction {
     }
 
     pub fn e_assign_c(a: SymbolicExprEF, b: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == b) {
-            pos
-        } else {
-            tmp.push(b);
-            tmp.len() - 1
-        };
-        drop(tmp);
-
-        Self {
-            opcode: Opcode::EAssignC as u8,
-            a: a.data(),
-            b_variant: 0,
-            b: idx as u32,
-            c_variant: 0,
-            c: 0,
-        }
+        let b = ef_constant(b);
+        Self { opcode: Opcode::EAssignC as u8, a: a.data(), b_variant: 0, b, c_variant: 0, c: 0 }
     }
 
     pub fn e_assign_v(a: SymbolicExprEF, b: SymbolicVarEF) -> Self {
@@ -514,21 +511,14 @@ impl Instruction {
     }
 
     pub fn e_add_vc(a: SymbolicExprEF, b: SymbolicVarEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::EAddVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -555,21 +545,14 @@ impl Instruction {
     }
 
     pub fn e_add_ec(a: SymbolicExprEF, b: SymbolicExprEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::EAddEC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -607,21 +590,14 @@ impl Instruction {
     }
 
     pub fn e_sub_vc(a: SymbolicExprEF, b: SymbolicVarEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::ESubVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -648,21 +624,14 @@ impl Instruction {
     }
 
     pub fn e_sub_ec(a: SymbolicExprEF, b: SymbolicExprEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::ESubEC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -700,21 +669,14 @@ impl Instruction {
     }
 
     pub fn e_mul_vc(a: SymbolicExprEF, b: SymbolicVarEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::EMulVC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -741,21 +703,14 @@ impl Instruction {
     }
 
     pub fn e_mul_ec(a: SymbolicExprEF, b: SymbolicExprEF, c: EF) -> Self {
-        let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
-        let idx = if let Some(pos) = tmp.iter().position(|&x| x == c) {
-            pos
-        } else {
-            tmp.push(c);
-            tmp.len() - 1
-        };
-
+        let c = ef_constant(c);
         Self {
             opcode: Opcode::EMulEC as u8,
             a: a.data(),
             b_variant: b.variant(),
             b: b.data(),
             c_variant: 0,
-            c: idx as u32,
+            c,
         }
     }
 
@@ -903,13 +858,13 @@ impl Instruction {
     }
 }
 
-impl Default for Instruction {
+impl Default for Instruction32 {
     fn default() -> Self {
         Self { opcode: Opcode::Empty as u8, a: 0, b_variant: 0, b: 0, c_variant: 0, c: 0 }
     }
 }
 
-impl Debug for Instruction {
+impl Debug for Instruction32 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let opcode = Opcode::from(self.opcode);
         write!(
@@ -917,5 +872,25 @@ impl Debug for Instruction {
             "Instruction {{ opcode: {:?}, a: {}, b_variant: {}, b: {}, c_variant: {}, c: {} }}",
             opcode, self.a, self.b_variant, self.b, self.c_variant, self.c
         )
+    }
+}
+
+pub fn f_constant(c: F) -> u32 {
+    let mut tmp = CUDA_P3_EVAL_F_CONSTANTS.lock().unwrap();
+    if let Some(pos) = tmp.iter().position(|&x| x == c) {
+        pos as u32
+    } else {
+        tmp.push(c);
+        (tmp.len() - 1) as u32
+    }
+}
+
+pub fn ef_constant(c: EF) -> u32 {
+    let mut tmp = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap();
+    if let Some(pos) = tmp.iter().position(|&x| x == c) {
+        pos as u32
+    } else {
+        tmp.push(c);
+        (tmp.len() - 1) as u32
     }
 }

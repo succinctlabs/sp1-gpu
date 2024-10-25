@@ -7,7 +7,7 @@ pub mod symbolic_var_f;
 
 use std::sync::Mutex;
 
-use instruction::Instruction;
+use instruction::{Instruction16, Instruction32};
 use lazy_static::lazy_static;
 use p3_air::BaseAir;
 use p3_air::{
@@ -33,7 +33,8 @@ pub type EF = BinomialExtensionField<F, 4>;
 
 lazy_static! {
     pub static ref CUDA_P3_EVAL_LOCK: Mutex<()> = Mutex::new(());
-    pub static ref CUDA_P3_EVAL_CODE: Mutex<Vec<Instruction>> = Mutex::new(Vec::new());
+    pub static ref CUDA_P3_EVAL_CODE: Mutex<Vec<Instruction32>> = Mutex::new(Vec::new());
+    pub static ref CUDA_P3_EVAL_F_CONSTANTS: Mutex<Vec<F>> = Mutex::new(Vec::new());
     pub static ref CUDA_P3_EVAL_EF_CONSTANTS: Mutex<Vec<EF>> = Mutex::new(Vec::new());
     pub static ref CUDA_P3_EVAL_EXPR_F_CTR: Mutex<u32> = Mutex::new(0);
     pub static ref CUDA_P3_EVAL_EXPR_EF_CTR: Mutex<u32> = Mutex::new(0);
@@ -84,7 +85,7 @@ impl<'a> AirBuilder for SymbolicProverFolder<'a> {
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
         let x: Self::Expr = x.into();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_assert_zero(x));
+        code.push(Instruction32::f_assert_zero(x));
         drop(code);
     }
 }
@@ -100,7 +101,7 @@ impl<'a> ExtensionBuilder for SymbolicProverFolder<'a> {
     {
         let x: SymbolicExprEF = x.into();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::e_assert_zero(x));
+        code.push(Instruction32::e_assert_zero(x));
         drop(code);
     }
 }
@@ -142,7 +143,7 @@ impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
 impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
 
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
-pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction>, u32, u32, Vec<EF>)
+pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction16>, u32, u32, Vec<F>, Vec<EF>)
 where
     A: for<'a> Air<SymbolicProverFolder<'a>> + MachineAir<F>,
 {
@@ -180,13 +181,14 @@ where
     chip.eval(&mut folder);
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
     let ctr = *CUDA_P3_EVAL_EXPR_F_CTR.lock().unwrap();
-    let constants = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap().to_vec();
+    let f_constants = CUDA_P3_EVAL_F_CONSTANTS.lock().unwrap().to_vec();
+    let ef_constants = CUDA_P3_EVAL_EF_CONSTANTS.lock().unwrap().to_vec();
 
     CUDA_P3_EVAL_RESET();
 
     let (code, f_ctr, ef_ctr) = optimizer::optimize(code);
 
-    (code, f_ctr as u32, ef_ctr as u32, constants)
+    (code, f_ctr as u32, ef_ctr as u32, f_constants, ef_constants)
 }
 
 #[allow(non_snake_case)]
@@ -214,10 +216,11 @@ mod tests {
         let chips = machine.chips();
         for chip in chips {
             if chip.name() == "AddSub" {
-                let (code, f_ctr, ef_ctr, constants) = codegen_cuda_eval(chip);
+                let (code, f_ctr, ef_ctr, f_constants, ef_constants) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
                 println!("{}", f_ctr);
-                println!("{:?}", constants);
+                println!("{:?}", f_constants);
+                println!("{:?}", ef_constants);
                 return;
             }
         }

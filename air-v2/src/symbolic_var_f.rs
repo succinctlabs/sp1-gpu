@@ -3,12 +3,13 @@ use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 use tracing::instrument;
 
-use crate::{instruction::Instruction, symbolic_expr_f::SymbolicExprF, CUDA_P3_EVAL_CODE, F};
+use crate::instruction::f_constant;
+use crate::{instruction::Instruction32, symbolic_expr_f::SymbolicExprF, CUDA_P3_EVAL_CODE, F};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SymbolicVarF {
     Empty,
-    Constant(F),
+    Constant(u32),
     PreprocessedLocal(u32),
     PreprocessedNext(u32),
     MainLocal(u32),
@@ -25,6 +26,7 @@ impl SymbolicVarF {
     }
 
     pub fn constant(f: F) -> Self {
+        let f = f_constant(f);
         Self::Constant(f)
     }
 
@@ -78,7 +80,7 @@ impl SymbolicVarF {
     pub fn data(&self) -> u32 {
         match self {
             Self::Empty => 0,
-            Self::Constant(f) => f.as_canonical_u32(),
+            Self::Constant(f) => *f,
             Self::PreprocessedLocal(idx) => *idx,
             Self::PreprocessedNext(idx) => *idx,
             Self::MainLocal(idx) => *idx,
@@ -96,7 +98,7 @@ impl From<SymbolicVarF> for SymbolicExprF {
     fn from(val: SymbolicVarF) -> Self {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_assign_v(output, val));
+        code.push(Instruction32::f_assign_v(output, val));
         drop(code);
         output
     }
@@ -109,7 +111,7 @@ impl Add<F> for SymbolicVarF {
     fn add(self, rhs: F) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_add_vc(output, self, rhs));
+        code.push(Instruction32::f_add_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -122,7 +124,7 @@ impl Add<SymbolicVarF> for SymbolicVarF {
     fn add(self, rhs: SymbolicVarF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_add_vv(output, self, rhs));
+        code.push(Instruction32::f_add_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -135,7 +137,7 @@ impl Add<SymbolicExprF> for SymbolicVarF {
     fn add(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_add_ve(output, self, rhs));
+        code.push(Instruction32::f_add_ve(output, self, rhs));
         drop(code);
         output
     }
@@ -148,7 +150,7 @@ impl Sub<F> for SymbolicVarF {
     fn sub(self, rhs: F) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_sub_vc(output, self, rhs));
+        code.push(Instruction32::f_sub_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -161,7 +163,7 @@ impl Sub<SymbolicVarF> for SymbolicVarF {
     fn sub(self, rhs: SymbolicVarF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_sub_vv(output, self, rhs));
+        code.push(Instruction32::f_sub_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -174,7 +176,7 @@ impl Sub<SymbolicExprF> for SymbolicVarF {
     fn sub(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_sub_ve(output, self, rhs));
+        code.push(Instruction32::f_sub_ve(output, self, rhs));
         drop(code);
         output
     }
@@ -187,7 +189,7 @@ impl Mul<F> for SymbolicVarF {
     fn mul(self, rhs: F) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_mul_vc(output, self, rhs));
+        code.push(Instruction32::f_mul_vc(output, self, rhs));
         drop(code);
         output
     }
@@ -200,7 +202,7 @@ impl Mul<SymbolicVarF> for SymbolicVarF {
     fn mul(self, rhs: SymbolicVarF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_mul_vv(output, self, rhs));
+        code.push(Instruction32::f_mul_vv(output, self, rhs));
         drop(code);
         output
     }
@@ -213,7 +215,7 @@ impl Mul<SymbolicExprF> for SymbolicVarF {
     fn mul(self, rhs: SymbolicExprF) -> Self::Output {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction::f_mul_ve(output, self, rhs));
+        code.push(Instruction32::f_mul_ve(output, self, rhs));
         drop(code);
         output
     }

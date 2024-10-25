@@ -7,9 +7,9 @@ struct Instruction {
     unsigned char opcode;
     unsigned char b_variant;
     unsigned char c_variant;
-    unsigned int a;
-    unsigned int b;
-    unsigned int c;
+    unsigned short a;
+    unsigned short b;
+    unsigned short c;
 };
 
 template <typename Val>
