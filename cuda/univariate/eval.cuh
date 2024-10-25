@@ -52,7 +52,6 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     }
 }
 
-
 template<typename F, typename EF> RustCudaError univariateEval(
     EF* result,
     const F* polynomailBatch, 
