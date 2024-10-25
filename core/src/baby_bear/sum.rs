@@ -15,6 +15,7 @@ impl DeviceBuffer<BabyBear> {
             ffi::sum_baby_bear(
                 self.as_ptr() as *mut BabyBear,
                 result,
+                1,
                 self.len(),
                 self.stream().handle(),
             )
@@ -30,6 +31,7 @@ impl DeviceBuffer<BinomialExtensionField<BabyBear, 4>> {
             ffi::sum_baby_bear_extension(
                 self.as_ptr() as *mut BinomialExtensionField<BabyBear, 4>,
                 result,
+                1,
                 self.len(),
                 self.stream().handle(),
             )

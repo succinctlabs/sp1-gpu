@@ -192,11 +192,11 @@ template<typename F> RustCudaError vectorSum(
 }
 
 
-extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t height, cudaStream_t stream) {
-    return vectorSum(in, result, 1, height, stream);
+extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t width, size_t height, cudaStream_t stream) {
+    return vectorSum(in, result, width, height, stream);
 }
 
-extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t height, cudaStream_t stream) {
-    return vectorSum<bb31_extension_t>(in, result, 1, height, stream);
+extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t width, size_t height, cudaStream_t stream) {
+    return vectorSum<bb31_extension_t>(in, result, width, height, stream);
 }
 
