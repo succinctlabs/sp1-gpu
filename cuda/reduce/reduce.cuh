@@ -75,8 +75,34 @@ template <>
     }
 };
 
+template<typename F, typename TyOp, typename TyBlock, typename TyTile> __device__ F partialBlockReduce(
+    const TyBlock& block,
+    const TyTile& tile,
+    F val,
+    F* shared,
+    TyOp&& op
+) {
+    // Warp-level reduction within tiles
+    val = op.reduce(tile, val);
 
-template<typename F, typename TyOp> __global__ void partialBlockReduce(
+    // Only the first thread of each warp writes to shared memory
+    if (tile.thread_rank() == 0) {
+        shared[tile.meta_group_rank()] = val;
+    }
+    block.sync();  // Synchronize after warp-level reduction
+
+    // Perform tree-based reduction on shared memory
+    for (int stride = (block.size() / tile.size()) / 2; stride > 0; stride /= 2) {
+        if (block.thread_rank() < stride) {
+            op.evalAssign(shared[block.thread_rank()], shared[block.thread_rank() + stride]);
+        }
+        block.sync();  // Synchronize after each step
+    }
+
+    return shared[0];
+}
+
+template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
     F* A, 
     F* partial, 
     size_t len,
@@ -91,27 +117,12 @@ template<typename F, typename TyOp> __global__ void partialBlockReduce(
         op.evalAssign(thread_val, A[i]);
     }
 
-    // Warp-level reduction within tiles
-    // thread_sum = cg::reduce(tile, thread_sum, cg::plus<F>());
-    thread_val = op.reduce(tile, thread_val);
-
     // Allocate shared memory
     extern __shared__ unsigned char memory[];
     F* shared = reinterpret_cast<F*>(memory);
 
-    // Only the first thread of each warp writes to shared memory
-    if (tile.thread_rank() == 0) {
-        shared[tile.meta_group_rank()] = thread_val;
-    }
-    block.sync();  // Synchronize after warp-level reduction
-
-    // Perform tree-based reduction on shared memory
-    for (int stride = (block.size() / tile.size()) / 2; stride > 0; stride /= 2) {
-        if (block.thread_rank() < stride) {
-            op.evalAssign(shared[block.thread_rank()], shared[block.thread_rank() + stride]);
-        }
-        block.sync();  // Synchronize after each step
-    }
+    // // Warp-level reduction within tiles
+    thread_val = partialBlockReduce(block, tile, thread_val, shared, op);
 
     // Write the result to the partial_sums array
     if (block.thread_rank() == 0) {
@@ -152,7 +163,7 @@ template<typename F> RustCudaError vectorSum(F* in, F* result, size_t len, cudaS
 
     AddOp<F> op;
 
-    partialBlockReduce<<<numBlocks, numThreads, numTiles * sizeof(F), stream>>>(in, partial_sums, len, op);
+    partialBlockReduceKernel<<<numBlocks, numThreads, numTiles * sizeof(F), stream>>>(in, partial_sums, len, op);
     
     size_t new_len = numBlocks;
     numBlocks = (((new_len - 1)/numThreads + 1) - 1) / 8 + 1;
