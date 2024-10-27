@@ -28,14 +28,14 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     // Compute the lagrange polynomial.
     size_t height = 1U << log_height;
 
-    F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
-    // F domainPoint = domainGenerator;
-    EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
-    largrangePolynomial *= domainNormalizer * domainPoint; 
-
     // Stride loop to accumulate partial sum
+     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
+     F domainPowerStride = domainGenerator^(blockDim.x * gridDim.x);
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+        EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
+        largrangePolynomial *= domainNormalizer * domainPoint; 
         thread_val += largrangePolynomial * polynomialBatch[batchIdx * height + i];
+        domainPoint *= domainPowerStride;
     }
 
     // Allocate shared memory
@@ -64,7 +64,7 @@ template<typename F, typename EF> RustCudaError univariateEval(
     cudaStream_t stream) {
     size_t height = 1U << log_height;
     dim3 blockDim(512, 1, 1);
-    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) + 1;
+    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
     dim3 gridDim(numReduceBlocks, width, 1);
 
     // Allocate the partial sums and set them to zero. 
