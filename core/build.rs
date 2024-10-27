@@ -35,7 +35,7 @@ fn main() {
 
         let mut nvcc = cc::Build::new();
         nvcc.cuda(true).flag("-std=c++17").flag("-default-stream=per-thread");
-        nvcc.flag("-arch=native");
+        nvcc.flag("-arch=sm_60");
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
         nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
