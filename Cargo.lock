@@ -4073,6 +4073,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p3-air"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4081,6 +4082,7 @@ dependencies = [
 [[package]]
 name = "p3-baby-bear"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "num-bigint 0.4.6",
  "p3-field",
@@ -4094,6 +4096,7 @@ dependencies = [
 [[package]]
 name = "p3-blake3"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "blake3",
  "p3-symmetric",
@@ -4102,6 +4105,7 @@ dependencies = [
 [[package]]
 name = "p3-bn254-fr"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "ff 0.13.0",
  "num-bigint 0.4.6",
@@ -4115,6 +4119,7 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "p3-field",
  "p3-maybe-rayon",
@@ -4127,6 +4132,7 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4139,6 +4145,7 @@ dependencies = [
 [[package]]
 name = "p3-dft"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4150,6 +4157,7 @@ dependencies = [
 [[package]]
 name = "p3-field"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "num-bigint 0.4.6",
@@ -4162,6 +4170,7 @@ dependencies = [
 [[package]]
 name = "p3-fri"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4179,6 +4188,7 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4188,6 +4198,7 @@ dependencies = [
 [[package]]
 name = "p3-keccak-air"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "p3-air",
  "p3-field",
@@ -4200,6 +4211,7 @@ dependencies = [
 [[package]]
 name = "p3-matrix"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4213,6 +4225,7 @@ dependencies = [
 [[package]]
 name = "p3-maybe-rayon"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "rayon",
 ]
@@ -4220,6 +4233,7 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-dft",
@@ -4233,6 +4247,7 @@ dependencies = [
 [[package]]
 name = "p3-merkle-tree"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-commit",
@@ -4248,6 +4263,7 @@ dependencies = [
 [[package]]
 name = "p3-poseidon2"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "gcd",
  "p3-field",
@@ -4260,6 +4276,7 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4269,6 +4286,7 @@ dependencies = [
 [[package]]
 name = "p3-uni-stark"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "itertools 0.12.1",
  "p3-air",
@@ -4286,6 +4304,7 @@ dependencies = [
 [[package]]
 name = "p3-util"
 version = "0.1.0"
+source = "git+https://github.com/Plonky3/Plonky3?branch=john/sp1-v3-air-tweaks#db3d45d4ec899efaf8f7234a8573f285fbdda5db"
 dependencies = [
  "serde",
 ]
@@ -5819,6 +5838,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5851,6 +5871,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5897,6 +5918,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5912,6 +5934,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5932,6 +5955,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5940,6 +5964,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5960,6 +5985,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "bincode",
  "hex",
@@ -5976,6 +6002,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6016,6 +6043,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6048,6 +6076,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6068,6 +6097,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6102,6 +6132,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6110,6 +6141,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6134,6 +6166,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6173,6 +6206,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=john/remove-assign-in-airs#c2cf3b4b439da35c024e05a3946390bca53af4f7"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
