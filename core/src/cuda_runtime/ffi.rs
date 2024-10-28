@@ -39,6 +39,14 @@ extern "C" {
         size: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
+
+    pub(crate) fn cuda_mem_set_async(
+        dst: *mut c_void,
+        value: u8,
+        size: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+
     pub(crate) fn cuda_free_async(devPtr: *mut c_void, stream: CudaStreamHandle) -> CudaRustError;
 
     pub(crate) fn cuda_mem_copy_device_to_device_async(

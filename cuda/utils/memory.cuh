@@ -1,6 +1,7 @@
 #include "exception.cuh"
 
 #include <cuda_runtime.h>
+#include <cstdint>
 
 extern "C" rustCudaError_t cuda_malloc(void **devPtr, size_t size) {
     CUDA_OK(cudaMalloc(devPtr, size));
