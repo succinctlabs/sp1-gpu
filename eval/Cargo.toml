@@ -8,5 +8,5 @@ sp1-eval = { workspace = true }
 sp1-prover = { workspace = true }
 moongate-prover = { path = "../prover" }
 
-tokio = { version = "1.28.2", features = ["full"] }
+tokio = { version = "1.41.0", features = ["full"] }
 anyhow = "1.0.71"
