@@ -47,6 +47,31 @@ impl ColMajorMatrixDevice<BabyBear> {
         }
     }
 
+    pub fn eval_next(
+        &self,
+        results: &mut DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
+        normalizer: BabyBear,
+        evaluation_point: BinomialExtensionField<BabyBear, 4>,
+        vanishing_poly_eval: BinomialExtensionField<BabyBear, 4>,
+    ) -> Result<(), CudaError> {
+        let log_height = self.height.ilog2() as usize;
+        let g = BabyBear::two_adic_generator(log_height);
+        unsafe {
+            ffi::univariate_eval_babybear(
+                results.as_mut_ptr(),
+                self.values.as_ptr(),
+                g,
+                normalizer,
+                evaluation_point * g,
+                vanishing_poly_eval,
+                self.width(),
+                log_height,
+                self.stream().handle(),
+            )
+            .to_result()
+        }
+    }
+
     pub fn eval_air_point(
         &self,
         results: &mut DeviceBuffer<AirPoint<BinomialExtensionField<BabyBear, 4>>>,

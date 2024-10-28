@@ -7,7 +7,6 @@
 #include "../fields/bb31_extension_t.cuh"
 
 
-
 namespace fri_batch {
 template <typename T>
 __device__ void atomicAdd(cuda::atomic_ref<T, cuda::thread_scope_device>& atomic_ref, const T&& value) {

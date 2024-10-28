@@ -29,12 +29,14 @@ use crate::{
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
+        DeviceBuffer,
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
     matrix::ColMajorMatrixDevice,
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
 
@@ -50,6 +52,7 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC, C>,
     opening_prover: FriOpeningProver<SC>,
+    domain_normalizers: Vec<BabyBear>,
 }
 
 /// A proving key for a STARK.
@@ -170,6 +173,7 @@ where
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
+        let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
         Self {
             machine,
             committer: TwoAdicFriCommitter::new(log_blowup),
@@ -177,6 +181,7 @@ where
             opening_prover: FriOpeningProver::default(),
             quotient_generator,
             chip_streams,
+            domain_normalizers,
         }
     }
 
@@ -584,19 +589,6 @@ where
             quotient_values.push(chip_quotient_values);
         }
 
-        // // Compute values
-        // let quotient_values = self.quotient_generator.generate_quotient_values(
-        //     &self.committer,
-        //     &shard_chips,
-        //     pk,
-        //     &all_traces,
-        //     &perm_domains_and_traces,
-        //     &permutation_challenges,
-        //     folding_challenge,
-        //     &local_public_values,
-        //     &cumulative_sums,
-        // )?;
-
         // Commit to the quotient values
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
@@ -609,7 +601,7 @@ where
         let (quotient_commit, quotient_prover_data) =
             self.committer.commit(&quotient_domains_and_chunks);
         let num_quotient_chunks = quotient_domains_and_chunks.len();
-        drop(quotient_domains_and_chunks);
+        // drop(quotient_domains_and_chunks);
         quotient_span.exit();
         // Observe the quotient commitment.
         challenger.observe(quotient_commit.clone());
@@ -618,6 +610,83 @@ where
 
         // Compute the opening challenge.
         let zeta: SC::Challenge = challenger.sample_ext_element();
+
+        // Compute the evaluations of the matrices at the point.
+        let compute_evaluations_span =
+            tracing::debug_span!("compute evaluations at challenge point").entered();
+
+        // Openings for preprocessed traces.
+        let mut preprocessed_opens = vec![];
+        for prep_trace in pk.traces.iter() {
+            let trace = prep_trace.to_device().unwrap().to_column_major();
+            let mut local_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let mut next_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let log_height = trace.height().ilog2() as usize;
+            let normalizer = self.domain_normalizers[log_height];
+            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
+            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            preprocessed_opens.push((local_open, next_open));
+        }
+
+        // Openings for global main traces (if any).
+
+        // Openings for local main traces.
+        let mut main_local_openings = vec![];
+        for trace in local_traces.iter() {
+            let mut local_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let mut next_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let log_height = trace.height().ilog2() as usize;
+            let normalizer = self.domain_normalizers[log_height];
+            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
+            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            main_local_openings.push((local_open, next_open));
+        }
+
+        let mut perm_openings = vec![];
+        // Openings for permutation traces.
+        for (_, trace) in perm_domains_and_traces {
+            let mut local_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let mut next_open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let log_height = trace.height().ilog2() as usize;
+            let normalizer = self.domain_normalizers[log_height];
+            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
+            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            perm_openings.push((local_open, next_open));
+        }
+
+        // Openings for quotient traces
+        let mut quot_openings = vec![];
+        for (_, trace) in quotient_domains_and_chunks {
+            let mut open =
+                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
+                    .unwrap();
+            let log_height = trace.height().ilog2() as usize;
+            let normalizer = self.domain_normalizers[log_height];
+            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
+            trace.eval(&mut open, normalizer, zeta, vanishing_poly).unwrap();
+            quot_openings.push(open);
+        }
+
+        for stream in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
+        compute_evaluations_span.exit();
 
         let preprocessed_opening_points = pk
             .traces
