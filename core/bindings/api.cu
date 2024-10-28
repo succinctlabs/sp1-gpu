@@ -8,6 +8,7 @@
 #include "../../cuda/scan/scan.cuh"
 #include "../../cuda/quotient/quotient.cuh"
 #include "../../cuda/opening/opening.cuh"
+#include "../../cuda/opening/fri_batch.cuh"
 #include "../../cuda/univariate/eval.cuh"
 #include "../../cuda/univariate/eval_air_point.cuh"  
 #include "../../cuda/reduce/reduce.cuh"
