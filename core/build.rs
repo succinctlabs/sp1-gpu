@@ -41,6 +41,7 @@ fn main() {
         // nvcc.flag("--threads").flag("14");
         nvcc.flag("-lnvToolsExt");
         nvcc.flag("-ldl");
+        nvcc.flag("-arch=sm_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {

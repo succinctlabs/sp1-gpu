@@ -6,10 +6,20 @@
 #include "../fields/bb31_extension_t.cuh"
 #include "../matrix/matrix.cuh"
 
+#define DEBUG_FLAG 0  // Set this to 0 or 1
+
+#if DEBUG_FLAG == 1
+    #define DEBUG(...) printf(__VA_ARGS__)
+#else
+    #define DEBUG(...)  // Do nothing
+#endif
+
 namespace quotient_kernels {
 template <typename Val, typename Challenge, size_t MEMORY_SIZE>
-__global__ void computeValues(Operation *evalProgram,
+__global__ void computeValues(Instruction *evalProgram,
                               size_t evalProgramLen, 
+                              Val *evalConstantsF,
+                              Challenge *evalConstantsEF,
                               Challenge *cumulativeSums,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
@@ -62,120 +72,307 @@ __global__ void computeValues(Operation *evalProgram,
     folder.quotientSize = quotientSize;
     folder.nextStep = nextStep;
 
-    Challenge expr[MEMORY_SIZE];
+
+    Val expr_f[MEMORY_SIZE];
     for (size_t i = 0; i < MEMORY_SIZE; i++) {
-        expr[i] = Challenge::zero();
+        expr_f[i] = Val{0};
     }
+    Challenge expr_ef[10];
+    for (size_t i = 0; i < 10; i++) {
+        expr_ef[i] = Challenge::zero();
+    }
+
     for (size_t i = 0; i < evalProgramLen; i++) {
-        Operation op = evalProgram[i];
-        switch (op.variant) {
-            case OperationType::AssignF:
-                expr[op.a.value] = bb31_extension_t(op.b_f);
-                break;
-            case OperationType::AssignEF:
-                expr[op.a.value] = op.b_ef;
-                break;
-            case OperationType::AssignV:
-                expr[op.a.value] = folder.var(op.b_var);
-                break;
-            case OperationType::AssignE:
-                expr[op.a.value] = expr[op.b_expr.value];
+        Instruction instr = evalProgram[i]; 
+        switch (instr.opcode) {
+            case 0:
+                DEBUG("EMPTY\n");
                 break;
 
-            case OperationType::AddVF:
-                expr[op.a.value] = folder.var(op.b_var) + op.c_f;
+            case 1:
+                DEBUG("FAssignC: %d <- %d\n", instr.a, instr.b);
+                expr_f[instr.a] = evalConstantsF[instr.b];
                 break;
-            case OperationType::AddVV:
-                expr[op.a.value] = folder.var(op.b_var) + folder.var(op.c_var);
+            case 2:
+                DEBUG("FAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b);
                 break;
-            case OperationType::AddVE:
-                expr[op.a.value] = folder.var(op.b_var) + expr[op.c_expr.value];
-                break;
-            case OperationType::AddEF:
-                expr[op.a.value] = expr[op.b_expr.value] + op.c_f;
-                break;
-            case OperationType::AddEV:
-                expr[op.a.value] = expr[op.b_expr.value] + folder.var(op.c_var);
-                break;
-            case OperationType::AddEE:
-                expr[op.a.value] =
-                    expr[op.b_expr.value] + expr[op.c_expr.value];
-                break;
-            case OperationType::AddAssignE:
-                expr[op.a.value] += expr[op.b_expr.value];
+            case 3:
+                DEBUG("FAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_f[instr.a] = expr_f[instr.b];
                 break;
 
-            case OperationType::SubVF:
-                expr[op.a.value] = folder.var(op.b_var) - op.c_f;
+            case 4:
+                DEBUG("FAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + evalConstantsF[instr.c];
                 break;
-            case OperationType::SubVV:
-                expr[op.a.value] = folder.var(op.b_var) - folder.var(op.c_var);
+            case 5:
+                DEBUG("FAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + folder.var_f(instr.c_variant, instr.c);
                 break;
-            case OperationType::SubVE:
-                expr[op.a.value] = folder.var(op.b_var) - expr[op.c_expr.value];
+            case 6:
+                DEBUG("FAddVE: %d <- (%d, %d) + %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + expr_f[instr.c];
                 break;
-            case OperationType::SubEF:
-                expr[op.a.value] = expr[op.b_expr.value] - op.c_f;
+            
+            case 7:
+                DEBUG("FAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = expr_f[instr.b] + evalConstantsF[instr.c];
                 break;
-            case OperationType::SubEV:
-                expr[op.a.value] = expr[op.b_expr.value] - folder.var(op.c_var);
+            case 8:
+                DEBUG("FAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] + folder.var_f(instr.c_variant, instr.c);
                 break;
-            case OperationType::SubEE:
-                expr[op.a.value] =
-                    expr[op.b_expr.value] - expr[op.c_expr.value];
+            case 9:
+                DEBUG("FAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] + expr_f[instr.c];
                 break;
-            case OperationType::SubAssignE:
-                expr[op.a.value] = expr[op.a.value] - expr[op.b_expr.value];
-                break;
-
-            case OperationType::MulVF:
-                expr[op.a.value] = folder.var(op.b_var) * op.c_f;
-                break;
-            case OperationType::MulVV:
-                expr[op.a.value] = folder.var(op.b_var) * folder.var(op.c_var);
-                break;
-            case OperationType::MulVE:
-                expr[op.a.value] = folder.var(op.b_var) * expr[op.c_expr.value];
-                break;
-            case OperationType::MulEF:
-                expr[op.a.value] = expr[op.b_expr.value] * op.c_f;
-                break;
-            case OperationType::MulEV:
-                expr[op.a.value] = expr[op.b_expr.value] * folder.var(op.c_var);
-                break;
-            case OperationType::MulEE:
-                expr[op.a.value] =
-                    expr[op.b_expr.value] * expr[op.c_expr.value];
-                break;
-            case OperationType::MulAssignE:
-                expr[op.a.value] *= expr[op.b_expr.value];
-                break;
-            case OperationType::MulAssignEF:
-                expr[op.a.value] *= op.b_ef;
+            case 10:
+                DEBUG("FAddAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_f[instr.a] += expr_f[instr.b];
                 break;
 
-            case OperationType::NegE:
-                expr[op.a.value] =
-                    (bb31_extension_t::zero() - bb31_extension_t::one()) *
-                    expr[op.b_expr.value];
+            case 11:
+                DEBUG("FSubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - evalConstantsF[instr.c];
                 break;
-        }
+            case 12:
+                DEBUG("FSubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - folder.var_f(instr.c_variant, instr.c);
+                break;
+            case 13:
+                DEBUG("FSubVE: %d <- (%d, %d) - %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - expr_f[instr.c];
+                break;
+            
+            case 14:
+                DEBUG("FSubEC: %d <- %d - %d\n", instr.a, instr.b, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] - evalConstantsF[instr.c];
+                break;
+            case 15:
+                DEBUG("FSubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] - folder.var_f(instr.c_variant, instr.c);
+                break;
+            case 16:
+                DEBUG("FSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] - expr_f[instr.c];
+                break;
+            case 17:
+                DEBUG("FSubAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_f[instr.a] -= expr_f[instr.b];
+                break;
+
+            case 18:
+                DEBUG("FMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * evalConstantsF[instr.c];
+                break;
+            case 19:
+                DEBUG("FMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * folder.var_f(instr.c_variant, instr.c);
+                break;
+            case 20:
+                DEBUG("FMulVE: %d <- (%d, %d) * %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * expr_f[instr.c];
+                break;
+
+            case 21:
+                DEBUG("FMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                expr_f[instr.a] = expr_f[instr.b] * evalConstantsF[instr.c];
+                break;
+            case 22:
+                DEBUG("FMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_f[instr.a] = expr_f[instr.b] * folder.var_f(instr.c_variant, instr.c);
+                break;
+            case 23:
+                DEBUG("FMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
+                DEBUG("FMulEE Input: %d, %d\n", expr_f[instr.b], expr_f[instr.c]);
+                expr_f[instr.a] = expr_f[instr.b] * expr_f[instr.c];
+                DEBUG("FMulEE Output: %d\n", expr_f[instr.a]);
+                break;
+            case 24:
+                DEBUG("FMulAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_f[instr.a] *= expr_f[instr.b];
+                break;
+
+            case 25:
+                DEBUG("FNegE: %d <- -%d\n", instr.a, instr.b);
+                expr_f[instr.a] = -expr_f[instr.b];
+                break;
+
+            case 26:
+                DEBUG("EAssignC: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] = evalConstantsEF[instr.b];
+                break;
+            case 27:
+                DEBUG("EAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b);
+                break;
+            case 28:
+                DEBUG("EAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] = expr_ef[instr.b];
+                break;
+
+            case 29:
+                DEBUG("EAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + evalConstantsEF[instr.c];
+                break;
+            case 30:
+                DEBUG("EAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 31:
+                DEBUG("EAddVE: %d <- (%d, %d) + %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + expr_ef[instr.c];
+                break;
+            
+            case 32:
+                DEBUG("EAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = expr_ef[instr.b] + evalConstantsEF[instr.b];
+                break;
+            case 33:
+                DEBUG("EAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] + folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 34:
+                DEBUG("EAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] + expr_ef[instr.c];
+                break;
+            case 35:
+                DEBUG("EAddAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] += expr_ef[instr.b];
+                break;
+
+            case 36:
+                DEBUG("ESubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - evalConstantsEF[instr.c];
+                break;
+            case 37:
+                DEBUG("ESubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 38:
+                DEBUG("ESubVE: %d <- (%d, %d) - %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - expr_ef[instr.c];
+                break;
+
+            case 39:
+                DEBUG("ESubEC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = expr_ef[instr.b] - evalConstantsEF[instr.b];
+                break;
+            case 40:
+                DEBUG("ESubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] - folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 41:
+                DEBUG("ESubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] - expr_ef[instr.c];
+                break;
+            case 42:
+                DEBUG("ESubAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] -= expr_ef[instr.b];
+                break;
+
+            case 43:
+                DEBUG("EMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * evalConstantsEF[instr.c];
+                break;
+            case 44:
+                DEBUG("EMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 45:
+                DEBUG("EMulVE: %d <- (%d, %d) * %d\n", instr.a, instr.b_variant, instr.b, instr.c);
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * expr_ef[instr.c];
+                break;
+
+            case 46:
+                DEBUG("EMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                expr_ef[instr.a] = expr_ef[instr.b] * evalConstantsEF[instr.b];
+                break;
+            case 47:
+                DEBUG("EMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] * folder.var_ef(instr.c_variant, instr.c);
+                break;
+            case 48:
+                DEBUG("EMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] * expr_ef[instr.c];
+                break;
+            case 49:
+                DEBUG("EMulAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] *= expr_ef[instr.b];
+                break;
+
+            case 50:
+                DEBUG("ENegE: %d <- -%d\n", instr.a, instr.b);
+                expr_ef[instr.a] = Challenge::zero() - expr_ef[instr.b];
+                break;
+
+            case 51:
+                DEBUG("EFFromE: %d <- %d\n", instr.a, instr.b);
+                Challenge result;
+                result.value[0] = expr_f[instr.b];
+                result.value[1] = Val{0};
+                result.value[2] = Val{0};
+                result.value[3] = Val{0};
+                expr_ef[instr.a] = result;
+                break;
+            case 52:
+                DEBUG("EFAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] + expr_f[instr.c];
+                break;  
+            case 53:
+                DEBUG("EFAddAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] += expr_f[instr.b];
+                break;
+            case 54:
+                DEBUG("EFSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] - expr_f[instr.c];
+                break;
+            case 55:
+                DEBUG("EFSubAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] -= expr_f[instr.b];
+                break;
+            case 56:
+                DEBUG("EFMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
+                expr_ef[instr.a] = expr_ef[instr.b] * expr_f[instr.c];
+                break;
+            case 57:
+                DEBUG("EFMulAssignE: %d <- %d\n", instr.a, instr.b);
+                expr_ef[instr.a] *= expr_f[instr.b];
+                break;
+            case 58:
+                DEBUG("EFAsBaseSlice: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                // UNSUPPORTED
+                break;
+
+            case 59:
+                DEBUG("FAssertZero: %d\n", instr.a);
+                folder.accumulator *= folder.alpha;
+                folder.accumulator += expr_f[instr.a];
+                break;
+            case 60:
+                DEBUG("EAssertZero: %d\n", instr.a);
+                folder.accumulator *= folder.alpha;
+                folder.accumulator += expr_ef[instr.a];
+                break;
+        } 
     }
 
-    folder.accumulator = expr[0];
     bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
 
     #pragma unroll
-        for (size_t k = 0; k < bb31_extension_t::D; k++) {
-            quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
-        }
+    for (size_t k = 0; k < bb31_extension_t::D; k++) {
+        quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+    }
 }
 }  // namespace quotient_kernels
 
 namespace quotient_gpu {
 extern "C" void computeValues(
-    Operation *evalProgram, 
+    Instruction *evalProgram, 
     size_t evalProgramLen,
+    bb31_t *evalConstantsF,
+    bb31_extension_t *evalConstantsEF,
     size_t memorySize,
     bb31_extension_t *cumulativeSums,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
@@ -194,7 +391,7 @@ extern "C" void computeValues(
     size_t numBlocks = (quotientDomain.size() - 1) / numThreadsPerBlock + 1;
     if (memorySize <= 32) {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues); 
@@ -202,7 +399,7 @@ extern "C" void computeValues(
     else if (memorySize <= 64)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
@@ -210,7 +407,7 @@ extern "C" void computeValues(
     else if (memorySize <= 128)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
@@ -218,7 +415,7 @@ extern "C" void computeValues(
     else if (memorySize <= 256)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
@@ -226,7 +423,7 @@ extern "C" void computeValues(
     else if (memorySize <= 512)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
@@ -234,7 +431,7 @@ extern "C" void computeValues(
     else if (memorySize <= 1024)
     {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, cumulativeSums,
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);

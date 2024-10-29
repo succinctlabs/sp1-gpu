@@ -21,60 +21,55 @@ struct ConstraintFolder {
    public:
     __device__ ConstraintFolder() {}
 
-    __device__ Challenge var(SymbolicFolderVar var) {
-        switch (var.variant) {
-            case SymbolicFolderVarType::Base:
-                return bb31_extension_t(main.values[var.idx * main.height + 
-                (quotientIdx % quotientSize)]);
-            case SymbolicFolderVarType::Extension:
-                return bb31_extension_t(main.values[var.idx * main.height + 
-                ((quotientIdx + nextStep) % quotientSize)]);
-            case SymbolicFolderVarType::PreprocessedLocal:
-                return bb31_extension_t(prep.values[var.idx * prep.height + 
-                (quotientIdx % quotientSize)]);
-            case SymbolicFolderVarType::PreprocessedNext:
-                return bb31_extension_t(prep.values[var.idx * prep.height + 
-                ((quotientIdx + nextStep) % quotientSize)]);
-            case SymbolicFolderVarType::MainLocal:
-                return bb31_extension_t(main.values[var.idx * main.height + 
-                (quotientIdx % quotientSize)]);
-            case SymbolicFolderVarType::MainNext:
-                return bb31_extension_t(main.values[var.idx * main.height + 
-                ((quotientIdx + nextStep) % quotientSize)]);
-            case SymbolicFolderVarType::PermutationLocal:
+    __inline__ __device__ Val var_f(unsigned char variant, unsigned int idx) {
+        switch (variant) {
+            case 0:
+                return Val{0};
+            case 1:
+                return Val{idx};
+            case 2:
+                return prep.values[idx * prep.height + (quotientIdx % quotientSize)];
+            case 3:
+                return prep.values[idx * prep.height + ((quotientIdx + nextStep) % quotientSize)];
+            case 4:
+                return main.values[idx * main.height + (quotientIdx % quotientSize)];
+            case 5:
+                return main.values[idx * main.height + ((quotientIdx + nextStep) % quotientSize)];
+            case 6:
+                return isFirstRow;
+            case 7:
+                return isLastRow;
+            case 8:
+                return isTransition;
+            case 9:
+                return publicValues[idx];
+        }
+    }
+
+    __inline__ __device__ Challenge var_ef(unsigned char variant, unsigned int idx) {
+        switch (variant) {
+            case 0:
+                return Challenge::zero();
+            case 1:
                 {
                 Challenge result;
                 for (size_t k = 0 ; k < Challenge::D; k++)
-                    result.value[k] = perm.values[(var.idx * Challenge::D + k) * perm.height + 
-                       (quotientIdx % quotientSize)];
+                    result.value[k] = perm.values[(idx * Challenge::D + k) * perm.height + 
+                        (quotientIdx % quotientSize)];
                 return result;
                 }
-            case SymbolicFolderVarType::PermutationNext:
+            case 2:
                 {
                 Challenge result;
                 for (size_t k = 0 ; k < Challenge::D; k++)
-                    result.value[k] = perm.values[(var.idx * Challenge::D + k) * perm.height + 
+                    result.value[k] = perm.values[(idx * Challenge::D + k) * perm.height + 
                     ((quotientIdx + nextStep) % quotientSize)];
                 return result;
                 }
-            case SymbolicFolderVarType::PermutationChallenge:
-                return permChallenges[var.idx];
-            case SymbolicFolderVarType::CumulativeSum:
-                return cumulativeSums[var.idx];
-            case SymbolicFolderVarType::PublicValue:
-                return publicValues[var.idx];
-            case SymbolicFolderVarType::IsFirstRow:
-                return bb31_extension_t(isFirstRow);
-            case SymbolicFolderVarType::IsLastRow:
-                return bb31_extension_t(isLastRow);
-            case SymbolicFolderVarType::IsTransition:
-                return bb31_extension_t(isTransition);
-            case SymbolicFolderVarType::Alpha:
-                return alpha;
-            case SymbolicFolderVarType::Accumulator:
-                return accumulator;
-            case SymbolicFolderVarType::Empty:
-                return Challenge::zero();
+            case 3:
+                return permChallenges[idx];
+            case 4:
+                return cumulativeSums[idx];
         }
     }
 };

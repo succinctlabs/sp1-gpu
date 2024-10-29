@@ -22,8 +22,6 @@ use tracing::info;
 use p3_field::AbstractField;
 use std::{array, cmp::Reverse, marker::PhantomData};
 
-use air::P3EvalFolder;
-
 use crate::{
     cuda_runtime::stream::CudaStream,
     device::{
@@ -143,8 +141,8 @@ pub type CpuMatrix<F> = RowMajorMatrix<F>;
 impl<SC, C, A> MachineProver<SC, A> for StarkGpuProver<SC, C, A>
 where
     SC: BabyBearFriConfig,
-    A: for<'a> Air<P3EvalFolder<'a>>
-        + for<'a> Air<ProverConstraintFolder<'a, SC>>
+    A: for<'a> Air<ProverConstraintFolder<'a, SC>>
+        + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
@@ -888,9 +886,7 @@ where
 impl<SC, C, A> StarkGpuProver<SC, C, A>
 where
     SC: BabyBearFriConfig,
-    A: for<'a> Air<P3EvalFolder<'a>>
-        + for<'a> Air<ProverConstraintFolder<'a, SC>>
-        + MachineAir<BabyBear>,
+    A: for<'a> Air<ProverConstraintFolder<'a, SC>> + MachineAir<BabyBear>,
     A::Record: Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static

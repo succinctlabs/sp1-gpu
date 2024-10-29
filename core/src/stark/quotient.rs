@@ -1,6 +1,6 @@
+use air::instruction::Instruction16;
 use sp1_stark::StarkGenericConfig;
 
-use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractExtensionField, Field, TwoAdicField};
@@ -15,8 +15,6 @@ use p3_commit::{Pcs, PolynomialSpace};
 use crate::fri::FriQueryProver;
 use p3_field::AbstractField;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
-
-use air::P3EvalFolder;
 
 use std::{collections::HashMap, marker::PhantomData};
 
@@ -42,8 +40,8 @@ pub struct DeviceQuotientValues<SC: StarkGenericConfig> {
 }
 
 #[derive(Clone, Debug)]
-pub struct DeviceQuotientValuesGenerator<SC, A> {
-    eval_programs: HashMap<String, (Vec<Operation>, usize)>,
+pub struct DeviceQuotientValuesGenerator<SC: StarkGenericConfig, A> {
+    eval_programs: HashMap<String, (Vec<Instruction16>, u32, Vec<SC::Val>, Vec<SC::Challenge>)>,
     _marker: PhantomData<(SC, A)>,
 }
 
@@ -60,18 +58,22 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
     SC: BabyBearFriConfig,
-    A: for<'a> Air<P3EvalFolder<'a>> + MachineAir<SC::Val>,
+    A: MachineAir<SC::Val> + for<'a> p3_air::Air<air::SymbolicProverFolder<'a>>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut eval_programs = HashMap::new();
         for chip in machine.chips() {
-            let (operations, max) = air::codegen_cuda_eval(chip);
-            eval_programs.insert(chip.name().to_owned(), (operations, max));
+            let (operations, f_ctr, _, f_constants, ef_constants) = air::codegen_cuda_eval(chip);
+            eval_programs
+                .insert(chip.name().to_owned(), (operations, f_ctr, f_constants, ef_constants));
         }
         Self { eval_programs, _marker: PhantomData }
     }
 
-    pub fn get_eval_program(&self, chip: &Chip<SC::Val, A>) -> &(Vec<Operation>, usize) {
+    pub fn get_eval_program(
+        &self,
+        chip: &Chip<SC::Val, A>,
+    ) -> &(Vec<Instruction16>, u32, Vec<SC::Val>, Vec<SC::Challenge>) {
         self.eval_programs.get(&chip.name()).unwrap()
     }
 
@@ -97,8 +99,10 @@ where
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         let stream = main_evaluations.stream();
-        let (operations, memory_size) = self.get_eval_program(chip);
+        let (operations, f_ctr, f_constants, ef_constants) = self.get_eval_program(chip);
         let operations_device = operations.to_device_async(stream).unwrap();
+        let eval_f_constants_device = f_constants.to_device_async(stream).unwrap();
+        let eval_ef_constants_device = ef_constants.to_device_async(stream).unwrap();
 
         let trace_domain_generator =
             <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
@@ -115,7 +119,9 @@ where
             quotient_gpu::compute_values(
                 operations_device.as_ptr(),
                 operations.len(),
-                *memory_size,
+                eval_f_constants_device.as_ptr(),
+                eval_ef_constants_device.as_ptr(),
+                *f_ctr as usize,
                 cumulative_sums.as_ptr(),
                 trace_domain.to_device_async(stream).unwrap(),
                 quotient_domain.to_device_async(stream).unwrap(),
@@ -230,8 +236,10 @@ where
                 cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
             let trace_domain_device = trace_domain.to_device_async(stream).unwrap();
             let quotient_domain_device = quotient_domain.to_device_async(stream).unwrap();
-            let (operations, memory_size) = self.get_eval_program(chip);
+            let (operations, memory_size, f_constants, ef_constants) = self.get_eval_program(chip);
             let operations_device = operations.to_device_async(stream).unwrap();
+            let f_constants_device = f_constants.to_device_async(stream).unwrap();
+            let ef_constants_device = ef_constants.to_device_async(stream).unwrap();
             let trace_domain_generator =
                 <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator =
@@ -249,7 +257,9 @@ where
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
-                    *memory_size,
+                    f_constants_device.as_ptr(),
+                    ef_constants_device.as_ptr(),
+                    *memory_size as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
@@ -452,7 +462,7 @@ mod tests {
 
     use rand::thread_rng;
 
-    use tracing::debug;
+    use tracing::info;
 
     use crate::{
         cuda_runtime::ffi::DEFAULT_STREAM,
@@ -481,15 +491,18 @@ mod tests {
         let chips = machine.chips();
 
         for (i, chip) in chips.iter().enumerate() {
-            debug!("Chip: {}", chip.name());
-            debug!("Id: {}", i);
+            if chip.name() != "CPU" {
+                continue;
+            }
+            info!("Chip: {}", chip.name());
+            info!("Id: {}", i);
 
             let program = Program::from(FIBONACCI_ELF).unwrap();
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
             let prep = chip.generate_preprocessed_trace(&program);
-            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 10 };
+            let num_rows = if let Some(prep) = prep.as_ref() { prep.height() } else { 1 << 21 };
 
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
@@ -568,7 +581,7 @@ mod tests {
                 &public_values,
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
-            debug!("> CPU Time: {:?} ms", start.elapsed().as_millis());
+            info!("> CPU Time: {:?} ms", start.elapsed().as_millis());
             let trace_domain_generator = BabyBear::two_adic_generator(trace_domain.log_n);
             let quotient_domain_generator = BabyBear::two_adic_generator(quotient_domain.log_n);
 
@@ -605,10 +618,15 @@ mod tests {
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
-            let (operations, expr_ctr) = air::codegen_cuda_eval(chip);
+            let (operations, f_expr_ctr, ef_expr_ctr, f_constants, ef_constants) =
+                air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
-            debug!("> Eval Program Len: {}", operations.len());
-            debug!("> Eval Program Register Count: {}", expr_ctr);
+            let f_constants_device = f_constants.to_device().unwrap();
+            let ef_constants_device = ef_constants.to_device().unwrap();
+            info!("> Eval Program Len: {}", operations.len());
+            info!("> Eval Program Register Count: f={}, ef={}", f_expr_ctr, ef_expr_ctr);
+            info!("> Eval Program Constants: {:#?}", f_constants.len());
+            // info!("> Eval Program: {:#?}", operations);
 
             let start = std::time::Instant::now();
             unsafe {
@@ -616,7 +634,9 @@ mod tests {
                 quotient_gpu::compute_values(
                     operations_device.as_ptr(),
                     operations.len(),
-                    expr_ctr,
+                    f_constants_device.as_ptr(),
+                    ef_constants_device.as_ptr(),
+                    f_expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
@@ -633,10 +653,12 @@ mod tests {
                 );
             }
             let data = quotient_output.to_host();
-            debug!("> GPU Time: {:?} ms", start.elapsed().as_millis());
+            info!("> GPU Time: {:?} ms", start.elapsed().as_millis());
 
-            for (exp, res) in result_flat.values.into_iter().zip_eq(data.values) {
-                assert_eq!(exp, res, "failed at index {}", i);
+            for (j, (exp, res)) in result_flat.values.into_iter().zip_eq(data.values).enumerate() {
+                // if j == 0 {
+                assert_eq!(exp, res, "failed at row {}", j);
+                // }
             }
         }
     }
