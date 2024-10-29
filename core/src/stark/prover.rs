@@ -839,16 +839,16 @@ where
 
         // Observe the challenges for each segment.
         global_data.iter().zip_eq(records.iter()).for_each(|(global_data, record)| {
-            if contains_global_bus {
-                challenger.observe(
-                    global_data
-                        .as_ref()
-                        .expect("must have a global commitment")
-                        .main_commit
-                        .clone(),
-                );
-            }
-            challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
+            // if contains_global_bus {
+            //     challenger.observe(
+            //         global_data
+            //             .as_ref()
+            //             .expect("must have a global commitment")
+            //             .main_commit
+            //             .clone(),
+            //     );
+            // }
+            // challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
         });
 
         // Obtain the challenges used for the global permutation argument.
