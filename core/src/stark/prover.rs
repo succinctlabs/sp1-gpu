@@ -367,7 +367,7 @@ where
         } = local_data;
 
         // Merge the chip ordering and traces from the global and local data.
-        let (all_chips_ordering, all_chip_scopes, all_shard_data) = self.merge_shard_traces(
+        let (all_chips_ordering, _, all_shard_data) = self.merge_shard_traces(
             &global_traces,
             &global_chip_ordering,
             &local_traces,
