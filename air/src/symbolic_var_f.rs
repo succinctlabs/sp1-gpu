@@ -1,7 +1,5 @@
-use p3_field::PrimeField32;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
-use tracing::instrument;
 
 use crate::instruction::f_constant;
 use crate::{instruction::Instruction32, symbolic_expr_f::SymbolicExprF, CUDA_P3_EVAL_CODE, F};

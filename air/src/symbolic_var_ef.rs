@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
-use tracing::instrument;
 
 use crate::{instruction::Instruction32, symbolic_expr_ef::SymbolicExprEF, CUDA_P3_EVAL_CODE, EF};
 

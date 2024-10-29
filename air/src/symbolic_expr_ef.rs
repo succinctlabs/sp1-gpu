@@ -2,7 +2,6 @@ use std::{
     iter::{Product, Sum},
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use tracing::instrument;
 
 use p3_field::{AbstractExtensionField, AbstractField};
 

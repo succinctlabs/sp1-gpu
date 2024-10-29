@@ -22,7 +22,6 @@ sp1-stark = { workspace = true }
 sp1-recursion-core = { workspace = true }
 p3-air = { workspace = true }
 air = { path = "../air" }
-air-v2 = { path = "../air-v2" }
 p3-challenger = { workspace = true }
 p3-fri = { workspace = true }
 p3-util = { workspace = true }
@@ -40,7 +39,6 @@ thiserror = "1.0.63"
 [build-dependencies]
 cc = "1.0"
 which = "6.0"
-air = { path = "../air" }
 
 [dev-dependencies]
 rand = "0.8.5"

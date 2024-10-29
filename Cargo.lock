@@ -132,18 +132,6 @@ dependencies = [
  "p3-air",
  "p3-baby-bear",
  "p3-field",
- "sp1-core-machine",
- "sp1-stark",
-]
-
-[[package]]
-name = "air-v2"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "p3-air",
- "p3-baby-bear",
- "p3-field",
  "p3-matrix",
  "sp1-core-machine",
  "sp1-stark",
@@ -3477,7 +3465,6 @@ name = "moongate-core"
 version = "0.1.0"
 dependencies = [
  "air",
- "air-v2",
  "cc",
  "hashbrown 0.14.5",
  "itertools 0.13.0",

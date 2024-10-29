@@ -2,7 +2,6 @@ use std::{
     iter::{Product, Sum},
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use tracing::instrument;
 
 use crate::{
     instruction::Instruction32, symbolic_var_f::SymbolicVarF, CUDA_P3_EVAL_CODE,
@@ -102,10 +101,7 @@ impl Add<SymbolicExprF> for SymbolicExprF {
 
 impl AddAssign<SymbolicExprF> for SymbolicExprF {
     // #[instrument(skip_all, level = "trace", name = "AddAssign<SymbolicExprF> for SymbolicExprF")]
-    fn add_assign(&mut self, rhs: SymbolicExprF) {
-        // let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        // code.push(Instruction32::f_add_assign_e(*self, rhs));
-        // drop(code);
+    fn add_assign(&mut self, _: SymbolicExprF) {
         unreachable!()
     }
 }
@@ -151,10 +147,7 @@ impl Sub<SymbolicExprF> for SymbolicExprF {
 
 impl SubAssign<SymbolicExprF> for SymbolicExprF {
     // #[instrument(skip_all, level = "trace", name = "SubAssign<SymbolicExprF> for SymbolicExprF")]
-    fn sub_assign(&mut self, rhs: SymbolicExprF) {
-        // let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        // code.push(Instruction32::f_sub_assign_e(*self, rhs));
-        // drop(code);
+    fn sub_assign(&mut self, _: SymbolicExprF) {
         unreachable!()
     }
 }
@@ -200,10 +193,7 @@ impl Mul<SymbolicExprF> for SymbolicExprF {
 
 impl MulAssign<SymbolicExprF> for SymbolicExprF {
     // #[instrument(skip_all, level = "trace", name = "MulAssign<SymbolicExprF> for SymbolicExprF")]
-    fn mul_assign(&mut self, rhs: SymbolicExprF) {
-        // let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        // code.push(Instruction32::f_mul_assign_e(*self, rhs));
-        // drop(code);
+    fn mul_assign(&mut self, _: SymbolicExprF) {
         unreachable!()
     }
 }

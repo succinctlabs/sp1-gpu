@@ -1,7 +1,6 @@
-use air_v2::instruction::{Instruction16, Instruction32};
+use air::instruction::Instruction16;
 use sp1_stark::StarkGenericConfig;
 
-use air::operation::Operation;
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
 use p3_field::{AbstractExtensionField, Field, TwoAdicField};
@@ -16,8 +15,6 @@ use p3_commit::{Pcs, PolynomialSpace};
 use crate::fri::FriQueryProver;
 use p3_field::AbstractField;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
-
-use air::P3EvalFolder;
 
 use std::{collections::HashMap, marker::PhantomData};
 
@@ -63,14 +60,12 @@ pub struct TwoAdicMultiplicativeCosetDevice<F: TwoAdicField> {
 impl<SC, A> DeviceQuotientValuesGenerator<SC, A>
 where
     SC: BabyBearFriConfig,
-    A: for<'a> Air<P3EvalFolder<'a>>
-        + MachineAir<SC::Val>
-        + for<'a> p3_air::Air<air_v2::SymbolicProverFolder<'a>>,
+    A: MachineAir<SC::Val> + for<'a> p3_air::Air<air::SymbolicProverFolder<'a>>,
 {
     pub fn new(machine: &StarkMachine<SC, A>) -> Self {
         let mut eval_programs = HashMap::new();
         for chip in machine.chips() {
-            let (operations, f_ctr, _, f_constants, ef_constants) = air_v2::codegen_cuda_eval(chip);
+            let (operations, f_ctr, _, f_constants, ef_constants) = air::codegen_cuda_eval(chip);
             eval_programs
                 .insert(chip.name().to_owned(), (operations, f_ctr, f_constants, ef_constants));
         }
@@ -579,7 +574,7 @@ mod tests {
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
 
             let (operations, f_expr_ctr, ef_expr_ctr, f_constants, ef_constants) =
-                air_v2::codegen_cuda_eval(chip);
+                air::codegen_cuda_eval(chip);
             let operations_device = operations.to_device().unwrap();
             let f_constants_device = f_constants.to_device().unwrap();
             let ef_constants_device = ef_constants.to_device().unwrap();

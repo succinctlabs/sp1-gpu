@@ -31,7 +31,7 @@ pub(super) mod quotient_gpu {
         matrix::{MatrixViewDevice, MatrixViewMutDevice},
         stark::quotient::TwoAdicMultiplicativeCosetDevice,
     };
-    use air_v2::instruction::{Instruction16, Instruction32};
+    use air::instruction::Instruction16;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
