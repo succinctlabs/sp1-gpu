@@ -35,15 +35,14 @@ template<typename F, typename EF> __global__ void batchFriKernel(
     size_t height = 1U << logHeight;
     if (i >= height) return;
 
-    unsigned int idx = bit_rev(blockIdx.x * blockDim.x + threadIdx.x, logHeight); 
-    F domainPoint = domainGenerator^idx;
+    F domainPoint = domainGenerator^(bit_rev(blockIdx.x * blockDim.x + threadIdx.x, logHeight));
     domainPoint *= shift;
     EF batchingPower = batchingChallengeOffset;
-    EF inverseDenom = EF::one() / (EF(domainPoint) - evaluationPoint);
+    EF inverseDenom = EF::one() / (evaluationPoint - domainPoint);
     EF accumulator = EF::zero(); 
     for (size_t j = 0 ; j < width ; j++) {
-        // Compute batch_value = alpha^i ((p(x) - p(z) / (x - z)).
-        EF batchValue  = EF(polynomialBatch[j * height + i]) - evaluations[j];
+        // Compute batch_value = alpha^i ((p(z) - p(x) / (z - x)).
+        EF batchValue  = evaluations[j] - polynomialBatch[j * height + i];
         batchValue *= batchingPower; 
         accumulator += batchValue;
         batchingPower *= batchingChallenge; 
@@ -53,7 +52,7 @@ template<typename F, typename EF> __global__ void batchFriKernel(
     size_t rowIdx = i >> 1;
     size_t isOdd = i & 1;
     for (size_t k = 0; k < EF::D; k++) {
-        leafMatrix.values[(k + EF::D * isOdd) * leafMatrix.height + rowIdx] += accumulator.value[k];
+        leafMatrix.values[(k + isOdd *  EF::D) * leafMatrix.height + rowIdx] += accumulator.value[k];
     }
 }
 
@@ -71,9 +70,8 @@ extern "C" void batchFri(
     size_t logHeight,
     cudaStream_t stream) {
         size_t blockDim = 512;
-        size_t rowBatch = 1;
         size_t height = 1U << logHeight;
-        size_t gridDim = ((height - 1) / blockDim)/ rowBatch + 1;
+        size_t gridDim = (height - 1) / blockDim + 1;
 
         batchFriKernel<<<gridDim, blockDim, 0, stream>>>(
             leafMatrix,

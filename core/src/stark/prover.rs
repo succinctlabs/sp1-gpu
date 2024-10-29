@@ -758,33 +758,37 @@ where
         // Get the batching challenge.
         let mut new_challenger = challenger.clone();
         let alpha: SC::Challenge = new_challenger.sample_ext_element();
+        println!("New alpha: {}", alpha);
 
         // Batch the preprocessed traces
         let mut alpha_offsets =
             input_leaves.keys().map(|i| (*i, SC::Challenge::one())).collect::<BTreeMap<_, _>>();
-        for (prep_lde, (log_height, local_open, next_open)) in
+        for (lde, (log_height, local_open, next_open)) in
             pk.data.matrices().iter().zip_eq(preprocessed_opens.iter())
         {
             let lde_log_height = log_height + log_blowup;
+            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
-                prep_lde,
+                lde,
                 SC::Val::generator(),
                 local_open,
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
-                prep_lde,
+                lde,
                 SC::Val::generator(),
                 next_open,
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
         }
 
         // Batch the main global traces
@@ -793,7 +797,7 @@ where
                 global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
             {
                 let lde_log_height = log_height + log_blowup;
-                let before = *alpha_offsets.get(&lde_log_height).unwrap();
+                assert_eq!(lde.height, 1 << lde_log_height);
                 self.opening_prover.batch_update(
                     input_leaves.get_mut(&lde_log_height).unwrap(),
                     lde,
@@ -803,10 +807,7 @@ where
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
-                assert_eq!(
-                    *alpha_offsets.get(&lde_log_height).unwrap(),
-                    before * alpha.exp_u64(lde.width().try_into().unwrap())
-                );
+                lde.stream().synchronize().unwrap();
                 let g = BabyBear::two_adic_generator(*log_height);
                 self.opening_prover.batch_update(
                     input_leaves.get_mut(&lde_log_height).unwrap(),
@@ -817,6 +818,7 @@ where
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
+                lde.stream().synchronize().unwrap();
             }
         }
 
@@ -825,6 +827,7 @@ where
             local_main_data.matrices().iter().zip_eq(main_local_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
+            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -834,6 +837,7 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
@@ -844,6 +848,7 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
         }
 
         // Batch the permutation traces.
@@ -851,6 +856,7 @@ where
             perm_prover_data.matrices().iter().zip_eq(perm_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
+            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -860,6 +866,7 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
@@ -870,6 +877,7 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
         }
 
         // Batch the quotient traces.
@@ -877,6 +885,7 @@ where
             quotient_prover_data.matrices().iter().zip_eq(quot_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
+            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -886,6 +895,7 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
+            lde.stream().synchronize().unwrap();
         }
 
         // generate a fri proof.

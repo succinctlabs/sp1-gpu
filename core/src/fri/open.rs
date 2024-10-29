@@ -87,6 +87,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     {
         let alpha: Challenge<SC> = challenger.sample();
+        println!("Opening alpha: {}", alpha);
 
         let mats_and_points = rounds
             .iter()
@@ -398,9 +399,12 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .collect();
 
         for ((k, leaf), (k_exp, leaf_exp)) in leaves.iter().zip_eq(expected_leaves.iter()) {
+            println!("k is {}", k);
             assert_eq!(k, k_exp);
-            for (val, exp) in leaf.values.to_host().iter().zip(leaf_exp.values.to_host().iter()) {
-                // assert_eq!(val, exp, "Not expected");
+            for (ii, (val, exp)) in
+                leaf.values.to_host().iter().zip(leaf_exp.values.to_host().iter()).enumerate()
+            {
+                assert_eq!(val, exp, "Not expected, index {}", ii);
             }
         }
 
