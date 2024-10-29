@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/remove-assign-in-airs" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
 
 # p3
 # p3-air = "0.1.4-succinct"
@@ -76,24 +76,24 @@ sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "john/rem
 # p3-interpolation = { path = "../Plonky3/interpolation" }
 # p3-uni-stark =  { path = "../Plonky3/uni-stark" }
 
-p3-interpolation = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-air = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-field = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-commit = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-matrix = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-util = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-challenger = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-dft = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-fri = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-keccak = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-keccak-air = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-blake3 = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-mds = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-symmetric = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-maybe-rayon = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
-p3-bn254-fr = { git = "https://github.com/Plonky3/Plonky3", branch = "john/sp1-v3-air-tweaks" }
+p3-interpolation = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-air = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-dft = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-fri = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-keccak = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-keccak-air = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-blake3 = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-mds = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-maybe-rayon = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
+p3-bn254-fr = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
