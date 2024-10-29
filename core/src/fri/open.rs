@@ -43,6 +43,37 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
 }
 
 impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
+    pub fn batch_update(
+        &self,
+        leaf_matrix: &mut ColMajorMatrixDevice<SC::Val>,
+        polynomial_batch: &ColMajorMatrixDevice<SC::Val>,
+        evaluations: &DeviceBuffer<SC::Challenge>,
+        evaluation_point: SC::Challenge,
+        batching_challenge: SC::Challenge,
+        batching_challenge_offset: &mut SC::Challenge,
+    ) {
+        let log_height = polynomial_batch.height().ilog2() as usize;
+        let domain_generator = BabyBear::two_adic_generator(log_height);
+        let width = polynomial_batch.width();
+        let shift = BabyBear::generator();
+        unsafe {
+            opening_gpu::batch_fri_update(
+                leaf_matrix.view_mut(),
+                polynomial_batch.values.as_ptr(),
+                evaluations.as_ptr(),
+                domain_generator,
+                shift,
+                evaluation_point,
+                batching_challenge,
+                *batching_challenge_offset,
+                width,
+                log_height,
+                crate::cuda_runtime::ffi::DEFAULT_STREAM,
+            );
+        }
+        *batching_challenge_offset *= batching_challenge.exp_u64(width as u64);
+    }
+
     #[allow(clippy::type_complexity)]
     pub fn open<C>(
         &self,
@@ -365,10 +396,10 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .map(|(i, m)| (inverse_index_map[&i], m))
             .collect();
 
-        let (fri_proof, query_indices) = tracing::trace_span!("Fri Proof")
+        let (fri_proof, query_indices) = tracing::trace_span!("fri Proof")
             .in_scope(|| prove(committer, pcs.fri_config(), leaves, challenger));
 
-        let query_openings_span = tracing::trace_span!("Compute query openings").entered();
+        let query_openings_span = tracing::trace_span!("compute query openings").entered();
 
         let data = rounds.into_iter().map(|(data, _)| data).collect::<Vec<_>>();
         let query_openings = committer.mmcs_committer.query_open_batch(
@@ -779,7 +810,10 @@ pub mod opening_gpu {
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
 
-    use crate::matrix::{MatrixViewDevice, MatrixViewMutDevice};
+    use crate::{
+        cuda_runtime::stream::CudaStreamHandle,
+        matrix::{MatrixViewDevice, MatrixViewMutDevice},
+    };
 
     type F = BabyBear;
     type EF = BinomialExtensionField<BabyBear, 4>;
@@ -894,6 +928,25 @@ pub mod opening_gpu {
             powers: MatrixViewDevice<F>,
             one_half: F,
             input_exists: bool,
+        );
+    }
+
+    #[link_name = "fri_batch"]
+    #[allow(unused_attributes)]
+    extern "C" {
+        #[link_name = "batchFri"]
+        pub fn batch_fri_update(
+            leaf_matrix: MatrixViewMutDevice<F>,
+            polynomial_batch: *const F,
+            evaluations: *const EF,
+            domain_generator: F,
+            shift: F,
+            evaluation_point: EF,
+            batching_challenge: EF,
+            batching_challenge_offset: EF,
+            width: usize,
+            log_height: usize,
+            stream: CudaStreamHandle,
         );
     }
 }
