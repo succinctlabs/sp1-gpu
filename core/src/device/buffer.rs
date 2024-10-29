@@ -47,6 +47,12 @@ impl<T: Copy> DeviceBuffer<T> {
         Self { buf: std::ptr::null_mut(), len: 0, cap: 0, stream: CudaStream::default() }
     }
 
+    /// Set all buffer bytes from `0..len * size_of<T>()` to a fixed value.
+    pub fn set(&mut self, value: u8) -> Result<(), CudaError> {
+        // Safety: we know that `len` are all valid addresses.
+        unsafe { self.stream.mem_set_async(self.buf, value, self.len()) }
+    }
+
     /// Allocate a new buffer on the device.
     ///
     /// The function will return an error if there is not enough memory available, or if any other

@@ -34,13 +34,15 @@ fn main() {
         }
 
         let mut nvcc = cc::Build::new();
-        nvcc.cuda(true).flag("-default-stream=per-thread");
+        nvcc.cuda(true).flag("-std=c++17").flag("-default-stream=per-thread");
+        nvcc.flag("-arch=sm_60");
         nvcc.include(base_dir);
         nvcc.flag("-Xcompiler").flag("-fopenmp");
         nvcc.flag("-Xptxas").flag("-suppress-stack-size-warning");
         // nvcc.flag("--threads").flag("14");
         nvcc.flag("-lnvToolsExt");
         nvcc.flag("-ldl");
+        nvcc.flag("--expt-relaxed-constexpr");
         nvcc.flag("-arch=sm_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");

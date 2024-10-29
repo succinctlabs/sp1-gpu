@@ -33,7 +33,7 @@ public:
 
     public:
         inline operator fp2_t() const           { return x[threadIdx.x&1]; }
-        inline void zero()                      { x[threadIdx.x&1].zero(); }
+        inline void zero()                      { x[threadIdx.x&1].set_to_zero(); }
         inline void to()                        { x[threadIdx.x&1].to();   }
         inline void from()                      { x[threadIdx.x&1].from(); }
         inline mem_t& operator=(const fp2_t& a)

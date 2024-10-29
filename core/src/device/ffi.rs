@@ -18,6 +18,8 @@ extern "C" {
     pub(crate) fn cuda_free_host(ptr: *const c_void) -> CudaRustError;
     pub(crate) fn cuda_host_unregister(ptr: *const c_void) -> CudaRustError;
 
+    pub(crate) fn cuda_mem_set(dst: *mut c_void, value: u8, size: usize) -> CudaRustError;
+
     pub(crate) fn cuda_mem_copy_host_to_device(
         dst: *mut c_void,
         src: *const c_void,

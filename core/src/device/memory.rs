@@ -63,6 +63,12 @@ pub unsafe fn cuda_malloc_host<T>(len: usize) -> Result<*mut T, CudaError> {
     Ok(ptr as *mut T)
 }
 
+/// # Safety
+/// The memory will not be freed until `cudaFreeHost` is called.
+pub unsafe fn cuda_mem_set_<T>(ptr: *const T, value: u8, len: usize) -> Result<(), CudaError> {
+    ffi::cuda_mem_set(ptr as *mut c_void, value, len * mem::size_of::<T>()).to_result()
+}
+
 /// A Rust interface for cudaHostRegister.
 ///
 /// Registers host memory as pinned for cuda usage.

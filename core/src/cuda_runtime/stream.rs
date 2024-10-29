@@ -152,6 +152,20 @@ impl CudaStream {
     /// # Safety
     ///
     /// TODO
+    #[inline]
+    pub unsafe fn mem_set_async<T: Copy>(
+        &self,
+        dst: *mut T,
+        value: u8,
+        count: usize,
+    ) -> Result<(), CudaError> {
+        ffi::cuda_mem_set_async(dst as *mut c_void, value, count * mem::size_of::<T>(), self.0 .0)
+            .to_result()
+    }
+
+    /// # Safety
+    ///
+    /// TODO
     pub unsafe fn cuda_memcpy_device_to_device_async<T: Copy>(
         &self,
         dst: *mut T,

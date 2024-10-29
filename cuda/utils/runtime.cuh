@@ -97,6 +97,15 @@ extern "C" rustCudaError_t cuda_free_async(void *devPtr, cudaStream_t stream) {
     return CUDA_SUCCESS_MOON;
 }
 
+extern "C" rustCudaError_t cuda_mem_set_async(void *dst, uint8_t value, size_t count, cudaStream_t stream) {
+    CUDA_OK(cudaMemsetAsync(dst, value, count, stream));
+    return CUDA_SUCCESS_MOON;
+}
+
+extern "C" rustCudaError_t cuda_mem_set(void *dst, uint8_t value, size_t count) {
+    CUDA_OK(cudaMemset(dst, value, count));
+    return CUDA_SUCCESS_MOON;
+}
 
 extern "C" rustCudaError_t cuda_mem_copy_device_to_device_async(void *dst, const void *src, size_t count, cudaStream_t stream) {
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyDeviceToDevice, stream));

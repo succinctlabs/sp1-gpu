@@ -6,7 +6,8 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::AbstractExtensionField;
+use p3_field::{AbstractExtensionField, TwoAdicField};
+use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
@@ -20,19 +21,26 @@ use itertools::Itertools;
 use tracing::info;
 
 use p3_field::AbstractField;
-use std::{array, cmp::Reverse, marker::PhantomData};
+use std::{
+    array,
+    cmp::Reverse,
+    collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
+};
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
+        DeviceBuffer,
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
-    matrix::ColMajorMatrixDevice,
+    matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
 
@@ -43,7 +51,9 @@ use super::natural_domain_for_degree;
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
+    main_stream: CudaStream,
     chip_streams: Vec<CudaStream>,
+    chip_events: Vec<CudaEvent>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC, C>,
@@ -168,13 +178,18 @@ where
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
+        let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
+        let chip_events =
+            machine.chips().iter().map(|_| CudaEvent::new().unwrap()).collect::<Vec<_>>();
         Self {
             machine,
+            main_stream: CudaStream::default(),
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriOpeningProver::default(),
+            opening_prover: FriOpeningProver::new(domain_normalizers),
             quotient_generator,
             chip_streams,
+            chip_events,
         }
     }
 
@@ -354,7 +369,7 @@ where
         } = local_data;
 
         // Merge the chip ordering and traces from the global and local data.
-        let (all_chips_ordering, all_chip_scopes, all_shard_data) = self.merge_shard_traces(
+        let (all_chips_ordering, _, all_shard_data) = self.merge_shard_traces(
             &global_traces,
             &global_chip_ordering,
             &local_traces,
@@ -362,6 +377,8 @@ where
         );
         let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
+        let shard_chip_stream =
+            all_traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
 
         assert!(shard_chips.len() == all_traces.len());
 
@@ -582,19 +599,6 @@ where
             quotient_values.push(chip_quotient_values);
         }
 
-        // // Compute values
-        // let quotient_values = self.quotient_generator.generate_quotient_values(
-        //     &self.committer,
-        //     &shard_chips,
-        //     pk,
-        //     &all_traces,
-        //     &perm_domains_and_traces,
-        //     &permutation_challenges,
-        //     folding_challenge,
-        //     &local_public_values,
-        //     &cumulative_sums,
-        // )?;
-
         // Commit to the quotient values
         let quotient_domains_and_chunks = quotient_values
             .into_iter()
@@ -606,8 +610,6 @@ where
             .collect::<Vec<_>>();
         let (quotient_commit, quotient_prover_data) =
             self.committer.commit(&quotient_domains_and_chunks);
-        let num_quotient_chunks = quotient_domains_and_chunks.len();
-        drop(quotient_domains_and_chunks);
         quotient_span.exit();
         // Observe the quotient commitment.
         challenger.observe(quotient_commit.clone());
@@ -617,166 +619,340 @@ where
         // Compute the opening challenge.
         let zeta: SC::Challenge = challenger.sample_ext_element();
 
-        let preprocessed_opening_points = pk
-            .traces
-            .iter()
-            .map(|trace| {
-                let domain = natural_domain_for_degree(self.machine.config(), trace.height());
-                vec![zeta, domain.next_point(zeta).unwrap()]
+        // Compute the evaluations of the matrices at the point.
+        let compute_evaluations_span = tracing::debug_span!("compute FRI opening").entered();
+
+        // Openings for preprocessed traces.
+        let mut preprocessed_opens = vec![];
+        let mut input_heights = BTreeSet::new();
+        for prep_trace in pk.traces.iter() {
+            let trace = prep_trace.to_device().unwrap().to_column_major();
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            preprocessed_opens.push((domain.log_n, local_open, next_open));
+        }
+
+        // Openings for global main traces (if any).
+        let mut main_global_openings = vec![];
+        for trace in global_traces {
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            main_global_openings.push((domain.log_n, local_open, next_open));
+        }
+
+        // Openings for local main traces.
+        let mut main_local_openings = vec![];
+        for trace in local_traces {
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            main_local_openings.push((domain.log_n, local_open, next_open));
+        }
+
+        let mut perm_openings = vec![];
+        // Openings for permutation traces.
+        for (domain, trace) in perm_domains_and_traces {
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            perm_openings.push((domain.log_n, local_open, next_open));
+        }
+        // Openings for quotient traces
+        let mut quot_openings = vec![];
+        for (domain, trace) in quotient_domains_and_chunks.into_iter() {
+            let open = self.opening_prover.eval(domain, &trace, zeta);
+            input_heights.insert(domain.log_n);
+            quot_openings.push((domain.log_n, open));
+        }
+
+        for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
+        }
+
+        // Create the input for the FRI opening.
+
+        let log_blowup = self.machine.config().pcs().fri_config().log_blowup;
+
+        let mut batched_openings = input_heights
+            .into_iter()
+            .map(|trace_log_height| {
+                let log_height = trace_log_height + log_blowup;
+                let mut batched_openings =
+                    DeviceBuffer::<SC::Challenge>::with_capacity(1 << log_height).unwrap();
+                unsafe {
+                    batched_openings.set_max_len();
+                    batched_openings.set(0).unwrap();
+                }
+                (log_height, batched_openings)
             })
-            .collect::<Vec<_>>();
+            .collect::<BTreeMap<_, _>>();
 
-        let trace_opening_points = domains
-            .iter()
-            .map(|domain| vec![zeta, domain.next_point(zeta).unwrap()])
-            .collect::<Vec<_>>();
+        // Batch the FRI data.
 
-        // Compute quotient openning points, open every chunk at zeta.
-        let quotient_opening_points =
-            (0..num_quotient_chunks).map(|_| vec![zeta]).collect::<Vec<_>>();
+        // Get the batching challenge.
+        let alpha: SC::Challenge = challenger.sample_ext_element();
 
-        // Split the trace_opening_points to the global and local chips.
-        let mut global_trace_opening_points = Vec::with_capacity(global_chip_ordering.len());
-        let mut local_trace_opening_points = Vec::with_capacity(local_chip_ordering.len());
-        for (i, trace_opening_point) in trace_opening_points.clone().into_iter().enumerate() {
-            let scope = all_chip_scopes[i];
-            if scope == InteractionScope::Global {
-                global_trace_opening_points.push(trace_opening_point);
-            } else {
-                local_trace_opening_points.push(trace_opening_point);
+        // Batch the preprocessed traces
+        let mut alpha_offsets =
+            batched_openings.keys().map(|i| (*i, SC::Challenge::one())).collect::<BTreeMap<_, _>>();
+        for (lde, (log_height, local_open, next_open)) in
+            pk.data.matrices().iter().zip_eq(preprocessed_opens.iter())
+        {
+            let lde_log_height = log_height + log_blowup;
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                local_open,
+                zeta,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+            let g = BabyBear::two_adic_generator(*log_height);
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                next_open,
+                zeta * g,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+        }
+
+        // Batch the main global traces
+        if let Some(global_main_data) = global_main_data.as_ref() {
+            for (lde, (log_height, local_open, next_open)) in
+                global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
+            {
+                let lde_log_height = log_height + log_blowup;
+                self.opening_prover.batch_update(
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
+                    lde,
+                    SC::Val::generator(),
+                    local_open,
+                    zeta,
+                    alpha,
+                    alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                    &self.main_stream,
+                );
+                let g = BabyBear::two_adic_generator(*log_height);
+                self.opening_prover.batch_update(
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
+                    lde,
+                    SC::Val::generator(),
+                    next_open,
+                    zeta * g,
+                    alpha,
+                    alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                    &self.main_stream,
+                );
             }
         }
 
-        let rounds = if let Some(global_main_data) = global_main_data.as_ref() {
-            vec![
-                (&pk.data, preprocessed_opening_points),
-                (global_main_data, global_trace_opening_points),
-                (&local_main_data, local_trace_opening_points),
-                (&perm_prover_data, trace_opening_points),
-                (&quotient_prover_data, quotient_opening_points),
-            ]
-        } else {
-            vec![
-                (&pk.data, preprocessed_opening_points),
-                (&local_main_data, local_trace_opening_points),
-                (&perm_prover_data, trace_opening_points),
-                (&quotient_prover_data, quotient_opening_points),
-            ]
-        };
-
-        // Synchronize all the chip streams so that they are ready for the opening and all memory
-        // can be freed.
-        for stream in self.chip_streams.iter() {
-            stream.synchronize().unwrap();
+        // Batch the main local traces.
+        for (lde, (log_height, local_open, next_open)) in
+            local_main_data.matrices().iter().zip_eq(main_local_openings.iter())
+        {
+            let lde_log_height = log_height + log_blowup;
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                local_open,
+                zeta,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+            let g = BabyBear::two_adic_generator(*log_height);
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                next_open,
+                zeta * g,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
         }
 
-        let (openings, opening_proof) = tracing::debug_span!("compute opening")
-            .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
+        // Batch the permutation traces.
+        for (lde, (log_height, local_open, next_open)) in
+            perm_prover_data.matrices().iter().zip_eq(perm_openings.iter())
+        {
+            let lde_log_height = log_height + log_blowup;
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                local_open,
+                zeta,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+            let g = BabyBear::two_adic_generator(*log_height);
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                next_open,
+                zeta * g,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+        }
+
+        // Batch the quotient traces.
+        for (lde, (log_height, open)) in
+            quotient_prover_data.matrices().iter().zip_eq(quot_openings.iter())
+        {
+            let lde_log_height = log_height + log_blowup;
+            self.opening_prover.batch_update(
+                batched_openings.get_mut(&lde_log_height).unwrap(),
+                lde,
+                SC::Val::generator(),
+                open,
+                zeta,
+                alpha,
+                alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
+            );
+        }
+
+        // generate a fri proof.
+
+        let input_leaves = batched_openings
+            .into_iter()
+            .map(|(i, values)| {
+                let base_values = unsafe { values.flatten_to_base::<SC::Val>() };
+                let leaf_matrix = RowMajorMatrixDevice::new(
+                    base_values,
+                    2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                )
+                .to_column_major();
+                (i, leaf_matrix)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        let (fri_proof, query_indices) = self.opening_prover.prove(
+            &self.committer,
+            self.machine.config().pcs().fri_config(),
+            input_leaves,
+            challenger,
+        );
+
+        let prover_data = if let Some(global_main_data) = global_main_data.as_ref() {
+            vec![
+                &pk.data,
+                global_main_data,
+                &local_main_data,
+                &perm_prover_data,
+                &quotient_prover_data,
+            ]
+        } else {
+            vec![&pk.data, &local_main_data, &perm_prover_data, &quotient_prover_data]
+        };
+        let log_global_max_height = prover_data
+            .iter()
+            .flat_map(|data| data.matrices().iter().map(|mat| mat.height))
+            .max()
+            .unwrap()
+            .ilog2() as usize;
+
+        let query_openings = self.committer.mmcs_committer.query_open_batch(
+            &query_indices,
+            &prover_data,
+            log_global_max_height,
+            false,
+        );
+
+        let opening_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
+
+        // Get the openings for the chips.
+        let preprocessed_opens = preprocessed_opens
+            .into_iter()
+            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .collect::<Vec<_>>();
+        let main_global_openings = main_global_openings
+            .into_iter()
+            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .collect::<Vec<_>>();
+        let main_local_openings = main_local_openings
+            .into_iter()
+            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .collect::<Vec<_>>();
+        let perm_openings = perm_openings
+            .into_iter()
+            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .collect::<Vec<_>>();
+        let mut quot_openings =
+            quot_openings.into_iter().map(|(_, open)| open.to_host()).collect::<Vec<_>>();
+
+        let mut opened_values = vec![];
+        for (i, (chip, perm_opens)) in shard_chips.iter().zip(perm_openings).enumerate() {
+            let preprocessed = pk
+                .chip_ordering
+                .get(&chip.name())
+                .map(|&idx| {
+                    let (local, next) = preprocessed_opens[idx].clone();
+                    AirOpenedValues { local, next }
+                })
+                .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
+
+            let global_order = global_chip_ordering.get(&chip.name());
+            let local_order = local_chip_ordering.get(&chip.name());
+            let main = match (global_order, local_order) {
+                (Some(idx), None) => {
+                    let (local, next) = main_global_openings[*idx].clone();
+                    AirOpenedValues { local, next }
+                }
+                (None, Some(idx)) => {
+                    let (local, next) = main_local_openings[*idx].clone();
+                    AirOpenedValues { local, next }
+                }
+                _ => unreachable!(),
+            };
+            let (perm_local, perm_next) = perm_opens;
+            let permutation = AirOpenedValues { local: perm_local, next: perm_next };
+
+            let log_degree = domains[i].size().ilog2() as usize;
+
+            let log_quotient_degree = chip.log_quotient_degree();
+            let degree = 1 << log_quotient_degree;
+            let quotient = quot_openings.drain(0..degree).collect::<Vec<_>>();
+
+            opened_values.push(ChipOpenedValues {
+                preprocessed,
+                main,
+                permutation,
+                quotient,
+                global_cumulative_sum: cumulative_sums[i][0],
+                local_cumulative_sum: cumulative_sums[i][1],
+                log_degree,
+            });
+        }
+
+        compute_evaluations_span.exit();
 
         drop(local_main_data);
         drop(perm_prover_data);
         drop(quotient_prover_data);
-
-        // Collect the opened values for each chip.
-        let (
-            preprocessed_values,
-            global_main_values,
-            local_main_values,
-            permutation_values,
-            mut quotient_values,
-        ) = if global_main_data.is_some() {
-            let [preprocessed_values, global_main_values, local_main_values, permutation_values, quotient_values] =
-                openings.try_into().unwrap();
-            (
-                preprocessed_values,
-                Some(global_main_values),
-                local_main_values,
-                permutation_values,
-                quotient_values,
-            )
-        } else {
-            let [preprocessed_values, local_main_values, permutation_values, quotient_values] =
-                openings.try_into().unwrap();
-            (preprocessed_values, None, local_main_values, permutation_values, quotient_values)
-        };
-
-        let preprocessed_opened_values = preprocessed_values
-            .into_iter()
-            .map(|op| {
-                let [local, next] = op.try_into().unwrap();
-                AirOpenedValues { local, next }
-            })
-            .collect::<Vec<_>>();
-
-        // Merge the global and local main values.
-        let mut main_values =
-            Vec::with_capacity(global_chip_ordering.len() + local_chip_ordering.len());
-        for chip in shard_chips.iter() {
-            let global_order = global_chip_ordering.get(&chip.name());
-            let local_order = local_chip_ordering.get(&chip.name());
-            match (global_order, local_order) {
-                (Some(&global_order), None) => {
-                    let global_main_values =
-                        global_main_values.as_ref().expect("Global main values should be Some");
-                    main_values.push(global_main_values[global_order].clone());
-                }
-                (None, Some(&local_order)) => {
-                    main_values.push(local_main_values[local_order].clone());
-                }
-                _ => unreachable!(),
-            }
-        }
-        assert!(main_values.len() == shard_chips.len());
-
-        let main_opened_values = main_values
-            .into_iter()
-            .map(|op| {
-                let [local, next] = op.try_into().unwrap();
-                AirOpenedValues { local, next }
-            })
-            .collect::<Vec<_>>();
-
-        let permutation_opened_values = permutation_values
-            .into_iter()
-            .map(|op| {
-                let [local, next] = op.try_into().unwrap();
-                AirOpenedValues { local, next }
-            })
-            .collect::<Vec<_>>();
-
-        let mut quotient_opened_values = Vec::with_capacity(shard_chips.len());
-        for chip in shard_chips.iter() {
-            let log_quotient_degree = chip.log_quotient_degree();
-            let degree = 1 << log_quotient_degree;
-            let slice = quotient_values.drain(0..degree);
-            quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
-        }
-
-        let opened_values = main_opened_values
-            .into_iter()
-            .zip_eq(permutation_opened_values)
-            .zip_eq(quotient_opened_values)
-            .zip_eq(cumulative_sums)
-            .zip_eq(shard_chips.iter())
-            .enumerate()
-            .map(|(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
-                let preprocessed = pk
-                    .chip_ordering
-                    .get(&chip.name())
-                    .map(|&index| preprocessed_opened_values[index].clone())
-                    .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
-                let log_degree = domains[i].size().ilog2() as usize;
-                ChipOpenedValues {
-                    preprocessed,
-                    main,
-                    permutation,
-                    quotient,
-                    global_cumulative_sum: cumulative_sum[0],
-                    local_cumulative_sum: cumulative_sum[1],
-                    log_degree,
-                }
-            })
-            .collect::<Vec<_>>();
 
         // Synchronize all the chip streams so that we free the memory used in the FRI openning.
         for stream in self.chip_streams.iter() {
