@@ -29,7 +29,7 @@ use std::{
 };
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
@@ -51,7 +51,9 @@ use super::natural_domain_for_degree;
 /// A CUDA prover for a STARK.
 pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
+    main_stream: CudaStream,
     chip_streams: Vec<CudaStream>,
+    chip_events: Vec<CudaEvent>,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC, C>,
@@ -178,13 +180,17 @@ where
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine.chips().iter().map(|_| CudaStream::create().unwrap()).collect();
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
+        let chip_events =
+            machine.chips().iter().map(|_| CudaEvent::new().unwrap()).collect::<Vec<_>>();
         Self {
             machine,
+            main_stream: CudaStream::default(),
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriOpeningProver::default(),
             quotient_generator,
             chip_streams,
+            chip_events,
             domain_normalizers,
         }
     }
@@ -373,6 +379,8 @@ where
         );
         let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
         let shard_chips = self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
+        let shard_chip_stream =
+            all_traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
 
         assert!(shard_chips.len() == all_traces.len());
 
@@ -707,7 +715,7 @@ where
         }
         // Openings for quotient traces
         let mut quot_openings = vec![];
-        for (domain, trace) in quotient_domains_and_chunks {
+        for (domain, trace) in quotient_domains_and_chunks.into_iter() {
             let mut open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
@@ -721,8 +729,9 @@ where
             quot_openings.push((log_height, open));
         }
 
-        for stream in self.chip_streams.iter() {
-            stream.synchronize().unwrap();
+        for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
         }
 
         // Create the input for the FRI opening.
@@ -763,6 +772,7 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -773,6 +783,7 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
         }
 
@@ -790,6 +801,7 @@ where
                     zeta,
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                    &self.main_stream,
                 );
                 let g = BabyBear::two_adic_generator(*log_height);
                 self.opening_prover.batch_update(
@@ -800,6 +812,7 @@ where
                     zeta * g,
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                    &self.main_stream,
                 );
             }
         }
@@ -817,6 +830,7 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -827,6 +841,7 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
         }
 
@@ -843,6 +858,7 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -853,6 +869,7 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
         }
 
@@ -869,6 +886,7 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                &self.main_stream,
             );
         }
 
