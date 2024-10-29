@@ -6,7 +6,7 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::{AbstractExtensionField, TwoAdicField};
+use p3_field::{AbstractExtensionField, Field, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::{
@@ -38,7 +38,7 @@ use crate::{
         DeviceBuffer,
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
-    matrix::ColMajorMatrixDevice,
+    matrix::{ColMajorMatrixDevice, DeviceMatrix},
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
@@ -632,10 +632,10 @@ where
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
             let log_height = trace.height().ilog2() as usize;
+            let g = BabyBear::two_adic_generator(log_height);
             let normalizer = self.domain_normalizers[log_height];
-            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
-            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
-            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
+            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
             preprocessed_opens.push((log_height, local_open, next_open));
         }
 
@@ -648,11 +648,15 @@ where
             let mut next_open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
+            unsafe {
+                local_open.set_max_len();
+                next_open.set_max_len();
+            }
             let log_height = trace.height().ilog2() as usize;
+            let g = BabyBear::two_adic_generator(log_height);
             let normalizer = self.domain_normalizers[log_height];
-            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
-            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
-            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
+            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
             main_global_openings.push((log_height, local_open, next_open));
         }
 
@@ -665,11 +669,15 @@ where
             let mut next_open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
+            unsafe {
+                local_open.set_max_len();
+                next_open.set_max_len();
+            }
             let log_height = trace.height().ilog2() as usize;
+            let g = BabyBear::two_adic_generator(log_height);
             let normalizer = self.domain_normalizers[log_height];
-            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
-            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
-            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
+            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
             main_local_openings.push((log_height, local_open, next_open));
         }
 
@@ -682,26 +690,32 @@ where
             let mut next_open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
+            unsafe {
+                local_open.set_max_len();
+                next_open.set_max_len();
+            }
             let log_height = trace.height().ilog2() as usize;
+            let g = BabyBear::two_adic_generator(log_height);
             let normalizer = self.domain_normalizers[log_height];
-            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
-            trace.eval(&mut local_open, normalizer, zeta, vanishing_poly).unwrap();
-            trace.eval_next(&mut next_open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
+            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
             perm_openings.push((log_height, local_open, next_open));
         }
         // Openings for quotient traces
         let mut quot_openings = vec![];
         let mut input_heights = BTreeSet::new();
-        for (_, trace) in quotient_domains_and_chunks {
+        for (domain, trace) in quotient_domains_and_chunks {
             let mut open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
+            unsafe {
+                open.set_max_len();
+            }
             let log_height = trace.height().ilog2() as usize;
             let normalizer = self.domain_normalizers[log_height];
-            let vanishing_poly = zeta.exp_power_of_2(log_height) - SC::Challenge::one();
-            trace.eval(&mut open, normalizer, zeta, vanishing_poly).unwrap();
+            trace.eval(&mut open, normalizer, domain.shift, zeta).unwrap();
             input_heights.insert(log_height);
-            quot_openings.push((log_height, open));
+            quot_openings.push((log_height, domain.shift, open));
         }
 
         // for stream in self.chip_streams.iter() {
@@ -755,6 +769,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 prep_lde,
+                SC::Val::generator(),
                 local_open,
                 zeta,
                 alpha,
@@ -764,6 +779,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 prep_lde,
+                SC::Val::generator(),
                 next_open,
                 zeta * g,
                 alpha,
@@ -777,18 +793,25 @@ where
                 global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
             {
                 let lde_log_height = log_height + log_blowup;
+                let before = *alpha_offsets.get(&lde_log_height).unwrap();
                 self.opening_prover.batch_update(
                     input_leaves.get_mut(&lde_log_height).unwrap(),
                     lde,
+                    SC::Val::generator(),
                     local_open,
                     zeta,
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
+                assert_eq!(
+                    *alpha_offsets.get(&lde_log_height).unwrap(),
+                    before * alpha.exp_u64(lde.width().try_into().unwrap())
+                );
                 let g = BabyBear::two_adic_generator(*log_height);
                 self.opening_prover.batch_update(
                     input_leaves.get_mut(&lde_log_height).unwrap(),
                     lde,
+                    SC::Val::generator(),
                     next_open,
                     zeta * g,
                     alpha,
@@ -805,6 +828,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
+                SC::Val::generator(),
                 local_open,
                 zeta,
                 alpha,
@@ -814,6 +838,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
+                SC::Val::generator(),
                 next_open,
                 zeta * g,
                 alpha,
@@ -829,6 +854,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
+                SC::Val::generator(),
                 local_open,
                 zeta,
                 alpha,
@@ -838,6 +864,7 @@ where
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
+                SC::Val::generator(),
                 next_open,
                 zeta * g,
                 alpha,
@@ -846,13 +873,14 @@ where
         }
 
         // Batch the quotient traces.
-        for (lde, (log_height, open)) in
+        for (lde, (log_height, shift, open)) in
             quotient_prover_data.matrices().iter().zip_eq(quot_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
             self.opening_prover.batch_update(
                 input_leaves.get_mut(&lde_log_height).unwrap(),
                 lde,
+                *shift * SC::Val::generator(),
                 open,
                 zeta,
                 alpha,
@@ -866,12 +894,12 @@ where
             stream.synchronize().unwrap();
         }
 
-        let (fri_proof, query_indices) = crate::fri::prove(
-            &self.committer,
-            self.machine.config().pcs().fri_config(),
-            input_leaves,
-            &mut new_challenger,
-        );
+        // let (fri_proof, query_indices) = crate::fri::prove(
+        //     &self.committer,
+        //     self.machine.config().pcs().fri_config(),
+        //     input_leaves,
+        //     &mut new_challenger,
+        // );
 
         let prover_data = if let Some(global_main_data) = global_main_data.as_ref() {
             vec![
@@ -891,14 +919,14 @@ where
             .unwrap()
             .ilog2() as usize;
 
-        let query_openings = self.committer.mmcs_committer.query_open_batch(
-            &query_indices,
-            &prover_data,
-            log_global_max_height,
-            false,
-        );
+        // let query_openings = self.committer.mmcs_committer.query_open_batch(
+        //     &query_indices,
+        //     &prover_data,
+        //     log_global_max_height,
+        //     false,
+        // );
 
-        let pcs_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
+        // let pcs_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
 
         compute_evaluations_span.exit();
 
@@ -955,8 +983,9 @@ where
             stream.synchronize().unwrap();
         }
 
-        let (openings, opening_proof) = tracing::debug_span!("compute opening")
-            .in_scope(|| self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger));
+        let (openings, opening_proof) = tracing::debug_span!("compute opening").in_scope(|| {
+            self.opening_prover.open(&self.committer, self.pcs(), rounds, challenger, &input_leaves)
+        });
 
         drop(local_main_data);
         drop(perm_prover_data);
@@ -1034,7 +1063,18 @@ where
             let log_quotient_degree = chip.log_quotient_degree();
             let degree = 1 << log_quotient_degree;
             let slice = quotient_values.drain(0..degree);
-            quotient_opened_values.push(slice.map(|mut op| op.pop().unwrap()).collect::<Vec<_>>());
+            quotient_opened_values.push(
+                slice
+                    .map(|mut op| {
+                        let open = op.pop().unwrap();
+                        let (_, _, exp_open) = quot_openings.remove(0);
+                        for (val, exp) in open.iter().zip_eq(exp_open.to_host().iter()) {
+                            assert_eq!(val, exp);
+                        }
+                        open
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
 
         let opened_values = main_opened_values
@@ -1045,6 +1085,11 @@ where
             .zip_eq(shard_chips.iter())
             .enumerate()
             .map(|(i, ((((main, permutation), quotient), cumulative_sum), chip))| {
+                let perm_local = perm_openings[i].2.to_host();
+                assert_eq!(perm_local.len(), permutation.local.len(), "failed for {}", chip.name());
+                for (val, exp) in perm_local.into_iter().zip_eq(permutation.next.iter()) {
+                    assert_eq!(val, *exp);
+                }
                 let preprocessed = pk
                     .chip_ordering
                     .get(&chip.name())
@@ -1076,8 +1121,8 @@ where
                 quotient_commit,
             },
             opened_values: ShardOpenedValues { chips: opened_values },
-            // opening_proof,
-            opening_proof: pcs_proof,
+            opening_proof,
+            // opening_proof: pcs_proof,
             chip_ordering: all_chips_ordering,
             public_values: local_public_values,
         })

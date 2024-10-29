@@ -1,5 +1,5 @@
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, AbstractField, Field, TwoAdicField};
 
 use crate::{
     device::{error::CudaError, DeviceBuffer},
@@ -27,10 +27,13 @@ impl ColMajorMatrixDevice<BabyBear> {
         &self,
         results: &mut DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
         normalizer: BabyBear,
+        shift: BabyBear,
         evaluation_point: BinomialExtensionField<BabyBear, 4>,
-        vanishing_poly_eval: BinomialExtensionField<BabyBear, 4>,
     ) -> Result<(), CudaError> {
         let log_height = self.height.ilog2() as usize;
+        let evaluation_point = evaluation_point * shift.inverse();
+        let vanishing_poly_eval = evaluation_point.exp_power_of_2(log_height)
+            - BinomialExtensionField::<BabyBear, 4>::one();
         unsafe {
             ffi::univariate_eval_babybear(
                 results.as_mut_ptr(),
@@ -38,31 +41,6 @@ impl ColMajorMatrixDevice<BabyBear> {
                 BabyBear::two_adic_generator(log_height),
                 normalizer,
                 evaluation_point,
-                vanishing_poly_eval,
-                self.width(),
-                log_height,
-                self.stream().handle(),
-            )
-            .to_result()
-        }
-    }
-
-    pub fn eval_next(
-        &self,
-        results: &mut DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
-        normalizer: BabyBear,
-        evaluation_point: BinomialExtensionField<BabyBear, 4>,
-        vanishing_poly_eval: BinomialExtensionField<BabyBear, 4>,
-    ) -> Result<(), CudaError> {
-        let log_height = self.height.ilog2() as usize;
-        let g = BabyBear::two_adic_generator(log_height);
-        unsafe {
-            ffi::univariate_eval_babybear(
-                results.as_mut_ptr(),
-                self.values.as_ptr(),
-                g,
-                normalizer,
-                evaluation_point * g,
                 vanishing_poly_eval,
                 self.width(),
                 log_height,
@@ -104,7 +82,7 @@ mod tests {
     use itertools::Itertools;
     use p3_baby_bear::BabyBear;
     use p3_challenger::CanObserve;
-    use p3_commit::Pcs;
+    use p3_commit::{Pcs, PolynomialSpace};
     use p3_field::{extension::BinomialExtensionField, AbstractField};
     use p3_matrix::dense::RowMajorMatrix;
     use rand::{thread_rng, Rng};
@@ -153,8 +131,7 @@ mod tests {
         let point: EF = rng.gen();
         input_device.stream().synchronize().unwrap();
         let time = Instant::now();
-        let vanishing_poly = point.exp_power_of_2(input_log_height) - EF::one();
-        input_device.eval(&mut results, domain_normalizer, point, vanishing_poly).unwrap();
+        input_device.eval(&mut results, domain_normalizer, F::one(), point).unwrap();
         input_device.stream().synchronize().unwrap();
         let elapsed = time.elapsed();
         println!("Device time: {:?}", elapsed);
@@ -196,8 +173,9 @@ mod tests {
                 let point: EF = rng.gen();
                 input_device.stream().synchronize().unwrap();
                 let time = Instant::now();
-                let vanishing_poly = point.exp_power_of_2(input_log_height) - EF::one();
-                input_device.eval(&mut results, domain_normalizer, point, vanishing_poly).unwrap();
+                input_device
+                    .eval(&mut results, domain_normalizer, BabyBear::generator(), point)
+                    .unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();
                 println!("Device time: {:?}", elapsed);
@@ -211,6 +189,7 @@ mod tests {
                     >>::natural_domain_for_degree(
                         config.pcs(), input_height
                     );
+                    let domain = domain.create_disjoint_domain(domain.size());
                     let mut challenger = config.challenger();
                     let (commit, prover_data) =
                         <<SC as StarkGenericConfig>::Pcs as Pcs<

@@ -47,6 +47,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         &self,
         leaf_matrix: &mut ColMajorMatrixDevice<SC::Val>,
         polynomial_batch: &ColMajorMatrixDevice<SC::Val>,
+        shift: SC::Val,
         evaluations: &DeviceBuffer<SC::Challenge>,
         evaluation_point: SC::Challenge,
         batching_challenge: SC::Challenge,
@@ -55,7 +56,6 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let log_height = polynomial_batch.height().ilog2() as usize;
         let domain_generator = BabyBear::two_adic_generator(log_height);
         let width = polynomial_batch.width();
-        let shift = BabyBear::generator();
         unsafe {
             opening_gpu::batch_fri_update(
                 leaf_matrix.view_mut(),
@@ -81,6 +81,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         pcs: &SC::Pcs,
         rounds: Vec<(&C::ProverData, Vec<Vec<SC::Challenge>>)>,
         challenger: &mut SC::Challenger,
+        expected_leaves: &BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
     ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
@@ -395,6 +396,13 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .skip(1)
             .map(|(i, m)| (inverse_index_map[&i], m))
             .collect();
+
+        for ((k, leaf), (k_exp, leaf_exp)) in leaves.iter().zip_eq(expected_leaves.iter()) {
+            assert_eq!(k, k_exp);
+            for (val, exp) in leaf.values.to_host().iter().zip(leaf_exp.values.to_host().iter()) {
+                // assert_eq!(val, exp, "Not expected");
+            }
+        }
 
         let (fri_proof, query_indices) = tracing::trace_span!("fri Proof")
             .in_scope(|| prove(committer, pcs.fri_config(), leaves, challenger));

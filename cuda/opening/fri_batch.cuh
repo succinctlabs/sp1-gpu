@@ -34,14 +34,15 @@ template<typename F, typename EF> __global__ void batchFriKernel(
     size_t i = blockIdx.x * blockDim.x + threadIdx.x;
     size_t height = 1U << logHeight;
     if (i >= height) return;
-    // Stride loops to accumulate elements from all rows and columns.
-    F domainPoint = domainGenerator^(bit_rev(blockIdx.x * blockDim.x + threadIdx.x, logHeight));
+
+    unsigned int idx = bit_rev(blockIdx.x * blockDim.x + threadIdx.x, logHeight); 
+    F domainPoint = domainGenerator^idx;
     domainPoint *= shift;
     EF batchingPower = batchingChallengeOffset;
     EF inverseDenom = EF::one() / (EF(domainPoint) - evaluationPoint);
     EF accumulator = EF::zero(); 
     for (size_t j = 0 ; j < width ; j++) {
-        // Compute batch_value = p(x) - p(z) / (x - z).
+        // Compute batch_value = alpha^i ((p(x) - p(z) / (x - z)).
         EF batchValue  = EF(polynomialBatch[j * height + i]) - evaluations[j];
         batchValue *= batchingPower; 
         accumulator += batchValue;
