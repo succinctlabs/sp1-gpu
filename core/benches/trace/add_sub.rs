@@ -1,6 +1,7 @@
 use moongate_core::cuda_runtime::stream::CudaStream;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::matrix::ColMajorMatrixDevice;
+use moongate_core::stark::trace::FfiAir;
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rand::thread_rng;
@@ -71,13 +72,9 @@ fn on_device(bencher: divan::Bencher) {
 }
 
 fn on_device_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
-    let mat = moongate_core::stark::trace::add_sub_generate_trace(
-        &AddSubChip,
-        shard,
-        &mut ExecutionRecord::default(),
-        &CudaStream::default(),
-    )
-    .unwrap();
+    let mat = AddSubChip
+        .generate_trace_ffi(shard, &mut ExecutionRecord::default(), &CudaStream::default())
+        .unwrap();
     mat.stream().synchronize().unwrap();
     mat
 }

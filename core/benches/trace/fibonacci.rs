@@ -89,7 +89,7 @@ fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
         .map(|record| {
             env.machine
                 .chips()
-                .iter()
+                .par_iter()
                 .filter(|chip| chip.included(record))
                 .map(|chip| {
                     let mat = chip

@@ -16,7 +16,9 @@ use crate::device::error::{CudaError, CudaRustError};
 use crate::device::memory::ToDevice;
 use crate::matrix::{ColMajorMatrixDevice, MatrixViewMutDevice};
 
+/// An AIR that possibly has hardware accelerated functionality.
 pub trait AccelAir<F: PrimeField32>: MachineAir<F> {
+    /// Generate a trace, using hardware acceleration if available.
     fn generate_trace_accel(
         &self,
         input: &Self::Record,
@@ -32,13 +34,14 @@ impl AccelAir<F> for RiscvAir<F> {
         output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+        // Accelerate trace generation for available chips.
         match self {
-            RiscvAir::Cpu(chip) => cpu_generate_trace(chip, input, output, stream),
-            RiscvAir::Add(chip) => add_sub_generate_trace(chip, input, output, stream),
-            RiscvAir::Bitwise(chip) => bitwise_generate_trace(chip, input, output, stream),
-            RiscvAir::Lt(chip) => lt_generate_trace(chip, input, output, stream),
-            RiscvAir::ShiftLeft(chip) => sll_generate_trace(chip, input, output, stream),
-            RiscvAir::ShiftRight(chip) => sr_generate_trace(chip, input, output, stream),
+            RiscvAir::Cpu(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::Add(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::Bitwise(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::Lt(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::ShiftLeft(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::ShiftRight(chip) => chip.generate_trace_ffi(input, output, stream),
             // Fallback for other chips.
             other => tracing::debug_span!("on host").in_scope(|| {
                 let trace = tracing::debug_span!("generate")
@@ -57,13 +60,58 @@ impl<const DEGREE: usize> AccelAir<F> for RecursionAir<F, DEGREE> {
         output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-        let mat = self.generate_trace(input, output).to_device_async(stream)?.to_column_major();
-        // mat.stream().synchronize()?;
+        Ok(self.generate_trace(input, output).to_device_async(stream)?.to_column_major())
+    }
+}
+
+/// An AIR that has functionality available through FFI.
+pub trait FfiAir: MachineAir<F> {
+    const NUM_COLS: usize;
+    const ROWS_PER_EVENT: usize = 1;
+    const FFI_POPULATE: FfiPopulate<Self::Event>;
+    type Event: Copy;
+
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]>;
+
+    fn generate_trace_ffi(
+        &self,
+        input: &ExecutionRecord,
+        _output: &mut ExecutionRecord,
+        stream: &CudaStream,
+    ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+        // These two vectors should be combined in the record struct.
+        let events_owned = Self::events(input);
+        let events = events_owned.as_ref();
+
+        let nb_rows = next_power_of_two(
+            events.len() * Self::ROWS_PER_EVENT,
+            input.fixed_log2_rows::<F, _>(self),
+        );
+
+        let events = events.to_device_async(stream)?;
+        let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(Self::NUM_COLS, nb_rows, stream)?;
+        unsafe { mat.set_max_width() };
+
+        unsafe {
+            Self::FFI_POPULATE(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+        }
+        .to_result()?;
+
         Ok(mat)
     }
 }
 
-// TODO: investigate if a macro can be used here.
+/// The type of an FFI populate function associated with an `Event` type.
+type FfiPopulate<Event> = unsafe extern "C" fn(
+    mat: MatrixViewMutDevice<F>,
+    events: *const Event,
+    nb_events: usize,
+    stream: CudaStreamHandle,
+) -> CudaRustError;
+
+// These `extern` declarations cannot be factored through a macro, because cbindgen needs
+// to read them directly. It does have functionality to expand macros, but this functionality
+// seems to be more trouble than it is worth.
 
 extern "C" {
     pub fn add_sub_populate_babybear(
@@ -74,29 +122,14 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn add_sub_generate_trace(
-    chip: &AddSubChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for AddSubChip {
     const NUM_COLS: usize = sp1_core_machine::alu::NUM_ADD_SUB_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    let events = &input.add_sub_events;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = add_sub_populate_babybear;
+    type Event = AluEvent;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe {
-        add_sub_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.add_sub_events
     }
-    .to_result()?;
-
-    Ok(mat)
 }
 
 extern "C" {
@@ -108,29 +141,14 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn bitwise_generate_trace(
-    chip: &BitwiseChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for BitwiseChip {
     const NUM_COLS: usize = sp1_core_machine::alu::bitwise::NUM_BITWISE_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    let events = &input.bitwise_events;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = bitwise_populate_babybear;
+    type Event = AluEvent;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe {
-        bitwise_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.bitwise_events
     }
-    .to_result()?;
-
-    Ok(mat)
 }
 
 extern "C" {
@@ -142,27 +160,14 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn lt_generate_trace(
-    chip: &LtChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for LtChip {
     const NUM_COLS: usize = sp1_core_machine::alu::lt::NUM_LT_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    let events = &input.lt_events;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = lt_populate_babybear;
+    type Event = AluEvent;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe { lt_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
-        .to_result()?;
-
-    Ok(mat)
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.lt_events
+    }
 }
 
 extern "C" {
@@ -174,29 +179,14 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn sll_generate_trace(
-    chip: &ShiftLeftChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for ShiftLeftChip {
     const NUM_COLS: usize = sp1_core_machine::alu::sll::NUM_SHIFT_LEFT_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    let events = &input.shift_left_events;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = sll_populate_babybear;
+    type Event = AluEvent;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe {
-        sll_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.shift_left_events
     }
-    .to_result()?;
-
-    Ok(mat)
 }
 
 extern "C" {
@@ -208,27 +198,14 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn sr_generate_trace(
-    chip: &ShiftRightChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for ShiftRightChip {
     const NUM_COLS: usize = sp1_core_machine::alu::sr::NUM_SHIFT_RIGHT_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    let events = &input.shift_right_events;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = sr_populate_babybear;
+    type Event = AluEvent;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe { sr_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle()) }
-        .to_result()?;
-
-    Ok(mat)
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.shift_right_events
+    }
 }
 
 extern "C" {
@@ -240,36 +217,20 @@ extern "C" {
     ) -> CudaRustError;
 }
 
-pub fn cpu_generate_trace(
-    chip: &CpuChip,
-    input: &ExecutionRecord,
-    _output: &mut ExecutionRecord,
-    stream: &CudaStream,
-) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+impl FfiAir for CpuChip {
     const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
-    const ROWS_PER_EVENT: usize = 1;
-    // Eventually, we'll make CPU events FFI compatible.
-    let events = &tracing::debug_span!("cpu events translation").in_scope(|| {
-        input
-            .cpu_events
-            .par_iter()
-            .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
-            .collect::<Vec<_>>()
-    });
+    const FFI_POPULATE: FfiPopulate<Self::Event> = cpu_populate_babybear;
+    type Event = CpuEventFfi;
 
-    let nb_rows =
-        next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
-
-    let events = events.to_device_async(stream)?;
-    let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(NUM_COLS, nb_rows, stream)?;
-    unsafe { mat.set_max_width() };
-
-    unsafe {
-        cpu_populate_babybear(mat.view_mut(), events.as_ptr(), events.len(), stream.handle())
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        tracing::debug_span!("cpu events translation").in_scope(|| {
+            input
+                .cpu_events
+                .par_iter()
+                .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
+                .collect::<Vec<_>>()
+        })
     }
-    .to_result()?;
-
-    Ok(mat)
 }
 
 #[cfg(test)]
