@@ -45,7 +45,7 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
 impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     pub fn batch_update(
         &self,
-        leaf_matrix: &mut ColMajorMatrixDevice<SC::Val>,
+        reduced_openings: &mut DeviceBuffer<SC::Challenge>,
         polynomial_batch: &ColMajorMatrixDevice<SC::Val>,
         shift: SC::Val,
         evaluations: &DeviceBuffer<SC::Challenge>,
@@ -58,7 +58,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let width = polynomial_batch.width();
         unsafe {
             opening_gpu::batch_fri_update(
-                leaf_matrix.view_mut(),
+                reduced_openings.as_mut_ptr(),
                 polynomial_batch.values.as_ptr(),
                 evaluations.as_ptr(),
                 domain_generator,
@@ -948,7 +948,7 @@ pub mod opening_gpu {
     extern "C" {
         #[link_name = "batchFri"]
         pub fn batch_fri_update(
-            leaf_matrix: MatrixViewMutDevice<F>,
+            reduced_openings: *mut EF,
             polynomial_batch: *const F,
             evaluations: *const EF,
             domain_generator: F,

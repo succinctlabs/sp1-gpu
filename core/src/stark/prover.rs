@@ -38,7 +38,7 @@ use crate::{
         DeviceBuffer,
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
-    matrix::{ColMajorMatrixDevice, DeviceMatrix},
+    matrix::{ColMajorMatrixDevice, DeviceMatrix, RowMajorMatrixDevice},
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
@@ -726,18 +726,17 @@ where
 
         let log_blowup = self.machine.config().pcs().fri_config().log_blowup;
 
-        let mut input_leaves = input_heights
+        let mut batched_openings = input_heights
             .into_iter()
             .map(|trace_log_height| {
                 let log_height = trace_log_height + log_blowup;
-                let mut batched_openings = ColMajorMatrixDevice::<SC::Val>::with_capacity(
-                    2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
-                    1 << (log_height - 1),
+                let mut batched_openings = DeviceBuffer::<SC::Challenge>::with_capacity(
+                    <SC::Challenge as AbstractExtensionField<SC::Val>>::D * (1 << log_height),
                 )
                 .unwrap();
                 unsafe {
-                    batched_openings.values.set_max_len();
-                    batched_openings.values.set(0).unwrap();
+                    batched_openings.set_max_len();
+                    batched_openings.set(0).unwrap();
                 }
                 (log_height, batched_openings)
             })
@@ -762,14 +761,14 @@ where
 
         // Batch the preprocessed traces
         let mut alpha_offsets =
-            input_leaves.keys().map(|i| (*i, SC::Challenge::one())).collect::<BTreeMap<_, _>>();
+            batched_openings.keys().map(|i| (*i, SC::Challenge::one())).collect::<BTreeMap<_, _>>();
         for (lde, (log_height, local_open, next_open)) in
             pk.data.matrices().iter().zip_eq(preprocessed_opens.iter())
         {
             let lde_log_height = log_height + log_blowup;
             assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 local_open,
@@ -780,7 +779,7 @@ where
             lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 next_open,
@@ -799,7 +798,7 @@ where
                 let lde_log_height = log_height + log_blowup;
                 assert_eq!(lde.height, 1 << lde_log_height);
                 self.opening_prover.batch_update(
-                    input_leaves.get_mut(&lde_log_height).unwrap(),
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
                     SC::Val::generator(),
                     local_open,
@@ -810,7 +809,7 @@ where
                 lde.stream().synchronize().unwrap();
                 let g = BabyBear::two_adic_generator(*log_height);
                 self.opening_prover.batch_update(
-                    input_leaves.get_mut(&lde_log_height).unwrap(),
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
                     SC::Val::generator(),
                     next_open,
@@ -829,7 +828,7 @@ where
             let lde_log_height = log_height + log_blowup;
             assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 local_open,
@@ -840,7 +839,7 @@ where
             lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 next_open,
@@ -858,7 +857,7 @@ where
             let lde_log_height = log_height + log_blowup;
             assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 local_open,
@@ -869,7 +868,7 @@ where
             lde.stream().synchronize().unwrap();
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 SC::Val::generator(),
                 next_open,
@@ -887,7 +886,7 @@ where
             let lde_log_height = log_height + log_blowup;
             assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
-                input_leaves.get_mut(&lde_log_height).unwrap(),
+                batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
                 *shift * SC::Val::generator(),
                 open,
@@ -928,6 +927,19 @@ where
             .max()
             .unwrap()
             .ilog2() as usize;
+
+        let input_leaves = batched_openings
+            .into_iter()
+            .map(|(i, values)| {
+                let base_values = unsafe { values.flatten_to_base::<SC::Val>() };
+                let leaf_matrix = RowMajorMatrixDevice::new(
+                    base_values,
+                    2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                )
+                .to_column_major();
+                (i, leaf_matrix)
+            })
+            .collect::<BTreeMap<_, _>>();
 
         // let query_openings = self.committer.mmcs_committer.query_open_batch(
         //     &query_indices,

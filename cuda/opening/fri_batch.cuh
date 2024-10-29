@@ -20,7 +20,7 @@ namespace fri_batch {
 // }
 
 template<typename F, typename EF> __global__ void batchFriKernel(
-    Matrix<F> leafMatrix,
+    EF* reducedOpenings,
     const F* polynomialBatch,
     const EF* evaluations,
     const F domainGenerator,
@@ -48,17 +48,13 @@ template<typename F, typename EF> __global__ void batchFriKernel(
         batchingPower *= batchingChallenge; 
     }
     accumulator *= inverseDenom;
-    // Add the results to the correct element of the leaf.
-    size_t rowIdx = i >> 1;
-    size_t isOdd = i & 1;
-    for (size_t k = 0; k < EF::D; k++) {
-        leafMatrix.values[(k + isOdd *  EF::D) * leafMatrix.height + rowIdx] += accumulator.value[k];
-    }
+    // Add the results to the reduced openings.
+    reducedOpenings[i] += accumulator; 
 }
 
 
 extern "C" void batchFri(
-    Matrix<bb31_t> leafMatrix,
+    bb31_extension_t* reducedOpenings,
     const bb31_t* polynomialBatch,
     const bb31_extension_t* evaluations,
     const bb31_t domainGenerator,
@@ -74,7 +70,7 @@ extern "C" void batchFri(
         size_t gridDim = (height - 1) / blockDim + 1;
 
         batchFriKernel<<<gridDim, blockDim, 0, stream>>>(
-            leafMatrix,
+            reducedOpenings,
             polynomialBatch,
             evaluations,
             domainGenerator,
