@@ -58,7 +58,6 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC, C>,
     opening_prover: FriOpeningProver<SC>,
-    domain_normalizers: Vec<BabyBear>,
 }
 
 /// A proving key for a STARK.
@@ -187,11 +186,10 @@ where
             main_stream: CudaStream::default(),
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
-            opening_prover: FriOpeningProver::default(),
+            opening_prover: FriOpeningProver::new(domain_normalizers),
             quotient_generator,
             chip_streams,
             chip_events,
-            domain_normalizers,
         }
     }
 
@@ -629,104 +627,51 @@ where
         let mut input_heights = BTreeSet::new();
         for prep_trace in pk.traces.iter() {
             let trace = prep_trace.to_device().unwrap().to_column_major();
-            let mut local_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            let mut next_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            unsafe {
-                local_open.set_max_len();
-                next_open.set_max_len();
-            }
-            let log_height = trace.height().ilog2() as usize;
-            let g = BabyBear::two_adic_generator(log_height);
-            let normalizer = self.domain_normalizers[log_height];
-            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
-            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
-            input_heights.insert(log_height);
-            preprocessed_opens.push((log_height, local_open, next_open));
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            preprocessed_opens.push((domain.log_n, local_open, next_open));
         }
 
         // Openings for global main traces (if any).
         let mut main_global_openings = vec![];
         for trace in global_traces {
-            let mut local_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            let mut next_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            unsafe {
-                local_open.set_max_len();
-                next_open.set_max_len();
-            }
-            let log_height = trace.height().ilog2() as usize;
-            let g = BabyBear::two_adic_generator(log_height);
-            let normalizer = self.domain_normalizers[log_height];
-            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
-            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
-            input_heights.insert(log_height);
-            main_global_openings.push((log_height, local_open, next_open));
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            main_global_openings.push((domain.log_n, local_open, next_open));
         }
 
         // Openings for local main traces.
         let mut main_local_openings = vec![];
         for trace in local_traces {
-            let mut local_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            let mut next_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            unsafe {
-                local_open.set_max_len();
-                next_open.set_max_len();
-            }
-            let log_height = trace.height().ilog2() as usize;
-            let g = BabyBear::two_adic_generator(log_height);
-            let normalizer = self.domain_normalizers[log_height];
-            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
-            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
-            input_heights.insert(log_height);
-            main_local_openings.push((log_height, local_open, next_open));
+            let domain = natural_domain_for_degree(self.config(), trace.height());
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            main_local_openings.push((domain.log_n, local_open, next_open));
         }
 
         let mut perm_openings = vec![];
         // Openings for permutation traces.
-        for (_, trace) in perm_domains_and_traces {
-            let mut local_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            let mut next_open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            unsafe {
-                local_open.set_max_len();
-                next_open.set_max_len();
-            }
-            let log_height = trace.height().ilog2() as usize;
-            let g = BabyBear::two_adic_generator(log_height);
-            let normalizer = self.domain_normalizers[log_height];
-            trace.eval(&mut local_open, normalizer, BabyBear::one(), zeta).unwrap();
-            trace.eval(&mut next_open, normalizer, BabyBear::one(), zeta * g).unwrap();
-            input_heights.insert(log_height);
-            perm_openings.push((log_height, local_open, next_open));
+        for (domain, trace) in perm_domains_and_traces {
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open =
+                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+            input_heights.insert(domain.log_n);
+            perm_openings.push((domain.log_n, local_open, next_open));
         }
         // Openings for quotient traces
         let mut quot_openings = vec![];
         for (domain, trace) in quotient_domains_and_chunks.into_iter() {
-            let mut open =
-                DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
-                    .unwrap();
-            unsafe {
-                open.set_max_len();
-            }
-            let log_height = trace.height().ilog2() as usize;
-            let normalizer = self.domain_normalizers[log_height];
-            trace.eval(&mut open, normalizer, domain.shift, zeta).unwrap();
-            input_heights.insert(log_height);
-            quot_openings.push((log_height, open));
+            let open = self.opening_prover.eval(domain, &trace, zeta);
+            input_heights.insert(domain.log_n);
+            quot_openings.push((domain.log_n, open));
         }
 
         for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {

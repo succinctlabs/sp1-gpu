@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use p3_challenger::FieldChallenger;
-use p3_commit::Mmcs;
+use p3_commit::{Mmcs, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
 use sp1_stark::Com;
@@ -25,8 +25,17 @@ use crate::{
     stark::{BabyBearFriConfig, FriMmcs, PcsConfig},
 };
 
-#[derive(Clone, Copy, Debug)]
-pub struct FriOpeningProver<SC>(PhantomData<SC>);
+#[derive(Clone, Debug)]
+pub struct FriOpeningProver<SC> {
+    pub(crate) domain_normalizers: Vec<BabyBear>,
+    _marker: PhantomData<SC>,
+}
+
+impl<SC> FriOpeningProver<SC> {
+    pub const fn new(domain_normalizers: Vec<BabyBear>) -> Self {
+        Self { domain_normalizers, _marker: PhantomData }
+    }
+}
 
 pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> {
     fn query_open_batch(
@@ -39,6 +48,23 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
 }
 
 impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
+    #[inline]
+    pub fn eval(
+        &self,
+        domain: TwoAdicMultiplicativeCoset<SC::Val>,
+        trace: &ColMajorMatrixDevice<SC::Val>,
+        point: SC::Challenge,
+    ) -> DeviceBuffer<SC::Challenge> {
+        let mut open =
+            DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream()).unwrap();
+        unsafe {
+            open.set_max_len();
+        }
+        let normalizer = self.domain_normalizers[domain.log_n];
+        trace.eval(&mut open, normalizer, domain.shift, point).unwrap();
+        open
+    }
+
     pub fn prove<C>(
         &self,
         committer: &TwoAdicFriCommitter<SC, C>,
@@ -530,12 +556,6 @@ where
     commits: Vec<Com<SC>>,
     data: Vec<C::ProverData>,
     final_poly: SC::Challenge,
-}
-
-impl<SC> Default for FriOpeningProver<SC> {
-    fn default() -> Self {
-        Self(PhantomData)
-    }
 }
 
 pub mod opening_gpu {
