@@ -38,6 +38,81 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> 
 }
 
 impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
+    pub fn prove<C>(
+        &self,
+        committer: &TwoAdicFriCommitter<SC, C>,
+        config: &PcsConfig<SC>,
+        input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
+        challenger: &mut Challenger<SC>,
+    ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
+    where
+        C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    {
+        let log_max_height = input.keys().max().copied().unwrap();
+
+        debug_assert_eq!(committer.log_blowup, config.log_blowup);
+        let commit_phase_result = trace_span!("Commit phase")
+            .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
+
+        let pow_witness =
+            trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
+
+        let query_indices: Vec<usize> =
+            (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
+
+        let query_proofs_span = trace_span!("Compute query proofs").entered();
+
+        let query_proofs_data = committer.mmcs_committer.query_open_batch(
+            &query_indices,
+            commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
+            log_max_height,
+            true,
+        );
+        let query_proofs = query_proofs_data
+            .into_iter()
+            .enumerate()
+            .map(|(q, per_query)| {
+                let commit_phase_openings = per_query
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, batch_opening)| {
+                        let BatchOpening { opened_values, opening_proof } = batch_opening;
+                        let index_i = query_indices[q] >> i;
+                        let index_i_sibling = index_i ^ 1;
+
+                        let (mut opened_rows, opening_proof) = (opened_values, opening_proof);
+                        assert_eq!(opened_rows.len(), 1);
+
+                        let opened_row = opened_rows.pop().unwrap();
+                        let opened_row_ext = (0..opened_row.len() / 4)
+                            .map(|j| {
+                                SC::Challenge::from_base_slice(&opened_row[j * 4..(j + 1) * 4])
+                            })
+                            .collect::<Vec<_>>();
+                        assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
+                        let sibling_value = opened_row_ext[index_i_sibling % 2];
+
+                        CommitPhaseProofStep { sibling_value, opening_proof }
+                    })
+                    .collect();
+
+                QueryProof { commit_phase_openings }
+            })
+            .collect::<Vec<_>>();
+
+        query_proofs_span.exit();
+
+        (
+            FriProof {
+                commit_phase_commits: commit_phase_result.commits,
+                query_proofs,
+                final_poly: commit_phase_result.final_poly,
+                pow_witness,
+            },
+            query_indices,
+        )
+    }
+
     pub fn batch_update(
         &self,
         reduced_openings: &mut DeviceBuffer<SC::Challenge>,
@@ -261,79 +336,79 @@ pub(super) mod merkle_tree_opening_prover {
     }
 }
 
-#[allow(clippy::type_complexity)]
-pub fn prove<SC, C>(
-    committer: &TwoAdicFriCommitter<SC, C>,
-    config: &PcsConfig<SC>,
-    input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
-    challenger: &mut Challenger<SC>,
-) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
-where
-    SC: BabyBearFriConfig,
-    C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-{
-    let log_max_height = input.keys().max().copied().unwrap();
+// #[allow(clippy::type_complexity)]
+// pub fn prove<SC, C>(
+//     committer: &TwoAdicFriCommitter<SC, C>,
+//     config: &PcsConfig<SC>,
+//     input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
+//     challenger: &mut Challenger<SC>,
+// ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
+// where
+//     SC: BabyBearFriConfig,
+//     C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+// {
+//     let log_max_height = input.keys().max().copied().unwrap();
 
-    debug_assert_eq!(committer.log_blowup, config.log_blowup);
-    let commit_phase_result = trace_span!("Commit phase")
-        .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
+//     debug_assert_eq!(committer.log_blowup, config.log_blowup);
+//     let commit_phase_result = trace_span!("Commit phase")
+//         .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
-    let pow_witness =
-        trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
+//     let pow_witness =
+//         trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
 
-    let query_indices: Vec<usize> =
-        (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
+//     let query_indices: Vec<usize> =
+//         (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
 
-    let query_proofs_span = trace_span!("Compute query proofs").entered();
+//     let query_proofs_span = trace_span!("Compute query proofs").entered();
 
-    let query_proofs_data = committer.mmcs_committer.query_open_batch(
-        &query_indices,
-        commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
-        log_max_height,
-        true,
-    );
-    let query_proofs = query_proofs_data
-        .into_iter()
-        .enumerate()
-        .map(|(q, per_query)| {
-            let commit_phase_openings = per_query
-                .into_iter()
-                .enumerate()
-                .map(|(i, batch_opening)| {
-                    let BatchOpening { opened_values, opening_proof } = batch_opening;
-                    let index_i = query_indices[q] >> i;
-                    let index_i_sibling = index_i ^ 1;
+//     let query_proofs_data = committer.mmcs_committer.query_open_batch(
+//         &query_indices,
+//         commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
+//         log_max_height,
+//         true,
+//     );
+//     let query_proofs = query_proofs_data
+//         .into_iter()
+//         .enumerate()
+//         .map(|(q, per_query)| {
+//             let commit_phase_openings = per_query
+//                 .into_iter()
+//                 .enumerate()
+//                 .map(|(i, batch_opening)| {
+//                     let BatchOpening { opened_values, opening_proof } = batch_opening;
+//                     let index_i = query_indices[q] >> i;
+//                     let index_i_sibling = index_i ^ 1;
 
-                    let (mut opened_rows, opening_proof) = (opened_values, opening_proof);
-                    assert_eq!(opened_rows.len(), 1);
+//                     let (mut opened_rows, opening_proof) = (opened_values, opening_proof);
+//                     assert_eq!(opened_rows.len(), 1);
 
-                    let opened_row = opened_rows.pop().unwrap();
-                    let opened_row_ext = (0..opened_row.len() / 4)
-                        .map(|j| SC::Challenge::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
-                        .collect::<Vec<_>>();
-                    assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
-                    let sibling_value = opened_row_ext[index_i_sibling % 2];
+//                     let opened_row = opened_rows.pop().unwrap();
+//                     let opened_row_ext = (0..opened_row.len() / 4)
+//                         .map(|j| SC::Challenge::from_base_slice(&opened_row[j * 4..(j + 1) * 4]))
+//                         .collect::<Vec<_>>();
+//                     assert_eq!(opened_row_ext.len(), 2, "Committed data should be in pairs");
+//                     let sibling_value = opened_row_ext[index_i_sibling % 2];
 
-                    CommitPhaseProofStep { sibling_value, opening_proof }
-                })
-                .collect();
+//                     CommitPhaseProofStep { sibling_value, opening_proof }
+//                 })
+//                 .collect();
 
-            QueryProof { commit_phase_openings }
-        })
-        .collect::<Vec<_>>();
+//             QueryProof { commit_phase_openings }
+//         })
+//         .collect::<Vec<_>>();
 
-    query_proofs_span.exit();
+//     query_proofs_span.exit();
 
-    (
-        FriProof {
-            commit_phase_commits: commit_phase_result.commits,
-            query_proofs,
-            final_poly: commit_phase_result.final_poly,
-            pow_witness,
-        },
-        query_indices,
-    )
-}
+//     (
+//         FriProof {
+//             commit_phase_commits: commit_phase_result.commits,
+//             query_proofs,
+//             final_poly: commit_phase_result.final_poly,
+//             pow_witness,
+//         },
+//         query_indices,
+//     )
+// }
 
 pub fn fold_even_odd<SC: BabyBearFriConfig>(
     evaluations: &ColMajorMatrixDevice<SC::Val>,

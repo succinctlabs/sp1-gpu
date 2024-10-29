@@ -755,7 +755,6 @@ where
             pk.data.matrices().iter().zip_eq(preprocessed_opens.iter())
         {
             let lde_log_height = log_height + log_blowup;
-            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -783,7 +782,6 @@ where
                 global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
             {
                 let lde_log_height = log_height + log_blowup;
-                assert_eq!(lde.height, 1 << lde_log_height);
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
@@ -811,7 +809,6 @@ where
             local_main_data.matrices().iter().zip_eq(main_local_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
-            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -838,7 +835,6 @@ where
             perm_prover_data.matrices().iter().zip_eq(perm_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
-            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -865,7 +861,6 @@ where
             quotient_prover_data.matrices().iter().zip_eq(quot_openings.iter())
         {
             let lde_log_height = log_height + log_blowup;
-            assert_eq!(lde.height, 1 << lde_log_height);
             self.opening_prover.batch_update(
                 batched_openings.get_mut(&lde_log_height).unwrap(),
                 lde,
@@ -892,7 +887,7 @@ where
             })
             .collect::<BTreeMap<_, _>>();
 
-        let (fri_proof, query_indices) = crate::fri::prove(
+        let (fri_proof, query_indices) = self.opening_prover.prove(
             &self.committer,
             self.machine.config().pcs().fri_config(),
             input_leaves,
