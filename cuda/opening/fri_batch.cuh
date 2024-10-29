@@ -9,15 +9,6 @@
 
 
 namespace fri_batch {
-// template <typename T>
-// __device__ void atomicAdd(T* dst, const T value) {
-//     T old_val = *dst;
-//     T new_val;
-
-//     do {
-//         new_val = old_val + value;
-//     } while (!atomic_ref.compare_exchange_weak(old_val, new_val, cuda::std::memory_order_relaxed));
-// }
 
 template<typename F, typename EF> __global__ void batchFriKernel(
     EF* reducedOpenings,
@@ -38,7 +29,7 @@ template<typename F, typename EF> __global__ void batchFriKernel(
     F domainPoint = domainGenerator^(bit_rev(blockIdx.x * blockDim.x + threadIdx.x, logHeight));
     domainPoint *= shift;
     EF batchingPower = batchingChallengeOffset;
-    EF inverseDenom = EF::one() / (evaluationPoint - domainPoint);
+    EF inverseDenom = (evaluationPoint - domainPoint).reciprocal();
     EF accumulator = EF::zero(); 
     for (size_t j = 0 ; j < width ; j++) {
         // Compute batch_value = alpha^i ((p(z) - p(x) / (z - x)).
