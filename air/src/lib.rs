@@ -1,3 +1,5 @@
+#![allow(clippy::assign_op_pattern)]
+
 pub mod instruction;
 pub mod optimizer;
 pub mod symbolic_expr_ef;
@@ -215,7 +217,7 @@ mod tests {
         let chips = machine.chips();
         for chip in chips {
             if chip.name() == "AddSub" {
-                let (code, f_ctr, ef_ctr, f_constants, ef_constants) = codegen_cuda_eval(chip);
+                let (code, f_ctr, _, f_constants, ef_constants) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
                 println!("{}", f_ctr);
                 println!("{:?}", f_constants);
