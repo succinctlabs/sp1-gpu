@@ -6,10 +6,7 @@ use crate::{
     matrix::ColMajorMatrixDevice,
 };
 
-mod air_point;
 pub(super) mod ffi;
-
-pub use air_point::*;
 
 pub fn subgroup_normalizer<F: TwoAdicField>(log_order: usize) -> F {
     let domain_generator = F::two_adic_generator(log_order);
@@ -23,6 +20,7 @@ pub fn subgroup_normalizer<F: TwoAdicField>(log_order: usize) -> F {
 }
 
 impl ColMajorMatrixDevice<BabyBear> {
+    #[inline]
     pub fn eval(
         &self,
         results: &mut DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
@@ -36,30 +34,6 @@ impl ColMajorMatrixDevice<BabyBear> {
             - BinomialExtensionField::<BabyBear, 4>::one();
         unsafe {
             ffi::univariate_eval_babybear(
-                results.as_mut_ptr(),
-                self.values.as_ptr(),
-                BabyBear::two_adic_generator(log_height),
-                normalizer,
-                evaluation_point,
-                vanishing_poly_eval,
-                self.width(),
-                log_height,
-                self.stream().handle(),
-            )
-            .to_result()
-        }
-    }
-
-    pub fn eval_air_point(
-        &self,
-        results: &mut DeviceBuffer<AirPoint<BinomialExtensionField<BabyBear, 4>>>,
-        normalizer: BabyBear,
-        evaluation_point: BinomialExtensionField<BabyBear, 4>,
-        vanishing_poly_eval: BinomialExtensionField<BabyBear, 4>,
-    ) -> Result<(), CudaError> {
-        let log_height = self.height.ilog2() as usize;
-        unsafe {
-            ffi::univariate_eval_air_point_babybear(
                 results.as_mut_ptr(),
                 self.values.as_ptr(),
                 BabyBear::two_adic_generator(log_height),
