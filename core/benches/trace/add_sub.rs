@@ -1,7 +1,6 @@
 use moongate_core::cuda_runtime::stream::CudaStream;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::matrix::ColMajorMatrixDevice;
-use once_cell::sync::Lazy;
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rand::thread_rng;
@@ -11,10 +10,11 @@ use sp1_core_executor::ExecutionRecord;
 use sp1_core_executor::Opcode;
 use sp1_core_machine::alu::AddSubChip;
 use sp1_stark::air::MachineAir;
+use std::sync::LazyLock;
 
 const NUM_OPS_EACH: u32 = 100_000;
-static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
-    let add_events = (0..NUM_OPS_EACH)
+static SHARD: LazyLock<ExecutionRecord> = LazyLock::new(|| {
+    let add_sub_events = (0..NUM_OPS_EACH)
         .flat_map(|i| {
             [
                 {
@@ -32,12 +32,12 @@ static SHARD: Lazy<ExecutionRecord> = Lazy::new(|| {
             ]
         })
         .collect::<Vec<_>>();
-    ExecutionRecord { add_events, ..Default::default() }
+    ExecutionRecord { add_sub_events, ..Default::default() }
 });
 
 #[divan::bench]
 fn host(bencher: divan::Bencher) {
-    let shard = Lazy::force(&SHARD);
+    let shard = LazyLock::force(&SHARD);
 
     let work = || divan::black_box(host_work(shard));
 
@@ -59,7 +59,7 @@ fn host_work(shard: &ExecutionRecord) -> ColMajorMatrixDevice<BabyBear> {
 
 #[divan::bench]
 fn on_device(bencher: divan::Bencher) {
-    let shard = Lazy::force(&SHARD);
+    let shard = LazyLock::force(&SHARD);
 
     let work = || divan::black_box(on_device_work(shard));
 

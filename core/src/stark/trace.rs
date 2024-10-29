@@ -40,9 +40,12 @@ impl AccelAir<F> for RiscvAir<F> {
             RiscvAir::ShiftLeft(chip) => sll_generate_trace(chip, input, output, stream),
             RiscvAir::ShiftRight(chip) => sr_generate_trace(chip, input, output, stream),
             // Fallback for other chips.
-            other => {
-                Ok(other.generate_trace(input, output).to_device_async(stream)?.to_column_major())
-            }
+            other => tracing::debug_span!("on host").in_scope(|| {
+                let trace = tracing::debug_span!("generate")
+                    .in_scope(|| other.generate_trace(input, output));
+                tracing::debug_span!("to device")
+                    .in_scope(|| Ok(trace.to_device_async(stream)?.to_column_major()))
+            }),
         }
     }
 }
@@ -79,12 +82,7 @@ pub fn add_sub_generate_trace(
 ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
     const NUM_COLS: usize = sp1_core_machine::alu::NUM_ADD_SUB_COLS;
     const ROWS_PER_EVENT: usize = 1;
-    // These two vectors should be combined in the record struct.
-    let events = &[&input.add_events, &input.sub_events]
-        .into_par_iter()
-        .flatten()
-        .cloned()
-        .collect::<Vec<_>>();
+    let events = &input.add_sub_events;
 
     let nb_rows =
         next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));
@@ -251,11 +249,13 @@ pub fn cpu_generate_trace(
     const NUM_COLS: usize = sp1_core_machine::cpu::columns::NUM_CPU_COLS;
     const ROWS_PER_EVENT: usize = 1;
     // Eventually, we'll make CPU events FFI compatible.
-    let events = &input
-        .cpu_events
-        .par_iter()
-        .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
-        .collect::<Vec<_>>();
+    let events = &tracing::debug_span!("cpu events translation").in_scope(|| {
+        input
+            .cpu_events
+            .par_iter()
+            .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
+            .collect::<Vec<_>>()
+    });
 
     let nb_rows =
         next_power_of_two(events.len() * ROWS_PER_EVENT, input.fixed_log2_rows::<F, _>(chip));

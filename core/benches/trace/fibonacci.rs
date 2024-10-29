@@ -2,7 +2,7 @@ use moongate_core::cuda_runtime::stream::CudaStream;
 use moongate_core::device::memory::ToDevice;
 use moongate_core::matrix::ColMajorMatrixDevice;
 use moongate_core::stark::trace::AccelAir;
-use once_cell::sync::Lazy;
+use moongate_core::utils::init_tracer;
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 use rayon::prelude::*;
@@ -14,6 +14,7 @@ use sp1_stark::air::MachineAir;
 use sp1_stark::baby_bear_poseidon2::BabyBearPoseidon2;
 use sp1_stark::SP1CoreOpts;
 use sp1_stark::StarkMachine;
+use std::sync::LazyLock;
 
 const FIBONACCI_ELF: &[u8] =
     include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
@@ -21,9 +22,10 @@ const FIBONACCI_ELF: &[u8] =
 struct Env {
     records: Vec<ExecutionRecord>,
     machine: StarkMachine<BabyBearPoseidon2, RiscvAir<BabyBear>>,
+    stream: CudaStream,
 }
 
-static SHARD: Lazy<Env> = Lazy::new(|| {
+static SHARD: LazyLock<Env> = LazyLock::new(|| {
     let mut executor = Executor::new(Program::from(FIBONACCI_ELF).unwrap(), SP1CoreOpts::default());
     executor.run().unwrap();
     let records = executor.records;
@@ -31,12 +33,12 @@ static SHARD: Lazy<Env> = Lazy::new(|| {
     let config = BabyBearPoseidon2::new();
     let machine = RiscvAir::machine(config);
 
-    Env { records, machine }
+    Env { records, machine, stream: CudaStream::create().unwrap() }
 });
 
 #[divan::bench]
 fn host(bencher: divan::Bencher) {
-    let env = Lazy::force(&SHARD);
+    let env = LazyLock::force(&SHARD);
 
     let work = || divan::black_box(host_work(env));
 
@@ -69,7 +71,8 @@ fn host_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
 
 #[divan::bench]
 fn on_device(bencher: divan::Bencher) {
-    let env = Lazy::force(&SHARD);
+    init_tracer();
+    let env = LazyLock::force(&SHARD);
 
     let work = || divan::black_box(on_device_work(env));
 
@@ -86,16 +89,12 @@ fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
         .map(|record| {
             env.machine
                 .chips()
-                .par_iter()
+                .iter()
                 .filter(|chip| chip.included(record))
                 .map(|chip| {
                     let mat = chip
                         .air
-                        .generate_trace_accel(
-                            record,
-                            &mut ExecutionRecord::default(),
-                            &CudaStream::default(),
-                        )
+                        .generate_trace_accel(record, &mut ExecutionRecord::default(), &env.stream)
                         .unwrap();
                     mat.stream().synchronize().unwrap();
                     mat

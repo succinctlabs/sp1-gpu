@@ -178,6 +178,7 @@ fn main() {
         // Allow constexpr function calls in device code.
         // Although this flag is "experimental",  it has been around for a long time.
         cc_builder.flag("--expt-relaxed-constexpr");
+        cc_builder.flag("-arch=native");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {

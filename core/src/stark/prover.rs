@@ -203,17 +203,19 @@ where
             .filter(|chip| chip.commit_scope() == interaction_scope)
             .collect::<Vec<_>>();
 
-        let mut named_traces = chips
-            .par_iter()
-            .zip(&self.chip_streams)
-            .map(|(chip, stream)| {
-                let trace: Self::DeviceMatrix = chip
-                    .air
-                    .generate_trace_accel(shard, &mut A::Record::default(), stream)
-                    .unwrap();
-                (chip.name(), trace)
-            })
-            .collect::<Vec<_>>();
+        let mut named_traces = tracing::debug_span!("generate trace accel").in_scope(|| {
+            chips
+                .par_iter()
+                .zip(&self.chip_streams)
+                .map(|(chip, stream)| {
+                    let trace: Self::DeviceMatrix = chip
+                        .air
+                        .generate_trace_accel(shard, &mut A::Record::default(), stream)
+                        .unwrap();
+                    (chip.name(), trace)
+                })
+                .collect::<Vec<_>>()
+        });
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
