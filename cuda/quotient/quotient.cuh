@@ -30,7 +30,7 @@ __global__ void computeValues(Instruction *evalProgram,
                               Challenge alpha,
                               Val *publicValues,
                               Val traceDomainGenerator,
-                              Val* generatorPowers,
+                              Val quotientDomaingenerator,
                               Matrix<Val> quotientValues) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
@@ -44,14 +44,11 @@ __global__ void computeValues(Instruction *evalProgram,
         return;
     }
 
+    Val generatorPower = quotientDomaingenerator^((blockIdx.x * blockDim.x) + threadIdx.x);
 
-    Val generator = generatorPowers[1];
-    Val blockGenerator = generator^(blockIdx.x * blockDim.x);
-
-    Val point = blockGenerator * generatorPowers[threadIdx.x] * quotientDomain.shift; 
+    Val point = generatorPower * quotientDomain.shift; 
 
     LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
-
 
     Val isFirstRow = selectors.is_first_row[quotientIdx];
     Val isLastRow = selectors.is_last_row[quotientIdx];
@@ -387,18 +384,17 @@ extern "C" void computeValues(
     bb31_extension_t alpha,
     bb31_t *publicValues, 
     bb31_t traceDomainGenerator, 
-    bb31_t* generatorPowers,
+    bb31_t quotientDomaingenerator,
     Matrix<bb31_t> quotientValues, 
-    size_t numBlocks,
-    size_t numThreadsPerBlock,
     cudaStream_t stream) {
-
+    size_t numThreadsPerBlock = 512;
+    size_t numBlocks = (quotientDomain.size() - 1) / numThreadsPerBlock + 1;
     if (memorySize <= 32) {
         quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues); 
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues); 
     }
     else if (memorySize <= 64)
     {
@@ -406,7 +402,7 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 128)
     {
@@ -414,7 +410,7 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 256)
     {
@@ -422,7 +418,7 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 512)
     {
@@ -430,7 +426,7 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 1024)
     {
@@ -438,7 +434,7 @@ extern "C" void computeValues(
             evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, generatorPowers, quotientValues);
+            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else {
         assert(false);   
