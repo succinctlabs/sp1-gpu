@@ -1,22 +1,17 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    marker::PhantomData,
-};
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use p3_challenger::FieldChallenger;
 use p3_commit::Mmcs;
-use p3_field::{two_adic_coset_zerofier, Field};
+use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
-use sp1_stark::{Challenge, Com, OpeningProof};
+use sp1_stark::Com;
 use tracing::trace_span;
 
-use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, CanSample, CanSampleBits, GrindingChallenger};
-use p3_commit::OpenedValues;
 use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
-use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof, TwoAdicFriPcsProof};
-use sp1_stark::{Challenger, InnerVal};
+use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
+use sp1_stark::Challenger;
 
 use crate::{
     device::{
@@ -72,21 +67,6 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             );
         }
         *batching_challenge_offset *= batching_challenge.exp_u64(width as u64);
-    }
-
-    #[allow(clippy::type_complexity)]
-    pub fn open<C>(
-        &self,
-        committer: &TwoAdicFriCommitter<SC, C>,
-        pcs: &SC::Pcs,
-        rounds: Vec<(&C::ProverData, Vec<Vec<SC::Challenge>>)>,
-        challenger: &mut SC::Challenger,
-        // expected_leaves: &BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
-    ) -> (OpenedValues<SC::Challenge>, OpeningProof<SC>)
-    where
-        C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-    {
-        todo!()
     }
 }
 

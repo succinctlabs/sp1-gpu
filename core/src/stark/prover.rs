@@ -644,7 +644,7 @@ where
 
         // Openings for global main traces (if any).
         let mut main_global_openings = vec![];
-        for trace in global_traces.iter() {
+        for trace in global_traces {
             let mut local_open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
@@ -666,7 +666,7 @@ where
 
         // Openings for local main traces.
         let mut main_local_openings = vec![];
-        for trace in local_traces.iter() {
+        for trace in local_traces {
             let mut local_open =
                 DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream())
                     .unwrap();
