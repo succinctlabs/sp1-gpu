@@ -6,11 +6,9 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 p3-air = { workspace = true }
+p3-matrix = { workspace = true }
 sp1-core-machine = { workspace = true }
 sp1-stark = { workspace = true }
 p3-baby-bear = { workspace = true }
 p3-field = { workspace = true }
-
-[[bin]]
-name = "codegen"
-path = "src/bin/codegen.rs"
+tracing = "0.1.40"

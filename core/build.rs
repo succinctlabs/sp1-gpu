@@ -43,6 +43,7 @@ fn main() {
         nvcc.flag("-lnvToolsExt");
         nvcc.flag("-ldl");
         nvcc.flag("--expt-relaxed-constexpr");
+        nvcc.flag("-arch=sm_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
