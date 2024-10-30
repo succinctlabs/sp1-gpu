@@ -341,7 +341,6 @@ where
         global_data: Option<ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>>,
         local_data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut SC::Challenger,
-        global_permutation_challenges: &[SC::Challenge],
     ) -> Result<ShardProof<SC>, Self::Error> {
         let span = tracing::Span::current();
         let _span = span.enter();
@@ -406,11 +405,7 @@ where
         // Get the permutation challenges.
         let local_permutation_challenges =
             (0..2).map(|_| challenger.sample_ext_element()).collect::<Vec<_>>();
-        let permutation_challenges = global_permutation_challenges
-            .iter()
-            .chain(local_permutation_challenges.iter())
-            .copied()
-            .collect::<Vec<_>>();
+        let permutation_challenges = local_permutation_challenges.clone();
 
         // Generate permutation traces.
         let permutation_span =
@@ -466,11 +461,7 @@ where
         let quotient_span =
             tracing::debug_span!("generate and commit to quotient values").entered();
 
-        let permutation_challenges = global_permutation_challenges
-            .iter()
-            .chain(local_permutation_challenges.iter())
-            .copied()
-            .collect::<Vec<_>>();
+        let permutation_challenges = local_permutation_challenges.clone();
 
         // For each chip, get the quotient domains, evaluations on the quotient domain, and compute
         // the quotient values.
@@ -1027,15 +1018,6 @@ where
             // challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
         });
 
-        // Obtain the challenges used for the global permutation argument.
-        let global_permutation_challenges: [SC::Challenge; 2] = array::from_fn(|_| {
-            if contains_global_bus {
-                challenger.sample_ext_element()
-            } else {
-                SC::Challenge::zero()
-            }
-        });
-
         let shard_proofs = records
             .iter()
             .zip(global_data.into_iter())
@@ -1045,13 +1027,7 @@ where
 
                 let span = tracing::Span::current();
                 let _span = span.enter();
-                self.open(
-                    pk,
-                    global_shard_data,
-                    local_shard_data,
-                    &mut challenger.clone(),
-                    &global_permutation_challenges,
-                )
+                self.open(pk, global_shard_data, local_shard_data, &mut challenger.clone())
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
 

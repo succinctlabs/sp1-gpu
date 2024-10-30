@@ -3,7 +3,7 @@ use std::{marker::PhantomData, ops::Mul};
 use hashbrown::HashMap;
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
+use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, AbstractField, Field};
 use sp1_stark::{
     air::{InteractionScope, MachineAir},
     get_grouped_maps, Chip, Interaction,
@@ -62,10 +62,10 @@ where
         }
         let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
 
-        let global_alpha = random_elements[0];
-        let global_beta = random_elements[1];
-        let local_alpha = random_elements[2];
-        let local_beta = random_elements[3];
+        let global_alpha = BinomialExtensionField::<BabyBear, 4>::zero(); // TODO: FIX
+        let global_beta = BinomialExtensionField::<BabyBear, 4>::zero(); // TODO: FIX
+        let local_alpha = random_elements[0];
+        let local_beta = random_elements[1];
 
         let num_threads_per_block = 256;
         let num_blocks = height.div_ceil(num_threads_per_block);
