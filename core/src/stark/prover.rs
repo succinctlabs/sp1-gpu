@@ -81,6 +81,8 @@ where
     pub data: C::ProverData,
     /// The preprocessed chip ordering.
     pub chip_ordering: HashMap<String, usize>,
+    /// The preprocessed chip local only information.
+    pub local_only: Vec<bool>,
     pub phantom: PhantomData<C>,
 }
 
@@ -115,6 +117,7 @@ where
             data: self.data.to_host(),
             traces: self.traces.clone(),
             chip_ordering: self.chip_ordering.clone(),
+            local_only: self.local_only.clone(),
         }
     }
 
@@ -125,6 +128,7 @@ where
             traces: host.traces.clone(),
             data: host.data.to_device().unwrap(),
             chip_ordering: host.chip_ordering.clone(),
+            local_only: host.local_only.clone(),
             phantom: PhantomData,
         }
     }
@@ -280,23 +284,23 @@ where
                             chip.name()
                         );
 
-                        (chip.name(), prep_trace)
+                        (chip.name(), chip.local_only(), prep_trace)
                     })
-                    .filter(|(_, prep_trace)| prep_trace.is_some())
-                    .map(|(name, prep_trace)| {
+                    .filter(|(_, _, prep_trace)| prep_trace.is_some())
+                    .map(|(name, local_only, prep_trace)| {
                         let prep_trace = prep_trace.unwrap();
-                        (name, prep_trace)
+                        (name, local_only, prep_trace)
                     })
                     .collect::<Vec<_>>()
             });
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         named_preprocessed_traces
-            .sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
+            .sort_by_key(|(name, _, trace)| (Reverse(trace.height()), name.clone()));
 
         let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
             .iter()
-            .map(|(name, trace)| {
+            .map(|(name, _, trace)| {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 (
                     (name.to_owned(), domain, trace.dimensions()),
@@ -313,12 +317,17 @@ where
         let chip_ordering = named_preprocessed_traces
             .iter()
             .enumerate()
-            .map(|(i, (name, _))| (name.to_owned(), i))
+            .map(|(i, (name, _, _))| (name.to_owned(), i))
             .collect::<HashMap<_, _>>();
+
+        let local_only = named_preprocessed_traces
+            .iter()
+            .map(|(_, local_only, _)| local_only.to_owned())
+            .collect::<Vec<_>>();
 
         // Get the preprocessed traces
         let traces =
-            named_preprocessed_traces.into_iter().map(|(_, trace)| trace).collect::<Vec<_>>();
+            named_preprocessed_traces.into_iter().map(|(_, _, trace)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
 
@@ -329,6 +338,7 @@ where
                 traces,
                 data,
                 chip_ordering: chip_ordering.clone(),
+                local_only: local_only.clone(),
                 phantom: PhantomData,
             },
             StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
@@ -388,6 +398,18 @@ where
                 let config = self.machine.config();
                 natural_domain_for_degree(config, trace.height())
             })
+            .collect::<Vec<_>>();
+
+        let global_local_only = shard_chips
+            .iter()
+            .filter(|chip| chip.commit_scope() == InteractionScope::Global)
+            .map(|chip| chip.local_only())
+            .collect::<Vec<_>>();
+
+        let local_local_only = shard_chips
+            .iter()
+            .filter(|chip| chip.commit_scope() == InteractionScope::Local)
+            .map(|chip| chip.local_only())
             .collect::<Vec<_>>();
 
         // Compute some statistics.
@@ -517,9 +539,23 @@ where
 
                 let main_eval = match chip.commit_scope() {
                     InteractionScope::Local => {
+                        println!(
+                            "Local {} {} {} {}",
+                            i,
+                            chip.name(),
+                            chip.local_only(),
+                            local_chip_ordering[&chip.name()]
+                        );
                         &mut local_main_data.matrices_mut()[local_chip_ordering[&chip.name()]]
                     }
                     InteractionScope::Global => {
+                        println!(
+                            "Global {} {} {} {}",
+                            i,
+                            chip.name(),
+                            chip.local_only(),
+                            global_chip_ordering[&chip.name()]
+                        );
                         &mut global_main_data.as_mut().unwrap().matrices_mut()
                             [global_chip_ordering[&chip.name()]]
                     }
@@ -622,35 +658,47 @@ where
         // Openings for preprocessed traces.
         let mut preprocessed_opens = vec![];
         let mut input_heights = BTreeSet::new();
-        for prep_trace in pk.traces.iter() {
+        for (prep_trace, local_only) in pk.traces.iter().zip(pk.local_only.iter()) {
             let trace = prep_trace.to_device().unwrap().to_column_major();
             let domain = natural_domain_for_degree(self.config(), trace.height());
-            let local_open = self.opening_prover.eval(domain, &trace, zeta);
-            let next_open =
-                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
             input_heights.insert(domain.log_n);
+            let local_open = self.opening_prover.eval(domain, &trace, zeta);
+            let next_open = if !local_only {
+                Some(self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap()))
+            } else {
+                println!("entering local-only specific logic #1");
+                None
+            };
             preprocessed_opens.push((domain.log_n, local_open, next_open));
         }
 
         // Openings for global main traces (if any).
         let mut main_global_openings = vec![];
-        for trace in global_traces {
+        for (trace, local_only) in global_traces.iter().zip(global_local_only.iter()) {
             let domain = natural_domain_for_degree(self.config(), trace.height());
-            let local_open = self.opening_prover.eval(domain, &trace, zeta);
-            let next_open =
-                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
             input_heights.insert(domain.log_n);
+            let local_open = self.opening_prover.eval(domain, trace, zeta);
+            let next_open = if !local_only {
+                Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+            } else {
+                println!("entering local-only specific logic #2");
+                None
+            };
             main_global_openings.push((domain.log_n, local_open, next_open));
         }
 
         // Openings for local main traces.
         let mut main_local_openings = vec![];
-        for trace in local_traces {
+        for (trace, local_only) in local_traces.iter().zip(local_local_only.iter()) {
             let domain = natural_domain_for_degree(self.config(), trace.height());
-            let local_open = self.opening_prover.eval(domain, &trace, zeta);
-            let next_open =
-                self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
             input_heights.insert(domain.log_n);
+            let local_open = self.opening_prover.eval(domain, trace, zeta);
+            let next_open = if !local_only {
+                Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+            } else {
+                println!("entering local-only specific logic #3");
+                None
+            };
             main_local_openings.push((domain.log_n, local_open, next_open));
         }
 
@@ -724,16 +772,20 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
-            let g = BabyBear::two_adic_generator(*log_height);
-            self.opening_prover.batch_update(
-                batched_openings.get_mut(&lde_log_height).unwrap(),
-                lde,
-                SC::Val::generator(),
-                next_open,
-                zeta * g,
-                alpha,
-                alpha_offsets.get_mut(&lde_log_height).unwrap(),
-            );
+            if let Some(next_open) = next_open {
+                let g = BabyBear::two_adic_generator(*log_height);
+                self.opening_prover.batch_update(
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
+                    lde,
+                    SC::Val::generator(),
+                    next_open,
+                    zeta * g,
+                    alpha,
+                    alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                );
+            } else {
+                println!("entering local-only specific logic #4");
+            }
         }
 
         // Batch the main global traces
@@ -751,16 +803,20 @@ where
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
-                let g = BabyBear::two_adic_generator(*log_height);
-                self.opening_prover.batch_update(
-                    batched_openings.get_mut(&lde_log_height).unwrap(),
-                    lde,
-                    SC::Val::generator(),
-                    next_open,
-                    zeta * g,
-                    alpha,
-                    alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                );
+                if let Some(next_open) = next_open {
+                    let g = BabyBear::two_adic_generator(*log_height);
+                    self.opening_prover.batch_update(
+                        batched_openings.get_mut(&lde_log_height).unwrap(),
+                        lde,
+                        SC::Val::generator(),
+                        next_open,
+                        zeta * g,
+                        alpha,
+                        alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                    );
+                } else {
+                    println!("entering local-only specific logic #5");
+                }
             }
         }
 
@@ -778,16 +834,20 @@ where
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
             );
-            let g = BabyBear::two_adic_generator(*log_height);
-            self.opening_prover.batch_update(
-                batched_openings.get_mut(&lde_log_height).unwrap(),
-                lde,
-                SC::Val::generator(),
-                next_open,
-                zeta * g,
-                alpha,
-                alpha_offsets.get_mut(&lde_log_height).unwrap(),
-            );
+            if let Some(next_open) = next_open {
+                let g = BabyBear::two_adic_generator(*log_height);
+                self.opening_prover.batch_update(
+                    batched_openings.get_mut(&lde_log_height).unwrap(),
+                    lde,
+                    SC::Val::generator(),
+                    next_open,
+                    zeta * g,
+                    alpha,
+                    alpha_offsets.get_mut(&lde_log_height).unwrap(),
+                );
+            } else {
+                println!("entering local-only specific logic #6");
+            }
         }
 
         // Batch the permutation traces.
@@ -890,15 +950,15 @@ where
         // Get the openings for the chips.
         let preprocessed_opens = preprocessed_opens
             .into_iter()
-            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
             .collect::<Vec<_>>();
         let main_global_openings = main_global_openings
             .into_iter()
-            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
             .collect::<Vec<_>>();
         let main_local_openings = main_local_openings
             .into_iter()
-            .map(|(_, local, next)| (local.to_host(), next.to_host()))
+            .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
             .collect::<Vec<_>>();
         let perm_openings = perm_openings
             .into_iter()
@@ -914,7 +974,13 @@ where
                 .get(&chip.name())
                 .map(|&idx| {
                     let (local, next) = preprocessed_opens[idx].clone();
-                    AirOpenedValues { local, next }
+                    if let Some(next) = next {
+                        AirOpenedValues { local, next }
+                    } else {
+                        println!("entering local-only specific logic #7");
+                        let width = local.len();
+                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
+                    }
                 })
                 .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
 
@@ -923,11 +989,23 @@ where
             let main = match (global_order, local_order) {
                 (Some(idx), None) => {
                     let (local, next) = main_global_openings[*idx].clone();
-                    AirOpenedValues { local, next }
+                    if let Some(next) = next {
+                        AirOpenedValues { local, next }
+                    } else {
+                        println!("entering local-only specific logic #8");
+                        let width = local.len();
+                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
+                    }
                 }
                 (None, Some(idx)) => {
                     let (local, next) = main_local_openings[*idx].clone();
-                    AirOpenedValues { local, next }
+                    if let Some(next) = next {
+                        AirOpenedValues { local, next }
+                    } else {
+                        println!("entering local-only specific logic #9");
+                        let width = local.len();
+                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
+                    }
                 }
                 _ => unreachable!(),
             };
