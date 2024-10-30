@@ -1,5 +1,5 @@
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
@@ -28,11 +28,20 @@ pub struct FieldMerkleTreeGpu<F: Copy, D: Copy, M: DeviceMatrix<F> = ColMajorMat
 }
 
 impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
-    pub fn new(hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>, leaves: Vec<M>) -> Self {
+    pub fn new(
+        hasher: &impl FieldMerkleTreeHasher<BabyBear, Digest = D>,
+        leaves: Vec<M>,
+        main_stream: &CudaStream,
+    ) -> Self {
+        for mat in leaves.iter() {
+            let event = CudaEvent::new().unwrap();
+            mat.stream().record(&event).unwrap();
+            main_stream.wait_event(&event).unwrap();
+        }
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| {
-                l.stream().synchronize().unwrap();
+                // l.stream().synchronize().unwrap();
                 l.view()
             })
             .sorted_by_key(|l| Reverse(l.height))
@@ -151,6 +160,7 @@ where
 mod tests {
     pub mod baby_bear_tests {
         use crate::{
+            cuda_runtime::stream::CudaStream,
             device::{
                 memory::{ToDevice, ToHost},
                 DeviceBuffer,
@@ -273,7 +283,11 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1];
             let device_hasher = DeviceHasherBabyBear::default();
-            let tree_device = BabyBearFieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(
+                &device_hasher,
+                tallest_matrices,
+                &CudaStream::default(),
+            );
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -293,7 +307,11 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1];
             let device_hasher = DeviceHasherBabyBear::default();
-            let tree_device = BabyBearFieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
+            let tree_device = BabyBearFieldMerkleTreeGpu::new(
+                &device_hasher,
+                tallest_matrices,
+                &CudaStream::default(),
+            );
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -305,6 +323,7 @@ mod tests {
     }
     pub mod bn254_tests {
         use crate::{
+            cuda_runtime::stream::CudaStream,
             device::{
                 memory::{ToDevice, ToHost},
                 DeviceBuffer,
@@ -436,7 +455,11 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1];
             let device_hasher = DeviceHasherBn254::default();
-            let tree_device = Bn254FieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
+            let tree_device = Bn254FieldMerkleTreeGpu::new(
+                &device_hasher,
+                tallest_matrices,
+                &CudaStream::default(),
+            );
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
@@ -457,7 +480,11 @@ mod tests {
 
             let tallest_matrices = vec![matrix_device_1];
             let device_hasher = DeviceHasherBn254::default();
-            let tree_device = Bn254FieldMerkleTreeGpu::new(&device_hasher, tallest_matrices);
+            let tree_device = Bn254FieldMerkleTreeGpu::new(
+                &device_hasher,
+                tallest_matrices,
+                &CudaStream::default(),
+            );
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];

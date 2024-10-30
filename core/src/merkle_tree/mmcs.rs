@@ -6,6 +6,7 @@ use p3_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
+    cuda_runtime::stream::CudaStream,
     matrix::{ColMajorMatrixDevice, DeviceMatrix},
     poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
 };
@@ -34,8 +35,9 @@ pub trait MmcsProverData<Matrix> {
 pub type Poseidon2BabyBearCommitter = FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>;
 pub type Poseidon2Bn254Committer = FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FieldMerkleTreeDeviceCommitter<H> {
+    main_stream: CudaStream,
     hasher: H,
 }
 
@@ -63,7 +65,7 @@ where
         &self,
         matrices: Vec<Self::Matrix>,
     ) -> (Hash<P::Scalar, PW::Value, DIGEST_ELEMS>, Self::ProverData) {
-        let merkle_tree = FieldMerkleTreeGpu::new(&self.hasher, matrices);
+        let merkle_tree = FieldMerkleTreeGpu::new(&self.hasher, matrices, &self.main_stream);
         let root = merkle_tree.root().into();
 
         (root, merkle_tree)
