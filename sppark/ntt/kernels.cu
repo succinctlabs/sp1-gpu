@@ -227,7 +227,7 @@ void LDE_spread_distribute_powers(fr_t* out, fr_t* in,
         else
             __syncthreads();
 
-        r.zero();
+        r.set_to_zero();
 
         for (uint32_t i = 0; i < blowup; i++) {
             uint32_t offset = i * blockDim.x + threadIdx.x;

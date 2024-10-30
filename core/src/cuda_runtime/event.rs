@@ -10,6 +10,9 @@ pub struct CudaEventHandle(*mut c_void);
 #[repr(transparent)]
 pub struct CudaEvent(CudaEventHandle);
 
+unsafe impl Send for CudaEvent {}
+unsafe impl Sync for CudaEvent {}
+
 impl CudaEvent {
     pub fn new() -> Result<Self, CudaError> {
         let mut ptr = CudaEventHandle(ptr::null_mut());

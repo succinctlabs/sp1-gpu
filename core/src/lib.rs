@@ -12,6 +12,7 @@ pub mod merkle_tree;
 pub mod poseidon2;
 pub mod stark;
 pub mod time;
+pub mod univariate;
 pub mod utils;
 
 pub use cuda_runtime::{spawn::spawn, sync_device};
