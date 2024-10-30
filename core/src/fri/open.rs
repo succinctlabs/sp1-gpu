@@ -14,7 +14,6 @@ use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
     device::{
         memory::{ToDevice, ToHost},
         DeviceBuffer,
@@ -149,7 +148,6 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         evaluation_point: SC::Challenge,
         batching_challenge: SC::Challenge,
         batching_challenge_offset: &mut SC::Challenge,
-        stream: &CudaStream,
     ) {
         let log_height = polynomial_batch.height().ilog2() as usize;
         let domain_generator = BabyBear::two_adic_generator(log_height);
@@ -166,7 +164,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                 *batching_challenge_offset,
                 width,
                 log_height,
-                stream.handle(),
+                polynomial_batch.stream().handle(),
             );
         }
         *batching_challenge_offset *= batching_challenge.exp_u64(width as u64);

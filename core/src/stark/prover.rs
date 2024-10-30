@@ -529,8 +529,6 @@ where
                 let perm_eval = &mut perm_prover_data.matrices_mut()[i];
                 perm_eval.bit_reverse_rows().unwrap();
 
-                stream.synchronize().unwrap();
-
                 let quotient_values = self.quotient_generator.compute_values(
                     chip,
                     trace_domain,
@@ -543,7 +541,6 @@ where
                     folding_challenge,
                     &permutation_challenges_device,
                 );
-                stream.synchronize().unwrap();
 
                 // Since we reversed the lde bits, we need to reverse them back.
                 main_eval.bit_reverse_rows().unwrap();
@@ -674,10 +671,10 @@ where
             quot_openings.push((domain.log_n, open));
         }
 
-        for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
-            stream.record(event).unwrap();
-            self.main_stream.wait_event(event).unwrap();
-        }
+        // for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
+        //     stream.record(event).unwrap();
+        //     self.main_stream.wait_event(event).unwrap();
+        // }
 
         // Create the input for the FRI opening.
 
@@ -687,8 +684,11 @@ where
             .into_iter()
             .map(|trace_log_height| {
                 let log_height = trace_log_height + log_blowup;
-                let mut batched_openings =
-                    DeviceBuffer::<SC::Challenge>::with_capacity(1 << log_height).unwrap();
+                let mut batched_openings = DeviceBuffer::<SC::Challenge>::with_capacity_in(
+                    1 << log_height,
+                    &self.main_stream,
+                )
+                .unwrap();
                 unsafe {
                     batched_openings.set_max_len();
                     batched_openings.set(0).unwrap();
@@ -696,6 +696,12 @@ where
                 (log_height, batched_openings)
             })
             .collect::<BTreeMap<_, _>>();
+
+        let event = &self.chip_events[0];
+        self.main_stream.record(event).unwrap();
+        for stream in shard_chip_stream.iter() {
+            stream.wait_event(event).unwrap();
+        }
 
         // Batch the FRI data.
 
@@ -717,7 +723,6 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -728,7 +733,6 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
         }
 
@@ -746,7 +750,6 @@ where
                     zeta,
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                    &self.main_stream,
                 );
                 let g = BabyBear::two_adic_generator(*log_height);
                 self.opening_prover.batch_update(
@@ -757,7 +760,6 @@ where
                     zeta * g,
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                    &self.main_stream,
                 );
             }
         }
@@ -775,7 +777,6 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -786,7 +787,6 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
         }
 
@@ -803,7 +803,6 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
             let g = BabyBear::two_adic_generator(*log_height);
             self.opening_prover.batch_update(
@@ -814,7 +813,6 @@ where
                 zeta * g,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
         }
 
@@ -831,8 +829,13 @@ where
                 zeta,
                 alpha,
                 alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                &self.main_stream,
             );
+        }
+
+        // Wait for all batches to update.
+        for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
         }
 
         // generate a fri proof.
