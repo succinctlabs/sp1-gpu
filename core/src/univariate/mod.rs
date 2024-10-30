@@ -105,7 +105,9 @@ mod tests {
         let point: EF = rng.gen();
         input_device.stream().synchronize().unwrap();
         let time = Instant::now();
+        let kernel_span = tracing::debug_span!("run eval").entered();
         input_device.eval(&mut results, domain_normalizer, F::one(), point).unwrap();
+        kernel_span.exit();
         input_device.stream().synchronize().unwrap();
         let elapsed = time.elapsed();
         println!("Device time: {:?}", elapsed);

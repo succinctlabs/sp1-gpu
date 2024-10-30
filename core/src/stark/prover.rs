@@ -252,14 +252,18 @@ where
         let (commit, data) =
             tracing::debug_span!("commit").in_scope(|| self.committer.commit(&domains_and_traces));
 
-        tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
+        let public_values =
+            tracing::debug_span!("compute public values").in_scope(|| shard.public_values());
+        let construct_main_data_span = tracing::debug_span!("construct main data").entered();
+        let data = ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values: tracing::debug_span!("compute public values")
-                .in_scope(|| shard.public_values()),
-        })
+            public_values,
+        };
+        construct_main_data_span.exit();
+        data
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
