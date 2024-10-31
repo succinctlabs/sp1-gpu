@@ -1066,11 +1066,11 @@ where
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
 
-        // // Synchronize all the chip streams so that we free the memory used in the FRI openning.
+        // Synchronize all the chip streams so that we free the memory used in the proof.
         for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
-        // self.main_stream.synchronize().unwrap();
+        self.main_stream.synchronize().unwrap();
 
         cleanup_span.exit();
 
