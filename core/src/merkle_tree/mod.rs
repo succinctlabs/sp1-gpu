@@ -1,5 +1,5 @@
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
@@ -33,11 +33,11 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         leaves: Vec<M>,
         main_stream: &CudaStream,
     ) -> Self {
-        // for mat in leaves.iter() {
-        //     let event = CudaEvent::new().unwrap();
-        //     mat.stream().record(&event).unwrap();
-        //     main_stream.wait_event(&event).unwrap();
-        // }
+        for mat in leaves.iter() {
+            let event = CudaEvent::new().unwrap();
+            mat.stream().record(&event).unwrap();
+            main_stream.wait_event(&event).unwrap();
+        }
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| {
