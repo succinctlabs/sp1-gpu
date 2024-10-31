@@ -416,6 +416,8 @@ where
             let span = tracing::Span::current();
             let _span = span.enter();
 
+            let setup_span = tracing::debug_span!("process shard data").entered();
+
             let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
                 if let Some(global_data) = global_data {
                     let ShardMainData {
@@ -479,6 +481,8 @@ where
 
             // Observe the main commitment.
             challenger.observe(local_main_commit.clone());
+
+            setup_span.exit();
 
             // Get the permutation challenges.
             let local_permutation_challenges =
@@ -1063,9 +1067,9 @@ where
         let cleanup_span = tracing::debug_span!("cleanup").entered();
 
         // // Synchronize all the chip streams so that we free the memory used in the FRI openning.
-        // for stream in self.chip_streams.iter() {
-        //     stream.synchronize().unwrap();
-        // }
+        for stream in self.chip_streams.values() {
+            stream.synchronize().unwrap();
+        }
         // self.main_stream.synchronize().unwrap();
 
         cleanup_span.exit();
