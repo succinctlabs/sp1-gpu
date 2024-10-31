@@ -33,19 +33,8 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         leaves: Vec<M>,
         main_stream: &CudaStream,
     ) -> Self {
-        // for mat in leaves.iter() {
-        //     let event = CudaEvent::new().unwrap();
-        //     mat.stream().record(&event).unwrap();
-        //     main_stream.wait_event(&event).unwrap();
-        // }
-        let mut leaves_largest_first = leaves
-            .iter()
-            .map(|l| {
-                // l.stream().synchronize().unwrap();
-                l.view()
-            })
-            .sorted_by_key(|l| Reverse(l.height))
-            .peekable();
+        let mut leaves_largest_first =
+            leaves.iter().map(|l| l.view()).sorted_by_key(|l| Reverse(l.height)).peekable();
 
         let max_height = leaves_largest_first.peek().unwrap().height;
         let tallest_matrices = leaves_largest_first
