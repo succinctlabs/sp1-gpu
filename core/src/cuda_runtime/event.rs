@@ -1,4 +1,4 @@
-use std::{ffi::c_void, ptr};
+use std::{ffi::c_void, ptr, sync::Arc};
 
 use super::ffi;
 use crate::device::error::CudaError;
@@ -7,31 +7,36 @@ use crate::device::error::CudaError;
 #[repr(transparent)]
 pub struct CudaEventHandle(*mut c_void);
 
+#[derive(Debug)]
 #[repr(transparent)]
-pub struct CudaEvent(CudaEventHandle);
+pub struct CudaEventOwned(CudaEventHandle);
 
-unsafe impl Send for CudaEvent {}
-unsafe impl Sync for CudaEvent {}
+unsafe impl Send for CudaEventOwned {}
+unsafe impl Sync for CudaEventOwned {}
+
+#[derive(Debug, Clone)]
+pub struct CudaEvent(Arc<CudaEventOwned>);
 
 impl CudaEvent {
     pub fn new() -> Result<Self, CudaError> {
         let mut ptr = CudaEventHandle(ptr::null_mut());
         unsafe { ffi::cuda_event_create(&mut ptr as *mut CudaEventHandle) }.to_result()?;
-        Ok(Self(ptr))
-    }
-
-    pub fn synchronize(&self) -> Result<(), CudaError> {
-        unsafe { ffi::cuda_event_synchronize(self.0) }.to_result()
+        Ok(Self(Arc::new(CudaEventOwned(ptr))))
     }
 
     #[inline]
-    pub const fn handle(&self) -> CudaEventHandle {
-        self.0
+    pub fn synchronize(&self) -> Result<(), CudaError> {
+        unsafe { ffi::cuda_event_synchronize(self.0 .0) }.to_result()
+    }
+
+    #[inline]
+    pub fn handle(&self) -> CudaEventHandle {
+        self.0 .0
     }
 }
 
 impl Drop for CudaEvent {
     fn drop(&mut self) {
-        unsafe { ffi::cuda_event_destroy(self.0) }.to_result().unwrap();
+        unsafe { ffi::cuda_event_destroy(self.handle()) }.to_result().unwrap();
     }
 }

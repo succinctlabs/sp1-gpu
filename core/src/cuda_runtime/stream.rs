@@ -12,7 +12,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct CudaStreamOwned(CudaStreamHandle);
 

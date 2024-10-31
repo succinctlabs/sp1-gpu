@@ -6,8 +6,8 @@ use p3_field::{AbstractField, Field};
 use sp1_stark::Com;
 
 use crate::{
-    device::error::CudaError, dft::DeviceDft, matrix::ColMajorMatrixDevice,
-    merkle_tree::MmcsCommitter, stark::BabyBearFriConfig,
+    cuda_runtime::event::CudaEvent, device::error::CudaError, dft::DeviceDft,
+    matrix::ColMajorMatrixDevice, merkle_tree::MmcsCommitter, stark::BabyBearFriConfig,
 };
 
 pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {

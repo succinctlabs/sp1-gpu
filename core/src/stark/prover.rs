@@ -13,8 +13,8 @@ use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
     MachineProver, MachineProvingKey, MachineRecord, PcsProverData, ProverConstraintFolder,
-    SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkMachine,
-    StarkProvingKey, StarkVerifyingKey, Val,
+    SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkGenericConfig,
+    StarkMachine, StarkProvingKey, StarkVerifyingKey, Val,
 };
 
 use itertools::Itertools;
@@ -54,10 +54,62 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     main_stream: CudaStream,
     chip_streams: BTreeMap<String, CudaStream>,
     chip_events: Vec<CudaEvent>,
+    events: StarkEvents,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
     committer: TwoAdicFriCommitter<SC, C>,
     opening_prover: FriOpeningProver<SC>,
+}
+
+pub struct StarkEvents {
+    preprocessed: BTreeMap<String, CudaEvent>,
+    global_main: BTreeMap<String, CudaEvent>,
+    local_main: BTreeMap<String, CudaEvent>,
+    permutation: BTreeMap<String, CudaEvent>,
+    quotient: BTreeMap<String, CudaEvent>,
+    batching_buffer_initialization: CudaEvent,
+    update_openings: BTreeMap<String, CudaEvent>,
+}
+
+impl StarkEvents {
+    pub fn new<SC: StarkGenericConfig, A: MachineAir<SC::Val>>(
+        machine: &StarkMachine<SC, A>,
+    ) -> Result<Self, CudaError> {
+        let mut preprocessed = BTreeMap::new();
+        let mut global_main = BTreeMap::new();
+        let mut local_main = BTreeMap::new();
+        let mut permutation = BTreeMap::new();
+        let mut quotient = BTreeMap::new();
+        let batching_buffer_initialization = CudaEvent::new()?;
+        let mut update_openings = BTreeMap::new();
+
+        for chip in machine.chips() {
+            if chip.preprocessed_width() > 0 {
+                preprocessed.insert(chip.name(), CudaEvent::new()?);
+            }
+            match chip.commit_scope() {
+                InteractionScope::Global => {
+                    global_main.insert(chip.name(), CudaEvent::new()?);
+                }
+                InteractionScope::Local => {
+                    local_main.insert(chip.name(), CudaEvent::new()?);
+                }
+            }
+            permutation.insert(chip.name(), CudaEvent::new()?);
+            quotient.insert(chip.name(), CudaEvent::new()?);
+            update_openings.insert(chip.name(), CudaEvent::new()?);
+        }
+
+        Ok(Self {
+            preprocessed,
+            global_main,
+            local_main,
+            permutation,
+            quotient,
+            batching_buffer_initialization,
+            update_openings,
+        })
+    }
 }
 
 /// A proving key for a STARK.
@@ -185,6 +237,7 @@ where
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
         let chip_events =
             machine.chips().iter().map(|_| CudaEvent::new().unwrap()).collect::<Vec<_>>();
+        let events = StarkEvents::new(&machine).unwrap();
         Self {
             machine,
             main_stream: CudaStream::default(),
@@ -194,6 +247,7 @@ where
             quotient_generator,
             chip_streams,
             chip_events,
+            events,
         }
     }
 

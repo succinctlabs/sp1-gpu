@@ -1,5 +1,5 @@
 use crate::{
-    cuda_runtime::{event::CudaEvent, stream::CudaStream},
+    cuda_runtime::stream::CudaStream,
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
@@ -33,11 +33,11 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         leaves: Vec<M>,
         main_stream: &CudaStream,
     ) -> Self {
-        for mat in leaves.iter() {
-            let event = CudaEvent::new().unwrap();
-            mat.stream().record(&event).unwrap();
-            main_stream.wait_event(&event).unwrap();
-        }
+        // for mat in leaves.iter() {
+        //     let event = CudaEvent::new().unwrap();
+        //     mat.stream().record(&event).unwrap();
+        //     main_stream.wait_event(&event).unwrap();
+        // }
         let mut leaves_largest_first = leaves
             .iter()
             .map(|l| {
@@ -54,7 +54,8 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             .to_device()
             .unwrap();
 
-        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height).unwrap();
+        let mut first_digest_layer =
+            DeviceBuffer::with_capacity_in(max_height, main_stream).unwrap();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -79,7 +80,8 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                 .to_device()
                 .unwrap();
 
-            let mut next_digests = DeviceBuffer::<D>::with_capacity(next_layer_len).unwrap();
+            let mut next_digests =
+                DeviceBuffer::<D>::with_capacity_in(next_layer_len, main_stream).unwrap();
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
