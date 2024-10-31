@@ -35,8 +35,8 @@ impl CudaEvent {
     }
 }
 
-impl Drop for CudaEvent {
+impl Drop for CudaEventOwned {
     fn drop(&mut self) {
-        unsafe { ffi::cuda_event_destroy(self.handle()) }.to_result().unwrap();
+        unsafe { ffi::cuda_event_destroy(self.0) }.to_result().unwrap();
     }
 }

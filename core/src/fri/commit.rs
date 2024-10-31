@@ -6,8 +6,12 @@ use p3_field::{AbstractField, Field};
 use sp1_stark::Com;
 
 use crate::{
-    cuda_runtime::event::CudaEvent, device::error::CudaError, dft::DeviceDft,
-    matrix::ColMajorMatrixDevice, merkle_tree::MmcsCommitter, stark::BabyBearFriConfig,
+    cuda_runtime::{event::CudaEvent, stream::CudaStream},
+    device::error::CudaError,
+    dft::DeviceDft,
+    matrix::ColMajorMatrixDevice,
+    merkle_tree::MmcsCommitterAsync,
+    stark::BabyBearFriConfig,
 };
 
 pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
@@ -18,7 +22,7 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
 
 impl<
         SC: BabyBearFriConfig,
-        C: MmcsCommitter<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        C: MmcsCommitterAsync<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     > TwoAdicFriCommitter<SC, C>
 {
     pub fn new(log_blowup: usize) -> Self
@@ -28,8 +32,12 @@ impl<
         Self { dft: DeviceDft::new(), mmcs_committer: C::default(), log_blowup }
     }
 
-    pub fn mmcs_commit(&self, leaves: Vec<C::Matrix>) -> (Com<SC>, C::ProverData) {
-        self.mmcs_committer.commit(leaves)
+    pub fn mmcs_commit(
+        &self,
+        leaves: Vec<C::Matrix>,
+        stream: &CudaStream,
+    ) -> (Com<SC>, C::ProverData) {
+        self.mmcs_committer.commit(leaves, stream)
     }
 
     pub const fn log_blowup(&self) -> usize {
@@ -61,7 +69,7 @@ impl<
 
     pub fn encode_batch<M>(
         &self,
-        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M, CudaEvent)],
         bit_reversed: bool,
     ) -> Result<Vec<ColMajorMatrixDevice<BabyBear>>, CudaError>
     where
@@ -69,16 +77,16 @@ impl<
     {
         let lde_evals = evaluations
             .iter()
-            .map(|(domain, matrix)| {
+            .map(|(domain, matrix, event)| {
                 let matrix = matrix.borrow();
                 let lde = unsafe { matrix.embed_as_blowup(self.log_blowup) }?;
-                Ok((*domain, lde))
+                Ok((*domain, lde, event))
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         lde_evals
             .into_iter()
-            .map(|(domain, mut lde)| unsafe {
+            .map(|(domain, mut lde, event)| unsafe {
                 let shift = domain.shift.inverse();
                 self.dft.coset_lde_batch_device(
                     lde.view_mut(),
@@ -87,6 +95,8 @@ impl<
                     bit_reversed,
                     lde.stream(),
                 )?;
+
+                lde.stream().record(event)?;
 
                 Ok(lde)
             })
@@ -122,13 +132,20 @@ impl<
 
     pub fn commit<M>(
         &self,
-        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M)],
+        evaluations: &[(TwoAdicMultiplicativeCoset<BabyBear>, M, CudaEvent)],
+        stream: &CudaStream,
     ) -> (Com<SC>, C::ProverData)
     where
         M: Borrow<C::Matrix>,
     {
+        // Encode all the matrices and register the events.
         let lde_evaluations = self.encode_batch(evaluations, true).unwrap();
-        self.mmcs_commit(lde_evaluations)
+        // Get the committer stream to wait for encodings to be done.
+        for (_, _, event) in evaluations.iter() {
+            stream.wait_event(event).unwrap();
+        }
+        // Commit the LDE evaluations.
+        self.mmcs_commit(lde_evaluations, stream)
     }
 }
 
@@ -156,6 +173,8 @@ mod tests {
 
         let mut rng = thread_rng();
 
+        let main_stream = CudaStream::default();
+
         let domains_and_traces = log_degrees
             .iter()
             .zip(columns.iter())
@@ -175,13 +194,13 @@ mod tests {
             .iter()
             .map(|(domain, trace)| {
                 let trace = trace.to_device().unwrap().to_column_major();
-                (*domain, trace)
+                (*domain, trace, CudaEvent::new().unwrap())
             })
             .collect::<Vec<_>>();
 
         let pcs = TwoAdicFriCommitter::<SC, Poseidon2BabyBearCommitter>::new(log_blowup);
         let time = CudaInstant::now().unwrap();
-        let (commit, _) = pcs.commit(&evaluations);
+        let (commit, _) = pcs.commit(&evaluations, &main_stream);
         println!("time: {:?}", time.elapsed().unwrap());
 
         let sp1_config = SC::default();

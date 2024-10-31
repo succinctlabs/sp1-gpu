@@ -20,7 +20,7 @@ use crate::{
     },
     fri::TwoAdicFriCommitter,
     matrix::{ColMajorMatrixDevice, MatrixViewDevice},
-    merkle_tree::{MmcsCommitter, MmcsProverData},
+    merkle_tree::{MmcsCommitterAsync, MmcsProverData},
     stark::{BabyBearFriConfig, FriMmcs, PcsConfig},
 };
 
@@ -36,7 +36,7 @@ impl<SC> FriOpeningProver<SC> {
     }
 }
 
-pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitter<F, ValMmcs> {
+pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitterAsync<F, ValMmcs> {
     fn query_open_batch(
         &self,
         query_indices: &[usize],
@@ -74,7 +74,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
     {
-        let log_max_height = input.keys().max().copied().unwrap();
+        let log_max_height = Iterator::max(input.keys()).copied().unwrap();
 
         debug_assert_eq!(committer.log_blowup, config.log_blowup);
         let commit_phase_result = trace_span!("Commit phase")
@@ -437,7 +437,7 @@ pub fn commit_phase<SC, C>(
 ) -> CommitPhaseResult<SC, C>
 where
     SC: BabyBearFriConfig,
-    C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    C: MmcsCommitterAsync<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
 {
     let mut leaves = input.remove(&log_max_height).unwrap();
 
@@ -446,7 +446,8 @@ where
 
     for log_folded_height in (committer.log_blowup..log_max_height).rev() {
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
-        let (commit, prover_data) = committer.mmcs_commit(vec![temp]);
+        let stream = temp.stream().clone();
+        let (commit, prover_data) = committer.mmcs_commit(vec![temp], &stream);
         challenger.observe(commit.clone());
 
         let beta: SC::Challenge = challenger.sample();
@@ -475,7 +476,7 @@ where
 pub struct CommitPhaseResult<SC, C>
 where
     SC: BabyBearFriConfig,
-    C: MmcsCommitter<SC::Val, SC::ValMmcs>,
+    C: MmcsCommitterAsync<SC::Val, SC::ValMmcs>,
 {
     commits: Vec<Com<SC>>,
     data: Vec<C::ProverData>,

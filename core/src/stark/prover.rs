@@ -53,7 +53,6 @@ pub struct StarkGpuProver<SC: BabyBearFriConfig, C, A> {
     pub(crate) machine: StarkMachine<SC, A>,
     main_stream: CudaStream,
     chip_streams: BTreeMap<String, CudaStream>,
-    chip_events: Vec<CudaEvent>,
     events: StarkEvents,
     permutation_trace_generator: PermutationTraceGenerator<SC::Val, SC::Challenge, A>,
     quotient_generator: DeviceQuotientValuesGenerator<SC, A>,
@@ -235,8 +234,6 @@ where
             .map(|chip| (chip.name(), CudaStream::create().unwrap()))
             .collect();
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
-        let chip_events =
-            machine.chips().iter().map(|_| CudaEvent::new().unwrap()).collect::<Vec<_>>();
         let events = StarkEvents::new(&machine).unwrap();
         Self {
             machine,
@@ -246,7 +243,6 @@ where
             opening_prover: FriOpeningProver::new(domain_normalizers),
             quotient_generator,
             chip_streams,
-            chip_events,
             events,
         }
     }
@@ -299,18 +295,30 @@ where
         let _span = span.enter();
 
         // Copy the traces to device.
-        let traces: Vec<_> = named_traces
+        let (traces, events): (Vec<_>, Vec<_>) = named_traces
             .into_iter()
             .map(|(name, trace)| {
                 let stream = self.chip_streams.get(&name).unwrap();
-                trace.to_device_async(stream).unwrap().to_column_major()
+                let event = self
+                    .events
+                    .global_main
+                    .get(&name)
+                    .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
+                    .clone();
+                (trace.to_device_async(stream).unwrap().to_column_major(), event)
             })
             .collect();
 
         // Commit to the traces.
-        let domains_and_traces = domains.iter().copied().zip(traces.iter()).collect::<Vec<_>>();
-        let (commit, data) =
-            tracing::debug_span!("commit").in_scope(|| self.committer.commit(&domains_and_traces));
+        let domains_and_traces = domains
+            .iter()
+            .copied()
+            .zip(traces.iter())
+            .zip(events)
+            .map(|((domain, trace), event)| (domain, trace, event))
+            .collect::<Vec<_>>();
+        let (commit, data) = tracing::debug_span!("commit")
+            .in_scope(|| self.committer.commit(&domains_and_traces, &self.main_stream));
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
@@ -358,16 +366,17 @@ where
             .iter()
             .map(|(name, trace)| {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
+                let event = self.events.preprocessed.get(name).unwrap().clone();
                 (
                     (name.to_owned(), domain, trace.dimensions()),
-                    (domain, trace.to_device().unwrap().to_column_major()),
+                    (domain, trace.to_device().unwrap().to_column_major(), event),
                 )
             })
             .unzip();
 
         // Commit to the batch of traces.
         let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
-            .in_scope(|| self.committer.commit(&domains_and_traces));
+            .in_scope(|| self.committer.commit(&domains_and_traces, &self.main_stream));
 
         // Get the chip ordering.
         let chip_ordering = named_preprocessed_traces
@@ -444,6 +453,7 @@ where
             let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
             let shard_chips =
                 self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
+            let shard_chip_names = shard_chips.iter().map(|chip| chip.name()).collect::<Vec<_>>();
             let shard_chip_stream =
                 all_traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
 
@@ -511,10 +521,21 @@ where
             }
 
             // Commit to the permutation traces.
-            let perm_domains_and_traces =
-                domains.iter().copied().zip(permutation_traces).collect::<Vec<_>>();
+            let perm_domains_and_traces = domains
+                .iter()
+                .copied()
+                .zip_eq(permutation_traces)
+                .zip_eq(shard_chips.iter())
+                .map(|((domain, permutation_trace), chip)| {
+                    (
+                        domain,
+                        permutation_trace,
+                        self.events.permutation.get(&chip.name()).unwrap().clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
             let (permutation_commit, mut perm_prover_data) =
-                self.committer.commit(&perm_domains_and_traces);
+                self.committer.commit(&perm_domains_and_traces, &self.main_stream);
             permutation_span.exit();
 
             // Observe the permutation commitment.
@@ -669,14 +690,19 @@ where
             // Commit to the quotient values
             let quotient_domains_and_chunks = quotient_values
                 .into_iter()
-                .flat_map(|values| {
+                .zip_eq(shard_chip_names.iter())
+                .flat_map(|(values, name)| {
                     let DeviceQuotientValues { quotient_chunks, quotient_chunk_domains } = values;
+                    let event = self.events.quotient.get(name).unwrap().clone();
 
-                    quotient_chunk_domains.into_iter().zip(quotient_chunks)
+                    quotient_chunk_domains
+                        .into_iter()
+                        .zip(quotient_chunks)
+                        .map(move |(domain, chunk)| (domain, chunk, event.clone()))
                 })
                 .collect::<Vec<_>>();
             let (quotient_commit, quotient_prover_data) =
-                self.committer.commit(&quotient_domains_and_chunks);
+                self.committer.commit(&quotient_domains_and_chunks, &self.main_stream);
             quotient_span.exit();
             // Observe the quotient commitment.
             challenger.observe(quotient_commit.clone());
@@ -726,7 +752,7 @@ where
 
             let mut perm_openings = vec![];
             // Openings for permutation traces.
-            for (domain, trace) in perm_domains_and_traces {
+            for (domain, trace, _) in perm_domains_and_traces {
                 let local_open = self.opening_prover.eval(domain, &trace, zeta);
                 let next_open =
                     self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
@@ -735,16 +761,11 @@ where
             }
             // Openings for quotient traces
             let mut quot_openings = vec![];
-            for (domain, trace) in quotient_domains_and_chunks.into_iter() {
+            for (domain, trace, _) in quotient_domains_and_chunks.into_iter() {
                 let open = self.opening_prover.eval(domain, &trace, zeta);
                 input_heights.insert(domain.log_n);
                 quot_openings.push((domain.log_n, open));
             }
-
-            // for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
-            //     stream.record(event).unwrap();
-            //     self.main_stream.wait_event(event).unwrap();
-            // }
 
             // Create the input for the FRI opening.
 
@@ -767,7 +788,7 @@ where
                 })
                 .collect::<BTreeMap<_, _>>();
 
-            let event = &self.chip_events[0];
+            let event = &self.events.batching_buffer_initialization;
             self.main_stream.record(event).unwrap();
             for stream in shard_chip_stream.iter() {
                 stream.wait_event(event).unwrap();
@@ -905,7 +926,8 @@ where
             }
 
             // Wait for all batches to update.
-            for (stream, event) in shard_chip_stream.iter().zip(self.chip_events.iter()) {
+            for (stream, name) in shard_chip_stream.iter().zip(shard_chip_names.iter()) {
+                let event = self.events.update_openings.get(name).unwrap();
                 stream.record(event).unwrap();
                 self.main_stream.wait_event(event).unwrap();
             }
@@ -943,12 +965,11 @@ where
             } else {
                 vec![&pk.data, &local_main_data, &perm_prover_data, &quotient_prover_data]
             };
-            let log_global_max_height = prover_data
-                .iter()
-                .flat_map(|data| data.matrices().iter().map(|mat| mat.height))
-                .max()
-                .unwrap()
-                .ilog2() as usize;
+            let log_global_max_height_iter =
+                prover_data.iter().flat_map(|data| data.matrices().iter().map(|mat| mat.height));
+
+            let log_global_max_height =
+                Iterator::max(log_global_max_height_iter).unwrap().ilog2() as usize;
 
             let query_openings = self.committer.mmcs_committer.query_open_batch(
                 &query_indices,

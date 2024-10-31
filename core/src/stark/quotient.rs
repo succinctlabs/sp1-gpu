@@ -22,7 +22,7 @@ use crate::{
     device::{error::CudaError, memory::ToDevice, DeviceBuffer},
     fri::TwoAdicFriCommitter,
     matrix::ColMajorMatrixDevice,
-    merkle_tree::MmcsCommitter,
+    merkle_tree::MmcsCommitterAsync,
     stark::ffi::quotient_gpu,
 };
 
@@ -160,7 +160,7 @@ where
         cumulative_sums: &[Vec<SC::Challenge>],
     ) -> Result<Vec<DeviceQuotientValues<SC>>, CudaError>
     where
-        C: MmcsCommitter<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        C: MmcsCommitterAsync<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
         C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
             + 'static
             + Send
