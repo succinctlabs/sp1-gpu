@@ -186,16 +186,27 @@ where
 
     fn generate_traces(
         &self,
-        _record: &A::Record,
-        _interaction_scope: InteractionScope,
+        record: &A::Record,
+        interaction_scope: InteractionScope,
     ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        vec![]
+        let chips = self
+            .shard_chips(record)
+            .filter(|chip| chip.commit_scope() == interaction_scope)
+            .collect::<Vec<_>>();
+
+        chips
+            .par_iter()
+            .filter_map(|chip| {
+                let trace = chip.air.generate_trace_fallback(record, &mut A::Record::default())?;
+                Some((chip.name(), trace))
+            })
+            .collect::<Vec<_>>()
     }
 
     fn commit(
         &self,
         shard: &A::Record,
-        mut _named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
         interaction_scope: InteractionScope,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         let chips = self
@@ -203,17 +214,23 @@ where
             .filter(|chip| chip.commit_scope() == interaction_scope)
             .collect::<Vec<_>>();
 
+        let gpu_named_traces =
+            chips.par_iter().zip(&self.chip_streams).filter_map(|(chip, stream)| {
+                let trace: Self::DeviceMatrix = chip
+                    .air
+                    .generate_trace_accel(shard, &mut A::Record::default(), stream)?
+                    .unwrap();
+                Some((chip.name(), trace))
+            });
+
         let mut named_traces = tracing::debug_span!("generate trace accel").in_scope(|| {
-            chips
-                .par_iter()
-                .zip(&self.chip_streams)
-                .map(|(chip, stream)| {
-                    let trace: Self::DeviceMatrix = chip
-                        .air
-                        .generate_trace_accel(shard, &mut A::Record::default(), stream)
-                        .unwrap();
-                    (chip.name(), trace)
+            named_traces
+                .into_par_iter()
+                .zip(&self.chip_streams[chips.len()..])
+                .map(|((name, trace), stream)| {
+                    (name, trace.to_device_async(stream).unwrap().to_column_major())
                 })
+                .chain(gpu_named_traces)
                 .collect::<Vec<_>>()
         });
 

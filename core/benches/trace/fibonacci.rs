@@ -95,6 +95,14 @@ fn on_device_work(env: &Env) -> Vec<ColMajorMatrixDevice<BabyBear>> {
                     let mat = chip
                         .air
                         .generate_trace_accel(record, &mut ExecutionRecord::default(), &env.stream)
+                        .transpose()
+                        .unwrap()
+                        .or_else(|| {
+                            let trace = chip
+                                .air
+                                .generate_trace_fallback(record, &mut ExecutionRecord::default())?;
+                            Some(trace.to_device_async(&env.stream).unwrap().to_column_major())
+                        })
                         .unwrap();
                     mat.stream().synchronize().unwrap();
                     mat

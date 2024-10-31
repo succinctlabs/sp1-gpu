@@ -1,4 +1,5 @@
 use p3_field::PrimeField32;
+use p3_matrix::dense::RowMajorMatrix;
 use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_executor::ExecutionRecord;
@@ -18,13 +19,29 @@ use crate::matrix::{ColMajorMatrixDevice, MatrixViewMutDevice};
 
 /// An AIR that possibly has hardware accelerated functionality.
 pub trait AccelAir<F: PrimeField32>: MachineAir<F> {
-    /// Generate a trace, using hardware acceleration if available.
+    /// Generate a trace on the GPU.
+    ///
+    /// Returns `None` if it is not available for the given AIR.
+    #[allow(unused_variables)]
     fn generate_trace_accel(
         &self,
         input: &Self::Record,
         output: &mut Self::Record,
         stream: &CudaStream,
-    ) -> Result<ColMajorMatrixDevice<F>, CudaError>;
+    ) -> Option<Result<ColMajorMatrixDevice<F>, CudaError>> {
+        None
+    }
+
+    /// Generate a trace on the CPU.
+    ///
+    /// Returns `None` if hardware acceleration is available for the given AIR.
+    fn generate_trace_fallback(
+        &self,
+        input: &Self::Record,
+        output: &mut Self::Record,
+    ) -> Option<RowMajorMatrix<F>> {
+        Some(self.generate_trace(input, output))
+    }
 }
 
 impl AccelAir<F> for RiscvAir<F> {
@@ -33,36 +50,37 @@ impl AccelAir<F> for RiscvAir<F> {
         input: &Self::Record,
         output: &mut Self::Record,
         stream: &CudaStream,
-    ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
+    ) -> Option<Result<ColMajorMatrixDevice<F>, CudaError>> {
         // Accelerate trace generation for available chips.
-        match self {
+        Some(match self {
             RiscvAir::Cpu(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Add(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Bitwise(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Lt(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::ShiftLeft(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::ShiftRight(chip) => chip.generate_trace_ffi(input, output, stream),
-            // Fallback for other chips.
-            other => tracing::debug_span!("on host").in_scope(|| {
-                let trace = tracing::debug_span!("generate")
-                    .in_scope(|| other.generate_trace(input, output));
-                tracing::debug_span!("to device")
-                    .in_scope(|| Ok(trace.to_device_async(stream)?.to_column_major()))
-            }),
+            _ => None?,
+        })
+    }
+
+    fn generate_trace_fallback(
+        &self,
+        input: &Self::Record,
+        output: &mut Self::Record,
+    ) -> Option<RowMajorMatrix<F>> {
+        match self {
+            RiscvAir::Cpu(_)
+            | RiscvAir::Add(_)
+            | RiscvAir::Bitwise(_)
+            | RiscvAir::Lt(_)
+            | RiscvAir::ShiftLeft(_)
+            | RiscvAir::ShiftRight(_) => None,
+            other => Some(other.generate_trace(input, output)),
         }
     }
 }
 
-impl<const DEGREE: usize> AccelAir<F> for RecursionAir<F, DEGREE> {
-    fn generate_trace_accel(
-        &self,
-        input: &Self::Record,
-        output: &mut Self::Record,
-        stream: &CudaStream,
-    ) -> Result<ColMajorMatrixDevice<F>, CudaError> {
-        Ok(self.generate_trace(input, output).to_device_async(stream)?.to_column_major())
-    }
-}
+impl<const DEGREE: usize> AccelAir<F> for RecursionAir<F, DEGREE> {}
 
 /// An AIR that has functionality available through FFI.
 pub trait FfiAir: MachineAir<F> {
@@ -263,15 +281,14 @@ mod tests {
             let traces = machine
                 .chips()
                 .par_iter()
-                .filter(|chip| chip.included(record))
-                .map(|chip| {
-                    let mat = chip
-                        .air
+                .filter_map(|chip| {
+                    let air = chip.included(record).then_some(&chip.air)?;
+                    let mat = air
                         .generate_trace_accel(
                             record,
                             &mut ExecutionRecord::default(),
                             &CudaStream::default(),
-                        )
+                        )?
                         .unwrap();
 
                     let trace_cpu = chip.generate_trace(record, &mut ExecutionRecord::default());
@@ -279,7 +296,7 @@ mod tests {
                     mat.stream().synchronize().unwrap();
                     let trace_gpu = mat.to_host();
 
-                    (chip.name(), trace_gpu, trace_cpu)
+                    Some((chip.name(), trace_gpu, trace_cpu))
                 })
                 .collect::<Vec<_>>();
 
