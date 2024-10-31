@@ -539,23 +539,9 @@ where
 
                 let main_eval = match chip.commit_scope() {
                     InteractionScope::Local => {
-                        println!(
-                            "Local {} {} {} {}",
-                            i,
-                            chip.name(),
-                            chip.local_only(),
-                            local_chip_ordering[&chip.name()]
-                        );
                         &mut local_main_data.matrices_mut()[local_chip_ordering[&chip.name()]]
                     }
                     InteractionScope::Global => {
-                        println!(
-                            "Global {} {} {} {}",
-                            i,
-                            chip.name(),
-                            chip.local_only(),
-                            global_chip_ordering[&chip.name()]
-                        );
                         &mut global_main_data.as_mut().unwrap().matrices_mut()
                             [global_chip_ordering[&chip.name()]]
                     }
@@ -666,7 +652,6 @@ where
             let next_open = if !local_only {
                 Some(self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap()))
             } else {
-                println!("entering local-only specific logic #1");
                 None
             };
             preprocessed_opens.push((domain.log_n, local_open, next_open));
@@ -681,7 +666,6 @@ where
             let next_open = if !local_only {
                 Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
             } else {
-                println!("entering local-only specific logic #2");
                 None
             };
             main_global_openings.push((domain.log_n, local_open, next_open));
@@ -696,7 +680,6 @@ where
             let next_open = if !local_only {
                 Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
             } else {
-                println!("entering local-only specific logic #3");
                 None
             };
             main_local_openings.push((domain.log_n, local_open, next_open));
@@ -783,8 +766,6 @@ where
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
-            } else {
-                println!("entering local-only specific logic #4");
             }
         }
 
@@ -814,8 +795,6 @@ where
                         alpha,
                         alpha_offsets.get_mut(&lde_log_height).unwrap(),
                     );
-                } else {
-                    println!("entering local-only specific logic #5");
                 }
             }
         }
@@ -845,8 +824,6 @@ where
                     alpha,
                     alpha_offsets.get_mut(&lde_log_height).unwrap(),
                 );
-            } else {
-                println!("entering local-only specific logic #6");
             }
         }
 
@@ -977,7 +954,6 @@ where
                     if let Some(next) = next {
                         AirOpenedValues { local, next }
                     } else {
-                        println!("entering local-only specific logic #7");
                         let width = local.len();
                         AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
                     }
@@ -992,7 +968,6 @@ where
                     if let Some(next) = next {
                         AirOpenedValues { local, next }
                     } else {
-                        println!("entering local-only specific logic #8");
                         let width = local.len();
                         AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
                     }
@@ -1002,7 +977,6 @@ where
                     if let Some(next) = next {
                         AirOpenedValues { local, next }
                     } else {
-                        println!("entering local-only specific logic #9");
                         let width = local.len();
                         AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
                     }
