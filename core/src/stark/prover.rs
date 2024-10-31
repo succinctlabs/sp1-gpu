@@ -228,11 +228,9 @@ where
     fn new(machine: StarkMachine<SC, A>) -> Self {
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
-        let chip_streams = machine
-            .chips()
-            .iter()
-            .map(|chip| (chip.name(), CudaStream::create().unwrap()))
-            .collect();
+        let single_stream = CudaStream::create().unwrap();
+        let chip_streams =
+            machine.chips().iter().map(|chip| (chip.name(), single_stream.clone())).collect();
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
         let events = StarkEvents::new(&machine).unwrap();
         Self {
@@ -294,10 +292,11 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        // Copy the traces to device.
-        let (traces, events): (Vec<_>, Vec<_>) = named_traces
-            .into_iter()
-            .map(|(name, trace)| {
+        let commit_span = tracing::debug_span!("copy traces to device and commit").entered();
+        let ((traces, ldes), events): ((Vec<_>, Vec<_>), Vec<_>) = named_traces
+            .into_par_iter()
+            .zip(domains.par_iter())
+            .map(|((name, trace), domain)| {
                 let stream = self.chip_streams.get(&name).unwrap();
                 let event = self
                     .events
@@ -305,20 +304,21 @@ where
                     .get(&name)
                     .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
                     .clone();
-                (trace.to_device_async(stream).unwrap().to_column_major(), event)
+                let trace = trace.to_device_async(stream).unwrap().to_column_major();
+                let lde = self.committer.encode(*domain, &trace, true).unwrap();
+                lde.stream().record(&event).unwrap();
+                ((trace, lde), event)
             })
             .collect();
 
-        // Commit to the traces.
-        let domains_and_traces = domains
-            .iter()
-            .copied()
-            .zip(traces.iter())
-            .zip(events)
-            .map(|((domain, trace), event)| (domain, trace, event))
-            .collect::<Vec<_>>();
-        let (commit, data) = tracing::debug_span!("commit")
-            .in_scope(|| self.committer.commit(&domains_and_traces, &self.main_stream));
+        // Get the committer stream to wait for encodings to be done.
+        for event in events.iter() {
+            self.main_stream.wait_event(event).unwrap();
+        }
+        // Commit the LDE evaluations.
+        let (commit, data) = self.committer.mmcs_commit(ldes, &self.main_stream);
+
+        commit_span.exit();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
@@ -1066,11 +1066,11 @@ where
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
 
-        // Synchronize all the chip streams so that we free the memory used in the proof.
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
+        // // Synchronize all the chip streams so that we free the memory used in the proof.
+        // for stream in self.chip_streams.values() {
+        //     stream.synchronize().unwrap();
+        // }
+        // self.main_stream.synchronize().unwrap();
 
         cleanup_span.exit();
 
