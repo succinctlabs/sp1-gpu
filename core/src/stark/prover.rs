@@ -14,7 +14,7 @@ use sp1_stark::{
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
     MachineProver, MachineProvingKey, MachineRecord, PcsProverData, ProverConstraintFolder,
     SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkGenericConfig,
-    StarkMachine, StarkProvingKey, StarkVerifyingKey, Val,
+    StarkMachine, StarkVerifyingKey, Val,
 };
 
 use itertools::Itertools;
@@ -112,7 +112,6 @@ impl StarkEvents {
 }
 
 /// A proving key for a STARK.
-#[derive(Clone)]
 pub struct StarkProvingKeyDevice<SC, C>
 where
     SC: BabyBearFriConfig,
@@ -127,7 +126,7 @@ where
     /// The start pc of the program.
     pub pc_start: Val<SC>,
     /// The preprocessed traces.
-    pub traces: Vec<RowMajorMatrix<Val<SC>>>,
+    pub traces: Vec<ColMajorMatrixDevice<Val<SC>>>,
     /// The pcs data for the preprocessed traces.
     pub data: C::ProverData,
     /// The preprocessed chip ordering.
@@ -157,27 +156,6 @@ where
 
     fn pc_start(&self) -> Val<SC> {
         self.pc_start
-    }
-
-    fn to_host(&self) -> StarkProvingKey<SC> {
-        StarkProvingKey {
-            commit: self.commit.clone(),
-            pc_start: self.pc_start,
-            data: self.data.to_host(),
-            traces: self.traces.clone(),
-            chip_ordering: self.chip_ordering.clone(),
-        }
-    }
-
-    fn from_host(host: &StarkProvingKey<SC>) -> Self {
-        StarkProvingKeyDevice {
-            commit: host.commit.clone(),
-            pc_start: host.pc_start,
-            traces: host.traces.clone(),
-            data: host.data.to_device().unwrap(),
-            chip_ordering: host.chip_ordering.clone(),
-            phantom: PhantomData,
-        }
     }
 
     fn observe_into(&self, challenger: &mut sp1_stark::Challenger<SC>) {
@@ -249,6 +227,46 @@ where
 
     fn machine(&self) -> &StarkMachine<SC, A> {
         &self.machine
+    }
+
+    fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
+        let chip_ordering = pk.chip_ordering.clone();
+        let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
+        self.main_stream.synchronize().unwrap();
+        let mut traces = Vec::with_capacity(chip_ordering.len());
+
+        for i in 0..chip_ordering.len() {
+            let name =
+                chip_ordering.iter().find(|(_, idx)| **idx == i).map(|(name, _)| name).unwrap();
+            let stream = self.chip_streams.get(name).unwrap();
+            // Update lde stream.
+            let lde = &mut data.matrices_mut()[i];
+            unsafe {
+                lde.values.set_stream(stream.clone());
+            }
+            let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
+            stream.synchronize().unwrap();
+            traces.push(trace);
+        }
+
+        StarkProvingKeyDevice {
+            commit: pk.commit.clone(),
+            pc_start: pk.pc_start,
+            traces,
+            data,
+            chip_ordering,
+            phantom: PhantomData,
+        }
+    }
+
+    fn pk_to_host(&self, pk: &Self::DeviceProvingKey) -> sp1_stark::StarkProvingKey<SC> {
+        sp1_stark::StarkProvingKey {
+            commit: pk.commit.clone(),
+            pc_start: pk.pc_start,
+            data: pk.data.to_host(),
+            traces: pk.traces.iter().map(|t| t.to_host()).collect(),
+            chip_ordering: pk.chip_ordering.clone(),
+        }
     }
 
     fn generate_traces(
@@ -369,9 +387,10 @@ where
             .map(|(name, trace)| {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 let event = self.events.preprocessed.get(name).unwrap().clone();
+                let stream = self.chip_streams.get(name).unwrap();
                 (
                     (name.to_owned(), domain, trace.dimensions()),
-                    (domain, trace.to_device().unwrap().to_column_major(), event),
+                    (domain, trace.to_device_async(stream).unwrap().to_column_major(), event),
                 )
             })
             .unzip();
@@ -379,6 +398,8 @@ where
         // Commit to the batch of traces.
         let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
             .in_scope(|| self.committer.commit(&domains_and_traces, &self.main_stream));
+
+        self.main_stream.synchronize().unwrap();
 
         // Get the chip ordering.
         let chip_ordering = named_preprocessed_traces
@@ -388,8 +409,7 @@ where
             .collect::<HashMap<_, _>>();
 
         // Get the preprocessed traces
-        let traces =
-            named_preprocessed_traces.into_iter().map(|(_, trace)| trace).collect::<Vec<_>>();
+        let traces = domains_and_traces.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
 
@@ -599,13 +619,10 @@ where
                         .chip_ordering
                         .get(&chip.name())
                         .map(|&index| {
-                            pk.traces[index].to_device_async(stream).unwrap().to_column_major()
-                        })
-                        .map(|prep_trace| {
                             self.committer.get_evaluations_on_domain(
                                 trace_domain,
                                 quotient_domain,
-                                &prep_trace,
+                                &pk.traces[index],
                             )
                         })
                         .transpose()
@@ -648,14 +665,11 @@ where
                     let prep_eval = pk
                         .chip_ordering
                         .get(&chip.name())
-                        .map(|&index| {
-                            pk.traces[index].to_device_async(stream).unwrap().to_column_major()
-                        })
-                        .map(|prep_trace| {
+                        .map(|index| {
                             self.committer.get_evaluations_on_domain(
                                 trace_domain,
                                 quotient_domain,
-                                &prep_trace,
+                                &pk.traces[*index],
                             )
                         })
                         .transpose()
@@ -724,12 +738,11 @@ where
             // Openings for preprocessed traces.
             let mut preprocessed_opens = vec![];
             let mut input_heights = BTreeSet::new();
-            for prep_trace in pk.traces.iter() {
-                let trace = prep_trace.to_device().unwrap().to_column_major();
+            for trace in pk.traces.iter() {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
-                let local_open = self.opening_prover.eval(domain, &trace, zeta);
+                let local_open = self.opening_prover.eval(domain, trace, zeta);
                 let next_open =
-                    self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+                    self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
                 input_heights.insert(domain.log_n);
                 preprocessed_opens.push((domain.log_n, local_open, next_open));
             }
@@ -1190,13 +1203,12 @@ where
             .iter()
             .zip(main_traces.iter())
             .map(|(chip, main_trace)| {
-                let preprocessed_trace = pk.chip_ordering.get(&chip.name()).map(|&index| {
-                    pk.traces[index].to_device_async(main_trace.stream()).unwrap().to_column_major()
-                });
+                let preprocessed_trace =
+                    pk.chip_ordering.get(&chip.name()).map(|&index| &pk.traces[index]);
 
                 self.permutation_trace_generator.generate_flattened_permutation_trace(
                     chip,
-                    preprocessed_trace.as_ref(),
+                    preprocessed_trace,
                     main_trace,
                     random_elements,
                 )

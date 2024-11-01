@@ -1,7 +1,8 @@
 use p3_baby_bear::BabyBear;
 use p3_commit::Mmcs;
 use p3_field::{PackedField, PackedValue};
-use p3_merkle_tree::FieldMerkleTreeMmcs;
+use p3_matrix::dense::RowMajorMatrix;
+use p3_merkle_tree::{FieldMerkleTree, FieldMerkleTreeMmcs};
 use p3_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -94,6 +95,30 @@ impl<F: Copy, D: Copy, M: DeviceMatrix<F>> MmcsProverData<M> for FieldMerkleTree
 
     #[inline]
     fn push_matrix(&mut self, matrix: M) {
+        self.leaves.push(matrix);
+    }
+}
+
+impl<F: Copy, W, const DIGEST_ELEMS: usize> MmcsProverData<RowMajorMatrix<F>>
+    for FieldMerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>
+{
+    #[inline]
+    fn matrices(&self) -> &[RowMajorMatrix<F>] {
+        &self.leaves
+    }
+
+    #[inline]
+    fn matrices_mut(&mut self) -> &mut [RowMajorMatrix<F>] {
+        &mut self.leaves
+    }
+
+    #[inline]
+    fn clear_matrices(&mut self) {
+        self.leaves.clear();
+    }
+
+    #[inline]
+    fn push_matrix(&mut self, matrix: RowMajorMatrix<F>) {
         self.leaves.push(matrix);
     }
 }
