@@ -3,9 +3,9 @@ use p3_matrix::dense::RowMajorMatrix;
 use rayon::prelude::*;
 use sp1_core_executor::events::AluEvent;
 use sp1_core_executor::ExecutionRecord;
-use sp1_core_machine::alu::{AddSubChip, BitwiseChip, LtChip, ShiftLeftChip, ShiftRightChip};
-use sp1_core_machine::cpu::CpuChip;
-use sp1_core_machine::riscv::RiscvAir;
+use sp1_core_machine::riscv::{
+    AddSubChip, BitwiseChip, CpuChip, LtChip, MulChip, RiscvAir, ShiftLeftChip, ShiftRightChip,
+};
 use sp1_core_machine::sys::CpuEventFfi;
 use sp1_core_machine::utils::next_power_of_two;
 use sp1_recursion_core::machine::RecursionAir;
@@ -55,6 +55,7 @@ impl AccelAir<F> for RiscvAir<F> {
         Some(match self {
             RiscvAir::Cpu(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Add(chip) => chip.generate_trace_ffi(input, output, stream),
+            RiscvAir::Mul(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Bitwise(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::Lt(chip) => chip.generate_trace_ffi(input, output, stream),
             RiscvAir::ShiftLeft(chip) => chip.generate_trace_ffi(input, output, stream),
@@ -71,6 +72,7 @@ impl AccelAir<F> for RiscvAir<F> {
         match self {
             RiscvAir::Cpu(_)
             | RiscvAir::Add(_)
+            | RiscvAir::Mul(_)
             | RiscvAir::Bitwise(_)
             | RiscvAir::Lt(_)
             | RiscvAir::ShiftLeft(_)
@@ -147,6 +149,25 @@ impl FfiAir for AddSubChip {
 
     fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
         &input.add_sub_events
+    }
+}
+
+extern "C" {
+    pub fn mul_populate_babybear(
+        mat: MatrixViewMutDevice<F>,
+        events: *const AluEvent,
+        nb_events: usize,
+        stream: CudaStreamHandle,
+    ) -> CudaRustError;
+}
+
+impl FfiAir for MulChip {
+    const NUM_COLS: usize = sp1_core_machine::alu::NUM_MUL_COLS;
+    const FFI_POPULATE: FfiPopulate<Self::Event> = mul_populate_babybear;
+    type Event = AluEvent;
+
+    fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]> {
+        &input.mul_events
     }
 }
 

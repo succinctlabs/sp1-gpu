@@ -18,21 +18,24 @@
 namespace tracegen {
 
 template<class T>
-concept PopulateParams =
-    requires(typename T::Val* mat, const typename T::Event& event, typename T::Cols& cols) {
-        typename T::Field;
-        typename T::Val;
-        requires std::same_as<typename T::Val, decltype(T::Field::val)>;
-        typename T::Cols;
-        requires std::is_standard_layout_v<typename T::Cols>;
-        typename T::Event;
-        { T::write_nonce } -> std::convertible_to<bool>;
-        T::event_to_row(event, cols);
-        (*T::write_padding)(mat, uintptr_t {});
-    };
+concept PopulateParams = requires(
+    typename T::Val* mat,
+    const typename T::Event& event,
+    typename T::Cols& cols
+) {
+    typename T::Field;
+    typename T::Val;
+    requires std::same_as<typename T::Val, decltype(T::Field::val)>;
+    typename T::Cols;
+    requires std::is_standard_layout_v<typename T::Cols>;
+    typename T::Event;
+    { T::write_nonce } -> std::convertible_to<bool>;
+    T::event_to_row(event, cols);
+    (*T::write_padding)(mat, uintptr_t {});
+};
 
 template<PopulateParams T>
-__global__ void event_to_row_kernel_alt(
+__global__ void event_to_row_kernel(
     decltype(T::Field::val)* mat,
     uintptr_t width,
     uintptr_t height,
@@ -92,7 +95,7 @@ moongate::CudaRustError generic_populate(
         mat.width * mat.height * sizeof(typename T::Val),
         stream
     ));
-    tracegen::event_to_row_kernel_alt<T>
+    tracegen::event_to_row_kernel<T>
         <<<(mat.height - 1) / M + 1, M, 0, stream>>>(
             mat.values,
             mat.width,
@@ -138,6 +141,42 @@ extern CudaRustError add_sub_populate_babybear(
 template __device__ void sp1::add_sub::event_to_row<bb31_t>(
     const sp1::AluEvent& event,
     sp1::AddSubCols<sp1::BabyBearMonty>& cols
+);
+
+// Mul AIR
+
+namespace moongate {
+struct MulParams {
+    using Field = bb31_t;
+    using Val = decltype(Field::val);
+    using Cols = sp1::MulCols<Val>;
+    using Event = sp1::AluEvent;
+    static constexpr auto event_to_row = sp1::mul::event_to_row<Field>;
+    static constexpr bool write_nonce = true;
+    static constexpr void (*write_padding)(Val* mat, uintptr_t height) =
+        nullptr;
+};
+
+static_assert(tracegen::PopulateParams<MulParams>);
+
+extern CudaRustError mul_populate_babybear(
+    MatrixViewMutDevice<F> mat,
+    const AluEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    return tracegen::generic_populate<MulParams>(
+        mat,
+        std::bit_cast<const sp1::AluEvent*>(events),
+        nb_events,
+        stream_handle
+    );
+}
+}  // namespace moongate
+
+template __device__ void sp1::mul::event_to_row<bb31_t>(
+    const sp1::AluEvent& event,
+    sp1::MulCols<sp1::BabyBearMonty>& cols
 );
 
 // Bitwise AIR
