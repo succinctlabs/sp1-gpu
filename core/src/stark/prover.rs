@@ -228,9 +228,11 @@ where
     fn new(machine: StarkMachine<SC, A>) -> Self {
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
-        let single_stream = CudaStream::create().unwrap();
-        let chip_streams =
-            machine.chips().iter().map(|chip| (chip.name(), single_stream.clone())).collect();
+        let chip_streams = machine
+            .chips()
+            .iter()
+            .map(|chip| (chip.name(), CudaStream::create().unwrap()))
+            .collect();
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
         let events = StarkEvents::new(&machine).unwrap();
         Self {
@@ -1065,11 +1067,11 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources. 
+        // Synchronize streams to release all resources.
         for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap().
+            stream.synchronize().unwrap();
         }
-        self.main_stream.synchronize();
+        self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 
         proof
