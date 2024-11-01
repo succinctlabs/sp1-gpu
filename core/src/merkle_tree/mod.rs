@@ -40,7 +40,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
             .collect_vec()
-            .to_device()
+            .to_device_async(main_stream)
             .unwrap();
 
         let mut first_digest_layer =
@@ -66,7 +66,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             let matrices_to_inject = leaves_largest_first
                 .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
                 .collect_vec()
-                .to_device()
+                .to_device_async(main_stream)
                 .unwrap();
 
             let mut next_digests =
