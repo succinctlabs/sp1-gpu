@@ -10,10 +10,10 @@ use p3_field::AbstractExtensionField;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
-    AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
-    MachineProver, MachineProvingKey, MachineRecord, PcsProverData, ProverConstraintFolder,
-    SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkMachine,
-    StarkProvingKey, StarkVerifyingKey, Val,
+    AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineChip,
+    MachineProof, MachineProver, MachineProvingKey, MachineRecord, PcsProverData,
+    ProverConstraintFolder, SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues,
+    ShardProof, StarkMachine, StarkProvingKey, StarkVerifyingKey, Val,
 };
 
 use itertools::Itertools;
@@ -209,47 +209,87 @@ where
         named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
         interaction_scope: InteractionScope,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
+        // Defined here because otherwise it would be several hundred lines away, and nobody
+        // else needs to worry about it. It's merely a "this or that" type.
+        /// A possibly finished job to generate a trace.
+        enum TraceJob<'b, SC, A>
+        where
+            SC: BabyBearFriConfig,
+        {
+            /// A finished trace generated on the host, along with its name.
+            Host(String, RowMajorMatrix<Val<SC>>),
+            /// A chip that needs trace generation on device, along with its height
+            Device(&'b MachineChip<SC, A>, usize),
+        }
+
+        impl<'b, SC, A> TraceJob<'b, SC, A>
+        where
+            SC: BabyBearFriConfig,
+            A: MachineAir<Val<SC>>,
+        {
+            fn height(&self) -> usize {
+                match self {
+                    TraceJob::Host(_, mat) => mat.height(),
+                    TraceJob::Device(_, height) => *height,
+                }
+            }
+
+            fn name(&self) -> String {
+                match self {
+                    TraceJob::Host(name, _) => name.clone(),
+                    TraceJob::Device(chip, _) => chip.name(),
+                }
+            }
+        }
+
         let chips = self
             .shard_chips(shard)
             .filter(|chip| chip.commit_scope() == interaction_scope)
             .collect::<Vec<_>>();
 
-        let gpu_named_traces =
-            chips.par_iter().zip(&self.chip_streams).filter_map(|(chip, stream)| {
-                let trace: Self::DeviceMatrix = chip
-                    .air
-                    .generate_trace_accel(shard, &mut A::Record::default(), stream)?
-                    .unwrap();
-                Some((chip.name(), trace))
-            });
-
-        let mut named_traces = tracing::debug_span!("generate trace accel").in_scope(|| {
-            named_traces
-                .into_par_iter()
-                .zip(&self.chip_streams[chips.len()..])
-                .map(|((name, trace), stream)| {
-                    (name, trace.to_device_async(stream).unwrap().to_column_major())
-                })
-                .chain(gpu_named_traces)
-                .collect::<Vec<_>>()
-        });
+        let mut trace_jobs: Vec<TraceJob<'_, SC, A>> = named_traces
+            .into_iter()
+            .map(|(name, mat)| TraceJob::Host(name, mat))
+            .chain(
+                chips
+                    .into_iter()
+                    .filter_map(|chip| Some(TraceJob::Device(chip, chip.air.height_accel(shard)?))),
+            )
+            .collect();
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
+        trace_jobs.sort_by_key(|job| (Reverse(job.height()), job.name()));
 
         // Get the chip ordering.
-        let chip_ordering =
-            named_traces.iter().enumerate().map(|(i, (name, _))| (name.to_owned(), i)).collect();
+        let chip_ordering = trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect();
 
         // Get the domains.
         let config = self.machine.config();
-        let (domains, traces): (Vec<_>, Vec<_>) = named_traces
-            .into_iter()
-            .map(|(_, trace)| (natural_domain_for_degree(config, trace.height()), trace))
-            .unzip();
+        let domains = trace_jobs
+            .iter()
+            .map(|job| natural_domain_for_degree(config, job.height()))
+            .collect::<Vec<_>>();
 
         let span = tracing::Span::current();
         let _span = span.enter();
+
+        let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
+            .in_scope(|| {
+                trace_jobs
+                    .into_par_iter()
+                    .zip(&self.chip_streams)
+                    .map(|(job, stream)| match job {
+                        TraceJob::Host(_, mat) => {
+                            mat.to_device_async(stream).unwrap().to_column_major()
+                        }
+                        TraceJob::Device(chip, _) => chip
+                            .air
+                            .generate_trace_accel(shard, &mut A::Record::default(), stream)
+                            .unwrap() // Already filtered by `height_accel` result.
+                            .unwrap(),
+                    })
+                    .collect()
+            });
 
         // Commit to the traces.
         let domains_and_traces = domains.iter().copied().zip(traces.iter()).collect::<Vec<_>>();

@@ -19,6 +19,17 @@ use crate::matrix::{ColMajorMatrixDevice, MatrixViewMutDevice};
 
 /// An AIR that possibly has hardware accelerated functionality.
 pub trait AccelAir<F: PrimeField32>: MachineAir<F> {
+    /// Generate a trace on the CPU.
+    ///
+    /// Returns `None` if hardware acceleration is available for the given AIR.
+    fn generate_trace_fallback(
+        &self,
+        input: &Self::Record,
+        output: &mut Self::Record,
+    ) -> Option<RowMajorMatrix<F>> {
+        Some(self.generate_trace(input, output))
+    }
+
     /// Generate a trace on the GPU.
     ///
     /// Returns `None` if it is not available for the given AIR.
@@ -32,19 +43,32 @@ pub trait AccelAir<F: PrimeField32>: MachineAir<F> {
         None
     }
 
-    /// Generate a trace on the CPU.
-    ///
-    /// Returns `None` if hardware acceleration is available for the given AIR.
+    /// The height of the trace resulting from a call to `generate_trace_accel`, if any.
+    /// Must be `Some` if `generate_trace_accel` is `Some`.
+    #[allow(unused_variables)]
+    fn height_accel(&self, input: &Self::Record) -> Option<usize> {
+        None
+    }
+}
+
+impl AccelAir<F> for RiscvAir<F> {
     fn generate_trace_fallback(
         &self,
         input: &Self::Record,
         output: &mut Self::Record,
     ) -> Option<RowMajorMatrix<F>> {
-        Some(self.generate_trace(input, output))
+        match self {
+            RiscvAir::Cpu(_)
+            | RiscvAir::Add(_)
+            | RiscvAir::Mul(_)
+            | RiscvAir::Bitwise(_)
+            | RiscvAir::Lt(_)
+            | RiscvAir::ShiftLeft(_)
+            | RiscvAir::ShiftRight(_) => None,
+            other => Some(other.generate_trace(input, output)),
+        }
     }
-}
 
-impl AccelAir<F> for RiscvAir<F> {
     fn generate_trace_accel(
         &self,
         input: &Self::Record,
@@ -64,21 +88,17 @@ impl AccelAir<F> for RiscvAir<F> {
         })
     }
 
-    fn generate_trace_fallback(
-        &self,
-        input: &Self::Record,
-        output: &mut Self::Record,
-    ) -> Option<RowMajorMatrix<F>> {
-        match self {
-            RiscvAir::Cpu(_)
-            | RiscvAir::Add(_)
-            | RiscvAir::Mul(_)
-            | RiscvAir::Bitwise(_)
-            | RiscvAir::Lt(_)
-            | RiscvAir::ShiftLeft(_)
-            | RiscvAir::ShiftRight(_) => None,
-            other => Some(other.generate_trace(input, output)),
-        }
+    fn height_accel(&self, input: &Self::Record) -> Option<usize> {
+        Some(match self {
+            RiscvAir::Cpu(chip) => chip.nb_rows(input),
+            RiscvAir::Add(chip) => chip.nb_rows(input),
+            RiscvAir::Mul(chip) => chip.nb_rows(input),
+            RiscvAir::Bitwise(chip) => chip.nb_rows(input),
+            RiscvAir::Lt(chip) => chip.nb_rows(input),
+            RiscvAir::ShiftLeft(chip) => chip.nb_rows(input),
+            RiscvAir::ShiftRight(chip) => chip.nb_rows(input),
+            _ => None?,
+        })
     }
 }
 
@@ -91,7 +111,19 @@ pub trait FfiAir: MachineAir<F> {
     const FFI_POPULATE: FfiPopulate<Self::Event>;
     type Event: Copy;
 
+    /// If expensive, consider overriding.
     fn events(input: &ExecutionRecord) -> impl AsRef<[Self::Event]>;
+
+    fn nb_events(input: &ExecutionRecord) -> usize {
+        Self::events(input).as_ref().len()
+    }
+
+    fn nb_rows(&self, input: &ExecutionRecord) -> usize {
+        next_power_of_two(
+            Self::nb_events(input) * Self::ROWS_PER_EVENT,
+            input.fixed_log2_rows::<F, _>(self),
+        )
+    }
 
     fn generate_trace_ffi(
         &self,
@@ -103,10 +135,7 @@ pub trait FfiAir: MachineAir<F> {
         let events_owned = Self::events(input);
         let events = events_owned.as_ref();
 
-        let nb_rows = next_power_of_two(
-            events.len() * Self::ROWS_PER_EVENT,
-            input.fixed_log2_rows::<F, _>(self),
-        );
+        let nb_rows = self.nb_rows(input);
 
         let events = events.to_device_async(stream)?;
         let mut mat = ColMajorMatrixDevice::<F>::with_capacity_in(Self::NUM_COLS, nb_rows, stream)?;
@@ -269,6 +298,10 @@ impl FfiAir for CpuChip {
                 .map(|event| CpuEventFfi::new(event, &input.nonce_lookup))
                 .collect::<Vec<_>>()
         })
+    }
+
+    fn nb_events(input: &ExecutionRecord) -> usize {
+        input.cpu_events.len()
     }
 }
 
