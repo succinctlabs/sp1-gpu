@@ -317,41 +317,58 @@ where
         let _span = span.enter();
 
         let commit_span = tracing::debug_span!("copy traces to device and commit").entered();
-        let ((traces, ldes), events): ((Vec<_>, Vec<_>), Vec<_>) = named_traces
-            .into_par_iter()
-            .zip(domains.par_iter())
+        let traces_rx_domains_events = named_traces
+            .into_iter()
+            .zip(domains)
             .map(|((name, trace), domain)| {
-                let stream = self.chip_streams.get(&name).unwrap();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
                 let event = self
                     .events
                     .global_main
                     .get(&name)
                     .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
                     .clone();
-                let trace = trace.to_device_async(stream).unwrap().to_column_major();
-                let lde = self.committer.encode(*domain, &trace, true).unwrap();
-                lde.stream().record(&event).unwrap();
-                ((trace, lde), event)
+                let (tx, rx) = oneshot::channel();
+                std::thread::spawn(move || {
+                    let stream = stream;
+                    let trace = trace.to_device_async(&stream).unwrap().to_column_major();
+                    tx.send(trace)
+                });
+                (domain, rx, event)
             })
-            .collect();
+            .collect::<Vec<_>>();
 
-        // Get the committer stream to wait for encodings to be done.
-        for event in events.iter() {
-            self.main_stream.wait_event(event).unwrap();
-        }
+        let trace_data = traces_rx_domains_events
+            .into_iter()
+            .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
+            .collect::<Vec<_>>();
+
+        let (commit, data) = self.committer.commit(&trace_data, &self.main_stream);
+
+        // // Get the committer stream to wait for encodings to be done.
+        // for event in events.iter() {
+        //     self.main_stream.wait_event(event).unwrap();
+        // }
         // Commit the LDE evaluations.
-        let (commit, data) = self.committer.mmcs_commit(ldes, &self.main_stream);
+        // let (commit, data) = self.committer.mmcs_commit(ldes, &self.main_stream);
+
+        let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
 
         commit_span.exit();
 
-        tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
+        let main_data_span = tracing::debug_span!("construct main data").entered();
+        // Get public values and send the record to be dropped elsewhere.
+        let public_values = shard.public_values::<SC::Val>();
+        let main_data = ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values: tracing::debug_span!("compute public values")
-                .in_scope(|| shard.public_values()),
-        })
+            public_values,
+        };
+        main_data_span.exit();
+
+        main_data
     }
 
     /// Setup the preprocessed data into a proving and verifying key.

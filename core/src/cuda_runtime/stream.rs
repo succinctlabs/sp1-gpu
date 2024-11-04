@@ -273,7 +273,14 @@ impl Deref for CudaStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::DeviceBuffer;
+    use std::time::Instant;
+
+    use itertools::Itertools;
+    use p3_baby_bear::BabyBear;
+    use p3_matrix::dense::RowMajorMatrix;
+    use rand::{thread_rng, Rng};
+
+    use crate::device::{memory::ToDevice, DeviceBuffer};
 
     use super::*;
 
@@ -309,5 +316,47 @@ mod tests {
             let elapsed = stream.elapsed(&time).unwrap();
             println!("{:?}", elapsed);
         }
+    }
+
+    #[test]
+    fn test_cuda_api() {
+        let mut rng = thread_rng();
+
+        let heights = [21, 21, 19, 16];
+        let widths = [200, 30, 50, 10];
+
+        let host_matrices = heights
+            .into_iter()
+            .zip_eq(widths)
+            .map(|(log_height, width)| {
+                let height = 1 << log_height;
+                let values = (0..width * height).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
+                RowMajorMatrix::new(values, width)
+            })
+            .collect::<Vec<_>>();
+
+        let streams =
+            (0..host_matrices.len()).map(|_| CudaStream::create().unwrap()).collect::<Vec<_>>();
+
+        let mut device_matrices = Vec::with_capacity(host_matrices.len());
+        for mat in host_matrices.iter() {
+            let time = Instant::now();
+            let device_trace = mat.to_device().unwrap().to_column_major();
+            let elapsed = time.elapsed();
+            device_matrices.push(device_trace);
+            println!("Time for matrix: {:?}", elapsed);
+        }
+
+        let time = Instant::now();
+        drop(host_matrices);
+        let elapsed = time.elapsed();
+        println!("Time to free on host: {:?}", elapsed);
+
+        let stream = CudaStream::default();
+        let time = Instant::now();
+        drop(device_matrices);
+        stream.synchronize().unwrap();
+        let elapsed = time.elapsed();
+        println!("Time to free on device: {:?}", elapsed);
     }
 }
