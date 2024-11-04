@@ -329,10 +329,10 @@ where
                     .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
                     .clone();
                 let (tx, rx) = oneshot::channel();
-                std::thread::spawn(move || {
+                rayon::spawn(move || {
                     let stream = stream;
                     let trace = trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace)
+                    tx.send(trace).unwrap();
                 });
                 (domain, rx, event)
             })
