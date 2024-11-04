@@ -345,13 +345,6 @@ where
 
         let (commit, data) = self.committer.commit(&trace_data, &self.main_stream);
 
-        // // Get the committer stream to wait for encodings to be done.
-        // for event in events.iter() {
-        //     self.main_stream.wait_event(event).unwrap();
-        // }
-        // Commit the LDE evaluations.
-        // let (commit, data) = self.committer.mmcs_commit(ldes, &self.main_stream);
-
         let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
 
         commit_span.exit();
