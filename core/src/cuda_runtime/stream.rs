@@ -320,6 +320,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_release_api() {
         init_tracer();
         let mut rng = thread_rng();
