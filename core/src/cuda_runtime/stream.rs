@@ -319,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cuda_api() {
+    fn test_release_api() {
         let mut rng = thread_rng();
 
         let heights = [21, 21, 19, 16];
@@ -334,9 +334,6 @@ mod tests {
                 RowMajorMatrix::new(values, width)
             })
             .collect::<Vec<_>>();
-
-        let streams =
-            (0..host_matrices.len()).map(|_| CudaStream::create().unwrap()).collect::<Vec<_>>();
 
         let mut device_matrices = Vec::with_capacity(host_matrices.len());
         for mat in host_matrices.iter() {
