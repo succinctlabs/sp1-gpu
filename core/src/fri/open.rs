@@ -507,63 +507,8 @@ pub mod opening_gpu {
             n: usize,
             num_threads: usize,
             num_blocks: usize,
+            // stream: CudaStreamHandle,
         );
-
-        #[link_name = "computeInverseDenominators"]
-        pub fn compute_inverse_denominators(
-            max_rows: usize,
-            num_points: usize,
-            inv_row_indices: *const usize,
-            nums_rows: *const usize,
-            logs_num_rows: *const usize,
-            shifts: *const F,
-            thread_generator_powers: *const F,
-            points: *const EF,
-            inv_denoms: *mut EF,
-        );
-
-        #[link_name = "interpolateCosets"]
-        pub fn interpolate_cosets_raw(
-            polys_evals: *const *const BabyBear,
-            num_polys: usize,
-            coset_heights: *const usize,
-            coset_log_heights: *const usize,
-            shift: *const F,
-            point: *const EF,
-            barycentric_scalars: *const EF,
-            g_values: *const F,
-            output: *mut EF,
-        );
-
-        #[link_name = "computeReducedOpenings"]
-        pub fn compute_reduced_openings(
-            mats: *const MatrixViewDevice<F>,
-            log_heights: *const usize,
-            max_height: usize,
-            points: *const EF,
-            num_points: usize,
-            inv_indices: *const usize,
-            inv_denoms: *const EF,
-            alpha: EF,
-            alpha_pow_offsets: *const EF,
-            ys: *const EF,
-            ys_indices: *const usize,
-            reduced_openings: *mut EF,
-        );
-
-        #[link_name = "ReduceSums"]
-        pub fn reduce_sums(
-            log_heights: *const usize,
-            max_height: usize,
-            inv_indices: *const usize,
-            reduced_openings: *const EF,
-            reduced_openings_leaves: *mut MatrixViewMutDevice<F>,
-            height_indices: *const usize,
-            num_points: usize,
-        );
-
-        #[link_name = "numBlocksSums"]
-        pub fn num_block_sums(max_height: usize) -> usize;
 
         #[link_name = "calculateOpenings"]
         pub fn calculate_openings(
@@ -577,6 +522,7 @@ pub mod opening_gpu {
             log_max_height: usize,
             is_answering: bool,
             output: *mut F,
+            // stream: CudaStreamHandle,
         );
 
         #[link_name = "calculateProof"]
@@ -592,10 +538,8 @@ pub mod opening_gpu {
             output: *mut *mut std::ffi::c_void,
             is_answering: bool,
             field_id: usize,
+            // stream: CudaStreamHandle,
         );
-
-        #[link_name = "batchMultiplicativeInverse"]
-        pub fn batch_multiplicative_inverse(input: *const EF, output: *mut EF, num_elements: usize);
 
         #[link_name = "foldEvenOdd"]
         pub fn fold_even_odd_raw(
@@ -605,6 +549,7 @@ pub mod opening_gpu {
             powers: MatrixViewDevice<F>,
             one_half: F,
             input_exists: bool,
+            // stream: CudaStreamHandle,
         );
     }
 
