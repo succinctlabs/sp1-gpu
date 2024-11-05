@@ -187,8 +187,9 @@ extern "C" void shiftedPowers(
     Matrix<bb31_t> output, 
     size_t n, 
     size_t numTheads,
-    size_t numBlocks) {
-    opening_kernels::shiftedPowersKernel<<<numBlocks, numTheads>>>(blockPowers, shift, output, n);
+    size_t numBlocks,
+    cudaStream_t stream) {
+    opening_kernels::shiftedPowersKernel<<<numBlocks, numTheads, 0, stream>>>(blockPowers, shift, output, n);
 }
 
 
@@ -202,7 +203,8 @@ extern "C" void calculateOpenings(
     size_t total_indices,
     size_t log_max_height,
     bool is_answering,
-    bb31_t* output
+    bb31_t* output,
+    cudaStream_t stream
 ) {
     // The idea of balancing thread count in blockDim based on 
     // min and max possible amount of indices, matrices and width.
@@ -219,7 +221,7 @@ extern "C" void calculateOpenings(
         (max_width      - 1) / blockDim.z + 1
     );
 
-    opening_kernels::calculateOpenings<<<gridDim, blockDim>>>(
+    opening_kernels::calculateOpenings<<<gridDim, blockDim, 0, stream>>>(
         matrix_ptr,
         width_offsets,
         query_indices,
@@ -243,7 +245,8 @@ extern "C" void calculateProof(
     void ***digests,
     void **output,  
     bool is_answering,
-    size_t field_id
+    size_t field_id,
+    cudaStream_t stream
 ) {
     dim3 blockDim(
         std::min(total_indices,         static_cast<size_t>(32)),
@@ -260,7 +263,7 @@ extern "C" void calculateProof(
     if (field_id == 0) {
         auto typed_digests = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (**)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(digests);
         auto typed_output = reinterpret_cast<poseidon2_bb31_16::BabyBear::F_t (*)[poseidon2_bb31_16::BabyBear::DIGEST_WIDTH]>(output);
-        opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim>>>(
+        opening_kernels::calculateProof<poseidon2_bb31_16::BabyBear><<<gridDim, blockDim, 0, stream>>>(
             query_indices,
             log_max_heights,
             offset,
@@ -277,7 +280,7 @@ extern "C" void calculateProof(
     else if (field_id == 1) {
         auto typed_digests = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (**)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(digests);
         auto typed_output = reinterpret_cast<poseidon2_bn254_3::Bn254::F_t (*)[poseidon2_bn254_3::Bn254::DIGEST_WIDTH]>(output);
-        opening_kernels::calculateProof<poseidon2_bn254_3::Bn254><<<gridDim, blockDim>>>(
+        opening_kernels::calculateProof<poseidon2_bn254_3::Bn254><<<gridDim, blockDim, 0, stream>>>(
             query_indices,
             log_max_heights,
             offset,
@@ -296,19 +299,6 @@ extern "C" void calculateProof(
     }
 }
 
-extern "C" void batchMultiplicativeInverse(
-    bb31_extension_t* input,
-    bb31_extension_t* output,
-    size_t numElements
-) {
-    size_t numThreads = MAX_THREADS;
-    size_t numBlocks = numElements / numThreads + 1;
-    opening_kernels::batchMultiplicativeInverse<<<numBlocks, numThreads>>>(
-        input,
-        output,
-        numElements
-    );
-}
 
 extern "C" void foldEvenOdd(
     Matrix<bb31_t> evaluations,
@@ -316,12 +306,13 @@ extern "C" void foldEvenOdd(
     Matrix<bb31_t> output,
     Matrix<bb31_t> powers,
     bb31_t oneHalf,
-    bool inputExists
+    bool inputExists,
+    cudaStream_t stream
 ) {
     size_t numThreads = MAX_THREADS;
     size_t numBlocks = (output.height - 1) / numThreads + 1;
 
-    opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads>>>(
+    opening_kernels::foldEvenOddKernel<bb31_t, bb31_extension_t><<<numBlocks, numThreads, 0, stream>>>(
         evaluations,
         inputLeaves,
         output,

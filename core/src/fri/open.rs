@@ -14,6 +14,7 @@ use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
 use crate::{
+    cuda_runtime::stream::CudaStream,
     device::{
         memory::{ToDevice, ToHost},
         DeviceBuffer,
@@ -43,6 +44,7 @@ pub trait FriQueryProver<F: Field, ValMmcs: Mmcs<F>>: MmcsCommitterAsync<F, ValM
         prover_data_slice: &[&Self::ProverData],
         log_global_max_height: usize,
         is_answering: bool,
+        stream: &CudaStream,
     ) -> Vec<Vec<BatchOpening<F, ValMmcs>>>;
 }
 
@@ -70,6 +72,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         config: &PcsConfig<SC>,
         input: BTreeMap<usize, ColMajorMatrixDevice<SC::Val>>,
         challenger: &mut Challenger<SC>,
+        main_stream: &CudaStream,
     ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
@@ -93,6 +96,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             commit_phase_result.data.iter().collect::<Vec<_>>().as_slice(),
             log_max_height,
             true,
+            main_stream,
         );
         let query_proofs = query_proofs_data
             .into_iter()
@@ -219,6 +223,7 @@ pub(super) mod merkle_tree_opening_prover {
             prover_data_slice: &[&Self::ProverData],
             log_global_max_height: usize,
             is_answering: bool,
+            stream: &CudaStream,
         ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
         {
             // Function runs one kernel for all query indices and all matrices.
@@ -270,20 +275,22 @@ pub(super) mod merkle_tree_opening_prover {
             assert_eq!(data_matrix_offset, total_matrices);
             assert_eq!(total_log_max_heights, digests.len());
 
-            let matrix_views_device = matrix_views.to_device().unwrap();
-            let width_offsets_device = width_offsets.to_device().unwrap();
-            let query_indices_device = query_indices.to_vec().to_device().unwrap();
+            let matrix_views_device = matrix_views.to_device_async(stream).unwrap();
+            let width_offsets_device = width_offsets.to_device_async(stream).unwrap();
+            let query_indices_device = query_indices.to_device_async(stream).unwrap();
 
             let total_query_indices = query_indices_device.len();
             let openings_capacity = total_width * total_query_indices;
             let mut total_openings_device: DeviceBuffer<BabyBear> =
-                DeviceBuffer::with_capacity(openings_capacity).unwrap();
+                DeviceBuffer::with_capacity_in(openings_capacity, stream).unwrap();
 
-            let log_max_heights_device = log_max_heights.to_device().unwrap();
-            let log_max_heights_offsets_device = log_max_heights_offsets.to_device().unwrap();
-            let digests_device = digests.to_device().unwrap();
+            let log_max_heights_device = log_max_heights.to_device_async(stream).unwrap();
+            let log_max_heights_offsets_device =
+                log_max_heights_offsets.to_device_async(stream).unwrap();
+            let digests_device = digests.to_device_async(stream).unwrap();
             let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> =
-                DeviceBuffer::with_capacity(total_log_max_heights * total_query_indices).unwrap();
+                DeviceBuffer::with_capacity_in(total_log_max_heights * total_query_indices, stream)
+                    .unwrap();
 
             unsafe {
                 total_openings_device.set_len(openings_capacity);
@@ -298,6 +305,7 @@ pub(super) mod merkle_tree_opening_prover {
                     log_global_max_height,
                     is_answering,
                     total_openings_device.as_mut_ptr(),
+                    stream.handle(),
                 );
                 total_proofs_device.set_len(total_log_max_heights * total_query_indices);
 
@@ -318,6 +326,7 @@ pub(super) mod merkle_tree_opening_prover {
                     total_proofs_device.as_mut_ptr() as *mut *mut std::ffi::c_void,
                     is_answering,
                     field_id as usize,
+                    stream.handle(),
                 );
             }
             let total_openings_host = total_openings_device.to_host();
@@ -367,14 +376,19 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
     input_leaves: Option<ColMajorMatrixDevice<SC::Val>>,
     beta: SC::Challenge,
 ) -> ColMajorMatrixDevice<BabyBear> {
-    let mut output =
-        ColMajorMatrixDevice::with_capacity(evaluations.width(), evaluations.height() / 2).unwrap();
+    let stream = evaluations.stream();
+    let mut output = ColMajorMatrixDevice::with_capacity_in(
+        evaluations.width(),
+        evaluations.height() / 2,
+        stream,
+    )
+    .unwrap();
 
     let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
     let one_half = SC::Val::two().inverse();
     let half_beta = beta * one_half;
 
-    let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height());
+    let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height(), stream);
     powers.bit_reverse_rows().unwrap();
 
     unsafe {
@@ -390,6 +404,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
             powers.view(),
             BabyBear::two().inverse(),
             input_leaves.is_some(),
+            stream.handle(),
         );
     }
 
@@ -400,10 +415,12 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
     g: SC::Val,
     shift: SC::Challenge,
     n: usize,
+    stream: &CudaStream,
 ) -> ColMajorMatrixDevice<SC::Val> {
-    let mut output = ColMajorMatrixDevice::with_capacity(
+    let mut output = ColMajorMatrixDevice::with_capacity_in(
         <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
         n,
+        stream,
     )
     .unwrap();
 
@@ -412,7 +429,8 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
 
     assert!(num_blocks > 0);
 
-    let block_powers = g.powers().take(num_threads).collect::<Vec<_>>().to_device().unwrap();
+    let block_powers =
+        g.powers().take(num_threads).collect::<Vec<_>>().to_device_async(stream).unwrap();
 
     unsafe {
         output.set_max_width();
@@ -423,6 +441,7 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
             n,
             num_threads,
             num_blocks,
+            stream.handle(),
         );
     }
 
@@ -507,7 +526,7 @@ pub mod opening_gpu {
             n: usize,
             num_threads: usize,
             num_blocks: usize,
-            // stream: CudaStreamHandle,
+            stream: CudaStreamHandle,
         );
 
         #[link_name = "calculateOpenings"]
@@ -522,7 +541,7 @@ pub mod opening_gpu {
             log_max_height: usize,
             is_answering: bool,
             output: *mut F,
-            // stream: CudaStreamHandle,
+            stream: CudaStreamHandle,
         );
 
         #[link_name = "calculateProof"]
@@ -538,7 +557,7 @@ pub mod opening_gpu {
             output: *mut *mut std::ffi::c_void,
             is_answering: bool,
             field_id: usize,
-            // stream: CudaStreamHandle,
+            stream: CudaStreamHandle,
         );
 
         #[link_name = "foldEvenOdd"]
@@ -549,7 +568,7 @@ pub mod opening_gpu {
             powers: MatrixViewDevice<F>,
             one_half: F,
             input_exists: bool,
-            // stream: CudaStreamHandle,
+            stream: CudaStreamHandle,
         );
     }
 
