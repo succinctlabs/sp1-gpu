@@ -5992,7 +5992,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -6025,7 +6025,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -6073,7 +6073,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6089,7 +6089,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -6110,7 +6110,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6119,7 +6119,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6140,7 +6140,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "bincode",
  "hex",
@@ -6157,7 +6157,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6198,7 +6198,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6231,7 +6231,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6252,7 +6252,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -6287,7 +6287,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6296,7 +6296,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6321,7 +6321,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
@@ -6361,7 +6361,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=tamir/debug-gaps#0e12c345e9ab3031d50a96ea2086932c6d241884"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#da8a772b056ecc94a101535ef70b235c9460cf48"
 dependencies = [
  "arrayref",
  "getrandom 0.2.15",
