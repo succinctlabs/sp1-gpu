@@ -1,4 +1,5 @@
 use crate::{
+    cuda_runtime::stream::CudaStreamHandle,
     device::{memory::ToDevice, DeviceBuffer},
     matrix::MatrixViewDevice,
     merkle_tree::FieldMerkleTreeHasher,
@@ -22,6 +23,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
         max_height: usize,
+        stream: CudaStreamHandle,
     ) {
         poseidon2_bn254_3_kernels::first_digest_layer_bn254(
             tallest_matrices,
@@ -31,6 +33,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
             self.external_rounds_constats_device.as_slice().as_ptr(),
             self.diffusion_matrix_m1_device.as_slice().as_ptr(),
             max_height,
+            stream,
         )
     }
 
@@ -41,6 +44,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
         layer_len: usize,
+        stream: CudaStreamHandle,
     ) {
         poseidon2_bn254_3_kernels::compress_and_inject_bn254(
             prev_layer,
@@ -51,6 +55,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBn254 {
             self.external_rounds_constats_device.as_slice().as_ptr(),
             self.diffusion_matrix_m1_device.as_slice().as_ptr(),
             layer_len,
+            stream,
         );
     }
 }
@@ -142,7 +147,7 @@ impl DeviceHasherBn254 {
 
 #[allow(improper_ctypes)]
 pub mod poseidon2_bn254_3_kernels {
-    use crate::matrix::MatrixViewDevice;
+    use crate::{cuda_runtime::stream::CudaStreamHandle, matrix::MatrixViewDevice};
     use p3_baby_bear::BabyBear;
     use p3_bn254_fr::Bn254Fr;
 
@@ -203,6 +208,7 @@ pub mod poseidon2_bn254_3_kernels {
             external_round_constants: *const [Bn254Fr; WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             max_height: usize,
+            stream: CudaStreamHandle,
         );
 
         pub fn compress_and_inject_bn254(
@@ -215,6 +221,7 @@ pub mod poseidon2_bn254_3_kernels {
             external_round_constants: *const [Bn254Fr; WIDTH],
             diffusion_matrix_m1: *const Bn254Fr,
             max_height: usize,
+            stream: CudaStreamHandle,
         );
     }
 }

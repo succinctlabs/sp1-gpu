@@ -40,7 +40,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
             .collect_vec()
-            .to_device()
+            .to_device_async(main_stream)
             .unwrap();
 
         let mut first_digest_layer =
@@ -52,6 +52,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                 tallest_matrices.len(),
                 first_digest_layer.as_mut_ptr(),
                 max_height,
+                main_stream.handle(),
             );
         }
 
@@ -66,7 +67,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             let matrices_to_inject = leaves_largest_first
                 .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
                 .collect_vec()
-                .to_device()
+                .to_device_async(main_stream)
                 .unwrap();
 
             let mut next_digests =
@@ -79,6 +80,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     next_layer_len,
+                    main_stream.handle(),
                 );
             }
             digest_layers.push(next_digests);
@@ -190,6 +192,7 @@ mod tests {
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -224,6 +227,7 @@ mod tests {
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -238,6 +242,7 @@ mod tests {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -360,6 +365,7 @@ mod tests {
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -395,6 +401,7 @@ mod tests {
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -409,6 +416,7 @@ mod tests {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 

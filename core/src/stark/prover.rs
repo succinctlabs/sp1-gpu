@@ -217,7 +217,7 @@ where
         let events = StarkEvents::new(&machine).unwrap();
         Self {
             machine,
-            main_stream: CudaStream::default(),
+            main_stream: CudaStream::create().unwrap(),
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriOpeningProver::new(domain_normalizers),
@@ -627,8 +627,10 @@ where
             // For each chip, get the quotient domains, evaluations on the quotient domain, and compute
             // the quotient values.
 
-            let permutation_challenges_device = permutation_challenges.to_device().unwrap();
-            let public_values_device = local_public_values.to_device().unwrap();
+            let permutation_challenges_device =
+                permutation_challenges.to_device_async(&self.main_stream).unwrap();
+            let public_values_device =
+                local_public_values.to_device_async(&self.main_stream).unwrap();
 
             let mut quotient_values = vec![];
 
