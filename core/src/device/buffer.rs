@@ -53,6 +53,13 @@ impl<T: Copy> DeviceBuffer<T> {
         unsafe { self.stream.mem_set_async(self.buf, value, self.len()) }
     }
 
+    /// # Safety
+    ///
+    /// TODO
+    pub unsafe fn set_stream(&mut self, new_stream: CudaStream) {
+        self.stream = new_stream;
+    }
+
     /// Allocate a new buffer on the device.
     ///
     /// The function will return an error if there is not enough memory available, or if any other

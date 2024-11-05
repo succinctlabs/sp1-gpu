@@ -1,6 +1,6 @@
 use p3_field::Field;
 
-use crate::matrix::MatrixViewDevice;
+use crate::{cuda_runtime::stream::CudaStreamHandle, matrix::MatrixViewDevice};
 
 pub trait FieldMerkleTreeHasher<F: Field> {
     type Digest: Copy;
@@ -14,6 +14,7 @@ pub trait FieldMerkleTreeHasher<F: Field> {
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
         max_height: usize,
+        stream: CudaStreamHandle,
     );
 
     /// # Safety
@@ -26,5 +27,6 @@ pub trait FieldMerkleTreeHasher<F: Field> {
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
         layer_len: usize,
+        stream: CudaStreamHandle,
     );
 }

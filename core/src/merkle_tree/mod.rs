@@ -1,5 +1,5 @@
 use crate::{
-    cuda_runtime::{event::CudaEvent, stream::CudaStream},
+    cuda_runtime::stream::CudaStream,
     device::{
         error::CudaError,
         memory::{ToDevice, ToHost},
@@ -33,28 +33,18 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         leaves: Vec<M>,
         main_stream: &CudaStream,
     ) -> Self {
-        for mat in leaves.iter() {
-            let event = CudaEvent::new().unwrap();
-            mat.stream().record(&event).unwrap();
-            main_stream.wait_event(&event).unwrap();
-        }
-        let mut leaves_largest_first = leaves
-            .iter()
-            .map(|l| {
-                // l.stream().synchronize().unwrap();
-                l.view()
-            })
-            .sorted_by_key(|l| Reverse(l.height))
-            .peekable();
+        let mut leaves_largest_first =
+            leaves.iter().map(|l| l.view()).sorted_by_key(|l| Reverse(l.height)).peekable();
 
         let max_height = leaves_largest_first.peek().unwrap().height;
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
             .collect_vec()
-            .to_device()
+            .to_device_async(main_stream)
             .unwrap();
 
-        let mut first_digest_layer = DeviceBuffer::with_capacity(max_height).unwrap();
+        let mut first_digest_layer =
+            DeviceBuffer::with_capacity_in(max_height, main_stream).unwrap();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -62,6 +52,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                 tallest_matrices.len(),
                 first_digest_layer.as_mut_ptr(),
                 max_height,
+                main_stream.handle(),
             );
         }
 
@@ -76,10 +67,11 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             let matrices_to_inject = leaves_largest_first
                 .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
                 .collect_vec()
-                .to_device()
+                .to_device_async(main_stream)
                 .unwrap();
 
-            let mut next_digests = DeviceBuffer::<D>::with_capacity(next_layer_len).unwrap();
+            let mut next_digests =
+                DeviceBuffer::<D>::with_capacity_in(next_layer_len, main_stream).unwrap();
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
@@ -88,6 +80,7 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     next_layer_len,
+                    main_stream.handle(),
                 );
             }
             digest_layers.push(next_digests);
@@ -199,6 +192,7 @@ mod tests {
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -233,6 +227,7 @@ mod tests {
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -247,6 +242,7 @@ mod tests {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -369,6 +365,7 @@ mod tests {
                     tallest_matrices.len(),
                     digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -404,6 +401,7 @@ mod tests {
                     tallest_matrices.len(),
                     first_layer_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 
@@ -418,6 +416,7 @@ mod tests {
                     matrices_to_inject.len(),
                     next_digests.as_mut_ptr(),
                     n,
+                    CudaStream::default().handle(),
                 );
             }
 

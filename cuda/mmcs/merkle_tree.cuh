@@ -188,12 +188,13 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         Matrix_t * tallestMatrices,
         size_t nTallestMatrices,
         F_t(*digests)[HashParams::DIGEST_WIDTH],
-        size_t max_height
+        size_t max_height,
+        cudaStream_t stream
     ) {
         size_t blockSize = std::min(max_height, static_cast<size_t>(256));
         size_t gridSize = (max_height-1) / blockSize +1;
         merkle_tree_kernels_baby_bear_16::
-            firstDigestLayer<<<gridSize, blockSize>>>(
+            firstDigestLayer<<<gridSize, blockSize, 0, stream>>>(
                 tallestMatrices,
                 nTallestMatrices,
                 digests
@@ -205,12 +206,13 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         Matrix_t * matricesToInject,
         size_t nMatricesToInject,
         F_t(*nextDigests)[HashParams::DIGEST_WIDTH],
-        size_t layerLen
+        size_t layerLen,
+        cudaStream_t stream
     ) {
         size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
         size_t gridSize = (layerLen-1) / blockSize +1;
         merkle_tree_kernels_baby_bear_16::
-            compressAndInject<<<gridSize, blockSize>>>(
+            compressAndInject<<<gridSize, blockSize, 0, stream>>>(
                 prevLayer,
                 matricesToInject,
                 nMatricesToInject,
@@ -233,7 +235,8 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         pF_t * internalRoundConstants,
         pF_t * externalRoundConstants,
         pF_t * matInternalDiagM1,
-        size_t max_height
+        size_t max_height,
+        cudaStream_t stream
     ) {
         size_t blockSize = std::min(max_height, static_cast<size_t>(256));
         size_t gridSize = (max_height-1) / blockSize +1;
@@ -242,7 +245,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
         merkle_tree_kernels_bn254_3::
-            firstDigestLayer<<<gridSize, blockSize>>>(
+            firstDigestLayer<<<gridSize, blockSize, 0, stream>>>(
                 hasher,
                 tallestMatrices,
                 nTallestMatrices,
@@ -258,7 +261,8 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         pF_t * internalRoundConstants,
         pF_t * externalRoundConstants,
         pF_t * matInternalDiagM1,
-        size_t layerLen
+        size_t layerLen,
+        cudaStream_t stream
     ) {
         size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
         size_t gridSize = (layerLen-1) / blockSize +1;
@@ -267,7 +271,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         hasher.setExternalRoundConstants(externalRoundConstants);
         hasher.setMatInternalDiagM1(matInternalDiagM1);
         merkle_tree_kernels_bn254_3::
-            compressAndInject<<<gridSize, blockSize>>>(
+            compressAndInject<<<gridSize, blockSize, 0, stream>>>(
                 hasher,
                 prevLayer,
                 matricesToInject,

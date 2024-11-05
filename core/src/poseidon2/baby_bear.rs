@@ -1,4 +1,7 @@
-use crate::{matrix::MatrixViewDevice, merkle_tree::FieldMerkleTreeHasher};
+use crate::{
+    cuda_runtime::stream::CudaStreamHandle, matrix::MatrixViewDevice,
+    merkle_tree::FieldMerkleTreeHasher,
+};
 use p3_baby_bear::BabyBear;
 
 use poseidon2_baby_bear_16_kernels::{DIGEST_WIDTH, WIDTH};
@@ -14,12 +17,14 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
         n_tallest_matrices: usize,
         digests: *mut Self::Digest,
         max_height: usize,
+        stream: CudaStreamHandle,
     ) {
         poseidon2_baby_bear_16_kernels::first_digest_layer_baby_bear(
             tallest_matrices,
             n_tallest_matrices,
             digests,
             max_height,
+            stream,
         )
     }
 
@@ -30,6 +35,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
         n_matrices_to_inject: usize,
         next_digests: *mut Self::Digest,
         max_height: usize,
+        stream: CudaStreamHandle,
     ) {
         poseidon2_baby_bear_16_kernels::compress_and_inject_baby_bear(
             prev_layer,
@@ -37,6 +43,7 @@ impl FieldMerkleTreeHasher<BabyBear> for DeviceHasherBabyBear {
             n_matrices_to_inject,
             next_digests,
             max_height,
+            stream,
         );
     }
 }
@@ -112,7 +119,7 @@ impl DeviceHasherBabyBear {
 }
 
 pub mod poseidon2_baby_bear_16_kernels {
-    use crate::matrix::MatrixViewDevice;
+    use crate::{cuda_runtime::stream::CudaStreamHandle, matrix::MatrixViewDevice};
     use p3_baby_bear::BabyBear;
 
     pub const ROUNDS_F: usize = 8;
@@ -160,6 +167,7 @@ pub mod poseidon2_baby_bear_16_kernels {
             n_tallest_matrices: usize,
             digests: *mut [BabyBear; DIGEST_WIDTH],
             max_height: usize,
+            stream: CudaStreamHandle,
         );
 
         pub fn compress_and_inject_baby_bear(
@@ -168,6 +176,7 @@ pub mod poseidon2_baby_bear_16_kernels {
             n_matrices_to_inject: usize,
             next_digests: *mut [BabyBear; DIGEST_WIDTH],
             layer_len: usize,
+            stream: CudaStreamHandle,
         );
     }
 }

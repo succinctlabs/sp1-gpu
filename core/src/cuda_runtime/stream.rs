@@ -12,7 +12,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct CudaStreamOwned(CudaStreamHandle);
 
@@ -273,7 +273,15 @@ impl Deref for CudaStream {
 
 #[cfg(test)]
 mod tests {
-    use crate::device::DeviceBuffer;
+    use itertools::Itertools;
+    use p3_baby_bear::BabyBear;
+    use p3_matrix::dense::RowMajorMatrix;
+    use rand::{thread_rng, Rng};
+
+    use crate::{
+        device::{memory::ToDevice, DeviceBuffer},
+        utils::init_tracer,
+    };
 
     use super::*;
 
@@ -309,5 +317,87 @@ mod tests {
             let elapsed = stream.elapsed(&time).unwrap();
             println!("{:?}", elapsed);
         }
+    }
+
+    #[test]
+    #[ignore]
+    fn test_release_api() {
+        init_tracer();
+        let mut rng = thread_rng();
+
+        let heights = [21, 21, 19, 16];
+        let widths = [200, 30, 50, 10];
+
+        let host_matrices = heights
+            .into_iter()
+            .zip_eq(widths)
+            .map(|(log_height, width)| {
+                let height = 1 << log_height;
+                let values = (0..width * height).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
+                RowMajorMatrix::new(values, width)
+            })
+            .collect::<Vec<_>>();
+
+        // Serial with default stream.
+        let mut device_matrices_serial = Vec::with_capacity(host_matrices.len());
+        for mat in host_matrices.iter() {
+            let mat_span = tracing::debug_span!("serial matrix operation").entered();
+            let device_trace = mat.to_device().unwrap().to_column_major();
+            mat_span.exit();
+            device_matrices_serial.push(device_trace);
+        }
+
+        // Serial with other streams.
+        let mut device_matrices = Vec::with_capacity(host_matrices.len());
+        for mat in host_matrices.iter() {
+            let stream = CudaStream::create().unwrap();
+            let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
+            let device_trace = mat.to_device_async(&stream).unwrap().to_column_major();
+            mat_span.exit();
+            device_matrices.push(device_trace);
+        }
+
+        let clone_of_host = host_matrices.clone();
+        // Parallel with other streams.
+        let mut device_matrices_rx = Vec::with_capacity(host_matrices.len());
+        for mat in clone_of_host {
+            let stream = CudaStream::create().unwrap();
+            let (tx, rx) = oneshot::channel();
+            rayon::spawn(move || {
+                let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
+                let device_trace = mat.to_device_async(&stream).unwrap().to_column_major();
+                tx.send(device_trace).unwrap();
+                mat_span.exit();
+            });
+            device_matrices_rx.push(rx);
+        }
+        let device_matrices_par =
+            device_matrices_rx.into_iter().map(|rx| rx.recv().unwrap()).collect::<Vec<_>>();
+
+        let free_on_host = tracing::debug_span!("free host traces").entered();
+        drop(host_matrices);
+        free_on_host.exit();
+
+        let def_device_span = tracing::debug_span!("free default device traces").entered();
+        let stream = CudaStream::default();
+        drop(device_matrices_serial);
+        stream.synchronize().unwrap();
+        def_device_span.exit();
+
+        let def_device_span = tracing::debug_span!("free stream device traces").entered();
+        for mat in device_matrices {
+            let stream = mat.stream().clone();
+            drop(mat);
+            stream.synchronize().unwrap();
+        }
+        def_device_span.exit();
+
+        let def_device_span = tracing::debug_span!("free stream device traces").entered();
+        for mat in device_matrices_par {
+            let stream = mat.stream().clone();
+            drop(mat);
+            stream.synchronize().unwrap();
+        }
+        def_device_span.exit();
     }
 }
