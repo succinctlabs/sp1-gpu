@@ -366,69 +366,72 @@ where
 
     /// Setup the preprocessed data into a proving and verifying key.
     fn setup(&self, program: &A::Program) -> (Self::DeviceProvingKey, StarkVerifyingKey<SC>) {
-        let mut named_preprocessed_traces = tracing::debug_span!("generate preprocessed traces")
-            .in_scope(|| {
-                self.machine()
-                    .chips()
-                    .par_iter()
-                    .map(|chip| {
-                        let prep_trace = chip.generate_preprocessed_trace(program);
-                        // Assert that the chip width data is correct.
-                        let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
-                        assert_eq!(
-                            expected_width,
-                            chip.preprocessed_width(),
-                            "Incorrect number of preprocessed columns for chip {}",
-                            chip.name()
-                        );
+        let generate_traces_copy_span =
+            tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
-                        (chip.name(), chip.local_only(), prep_trace)
-                    })
-                    .filter(|(_, _, prep_trace)| prep_trace.is_some())
-                    .map(|(name, local_only, prep_trace)| {
-                        let prep_trace = prep_trace.unwrap();
-                        (name, local_only, prep_trace)
-                    })
-                    .collect::<Vec<_>>()
-            });
+        let mut named_preprocessed_data = self
+            .machine()
+            .chips()
+            .par_iter()
+            .map(|chip| {
+                let prep_trace = chip.generate_preprocessed_trace(program);
+                // Assert that the chip width data is correct.
+                let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                assert_eq!(
+                    expected_width,
+                    chip.preprocessed_width(),
+                    "Incorrect number of preprocessed columns for chip {}",
+                    chip.name()
+                );
 
-        // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_preprocessed_traces
-            .sort_by_key(|(name, _, trace)| (Reverse(trace.height()), name.clone()));
-
-        let (chip_information, domains_and_traces): (Vec<_>, Vec<_>) = named_preprocessed_traces
-            .iter()
-            .map(|(name, _, trace)| {
-                let domain = natural_domain_for_degree(self.config(), trace.height());
-                let event = self.events.preprocessed.get(name).unwrap().clone();
-                let stream = self.chip_streams.get(name).unwrap();
-                (
-                    (name.to_owned(), domain, trace.dimensions()),
-                    (domain, trace.to_device_async(stream).unwrap().to_column_major(), event),
-                )
+                (chip.name(), chip.local_only(), prep_trace)
             })
-            .unzip();
+            .filter(|(_, _, prep_trace)| prep_trace.is_some())
+            .map(|(name, local_only, prep_trace)| {
+                let prep_trace = prep_trace.unwrap();
+                let event = self.events.preprocessed.get(&name).unwrap().clone();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
+                let domain = natural_domain_for_degree(self.config(), prep_trace.height());
+                let dimensions = prep_trace.dimensions();
+                let (tx, rx) = oneshot::channel();
+                rayon::spawn(move || {
+                    let stream = stream;
+                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                    tx.send(trace).unwrap();
+                });
+                (name, domain, event, local_only, rx, dimensions)
+            })
+            .collect::<Vec<_>>();
+
+        named_preprocessed_data
+            .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
+
+        let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
+            named_preprocessed_data
+                .into_iter()
+                .map(|(name, domain, event, local_only, rx, dimensions)| {
+                    let trace = rx.recv().unwrap();
+                    (((name, domain, dimensions), (domain, trace, event)), local_only)
+                })
+                .collect();
+
+        generate_traces_copy_span.exit();
 
         // Commit to the batch of traces.
-        let (commit, data) = tracing::debug_span!("commit to preprocessed traces")
-            .in_scope(|| self.committer.commit(&domains_and_traces, &self.main_stream));
-
+        let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
+        let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
+        commit_span.exit();
 
-        // Get the chip ordering.
-        let chip_ordering = named_preprocessed_traces
+        // // Get the chip ordering.
+        let chip_ordering = chip_information
             .iter()
             .enumerate()
             .map(|(i, (name, _, _))| (name.to_owned(), i))
             .collect::<HashMap<_, _>>();
 
-        let local_only = named_preprocessed_traces
-            .iter()
-            .map(|(_, local_only, _)| local_only.to_owned())
-            .collect::<Vec<_>>();
-
         // Get the preprocessed traces
-        let traces = domains_and_traces.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
+        let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
 
