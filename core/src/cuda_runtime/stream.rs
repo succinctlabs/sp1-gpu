@@ -289,8 +289,7 @@ unsafe impl Allocator for CudaStream {
         }
     }
 
-    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        tracing::info!("trting to deallocate {:?}", layout);
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         self.free_async(ptr.as_ptr()).unwrap()
     }
 
