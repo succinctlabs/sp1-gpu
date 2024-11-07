@@ -44,6 +44,76 @@ impl<T, A: Allocator> RawBuffer<T, A> {
     pub const fn new_in(alloc: A) -> Self {
         Self { inner: RawBufferInner::new_in(alloc, align_of::<T>()), _marker: PhantomData }
     }
+
+    #[inline]
+    pub fn with_capacity_in(capacity: usize, alloc: A) -> Self {
+        Self { inner: RawBufferInner::with_capacity_in::<T>(capacity, alloc), _marker: PhantomData }
+    }
+
+    #[inline]
+    pub fn try_with_capacity_in(capacity: usize, alloc: A) -> Result<Self, TryReserveError> {
+        match RawBufferInner::try_with_capacity_in::<T>(capacity, alloc) {
+            Ok(inner) => Ok(Self { inner, _marker: PhantomData }),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Reconstitutes a `RawBuffer` from a pointer, capacity, and allocator.
+    ///
+    /// # Safety
+    ///
+    /// The `ptr` must be allocated (via the given allocator `alloc`), and with the given
+    /// `capacity`.
+    /// The `capacity` cannot exceed `isize::MAX` for sized types. (only a concern on 32-bit
+    /// systems). For ZSTs capacity is ignored.
+    /// If the `ptr` and `capacity` come from a `RawBuffer` created via `alloc`, then this is
+    /// guaranteed.
+    #[inline]
+    pub unsafe fn from_raw_parts_in(ptr: *mut T, capacity: usize, alloc: A) -> Self {
+        // SAFETY: Precondition passed to the caller
+        unsafe {
+            let ptr = ptr.cast();
+            Self {
+                inner: RawBufferInner::from_raw_parts_in(ptr, capacity, alloc),
+                _marker: PhantomData,
+            }
+        }
+    }
+
+    #[inline]
+    pub fn with_capacity_zeroed_in(capacity: usize, alloc: A) -> Self {
+        Self {
+            inner: RawBufferInner::with_capacity_zeroed_in::<T>(capacity, alloc),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Gets a raw pointer to the start of the allocation. Note that this is
+    /// `Unique::dangling()` if `capacity == 0` or `T` is zero-sized. In the former case, you must
+    /// be careful.
+    #[inline]
+    pub fn ptr(&self) -> *mut T {
+        self.inner.ptr()
+    }
+
+    #[inline]
+    pub fn non_null(&self) -> NonNull<T> {
+        self.inner.non_null()
+    }
+
+    /// Gets the capacity of the allocation.
+    ///
+    /// This will always be `usize::MAX` if `T` is zero-sized.
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity(size_of::<T>())
+    }
+
+    /// Returns a shared reference to the allocator backing this `RawVec`.
+    #[inline]
+    pub fn allocator(&self) -> &A {
+        self.inner.allocator()
+    }
 }
 
 impl<A: Allocator> RawBufferInner<A> {
@@ -78,9 +148,7 @@ impl<A: Allocator> RawBufferInner<A> {
             return Ok(Self::new_in(alloc, layout.align()));
         }
 
-        if let Err(err) = alloc_guard(layout.size()) {
-            return Err(err);
-        }
+        alloc_guard(layout.size())?;
 
         let result = match init {
             AllocInit::Uninitialized => alloc.allocate(layout),
@@ -94,7 +162,7 @@ impl<A: Allocator> RawBufferInner<A> {
         // Allocators currently return a `NonNull<[u8]>` whose length
         // matches the size requested. If that ever changes, the capacity
         // here should change to `ptr.len() / mem::size_of::<T>()`.
-        Ok(Self { ptr: NonNull::from(ptr.cast()), cap: capacity, alloc })
+        Ok(Self { ptr: ptr.cast(), cap: capacity, alloc })
     }
 
     #[inline]
@@ -140,6 +208,19 @@ impl<A: Allocator> RawBufferInner<A> {
                 let layout = Layout::from_size_align_unchecked(alloc_size, elem_layout.align());
                 Some((self.ptr, layout))
             }
+        }
+    }
+
+    #[inline]
+    fn try_with_capacity_in<T>(capacity: usize, alloc: A) -> Result<Self, TryReserveError> {
+        Self::try_allocate_in::<T>(capacity, AllocInit::Uninitialized, alloc)
+    }
+
+    #[inline]
+    fn with_capacity_zeroed_in<T>(capacity: usize, alloc: A) -> Self {
+        match Self::try_allocate_in::<T>(capacity, AllocInit::Zeroed, alloc) {
+            Ok(res) => res,
+            Err(err) => handle_error(err),
         }
     }
 
