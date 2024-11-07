@@ -243,8 +243,7 @@ unsafe impl Allocator for CudaStream {
     fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let ptr = self.allocate(layout)?;
         unsafe {
-            self.mem_set_async(ptr.as_ptr() as *mut u8, 0, layout.size())
-                .map_err(|_| AllocError)?;
+            self.mem_set_async(ptr.as_ptr() as *mut u8, 0, layout.size()).unwrap();
         }
         Ok(ptr)
     }
