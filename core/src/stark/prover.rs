@@ -243,12 +243,18 @@ where
             let stream = self.chip_streams.get(name).unwrap();
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
+            // As we want the matrices associated with lde data to be associated with their chip
+            // stream, we need to manually swap the value.
             unsafe {
+                // Get the raw parts of the buffer.
                 let ptr = lde.values.as_mut_ptr();
                 let len = lde.values.len();
                 let cap = lde.values.capacity();
-                let new_values = DeviceBuffer::from_raw_parts(ptr, len, cap, stream.clone());
-                lde.values = new_values;
+                // Create a new buffer with the new stream.
+                let mut new_values = DeviceBuffer::from_raw_parts(ptr, len, cap, stream.clone());
+                // Swap and forget the old value to avoid calling it's `drop` implementation.
+                std::mem::swap(&mut lde.values, &mut new_values);
+                std::mem::forget(new_values);
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
             stream.synchronize().unwrap();
