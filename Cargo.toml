@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "erabinov/shapes_script_v2" }
 
 # p3
 # p3-air = "0.1.4-succinct"
