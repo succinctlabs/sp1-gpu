@@ -111,7 +111,7 @@ impl<T, A: Allocator> RawBuffer<T, A> {
 
     /// Returns a shared reference to the allocator backing this `RawVec`.
     #[inline]
-    pub fn allocator(&self) -> &A {
+    pub const fn allocator(&self) -> &A {
         self.inner.allocator()
     }
 }
@@ -190,7 +190,7 @@ impl<A: Allocator> RawBufferInner<A> {
     }
 
     #[inline]
-    fn allocator(&self) -> &A {
+    const fn allocator(&self) -> &A {
         &self.alloc
     }
 

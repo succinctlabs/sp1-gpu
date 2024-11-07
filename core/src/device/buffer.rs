@@ -1,19 +1,18 @@
+use core::fmt;
 use std::{
+    fmt::Debug,
     mem,
     ops::{
         Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo,
         RangeToInclusive,
     },
     slice,
-    time::Duration,
 };
 
-use p3_field::{ExtensionField, Field, PrimeField32};
+use moongate_bloc::RawBuffer;
+use p3_field::{ExtensionField, PrimeField32};
 
-use crate::{
-    cuda_runtime::stream::{AllocTimeoutError, CudaStream},
-    device::slice::DeviceSlice,
-};
+use crate::{cuda_runtime::stream::CudaStream, device::slice::DeviceSlice};
 
 use super::{
     error::CudaError,
@@ -21,13 +20,10 @@ use super::{
 };
 
 /// Fixed-size device-side buffer.
-#[derive(Debug)]
 #[repr(C)]
 pub struct DeviceBuffer<T: Copy> {
-    buf: *mut T,
+    buf: RawBuffer<T, CudaStream>,
     len: usize,
-    cap: usize,
-    stream: CudaStream,
 }
 
 unsafe impl<T: Copy> Send for DeviceBuffer<T> {}
@@ -44,20 +40,18 @@ impl<T: Copy> DeviceBuffer<T> {
 
     /// Creates a buffer with a null pointer and zero capacity.
     pub fn null() -> Self {
-        Self { buf: std::ptr::null_mut(), len: 0, cap: 0, stream: CudaStream::default() }
+        Self::with_capacity(0).unwrap()
     }
 
     /// Set all buffer bytes from `0..len * size_of<T>()` to a fixed value.
     pub fn set(&mut self, value: u8) -> Result<(), CudaError> {
         // Safety: we know that `len` are all valid addresses.
-        unsafe { self.stream.mem_set_async(self.buf, value, self.len()) }
+        unsafe { self.stream().mem_set_async(self.buf.ptr(), value, self.len()) }
     }
 
-    /// # Safety
-    ///
-    /// TODO
-    pub unsafe fn set_stream(&mut self, new_stream: CudaStream) {
-        self.stream = new_stream;
+    #[inline]
+    pub fn capacity(&self) -> usize {
+        self.buf.capacity()
     }
 
     /// Allocate a new buffer on the device.
@@ -65,9 +59,8 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will return an error if there is not enough memory available, or if any other
     /// device error occurs.
     pub fn try_with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
-        let ptr = unsafe { stream.try_alloc(capacity) }?;
-
-        Ok(Self { buf: ptr, len: 0, cap: capacity, stream: stream.clone() })
+        let buf = RawBuffer::try_with_capacity_in(capacity, stream.clone()).unwrap();
+        Ok(Self { buf, len: 0 })
     }
 
     /// Allocate a new buffer on the device.
@@ -75,23 +68,7 @@ impl<T: Copy> DeviceBuffer<T> {
     /// The function will block until enough memory is available. The function will return an error
     /// if another device error occurs.
     pub fn with_capacity_in(capacity: usize, stream: &CudaStream) -> Result<Self, CudaError> {
-        let ptr = unsafe { stream.alloc(capacity) }?;
-
-        Ok(Self { buf: ptr, len: 0, cap: capacity, stream: stream.clone() })
-    }
-
-    /// Allocate a new buffer on the device.
-    ///
-    /// The function will block until enough memory is available or the timeout is reached. The
-    /// function will return an error if another device error occurs.
-    pub fn with_capacity_in_timeout(
-        capacity: usize,
-        stream: CudaStream,
-        timeout: Duration,
-    ) -> Result<Self, AllocTimeoutError> {
-        let ptr = unsafe { stream.alloc_timeout(capacity, timeout) }?;
-
-        Ok(Self { buf: ptr, len: 0, cap: capacity, stream })
+        Ok(Self::try_with_capacity_in(capacity, stream).unwrap())
     }
 
     /// Returns a new buffer from a pointer, length, and capacity.
@@ -107,12 +84,12 @@ impl<T: Copy> DeviceBuffer<T> {
         capacity: usize,
         stream: CudaStream,
     ) -> Self {
-        Self { buf: ptr, len: length, cap: capacity, stream }
+        Self { buf: RawBuffer::from_raw_parts_in(ptr, capacity, stream), len: length }
     }
 
     #[inline]
     pub const fn stream(&self) -> &CudaStream {
-        &self.stream
+        self.buf.allocator()
     }
 
     /// # Safety
@@ -128,7 +105,7 @@ impl<T: Copy> DeviceBuffer<T> {
     /// TODO
     #[inline]
     pub unsafe fn set_max_len(&mut self) {
-        self.len = self.cap;
+        self.len = self.buf.capacity();
     }
 
     #[inline]
@@ -153,12 +130,12 @@ impl<T: Copy> DeviceBuffer<T> {
 
     #[inline]
     pub fn as_ptr(&self) -> *const T {
-        self.buf
+        self.buf.ptr()
     }
 
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.buf
+        self.buf.ptr()
     }
 
     /// Copies all elements from `src` into `self`, using a cudaMemcpy.
@@ -187,8 +164,8 @@ impl<T: Copy> DeviceBuffer<T> {
         }
 
         unsafe {
-            self.stream
-                .cuda_memcpy_host_to_device_async(self.buf, src.as_ptr(), src.len())
+            self.stream()
+                .cuda_memcpy_host_to_device_async(self.buf.ptr(), src.as_ptr(), src.len())
                 .unwrap();
         }
     }
@@ -211,8 +188,8 @@ impl<T: Copy> DeviceBuffer<T> {
         }
 
         unsafe {
-            self.stream
-                .cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.buf, dst.len())
+            self.stream()
+                .cuda_memcpy_device_to_host_async(dst.as_mut_ptr(), self.buf.ptr(), dst.len())
                 .unwrap();
         }
     }
@@ -220,7 +197,7 @@ impl<T: Copy> DeviceBuffer<T> {
     /// Calculates the offset to the current element.
     #[inline]
     unsafe fn offset(&self) -> *mut T {
-        self.buf.add(self.len)
+        self.buf.ptr().add(self.len)
     }
 
     /// Appends all the elements from `src` into `self`, using a cudaMemcpy.
@@ -242,12 +219,12 @@ impl<T: Copy> DeviceBuffer<T> {
             );
         }
 
-        if self.len() + src.len() > self.cap {
-            capacity_fail(self.len(), src.len(), self.cap);
+        if self.len() + src.len() > self.capacity() {
+            capacity_fail(self.len(), src.len(), self.capacity());
         }
 
         unsafe {
-            self.stream
+            self.stream()
                 .cuda_memcpy_host_to_device_async(self.offset(), src.as_ptr(), src.len())
                 .unwrap();
         }
@@ -275,12 +252,12 @@ impl<T: Copy> DeviceBuffer<T> {
             );
         }
 
-        if self.len() + src.len() > self.cap {
-            capacity_fail(self.len(), src.len(), self.cap);
+        if self.len() + src.len() > self.capacity() {
+            capacity_fail(self.len(), src.len(), self.capacity());
         }
 
         unsafe {
-            self.stream.cuda_memcpy_device_to_device_async(
+            self.stream().cuda_memcpy_device_to_device_async(
                 self.offset(),
                 src.as_ptr(),
                 src.len(),
@@ -301,50 +278,19 @@ impl<T: Copy> DeviceBuffer<T> {
         T: ExtensionField<B>,
     {
         // Cast the device pointer to the base type.
-        let buff = self.buf as *mut B;
+        let buff = self.buf.ptr() as *mut B;
         // Clone the stream.
-        let stream = self.stream.clone();
+        let stream = self.stream().clone();
 
         // The new length/capacity are the product of the old length/capacity and the extension
         // degree.
         let len = self.len * T::D;
-        let cap = self.cap * T::D;
+        let cap = self.buf.capacity() * T::D;
 
         // Prevent the buffer from being dropped.
         mem::forget(self);
 
         DeviceBuffer::from_raw_parts(buff, len, cap, stream)
-    }
-
-    /// # Safety
-    ///
-    /// A device slice of type `T` should be castable to device slice of type `B`.
-    pub unsafe fn as_extension_buffer<E>(self) -> DeviceBuffer<E>
-    where
-        T: Field,
-        E: ExtensionField<T>,
-    {
-        // Cast the device pointer to the extension type.
-        let buff = self.buf as *mut E;
-        // Clone the stream.
-        let stream = self.stream.clone();
-
-        // The legth and capacity must be divisible by the degree.
-        assert!(self.len % E::D == 0);
-        assert!(self.cap % E::D == 0);
-        let len = self.len / E::D;
-        let cap = self.cap / E::D;
-
-        // Prevent the buffer from being dropped.
-        mem::forget(self);
-
-        DeviceBuffer::from_raw_parts(buff, len, cap, stream)
-    }
-}
-
-impl<T: Copy> Drop for DeviceBuffer<T> {
-    fn drop(&mut self) {
-        unsafe { self.stream.free_async(self.buf).unwrap() }
     }
 }
 
@@ -358,7 +304,7 @@ macro_rules! impl_index {
                 fn index(&self, index: $t) -> &DeviceSlice<T> {
                     unsafe {
                         DeviceSlice::from_slice(
-                         slice::from_raw_parts(self.buf, self.len).index(index)
+                         slice::from_raw_parts(self.buf.ptr(), self.len).index(index)
                     )
                   }
                 }
@@ -369,7 +315,7 @@ macro_rules! impl_index {
                 fn index_mut(&mut self, index: $t) -> &mut DeviceSlice<T> {
                     unsafe {
                         DeviceSlice::from_slice_mut(
-                            slice::from_raw_parts_mut(self.buf, self.len).index_mut(index)
+                            slice::from_raw_parts_mut(self.buf.ptr(), self.len).index_mut(index)
                         )
                     }
                 }
@@ -423,6 +369,18 @@ impl<T: Copy> DerefMut for DeviceBuffer<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self[..]
+    }
+}
+
+impl<T: Debug + Copy> fmt::Debug for DeviceBuffer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "DeviceBuffer(cap: {}, len: {}, stream: {:?}",
+            self.buf.capacity(),
+            self.len,
+            self.buf.allocator().handle()
+        )
     }
 }
 

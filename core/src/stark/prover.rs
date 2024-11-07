@@ -244,7 +244,11 @@ where
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
             unsafe {
-                lde.values.set_stream(stream.clone());
+                let ptr = lde.values.as_mut_ptr();
+                let len = lde.values.len();
+                let cap = lde.values.capacity();
+                let new_values = DeviceBuffer::from_raw_parts(ptr, len, cap, stream.clone());
+                lde.values = new_values;
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
             stream.synchronize().unwrap();

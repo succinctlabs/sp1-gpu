@@ -1,5 +1,14 @@
-use std::{ffi::c_void, hint, mem, ops::Deref, ptr, sync::Arc, time::Duration};
+use std::{
+    alloc::Layout,
+    ffi::c_void,
+    hint, mem,
+    ops::Deref,
+    ptr::{self, NonNull},
+    sync::Arc,
+    time::Duration,
+};
 
+use moongate_bloc::alloc::{AllocError, Allocator};
 use thiserror::Error;
 
 use crate::{device::error::CudaError, time::CudaInstant};
@@ -268,6 +277,57 @@ impl Deref for CudaStream {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+unsafe impl Allocator for CudaStream {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        unsafe {
+            let len = layout.size();
+            let ptr = self.cuda_malloc_async::<u8>(len).map_err(|_| AllocError)?;
+            Ok(NonNull::slice_from_raw_parts(NonNull::new_unchecked(ptr), len))
+        }
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        tracing::info!("trting to deallocate {:?}", layout);
+        self.free_async(ptr.as_ptr()).unwrap()
+    }
+
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let ptr = self.allocate(layout)?;
+        unsafe {
+            self.mem_set_async(ptr.as_ptr() as *mut u8, 0, layout.size())
+                .map_err(|_| AllocError)?;
+        }
+        Ok(ptr)
+    }
+
+    unsafe fn grow(
+        &self,
+        _ptr: NonNull<u8>,
+        _old_layout: Layout,
+        _new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        unimplemented!()
+    }
+
+    unsafe fn grow_zeroed(
+        &self,
+        _ptr: NonNull<u8>,
+        _old_layout: Layout,
+        _new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        unimplemented!()
+    }
+
+    unsafe fn shrink(
+        &self,
+        _ptr: NonNull<u8>,
+        _old_layout: Layout,
+        _new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        unimplemented!()
     }
 }
 

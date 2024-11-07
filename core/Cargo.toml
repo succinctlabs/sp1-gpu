@@ -22,6 +22,7 @@ sp1-stark = { workspace = true }
 sp1-recursion-core = { workspace = true }
 p3-air = { workspace = true }
 air = { path = "../air" }
+moongate-bloc = { path = "../bloc" }
 p3-challenger = { workspace = true }
 p3-fri = { workspace = true }
 p3-util = { workspace = true }
