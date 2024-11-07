@@ -1,7 +1,7 @@
 use std::{
     alloc::Layout,
     ffi::c_void,
-    hint, mem,
+    mem,
     ops::Deref,
     ptr::{self, NonNull},
     sync::Arc,
@@ -9,13 +9,10 @@ use std::{
 };
 
 use moongate_bloc::alloc::{AllocError, Allocator};
-use thiserror::Error;
 
 use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
-
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -31,14 +28,6 @@ unsafe impl Sync for CudaStreamOwned {}
 #[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct CudaStream(Arc<CudaStreamOwned>);
-
-#[derive(Debug, Clone, Error)]
-pub enum AllocTimeoutError {
-    #[error("Failed to allocate memory {0}")]
-    CudaError(#[from] CudaError),
-    #[error("Timeout")]
-    Timeout,
-}
 
 impl CudaStream {
     pub fn create() -> Result<Self, CudaError> {
@@ -106,48 +95,6 @@ impl CudaStream {
     #[inline]
     pub unsafe fn try_alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
         self.cuda_malloc_async(len)
-    }
-
-    /// Allocate memory on the device.
-    ///
-    /// This function will block until the memory is available. The method will return an error if
-    /// the allocator failed for a reason other than out of memory.
-    ///
-    /// # Safety
-    /// See [Self::try_alloc]
-    #[inline]
-    pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
-        self.alloc_timeout(len, DEFAULT_TIMEOUT).map_err(|e| match e {
-            AllocTimeoutError::CudaError(e) => e,
-            AllocTimeoutError::Timeout => {
-                CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
-            }
-        })
-    }
-
-    /// Trt to allocate memory on the device or return an error after a timeout.
-    ///
-    /// # Safety
-    /// See [Self::try_alloc]
-    #[inline]
-    pub unsafe fn alloc_timeout<T: Copy>(
-        &self,
-        len: usize,
-        timeout: Duration,
-    ) -> Result<*mut T, AllocTimeoutError> {
-        let start = std::time::Instant::now();
-        loop {
-            match self.try_alloc(len) {
-                Ok(ptr) => return Ok(ptr),
-                Err(CudaError::OutOfMemory(_)) => {
-                    if start.elapsed() > timeout {
-                        return Err(AllocTimeoutError::Timeout);
-                    }
-                    hint::spin_loop();
-                }
-                Err(e) => return Err(AllocTimeoutError::CudaError(e)),
-            }
-        }
     }
 
     /// # Safety
