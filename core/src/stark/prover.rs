@@ -239,6 +239,7 @@ where
         let chip_ordering = pk.chip_ordering.clone();
         let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
         self.main_stream.record(&self.events.pk_data_to_device).unwrap();
+        self.main_stream.synchronize().unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
 
         for i in 0..chip_ordering.len() {
@@ -262,6 +263,7 @@ where
                 std::mem::forget(new_values);
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
+            stream.synchronize().unwrap();
             traces.push(trace);
         }
 
@@ -434,6 +436,7 @@ where
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
+        self.main_stream.synchronize().unwrap();
         commit_span.exit();
 
         // // Get the chip ordering.
@@ -1163,8 +1166,11 @@ where
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
         self.main_stream.record(&self.events.end_of_proof).unwrap();
+        // Synchronize streams to release resources.
+        self.main_stream.synchronize().unwrap();
         for stream in self.chip_streams.values() {
             stream.wait_event(&self.events.end_of_proof).unwrap();
+            stream.synchronize().unwrap();
         }
         cleanup_span.exit();
 
