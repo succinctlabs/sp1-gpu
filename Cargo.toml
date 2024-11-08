@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "main" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "chris/executor-opts-v3" }
 
 # p3
 p3-air = "0.1.4-succinct"
