@@ -68,6 +68,8 @@ pub struct StarkEvents {
     quotient: BTreeMap<String, CudaEvent>,
     batching_buffer_initialization: CudaEvent,
     update_openings: BTreeMap<String, CudaEvent>,
+    pk_data_to_device: CudaEvent,
+    end_of_proof: CudaEvent,
 }
 
 impl StarkEvents {
@@ -107,6 +109,8 @@ impl StarkEvents {
             quotient,
             batching_buffer_initialization,
             update_openings,
+            pk_data_to_device: CudaEvent::new().unwrap(),
+            end_of_proof: CudaEvent::new().unwrap(),
         })
     }
 }
@@ -234,13 +238,14 @@ where
     fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
         let chip_ordering = pk.chip_ordering.clone();
         let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
-        self.main_stream.synchronize().unwrap();
+        self.main_stream.record(&self.events.pk_data_to_device).unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
 
         for i in 0..chip_ordering.len() {
             let name =
                 chip_ordering.iter().find(|(_, idx)| **idx == i).map(|(name, _)| name).unwrap();
             let stream = self.chip_streams.get(name).unwrap();
+            stream.wait_event(&self.events.pk_data_to_device).unwrap();
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
             // As we want the matrices associated with lde data to be associated with their chip
@@ -257,7 +262,6 @@ where
                 std::mem::forget(new_values);
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
-            stream.synchronize().unwrap();
             traces.push(trace);
         }
 
@@ -430,7 +434,6 @@ where
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
         commit_span.exit();
 
         // // Get the chip ordering.
@@ -1159,11 +1162,10 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources.
+        self.main_stream.record(&self.events.end_of_proof).unwrap();
         for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
+            stream.wait_event(&self.events.end_of_proof).unwrap();
         }
-        self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 
         proof
