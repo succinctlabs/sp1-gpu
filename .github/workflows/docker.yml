@@ -16,6 +16,12 @@ jobs:
     ]
     steps:
 
+    - name: Set up git private repo access
+      shell: bash
+      run: |
+        git config --global url."https://${{ inputs.pull_token }}@github.com/".insteadOf ssh://git@github.com
+        git config --global url."https://${{ inputs.pull_token }}@github.com".insteadOf https://github.com
+
     - name: Add SHORT_SHA env property with commit short sha
       run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-7`" >> $GITHUB_ENV
 
@@ -62,6 +68,8 @@ jobs:
         tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
         cache-from: type=gha
         cache-to: type=gha, mode=max
+        secrets: |
+            GIT_AUTH_TOKEN=${{ secrets.PRIVATE_PULL_TOKEN }}
 
     - name: Push Docker image to Amazon ECR Public
       run: |
