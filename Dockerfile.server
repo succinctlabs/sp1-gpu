@@ -20,11 +20,6 @@ WORKDIR /usr/src/app
 # Copy the Rust project files
 COPY . .
 
-
-RUN git config --global url."https://${TOKEN}@github.com/".insteadOf ssh://git@github.com
-
-RUN git config --global url."https://${TOKEN}@github.com".insteadOf https://github.com
-
 # Build the Rust project
 RUN cargo build -p moongate-server --release
 
