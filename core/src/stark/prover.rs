@@ -1023,6 +1023,7 @@ where
                 self.machine.config().pcs().fri_config(),
                 input_leaves,
                 challenger,
+                &self.main_stream,
             );
 
             let prover_data = if let Some(global_main_data) = global_main_data.as_ref() {
@@ -1047,6 +1048,7 @@ where
                 &prover_data,
                 log_global_max_height,
                 false,
+                &self.main_stream,
             );
 
             let opening_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
