@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1.git", rev = "adcda87e3d40208470981d13efa81ae102c3fa1b" }
 
 # p3
 # p3-air = "0.1.4-succinct"
