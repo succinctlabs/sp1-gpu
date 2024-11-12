@@ -69,13 +69,22 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
                 .map_err(|e| internal(format!("failed to deserialize {}", e)))
         })?;
 
+        let (pk, _) = tracing::info_span!("setup").in_scope(|| {
+            self.prover
+                .lock()
+                .unwrap()
+                .as_ref()
+                .ok_or_else(|| internal("prover not ready".to_string()))
+                .map(|prover| prover.setup(&payload.elf))
+        })?;
+
         let result = tracing::info_span!("prove core").in_scope(|| {
             self.prover
                 .lock()
                 .unwrap()
                 .as_ref()
                 .ok_or_else(|| internal("prover not ready".to_string()))?
-                .prove_core(&payload.pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
+                .prove_core(&pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
                 .map_err(|e| internal(format!("failed to prove core {}", e)))
         })?;
 
