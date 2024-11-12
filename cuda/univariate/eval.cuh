@@ -5,16 +5,33 @@
 #include "../fields/bb31_extension_t.cuh"
 
 
+template<typename F, typename EF> __global__ void computeLagrangePolynomials(
+    EF* lagrangeEvaluations,
+    const F domainGenerator,
+    const F domainNormalizer,
+    const EF evalPoint,
+    const EF vanishingPoly,
+    size_t height 
+) {
+    // Compute the lagrange polynomial.
+
+     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
+     F domainPowerStride = domainGenerator^(blockDim.x * gridDim.x);
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+        EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
+        largrangePolynomial *= domainNormalizer * domainPoint; 
+        lagrangeEvaluations[i] = largrangePolynomial;
+        domainPoint *= domainPowerStride;
+    }
+}
+
 
 template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
     EF* partialEvaluations,
     const F* polynomialBatch,
-    const F domainGenerator,
-    const F domainNormalizer,
-    const EF evalPoint,
-    const EF vanishingPoly, 
+    const EF* lagrangeEvaluations,
     size_t width,
-    size_t log_height) {
+    size_t height) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
@@ -25,17 +42,10 @@ template<typename F, typename EF> __global__ void partialUnivariateEvalKernel(
         return;
     }
 
-    // Compute the lagrange polynomial.
-    size_t height = 1U << log_height;
-
     // Stride loop to accumulate partial sum
-     F domainPoint = domainGenerator^(blockIdx.x * blockDim.x + threadIdx.x);
-     F domainPowerStride = domainGenerator^(blockDim.x * gridDim.x);
     for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
-        EF largrangePolynomial = vanishingPoly / (evalPoint - domainPoint);
-        largrangePolynomial *= domainNormalizer * domainPoint; 
+        EF largrangePolynomial = lagrangeEvaluations[i];
         thread_val += largrangePolynomial * polynomialBatch[batchIdx * height + i];
-        domainPoint *= domainPowerStride;
     }
 
     // Allocate shared memory
@@ -66,22 +76,30 @@ template<typename F, typename EF> RustCudaError univariateEval(
     dim3 blockDim(512, 1, 1);
     size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
     dim3 gridDim(numReduceBlocks, width, 1);
-
-    // Allocate the partial sums and set them to zero. 
+   
+    // Allocate space for Lagrange evaluations
+    EF * lagrangeEvaluations;
+    CUDA_OK(cudaMallocAsync(&lagrangeEvaluations, sizeof(EF) * height, stream));
+    // Allocate the partial sums. 
     EF * partialEvaluations;
     CUDA_OK(cudaMallocAsync(&partialEvaluations, sizeof(EF) * gridDim.x * width, stream));
 
     size_t numTiles = blockDim.x / 32;
 
+    computeLagrangePolynomials<<<gridDim.x, blockDim.x, 0, stream>>>(
+        lagrangeEvaluations,
+        domainGenerator, 
+        domainNormalizer,
+        evalPoint,
+        vanishingPoly,
+        height);
+
     partialUnivariateEvalKernel<<<gridDim, blockDim, numTiles * blockDim.y * sizeof(EF), stream>>>(
         partialEvaluations,
         polynomailBatch, 
-        domainGenerator,
-        domainNormalizer,
-        evalPoint,
-        vanishingPoly, 
+        lagrangeEvaluations,
         width, 
-        log_height);
+        height);
     
     size_t new_height = gridDim.x;
     gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 32 + 1;
@@ -93,6 +111,7 @@ template<typename F, typename EF> RustCudaError univariateEval(
     AddOp<EF> op;
     blockReduce<<<gridDim, blockDim, 0, stream>>>(partialEvaluations, result, width, new_height, op);
     // Free the memory used.
+    CUDA_OK(cudaFreeAsync(lagrangeEvaluations, stream));
     CUDA_OK(cudaFreeAsync(partialEvaluations, stream));
 
     return CUDA_SUCCESS_MOON;
@@ -111,7 +130,7 @@ extern "C" RustCudaError evalUnivariateBabyBear(
     size_t log_height,
     cudaStream_t stream) {
     return univariateEval(
-        result, 
+        result,
         polynomailBatch, 
         domainGenerator, 
         domainNormalizer,
