@@ -9,6 +9,8 @@ static DEVICE_SENDER: OnceLock<SyncSender<TaskRef>> = OnceLock::new();
 
 pub(crate) const GLOBAL_DEVICE_ALLOCATOR: GlobalDeviceAllocator = GlobalDeviceAllocator;
 
+pub type BumpCuda = Bump<GlobalDeviceAllocator>;
+
 pub const DEFAULT_CAPACITY: usize = 100;
 
 pub mod event;
@@ -19,6 +21,7 @@ pub mod spawn;
 pub mod stream;
 pub mod task;
 
+use moongate_bloc::bump::Bump;
 pub use pinned::*;
 pub use scope::*;
 pub use spawn::*;
@@ -47,4 +50,10 @@ fn init_device(capacity: usize) -> SyncSender<TaskRef> {
     });
 
     sender
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_bump_allocations() {}
 }
