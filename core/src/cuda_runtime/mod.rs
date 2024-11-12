@@ -7,9 +7,11 @@ use crate::device::{error::CudaError, memory::GlobalDeviceAllocator};
 
 static DEVICE_SENDER: OnceLock<SyncSender<TaskRef>> = OnceLock::new();
 
-pub(crate) const GLOBAL_DEVICE_ALLOCATOR: GlobalDeviceAllocator = GlobalDeviceAllocator;
+pub const GLOBAL_DEVICE_ALLOCATOR: GlobalDeviceAllocator = GlobalDeviceAllocator;
 
-pub type BumpCuda = Bump<GlobalDeviceAllocator>;
+pub type BumpGlobalCuda = Bump<GlobalDeviceAllocator>;
+
+pub type BumpStream = Bump<CudaStream>;
 
 pub const DEFAULT_CAPACITY: usize = 100;
 
@@ -26,6 +28,7 @@ pub use pinned::*;
 pub use scope::*;
 pub use spawn::*;
 
+use stream::CudaStream;
 use task::TaskRef;
 
 pub fn sync_device() -> Result<(), CudaError> {

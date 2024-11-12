@@ -63,6 +63,18 @@ pub unsafe trait Allocator {
     }
 }
 
+pub trait DeviceAllocator: Allocator {
+    /// TODO
+    ///
+    /// # Safety
+    unsafe fn copy_nonoverlapping(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        size: usize,
+    ) -> Result<(), AllocError>;
+}
+
 unsafe impl<A> Allocator for &A
 where
     A: Allocator + ?Sized,

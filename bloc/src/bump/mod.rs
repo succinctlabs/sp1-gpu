@@ -10,7 +10,7 @@ use core::{
     slice,
 };
 
-use crate::alloc::{AllocError, Allocator};
+use crate::alloc::{AllocError, Allocator, DeviceAllocator};
 
 #[derive(Debug)]
 pub struct Bump<A: Allocator> {
@@ -299,16 +299,6 @@ impl<A: Allocator> Bump<A> {
     /// The allocation limit is only enforced when allocating new backing chunks for
     /// a `Bump`. Updating the allocation limit will not affect existing allocations
     /// or any future allocations within the `Bump`'s current chunk.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// let bump = bumpalo::Bump::with_capacity(0);
-    ///
-    /// bump.set_allocation_limit(Some(0));
-    ///
-    /// assert!(bump.try_alloc(5).is_err());
-    /// ```
     pub fn set_allocation_limit(&self, limit: Option<usize>) {
         self.allocation_limit.set(limit);
     }
@@ -339,15 +329,6 @@ impl<A: Allocator> Bump<A> {
     /// The allocated bytes do not include the size of bumpalo's metadata,
     /// so the amount of memory requested from the Rust allocator is higher
     /// than the returned value.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// let bump = bumpalo::Bump::new();
-    /// let _x = bump.alloc_slice_fill_default::<u32>(5);
-    /// let bytes = bump.allocated_bytes();
-    /// assert!(bytes >= core::mem::size_of::<u32>() * 5);
-    /// ```
     pub fn allocated_bytes(&self) -> usize {
         let footer = self.current_chunk_footer.get();
 
@@ -609,7 +590,10 @@ impl<A: Allocator> Bump<A> {
         ptr: NonNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<u8>, AllocError> {
+    ) -> Result<NonNull<u8>, AllocError>
+    where
+        A: DeviceAllocator,
+    {
         // If the new layout demands greater alignment than the old layout has,
         // then either
         //
@@ -681,7 +665,7 @@ impl<A: Allocator> Bump<A> {
 
             // NB: we know it is non-overlapping because of the size check
             // in the `if` condition.
-            ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_ptr(), new_size);
+            self.pool_alloc.copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_ptr(), new_size)?;
 
             return Ok(new_ptr);
         }
@@ -697,26 +681,31 @@ impl<A: Allocator> Bump<A> {
         ptr: NonNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<u8>, AllocError> {
-        let old_size = old_layout.size();
-        let new_size = new_layout.size();
-        let align_is_compatible = old_layout.align() >= new_layout.align();
+    ) -> Result<NonNull<[u8]>, AllocError>
+    where
+        A: DeviceAllocator,
+    {
+        debug_assert!(
+            new_layout.size() >= old_layout.size(),
+            "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
+        );
 
-        if align_is_compatible && self.is_last_allocation(ptr) {
-            // Try to allocate the delta size within this same block so we can
-            // reuse the currently allocated space.
-            let delta = new_size - old_size;
-            if let Some(p) =
-                self.try_alloc_layout_fast(layout_from_size_align(delta, old_layout.align())?)
-            {
-                ptr::copy(ptr.as_ptr(), p.as_ptr(), old_size);
-                return Ok(p);
-            }
+        let new_ptr = self.allocate(new_layout)?;
+
+        // SAFETY: because `new_layout.size()` must be greater than or equal to
+        // `old_layout.size()`, both the old and new memory allocation are valid for reads and
+        // writes for `old_layout.size()` bytes. Also, because the old allocation wasn't yet
+        // deallocated, it cannot overlap `new_ptr`. Thus, the call to `copy_nonoverlapping` is
+        // safe. The safety contract for `dealloc` must be upheld by the caller.
+        unsafe {
+            self.pool_alloc.copy_nonoverlapping(
+                ptr.as_ptr(),
+                new_ptr.cast::<u8>().as_mut(),
+                old_layout.size(),
+            )?;
+            self.deallocate(ptr, old_layout);
         }
 
-        // Fallback: do a fresh allocation and copy the existing data into it.
-        let new_ptr = self.try_alloc_layout(new_layout)?;
-        ptr::copy_nonoverlapping(ptr.as_ptr(), new_ptr.as_ptr(), old_size);
         Ok(new_ptr)
     }
 }
@@ -727,7 +716,7 @@ fn oom() -> ! {
     panic!("out of memory")
 }
 
-unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
+unsafe impl<'a, A: DeviceAllocator> Allocator for &'a Bump<A> {
     #[inline]
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         self.try_alloc_layout(layout)
@@ -768,11 +757,7 @@ unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
         old_layout: Layout,
         new_layout: Layout,
     ) -> Result<NonNull<[u8]>, AllocError> {
-        Bump::<A>::grow(self, ptr, old_layout, new_layout)
-            .map(|p| unsafe {
-                NonNull::new_unchecked(ptr::slice_from_raw_parts_mut(p.as_ptr(), new_layout.size()))
-            })
-            .map_err(|_| AllocError)
+        Bump::grow(self, ptr, old_layout, new_layout)
     }
 
     #[inline]
