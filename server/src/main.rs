@@ -14,9 +14,10 @@ use moongate_core::utils::init_tracer;
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use sp1_core_executor::SP1Context;
 use sp1_cuda::{
-    CompressRequestPayload, ProveCoreRequestPayload, ShrinkRequestPayload, WrapRequestPayload,
+    CompressRequestPayload, ProveCoreRequestPayload, SetupRequestPayload, SetupResponsePayload,
+    ShrinkRequestPayload, WrapRequestPayload,
 };
-use sp1_prover::SP1Prover;
+use sp1_prover::{SP1Prover, SP1ProvingKey};
 use tower_http::catch_panic::CatchPanicLayer;
 use twirp::{
     axum::{self},
@@ -25,12 +26,13 @@ use twirp::{
 
 struct MoongateProverServer {
     prover: Arc<Mutex<Option<SP1Prover<GpuProverComponents>>>>,
+    pk: Arc<Mutex<Option<SP1ProvingKey>>>,
 }
 
 impl MoongateProverServer {
     /// Create a new [MoongateProverServer].
     pub fn new() -> Self {
-        let server = Self { prover: Arc::new(Mutex::new(None)) };
+        let server = Self { prover: Arc::new(Mutex::new(None)), pk: Arc::new(Mutex::new(None)) };
         server.init();
         server
     }
@@ -58,6 +60,33 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         Ok(sp1_cuda::proto::api::ReadyResponse { ready: self.prover.lock().unwrap().is_some() })
     }
 
+    async fn setup(
+        &self,
+        _: twirp::Context,
+        req: sp1_cuda::proto::api::SetupRequest,
+    ) -> Result<sp1_cuda::proto::api::SetupResponse, twirp::TwirpErrorResponse> {
+        let payload: SetupRequestPayload = bincode::deserialize(&req.data)
+            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+
+        let (pk, vk) = tracing::info_span!("setup").in_scope(|| {
+            self.prover
+                .lock()
+                .unwrap()
+                .as_ref()
+                .ok_or_else(|| internal("prover not ready".to_string()))
+                .map(|prover| prover.setup(&payload.elf))
+        })?;
+
+        let mut pk_ref = self.pk.lock().map_err(|e| internal(format!("{}", e)))?;
+        *pk_ref = Some(pk.clone());
+
+        let response = SetupResponsePayload { pk, vk };
+        let result = bincode::serialize(&response)
+            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+
+        Ok(sp1_cuda::proto::api::SetupResponse { result })
+    }
+
     async fn prove_core(
         &self,
         _: twirp::Context,
@@ -69,14 +98,8 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
                 .map_err(|e| internal(format!("failed to deserialize {}", e)))
         })?;
 
-        let (pk, _) = tracing::info_span!("setup").in_scope(|| {
-            self.prover
-                .lock()
-                .unwrap()
-                .as_ref()
-                .ok_or_else(|| internal("prover not ready".to_string()))
-                .map(|prover| prover.setup(&payload.elf))
-        })?;
+        let pk_ref = self.pk.lock().map_err(|e| internal(format!("{}", e)))?;
+        let pk = pk_ref.as_ref().ok_or_else(|| internal("proving key not provided".to_string()))?;
 
         let result = tracing::info_span!("prove core").in_scope(|| {
             self.prover
@@ -84,7 +107,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
                 .unwrap()
                 .as_ref()
                 .ok_or_else(|| internal("prover not ready".to_string()))?
-                .prove_core(&pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
+                .prove_core(pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
                 .map_err(|e| internal(format!("failed to prove core {}", e)))
         })?;
 
