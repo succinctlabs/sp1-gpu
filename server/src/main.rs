@@ -63,20 +63,25 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         _: twirp::Context,
         req: sp1_cuda::proto::api::ProveCoreRequest,
     ) -> Result<sp1_cuda::proto::api::ProveCoreResponse, twirp::TwirpErrorResponse> {
-        let payload: ProveCoreRequestPayload = bincode::deserialize(&req.data)
-            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+        let payload: ProveCoreRequestPayload = tracing::info_span!("deserializing proof request")
+            .in_scope(|| {
+            bincode::deserialize(&req.data)
+                .map_err(|e| internal(format!("failed to deserialize {}", e)))
+        })?;
 
-        let result = self
-            .prover
-            .lock()
-            .unwrap()
-            .as_ref()
-            .ok_or_else(|| internal("prover not ready".to_string()))?
-            .prove_core(&payload.pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
-            .map_err(|e| internal(format!("failed to prove core {}", e)))?;
+        let result = tracing::info_span!("prove core").in_scope(|| {
+            self.prover
+                .lock()
+                .unwrap()
+                .as_ref()
+                .ok_or_else(|| internal("prover not ready".to_string()))?
+                .prove_core(&payload.pk, &payload.stdin, gpu_prover_opts(), SP1Context::default())
+                .map_err(|e| internal(format!("failed to prove core {}", e)))
+        })?;
 
-        let result = bincode::serialize(&result)
-            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+        let result = tracing::info_span!("serialize proof result").in_scope(|| {
+            bincode::serialize(&result).map_err(|e| internal(format!("failed to serialize {}", e)))
+        })?;
 
         Ok(sp1_cuda::proto::api::ProveCoreResponse { result })
     }
