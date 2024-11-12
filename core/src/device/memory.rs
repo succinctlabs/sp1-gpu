@@ -5,19 +5,32 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use moongate_bloc::alloc::{AllocError, Allocator};
+use moongate_bloc::alloc::{AllocError, Allocator, DeviceMemory};
 
 use crate::{
     cuda_runtime::stream::CudaStream,
     device::{error::CudaError, ffi},
 };
 
-use self::ffi::cuda_mem_set;
-
 use super::buffer::DeviceBuffer;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlobalDeviceAllocator;
+
+impl DeviceMemory for GlobalDeviceAllocator {
+    unsafe fn copy_nonoverlapping(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        size: usize,
+    ) -> Result<(), AllocError> {
+        copy_device_to_device(dst, src, size).map_err(|_| AllocError)
+    }
+
+    unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError> {
+        cuda_mem_set_(dst, value, size).map_err(|_| AllocError)
+    }
+}
 
 unsafe impl Allocator for GlobalDeviceAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
@@ -30,41 +43,6 @@ unsafe impl Allocator for GlobalDeviceAllocator {
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         cuda_free(ptr.as_ptr()).unwrap()
-    }
-
-    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let ptr = self.allocate(layout)?;
-        unsafe {
-            cuda_mem_set(ptr.as_ptr() as *mut c_void, 0, layout.size()).to_result().unwrap();
-        }
-        Ok(ptr)
-    }
-
-    unsafe fn grow(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!()
-    }
-
-    unsafe fn grow_zeroed(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!()
-    }
-
-    unsafe fn shrink(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!()
     }
 }
 

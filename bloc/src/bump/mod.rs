@@ -10,7 +10,7 @@ use core::{
     slice,
 };
 
-use crate::alloc::{AllocError, Allocator, DeviceAllocator};
+use crate::alloc::{AllocError, Allocator, DeviceMemory};
 
 #[derive(Debug)]
 pub struct Bump<A: Allocator> {
@@ -590,10 +590,7 @@ impl<A: Allocator> Bump<A> {
         ptr: NonNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<u8>, AllocError>
-    where
-        A: DeviceAllocator,
-    {
+    ) -> Result<NonNull<u8>, AllocError> {
         // If the new layout demands greater alignment than the old layout has,
         // then either
         //
@@ -681,10 +678,7 @@ impl<A: Allocator> Bump<A> {
         ptr: NonNull<u8>,
         old_layout: Layout,
         new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError>
-    where
-        A: DeviceAllocator,
-    {
+    ) -> Result<NonNull<[u8]>, AllocError> {
         debug_assert!(
             new_layout.size() >= old_layout.size(),
             "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
@@ -716,7 +710,22 @@ fn oom() -> ! {
     panic!("out of memory")
 }
 
-unsafe impl<'a, A: DeviceAllocator> Allocator for &'a Bump<A> {
+impl<'a, A: Allocator> DeviceMemory for &'a Bump<A> {
+    unsafe fn copy_nonoverlapping(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        size: usize,
+    ) -> Result<(), AllocError> {
+        self.pool_alloc.copy_nonoverlapping(src, dst, size)
+    }
+
+    unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError> {
+        self.pool_alloc.write_bytes(dst, value, size)
+    }
+}
+
+unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
     #[inline]
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         self.try_alloc_layout(layout)

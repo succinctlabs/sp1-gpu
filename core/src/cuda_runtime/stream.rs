@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use moongate_bloc::alloc::{AllocError, Allocator, DeviceAllocator};
+use moongate_bloc::alloc::{AllocError, Allocator, DeviceMemory};
 
 use crate::{device::error::CudaError, time::CudaInstant};
 
@@ -239,44 +239,9 @@ unsafe impl Allocator for CudaStream {
     unsafe fn deallocate(&self, ptr: NonNull<u8>, _layout: Layout) {
         self.free_async(ptr.as_ptr()).unwrap()
     }
-
-    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let ptr = self.allocate(layout)?;
-        unsafe {
-            self.mem_set_async(ptr.as_ptr() as *mut u8, 0, layout.size()).unwrap();
-        }
-        Ok(ptr)
-    }
-
-    unsafe fn grow(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!("Stream allocator does not support grow")
-    }
-
-    unsafe fn grow_zeroed(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!("Stream allocator does not support grow zeroed")
-    }
-
-    unsafe fn shrink(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!("Stream allocator does not support shrink")
-    }
 }
 
-impl DeviceAllocator for CudaStream {
+impl DeviceMemory for CudaStream {
     unsafe fn copy_nonoverlapping(
         &self,
         src: *const u8,
@@ -284,6 +249,10 @@ impl DeviceAllocator for CudaStream {
         size: usize,
     ) -> Result<(), AllocError> {
         self.cuda_memcpy_device_to_device_async::<u8>(dst, src, size).map_err(|_| AllocError)
+    }
+
+    unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError> {
+        self.mem_set_async(dst, value, size).map_err(|_| AllocError)
     }
 }
 
