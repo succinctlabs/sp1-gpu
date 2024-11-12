@@ -3,9 +3,11 @@ use std::sync::{
     OnceLock,
 };
 
-use crate::device::error::CudaError;
+use crate::device::{error::CudaError, memory::GlobalDeviceAllocator};
 
 static DEVICE_SENDER: OnceLock<SyncSender<TaskRef>> = OnceLock::new();
+
+pub(crate) const GLOBAL_DEVICE_ALLOCATOR: GlobalDeviceAllocator = GlobalDeviceAllocator;
 
 pub const DEFAULT_CAPACITY: usize = 100;
 
