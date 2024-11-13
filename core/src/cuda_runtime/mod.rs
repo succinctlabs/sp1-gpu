@@ -67,12 +67,14 @@ fn init_device(capacity: usize) -> SyncSender<TaskRef> {
 mod tests {
     use moongate_bloc::bump::Bump;
 
+    use crate::device::DeviceBuffer;
+
     use super::stream::CudaStream;
 
     #[test]
     fn test_bump_allocations() {
-        let bump = Bump::with_capacity_in(100, CudaStream::default());
+        let bump = Bump::<CudaStream>::default();
 
-        // let buffer = DeviceBuffer::<u32, _>::with_capacity_in(95, &bump);
+        let buffer = DeviceBuffer::<u32, _>::with_capacity_in(100, &bump);
     }
 }
