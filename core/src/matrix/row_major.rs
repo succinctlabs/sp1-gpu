@@ -11,7 +11,7 @@ use crate::{
     cuda_runtime::{stream::CudaStream, CudaSync, DeviceAllocator},
     device::{
         error::CudaError,
-        memory::{ToDeviceIn, ToDevice, ToHost},
+        memory::{ToDevice, ToDeviceIn, ToHost},
         DeviceBuffer,
     },
 };
