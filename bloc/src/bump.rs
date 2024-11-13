@@ -675,37 +675,6 @@ impl<A: Allocator> Bump<A> {
         // simply return the old pointer as-is.
         Ok(ptr)
     }
-
-    #[inline]
-    unsafe fn grow(
-        &self,
-        ptr: NonNull<u8>,
-        old_layout: Layout,
-        new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        debug_assert!(
-            new_layout.size() >= old_layout.size(),
-            "`new_layout.size()` must be greater than or equal to `old_layout.size()`"
-        );
-
-        let new_ptr = self.allocate(new_layout)?;
-
-        // SAFETY: because `new_layout.size()` must be greater than or equal to
-        // `old_layout.size()`, both the old and new memory allocation are valid for reads and
-        // writes for `old_layout.size()` bytes. Also, because the old allocation wasn't yet
-        // deallocated, it cannot overlap `new_ptr`. Thus, the call to `copy_nonoverlapping` is
-        // safe. The safety contract for `dealloc` must be upheld by the caller.
-        unsafe {
-            self.pool_alloc.copy_nonoverlapping(
-                ptr.as_ptr(),
-                new_ptr.cast::<u8>().as_mut(),
-                old_layout.size(),
-            )?;
-            self.deallocate(ptr, old_layout);
-        }
-
-        Ok(new_ptr)
-    }
 }
 
 #[inline(never)]
@@ -714,7 +683,7 @@ fn oom() -> ! {
     panic!("out of memory")
 }
 
-impl<'a, A: Allocator> DeviceMemory for &'a Bump<A> {
+impl<A: Allocator> DeviceMemory for Bump<A> {
     unsafe fn copy_nonoverlapping(
         &self,
         src: *const u8,
@@ -729,7 +698,7 @@ impl<'a, A: Allocator> DeviceMemory for &'a Bump<A> {
     }
 }
 
-unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
+unsafe impl<A: Allocator> Allocator for Bump<A> {
     #[inline]
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         self.try_alloc_layout(layout)
@@ -737,11 +706,6 @@ unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
                 NonNull::new_unchecked(ptr::slice_from_raw_parts_mut(p.as_ptr(), layout.size()))
             })
             .map_err(|_| AllocError)
-    }
-
-    #[inline]
-    fn allocate_zeroed(&self, _layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!()
     }
 
     #[inline]
@@ -761,26 +725,6 @@ unsafe impl<'a, A: Allocator> Allocator for &'a Bump<A> {
                 NonNull::new_unchecked(ptr::slice_from_raw_parts_mut(p.as_ptr(), new_layout.size()))
             })
             .map_err(|_| AllocError)
-    }
-
-    #[inline]
-    unsafe fn grow(
-        &self,
-        ptr: NonNull<u8>,
-        old_layout: Layout,
-        new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        Bump::grow(self, ptr, old_layout, new_layout)
-    }
-
-    #[inline]
-    unsafe fn grow_zeroed(
-        &self,
-        _ptr: NonNull<u8>,
-        _old_layout: Layout,
-        _new_layout: Layout,
-    ) -> Result<NonNull<[u8]>, AllocError> {
-        unimplemented!()
     }
 }
 
