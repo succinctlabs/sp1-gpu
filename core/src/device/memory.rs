@@ -58,7 +58,7 @@ pub trait ToDevice: ToDeviceIn<CudaStream> {
     }
 }
 
-impl<T: ToDeviceIn<CudaStream>> ToDevice for T {}
+impl<T: ToDeviceIn<CudaStream> + ?Sized> ToDevice for T {}
 
 pub trait ToHost {
     type HostType;
