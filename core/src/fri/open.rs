@@ -15,8 +15,9 @@ use sp1_stark::Challenger;
 
 use crate::{
     cuda_runtime::stream::CudaStream,
+    cuda_runtime::CudaSync,
     device::{
-        memory::{ToDevice, ToHost},
+        memory::{ToDeviceIn, ToHost},
         DeviceBuffer,
     },
     fri::TwoAdicFriCommitter,
@@ -57,7 +58,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         point: SC::Challenge,
     ) -> DeviceBuffer<SC::Challenge> {
         let mut open =
-            DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream()).unwrap();
+            DeviceBuffer::<SC::Challenge>::with_capacity_in(trace.width(), trace.stream().clone())
+                .unwrap();
         unsafe {
             open.set_max_len();
         }
@@ -189,7 +191,7 @@ pub(super) mod merkle_tree_opening_prover {
     use p3_util::log2_ceil_usize;
 
     use crate::{
-        device::memory::ToDevice,
+        device::memory::ToDeviceIn,
         matrix::MatrixViewDevice,
         merkle_tree::{FieldMerkleTreeDeviceCommitter, FieldMerkleTreeHasher, MmcsProverData},
     };
@@ -275,22 +277,25 @@ pub(super) mod merkle_tree_opening_prover {
             assert_eq!(data_matrix_offset, total_matrices);
             assert_eq!(total_log_max_heights, digests.len());
 
-            let matrix_views_device = matrix_views.to_device_async(stream).unwrap();
-            let width_offsets_device = width_offsets.to_device_async(stream).unwrap();
-            let query_indices_device = query_indices.to_device_async(stream).unwrap();
+            let matrix_views_device = matrix_views.to_device_in(stream.clone()).unwrap();
+            let width_offsets_device = width_offsets.to_device_in(stream.clone()).unwrap();
+            let query_indices_device = query_indices.to_device_in(stream.clone()).unwrap();
 
             let total_query_indices = query_indices_device.len();
             let openings_capacity = total_width * total_query_indices;
             let mut total_openings_device: DeviceBuffer<BabyBear> =
-                DeviceBuffer::with_capacity_in(openings_capacity, stream).unwrap();
+                DeviceBuffer::with_capacity_in(openings_capacity, stream.clone()).unwrap();
 
-            let log_max_heights_device = log_max_heights.to_device_async(stream).unwrap();
+            let log_max_heights_device = log_max_heights.to_device_in(stream.clone()).unwrap();
             let log_max_heights_offsets_device =
-                log_max_heights_offsets.to_device_async(stream).unwrap();
-            let digests_device = digests.to_device_async(stream).unwrap();
+                log_max_heights_offsets.to_device_in(stream.clone()).unwrap();
+            let digests_device = digests.to_device_in(stream.clone()).unwrap();
             let mut total_proofs_device: DeviceBuffer<[PW::Value; DIGEST_ELEMS]> =
-                DeviceBuffer::with_capacity_in(total_log_max_heights * total_query_indices, stream)
-                    .unwrap();
+                DeviceBuffer::with_capacity_in(
+                    total_log_max_heights * total_query_indices,
+                    stream.clone(),
+                )
+                .unwrap();
 
             unsafe {
                 total_openings_device.set_len(openings_capacity);
@@ -380,7 +385,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
     let mut output = ColMajorMatrixDevice::with_capacity_in(
         evaluations.width(),
         evaluations.height() / 2,
-        stream,
+        stream.clone(),
     )
     .unwrap();
 
@@ -420,7 +425,7 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
     let mut output = ColMajorMatrixDevice::with_capacity_in(
         <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
         n,
-        stream,
+        stream.clone(),
     )
     .unwrap();
 
@@ -430,7 +435,7 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
     assert!(num_blocks > 0);
 
     let block_powers =
-        g.powers().take(num_threads).collect::<Vec<_>>().to_device_async(stream).unwrap();
+        g.powers().take(num_threads).collect::<Vec<_>>().to_device_in(stream.clone()).unwrap();
 
     unsafe {
         output.set_max_width();

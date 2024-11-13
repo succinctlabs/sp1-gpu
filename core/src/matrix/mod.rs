@@ -1,16 +1,14 @@
 mod col_major;
-mod pinned;
 mod row_major;
 mod view;
 
 pub use col_major::*;
-pub use pinned::*;
 pub use row_major::*;
 pub use view::*;
 
-use crate::cuda_runtime::stream::CudaStream;
+use crate::cuda_runtime::CudaSync;
 
-pub trait DeviceMatrix<T: Copy> {
+pub trait DeviceMatrix<T: Copy>: CudaSync {
     /// The number of columns in the matrix.
     fn width(&self) -> usize;
 
@@ -22,9 +20,6 @@ pub trait DeviceMatrix<T: Copy> {
 
     /// A mutable view of the matrix.
     fn view_mut(&mut self) -> MatrixViewMutDevice<T>;
-
-    /// A stream corresponded to matrix.
-    fn stream(&self) -> &CudaStream;
 }
 
 pub(super) mod ffi {

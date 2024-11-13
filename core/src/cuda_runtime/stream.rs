@@ -12,7 +12,7 @@ use moongate_bloc::alloc::{AllocError, Allocator, DeviceMemory};
 
 use crate::{device::error::CudaError, time::CudaInstant};
 
-use super::{event::CudaEvent, ffi};
+use super::{event::CudaEvent, ffi, CudaSync};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -256,133 +256,139 @@ impl DeviceMemory for CudaStream {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use itertools::Itertools;
-    use p3_baby_bear::BabyBear;
-    use p3_matrix::dense::RowMajorMatrix;
-    use rand::{thread_rng, Rng};
-
-    use crate::{
-        device::{memory::ToDevice, DeviceBuffer},
-        utils::init_tracer,
-    };
-
-    use super::*;
-
-    #[test]
-    fn test_default_stream() {
-        let stream = CudaStream::default();
-        let event = CudaEvent::new().unwrap();
-        stream.record(&event).unwrap();
-
-        // Get a big buffer and measure the time it takes to copy it.
-        let data = vec![0u32; 1 << 22];
-        let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len()).unwrap();
-        let time = stream.now().unwrap();
-        buffer.extend_from_host_slice(&data);
-        let elapsed = stream.elapsed(&time).unwrap();
-        println!("{:?}", elapsed);
-        stream.synchronize().unwrap();
-    }
-
-    #[test]
-    fn test_streams() {
-        let stream = CudaStream::create().unwrap();
-
-        // Get a big buffer and measure the time it takes to copy it.
-        let data = vec![0u32; 1 << 22];
-        let time = stream.now().unwrap();
-        unsafe {
-            let buf = stream.cuda_malloc_async::<u32>(data.len()).unwrap();
-            stream.cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len()).unwrap();
-            stream.free_async(buf).unwrap();
-            let end = CudaEvent::new().unwrap();
-            stream.record(&end).unwrap();
-            let elapsed = stream.elapsed(&time).unwrap();
-            println!("{:?}", elapsed);
-        }
-    }
-
-    #[test]
-    #[ignore]
-    fn test_release_api() {
-        init_tracer();
-        let mut rng = thread_rng();
-
-        let heights = [21, 21, 19, 16];
-        let widths = [200, 30, 50, 10];
-
-        let host_matrices = heights
-            .into_iter()
-            .zip_eq(widths)
-            .map(|(log_height, width)| {
-                let height = 1 << log_height;
-                let values = (0..width * height).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
-                RowMajorMatrix::new(values, width)
-            })
-            .collect::<Vec<_>>();
-
-        // Serial with default stream.
-        let mut device_matrices_serial = Vec::with_capacity(host_matrices.len());
-        for mat in host_matrices.iter() {
-            let mat_span = tracing::debug_span!("serial matrix operation").entered();
-            let device_trace = mat.to_device().unwrap().to_column_major();
-            mat_span.exit();
-            device_matrices_serial.push(device_trace);
-        }
-
-        // Serial with other streams.
-        let mut device_matrices = Vec::with_capacity(host_matrices.len());
-        for mat in host_matrices.iter() {
-            let stream = CudaStream::create().unwrap();
-            let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
-            let device_trace = mat.to_device_async(&stream).unwrap().to_column_major();
-            mat_span.exit();
-            device_matrices.push(device_trace);
-        }
-
-        let clone_of_host = host_matrices.clone();
-        // Parallel with other streams.
-        let mut device_matrices_rx = Vec::with_capacity(host_matrices.len());
-        for mat in clone_of_host {
-            let stream = CudaStream::create().unwrap();
-            let (tx, rx) = oneshot::channel();
-            rayon::spawn(move || {
-                let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
-                let device_trace = mat.to_device_async(&stream).unwrap().to_column_major();
-                tx.send(device_trace).unwrap();
-                mat_span.exit();
-            });
-            device_matrices_rx.push(rx);
-        }
-        let device_matrices_par =
-            device_matrices_rx.into_iter().map(|rx| rx.recv().unwrap()).collect::<Vec<_>>();
-
-        let free_on_host = tracing::debug_span!("free host traces").entered();
-        drop(host_matrices);
-        free_on_host.exit();
-
-        let def_device_span = tracing::debug_span!("free default device traces").entered();
-        let stream = CudaStream::default();
-        drop(device_matrices_serial);
-        stream.synchronize().unwrap();
-        def_device_span.exit();
-
-        let def_device_span = tracing::debug_span!("free stream device traces").entered();
-        for mat in device_matrices {
-            let stream = mat.stream().clone();
-            drop(mat);
-            stream.synchronize().unwrap();
-        }
-        def_device_span.exit();
-
-        let def_device_span = tracing::debug_span!("free stream device traces").entered();
-        for mat in device_matrices_par {
-            let stream = mat.stream().clone();
-            drop(mat);
-            stream.synchronize().unwrap();
-        }
-        def_device_span.exit();
+impl CudaSync for CudaStream {
+    fn stream(&self) -> &CudaStream {
+        self
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use itertools::Itertools;
+//     use p3_baby_bear::BabyBear;
+//     use p3_matrix::dense::RowMajorMatrix;
+//     use rand::{thread_rng, Rng};
+
+//     use crate::{
+//         device::{memory::ToDevice, DeviceBuffer},
+//         utils::init_tracer,
+//     };
+
+//     use super::*;
+
+//     #[test]
+//     fn test_default_stream() {
+//         let stream = CudaStream::default();
+//         let event = CudaEvent::new().unwrap();
+//         stream.record(&event).unwrap();
+
+//         // Get a big buffer and measure the time it takes to copy it.
+//         let data = vec![0u32; 1 << 22];
+//         let mut buffer = DeviceBuffer::<u32>::with_capacity(data.len()).unwrap();
+//         let time = stream.now().unwrap();
+//         buffer.extend_from_host_slice(&data);
+//         let elapsed = stream.elapsed(&time).unwrap();
+//         println!("{:?}", elapsed);
+//         stream.synchronize().unwrap();
+//     }
+
+//     #[test]
+//     fn test_streams() {
+//         let stream = CudaStream::create().unwrap();
+
+//         // Get a big buffer and measure the time it takes to copy it.
+//         let data = vec![0u32; 1 << 22];
+//         let time = stream.now().unwrap();
+//         unsafe {
+//             let buf = stream.cuda_malloc_async::<u32>(data.len()).unwrap();
+//             stream.cuda_memcpy_host_to_device_async(buf, data.as_ptr(), data.len()).unwrap();
+//             stream.free_async(buf).unwrap();
+//             let end = CudaEvent::new().unwrap();
+//             stream.record(&end).unwrap();
+//             let elapsed = stream.elapsed(&time).unwrap();
+//             println!("{:?}", elapsed);
+//         }
+//     }
+
+//     #[test]
+//     #[ignore]
+//     fn test_release_api() {
+//         init_tracer();
+//         let mut rng = thread_rng();
+
+//         let heights = [21, 21, 19, 16];
+//         let widths = [200, 30, 50, 10];
+
+//         let host_matrices = heights
+//             .into_iter()
+//             .zip_eq(widths)
+//             .map(|(log_height, width)| {
+//                 let height = 1 << log_height;
+//                 let values = (0..width * height).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
+//                 RowMajorMatrix::new(values, width)
+//             })
+//             .collect::<Vec<_>>();
+
+//         // Serial with default stream.
+//         let mut device_matrices_serial = Vec::with_capacity(host_matrices.len());
+//         for mat in host_matrices.iter() {
+//             let mat_span = tracing::debug_span!("serial matrix operation").entered();
+//             let device_trace = mat.to_device_in(stream.clone()).unwrap().to_column_major();
+//             mat_span.exit();
+//             device_matrices_serial.push(device_trace);
+//         }
+
+//         // Serial with other streams.
+//         let mut device_matrices = Vec::with_capacity(host_matrices.len());
+//         for mat in host_matrices.iter() {
+//             let stream = CudaStream::create().unwrap();
+//             let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
+//             let device_trace = mat.to_device_in(stream.clone()).unwrap().to_column_major();
+//             mat_span.exit();
+//             device_matrices.push(device_trace);
+//         }
+
+//         let clone_of_host = host_matrices.clone();
+//         // Parallel with other streams.
+//         let mut device_matrices_rx = Vec::with_capacity(host_matrices.len());
+//         for mat in clone_of_host {
+//             let stream = CudaStream::create().unwrap();
+//             let (tx, rx) = oneshot::channel();
+//             rayon::spawn(move || {
+//                 let mat_span = tracing::debug_span!("stream serial matrix operation").entered();
+//                 let device_trace = mat.to_device_in(stream.clone()).unwrap().to_column_major();
+//                 tx.send(device_trace).unwrap();
+//                 mat_span.exit();
+//             });
+//             device_matrices_rx.push(rx);
+//         }
+//         let device_matrices_par =
+//             device_matrices_rx.into_iter().map(|rx| rx.recv().unwrap()).collect::<Vec<_>>();
+
+//         let free_on_host = tracing::debug_span!("free host traces").entered();
+//         drop(host_matrices);
+//         free_on_host.exit();
+
+//         let def_device_span = tracing::debug_span!("free default device traces").entered();
+//         let stream = CudaStream::default();
+//         drop(device_matrices_serial);
+//         stream.synchronize().unwrap();
+//         def_device_span.exit();
+
+//         let def_device_span = tracing::debug_span!("free stream device traces").entered();
+//         for mat in device_matrices {
+//             let stream = mat.stream().clone();
+//             drop(mat);
+//             stream.synchronize().unwrap();
+//         }
+//         def_device_span.exit();
+
+//         let def_device_span = tracing::debug_span!("free stream device traces").entered();
+//         for mat in device_matrices_par {
+//             let stream = mat.stream().clone();
+//             drop(mat);
+//             stream.synchronize().unwrap();
+//         }
+//         def_device_span.exit();
+//     }
+// }

@@ -1,4 +1,5 @@
 use air::instruction::Instruction16;
+use moongate_bloc::alloc::Allocator;
 use sp1_stark::StarkGenericConfig;
 
 use p3_baby_bear::BabyBear;
@@ -18,7 +19,8 @@ use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use std::{collections::HashMap, marker::PhantomData};
 
 use crate::{
-    device::{error::CudaError, memory::ToDevice, DeviceBuffer},
+    cuda_runtime::{stream::CudaStream, CudaSync, DeviceAllocator},
+    device::{error::CudaError, memory::ToDeviceIn, DeviceBuffer},
     matrix::ColMajorMatrixDevice,
     stark::ffi::quotient_gpu,
 };
@@ -97,9 +99,9 @@ where
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         let stream = main_evaluations.stream();
         let (operations, f_ctr, f_constants, ef_constants) = self.get_eval_program(chip);
-        let operations_device = operations.to_device_async(stream).unwrap();
-        let eval_f_constants_device = f_constants.to_device_async(stream).unwrap();
-        let eval_ef_constants_device = ef_constants.to_device_async(stream).unwrap();
+        let operations_device = operations.to_device_in(stream.clone()).unwrap();
+        let eval_f_constants_device = f_constants.to_device_in(stream.clone()).unwrap();
+        let eval_ef_constants_device = ef_constants.to_device_in(stream.clone()).unwrap();
 
         let trace_domain_generator =
             <SC::Val as TwoAdicField>::two_adic_generator(trace_domain.log_n);
@@ -109,7 +111,7 @@ where
             let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity_in(
                 <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
                 quotient_domain.size(),
-                stream,
+                stream.clone(),
             )
             .unwrap();
             quotient_flat.set_max_width();
@@ -120,8 +122,8 @@ where
                 eval_ef_constants_device.as_ptr(),
                 *f_ctr as usize,
                 cumulative_sums.as_ptr(),
-                trace_domain.to_device_async(stream).unwrap(),
-                quotient_domain.to_device_async(stream).unwrap(),
+                trace_domain.to_device_in(stream.clone()).unwrap(),
+                quotient_domain.to_device_in(stream.clone()).unwrap(),
                 preprocessed_evaluations.view(),
                 main_evaluations.view(),
                 permutation_evaluations.view(),
@@ -144,38 +146,32 @@ where
     }
 }
 
-impl ToDevice for TwoAdicMultiplicativeCoset<BabyBear> {
+impl<A: Allocator> ToDeviceIn<A> for TwoAdicMultiplicativeCoset<BabyBear> {
     type DeviceType = TwoAdicMultiplicativeCosetDevice<BabyBear>;
 
-    fn to_device_async(
-        &self,
-        _stream: &crate::cuda_runtime::stream::CudaStream,
-    ) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_in(&self, _alloc: A) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType { log_n: self.log_n, shift: self.shift })
     }
 }
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct LagrangeSelectorsDevice<T: Field> {
-    is_first_row: DeviceBuffer<T>,
-    is_last_row: DeviceBuffer<T>,
-    is_transition: DeviceBuffer<T>,
-    inv_zeroifier: DeviceBuffer<T>,
+pub struct LagrangeSelectorsDevice<T: Field, A: Allocator = CudaStream> {
+    is_first_row: DeviceBuffer<T, A>,
+    is_last_row: DeviceBuffer<T, A>,
+    is_transition: DeviceBuffer<T, A>,
+    inv_zeroifier: DeviceBuffer<T, A>,
 }
 
-impl ToDevice for LagrangeSelectors<Vec<BabyBear>> {
-    type DeviceType = LagrangeSelectorsDevice<BabyBear>;
+impl<A: DeviceAllocator> ToDeviceIn<A> for LagrangeSelectors<Vec<BabyBear>> {
+    type DeviceType = LagrangeSelectorsDevice<BabyBear, A>;
 
-    fn to_device_async(
-        &self,
-        stream: &crate::cuda_runtime::stream::CudaStream,
-    ) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_in(&self, alloc: A) -> Result<Self::DeviceType, CudaError> {
         Ok(Self::DeviceType {
-            is_first_row: self.is_first_row.to_device_async(stream)?,
-            is_last_row: self.is_last_row.to_device_async(stream)?,
-            is_transition: self.is_transition.to_device_async(stream)?,
-            inv_zeroifier: self.inv_zeroifier.to_device_async(stream)?,
+            is_first_row: self.is_first_row.to_device_in(alloc.clone())?,
+            is_last_row: self.is_last_row.to_device_in(alloc.clone())?,
+            is_transition: self.is_transition.to_device_in(alloc.clone())?,
+            inv_zeroifier: self.inv_zeroifier.to_device_in(alloc.clone())?,
         })
     }
 }
@@ -300,7 +296,7 @@ impl<SC, A> Default for CpuQuotientValuesGenerator<SC, A> {
 
 #[cfg(test)]
 mod tests {
-    use crate::stark::BabyBearPoseidon2;
+    use crate::{device::memory::ToDevice, stark::BabyBearPoseidon2};
     use itertools::Itertools;
     use p3_air::BaseAir;
     use p3_baby_bear::BabyBear;
@@ -322,7 +318,7 @@ mod tests {
 
     use crate::{
         cuda_runtime::ffi::DEFAULT_STREAM,
-        device::memory::{ToDevice, ToHost},
+        device::memory::ToHost,
         matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
         stark::{ffi::quotient_gpu, quotient::quotient_values},
         utils::init_tracer,

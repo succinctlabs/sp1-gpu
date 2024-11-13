@@ -10,8 +10,8 @@ use sp1_stark::{
 };
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
-    device::{error::CudaError, memory::ToDevice, slice::DeviceSlice, DeviceBuffer},
+    cuda_runtime::{stream::CudaStream, CudaSync},
+    device::{error::CudaError, memory::ToDeviceIn, slice::DeviceSlice, DeviceBuffer},
     matrix::{ColMajorMatrixDevice, MatrixViewDevice, MatrixViewMutDevice},
 };
 
@@ -50,13 +50,14 @@ where
             grouped_receives,
             *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0),
         )
-        .to_device_async(stream)
+        .to_device_in(stream.clone())
         .unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
         let mut perm_buffer =
-            DeviceBuffer::<BabyBear>::with_capacity_in(perm_width * height * D, stream).unwrap();
+            DeviceBuffer::<BabyBear>::with_capacity_in(perm_width * height * D, stream.clone())
+                .unwrap();
         unsafe {
             perm_buffer.set_max_len();
         }
@@ -477,19 +478,19 @@ impl<F: Field> Mul<F> for PairColDevice<F> {
     }
 }
 
-impl<F: Field> ToDevice for HostInteractions<F> {
+impl<F: Field> ToDeviceIn<CudaStream> for HostInteractions<F> {
     type DeviceType = DeviceInteractions<F>;
-    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_in(&self, stream: CudaStream) -> Result<Self::DeviceType, CudaError> {
         Ok(DeviceInteractions {
-            values_ptr: self.values_ptr.to_device_async(stream)?,
-            values_col_weights_ptr: self.values_col_weights_ptr.to_device_async(stream)?,
-            multiplicities_ptr: self.multiplicities_ptr.to_device_async(stream)?,
-            values_col_weights: self.values_col_weights.to_device_async(stream)?,
-            values_constants: self.values_constants.to_device_async(stream)?,
-            mult_col_weights: self.mult_col_weights.to_device_async(stream)?,
-            mult_constants: self.mult_constants.to_device_async(stream)?,
-            arg_indices: self.arg_indices.to_device_async(stream)?,
-            is_send: self.is_send.to_device_async(stream)?,
+            values_ptr: self.values_ptr.to_device_in(stream.clone())?,
+            values_col_weights_ptr: self.values_col_weights_ptr.to_device_in(stream.clone())?,
+            multiplicities_ptr: self.multiplicities_ptr.to_device_in(stream.clone())?,
+            values_col_weights: self.values_col_weights.to_device_in(stream.clone())?,
+            values_constants: self.values_constants.to_device_in(stream.clone())?,
+            mult_col_weights: self.mult_col_weights.to_device_in(stream.clone())?,
+            mult_constants: self.mult_constants.to_device_in(stream.clone())?,
+            arg_indices: self.arg_indices.to_device_in(stream.clone())?,
+            is_send: self.is_send.to_device_in(stream.clone())?,
             num_global_interactions: self.num_global_interactions,
             num_local_interactions: self.num_local_interactions,
             global_width: self.global_width,
@@ -499,7 +500,11 @@ impl<F: Field> ToDevice for HostInteractions<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{device::memory::ToHost, matrix::RowMajorMatrixDevice, time::CudaInstant};
+    use crate::{
+        device::memory::{ToDevice, ToHost},
+        matrix::RowMajorMatrixDevice,
+        time::CudaInstant,
+    };
 
     use super::*;
     use p3_air::{Air, BaseAir};

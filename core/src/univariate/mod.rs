@@ -2,6 +2,7 @@ use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, AbstractField, Field, TwoAdicField};
 
 use crate::{
+    cuda_runtime::CudaSync,
     device::{error::CudaError, DeviceBuffer},
     matrix::ColMajorMatrixDevice,
 };
@@ -63,6 +64,7 @@ mod tests {
     use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, StarkGenericConfig};
 
     use crate::{
+        cuda_runtime::CudaSync,
         device::{
             memory::{ToDevice, ToHost},
             DeviceBuffer,

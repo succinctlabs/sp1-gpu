@@ -1,4 +1,9 @@
-use core::{alloc::Layout, marker::PhantomData, mem, ptr::NonNull};
+use core::{
+    alloc::Layout,
+    marker::PhantomData,
+    mem::{self, ManuallyDrop},
+    ptr::{self, NonNull},
+};
 
 use thiserror::Error;
 
@@ -56,6 +61,15 @@ impl<T, A: Allocator> RawBuffer<T, A> {
             Ok(inner) => Ok(Self { inner, _marker: PhantomData }),
             Err(e) => Err(e),
         }
+    }
+
+    #[must_use = "losing the pointer will leak memory"]
+    pub fn into_raw_parts(self) -> (*mut T, usize, A) {
+        let me = ManuallyDrop::new(self);
+        let capacity = me.capacity();
+        let ptr = me.ptr();
+        let alloc = unsafe { ptr::read(me.allocator()) };
+        (ptr, capacity, alloc)
     }
 
     /// Reconstitutes a `RawBuffer` from a pointer, capacity, and allocator.

@@ -8,7 +8,7 @@ use std::{
 use moongate_bloc::alloc::{AllocError, Allocator, DeviceMemory};
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{stream::CudaStream, CudaSync},
     device::{error::CudaError, ffi},
 };
 
@@ -46,15 +46,19 @@ unsafe impl Allocator for GlobalDeviceAllocator {
     }
 }
 
-pub trait ToDevice {
+pub trait ToDeviceIn<A: Allocator> {
     type DeviceType;
 
-    fn to_device(&self) -> Result<Self::DeviceType, CudaError> {
-        self.to_device_async(&CudaStream::default())
-    }
-
-    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError>;
+    fn to_device_in(&self, alloc: A) -> Result<Self::DeviceType, CudaError>;
 }
+
+pub trait ToDevice: ToDeviceIn<CudaStream> {
+    fn to_device(&self) -> Result<<Self as ToDeviceIn<CudaStream>>::DeviceType, CudaError> {
+        self.to_device_in(CudaStream::default())
+    }
+}
+
+impl<T: ToDeviceIn<CudaStream>> ToDevice for T {}
 
 pub trait ToHost {
     type HostType;
@@ -62,11 +66,11 @@ pub trait ToHost {
     fn to_host(&self) -> Self::HostType;
 }
 
-impl<T: Copy> ToDevice for [T] {
-    type DeviceType = DeviceBuffer<T>;
+impl<T: Copy, A: Allocator + CudaSync> ToDeviceIn<A> for [T] {
+    type DeviceType = DeviceBuffer<T, A>;
 
-    fn to_device_async(&self, stream: &CudaStream) -> Result<Self::DeviceType, CudaError> {
-        let mut buffer = DeviceBuffer::with_capacity_in(self.len(), stream)?;
+    fn to_device_in(&self, alloc: A) -> Result<Self::DeviceType, CudaError> {
+        let mut buffer = DeviceBuffer::with_capacity_in(self.len(), alloc).unwrap();
         buffer.extend_from_host_slice(self);
         Ok(buffer)
     }

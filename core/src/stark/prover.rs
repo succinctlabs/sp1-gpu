@@ -29,10 +29,11 @@ use std::{
 };
 
 use crate::{
+    cuda_runtime::CudaSync,
     cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
-        memory::{ToDevice, ToHost},
+        memory::{ToDeviceIn, ToHost},
         DeviceBuffer,
     },
     fri::{FriOpeningProver, FriQueryProver, TwoAdicFriCommitter},
@@ -154,7 +155,7 @@ where
         + Sync
         + Default,
     C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
-    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+    PcsProverData<SC>: ToDeviceIn<CudaStream, DeviceType = C::ProverData>,
 {
     fn preprocessed_commit(&self) -> Com<SC> {
         self.commit.clone()
@@ -196,7 +197,7 @@ where
         + Sync
         + Default,
     C::ProverData: Send + Sync + ToHost<HostType = PcsProverData<SC>>,
-    PcsProverData<SC>: ToDevice<DeviceType = C::ProverData>,
+    PcsProverData<SC>: ToDeviceIn<CudaStream, DeviceType = C::ProverData>,
     Com<SC>: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Proof: Send + Sync,
     SC::FriChallenger: Send,
@@ -237,7 +238,7 @@ where
 
     fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
         let chip_ordering = pk.chip_ordering.clone();
-        let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
+        let mut data = pk.data.to_device_in(self.main_stream.clone()).unwrap();
         self.main_stream.record(&self.events.pk_data_to_device).unwrap();
         self.main_stream.synchronize().unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
@@ -262,7 +263,7 @@ where
                 std::mem::swap(&mut lde.values, &mut new_values);
                 std::mem::forget(new_values);
             }
-            let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
+            let trace = pk.traces[i].to_device_in(stream.clone()).unwrap().to_column_major();
             stream.synchronize().unwrap();
             traces.push(trace);
         }
@@ -347,7 +348,7 @@ where
                 let (tx, rx) = oneshot::channel();
                 rayon::spawn(move || {
                     let stream = stream;
-                    let trace = trace.to_device_async(&stream).unwrap().to_column_major();
+                    let trace = trace.to_device_in(stream.clone()).unwrap().to_column_major();
                     tx.send(trace).unwrap();
                 });
                 (domain, rx, event)
@@ -412,7 +413,7 @@ where
                 let (tx, rx) = oneshot::channel();
                 rayon::spawn(move || {
                     let stream = stream;
-                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                    let trace = prep_trace.to_device_in(stream.clone()).unwrap().to_column_major();
                     tx.send(trace).unwrap();
                 });
                 (name, domain, event, local_only, rx, dimensions)
@@ -644,9 +645,9 @@ where
             // the quotient values.
 
             let permutation_challenges_device =
-                permutation_challenges.to_device_async(&self.main_stream).unwrap();
+                permutation_challenges.to_device_in(self.main_stream.clone()).unwrap();
             let public_values_device =
-                local_public_values.to_device_async(&self.main_stream).unwrap();
+                local_public_values.to_device_in(self.main_stream.clone()).unwrap();
 
             let mut quotient_values = vec![];
 
@@ -661,7 +662,7 @@ where
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
                 let cumulative_sums_device =
-                    cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
+                    cumulative_sums[i].as_slice().to_device_in(stream.clone()).unwrap();
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -858,7 +859,7 @@ where
                     let log_height = trace_log_height + log_blowup;
                     let mut batched_openings = DeviceBuffer::<SC::Challenge>::with_capacity_in(
                         1 << log_height,
-                        &self.main_stream,
+                        self.main_stream.clone(),
                     )
                     .unwrap();
                     unsafe {

@@ -1,4 +1,5 @@
 use core::{alloc::Layout, ptr::NonNull};
+use std::rc::Rc;
 
 use thiserror::Error;
 
@@ -241,56 +242,150 @@ pub trait DeviceMemory {
     unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError>;
 }
 
-// unsafe impl<A> Allocator for &A
-// where
-//     A: Allocator + ?Sized,
-// {
-//     #[inline]
-//     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-//         (**self).allocate(layout)
-//     }
+impl<A> DeviceMemory for &A
+where
+    A: DeviceMemory + ?Sized,
+{
+    #[inline]
+    unsafe fn copy_nonoverlapping(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        size: usize,
+    ) -> Result<(), AllocError> {
+        (**self).copy_nonoverlapping(src, dst, size)
+    }
 
-//     #[inline]
-//     fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-//         (**self).allocate_zeroed(layout)
-//     }
+    #[inline]
+    unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError> {
+        (**self).write_bytes(dst, value, size)
+    }
+}
 
-//     #[inline]
-//     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-//         // SAFETY: the safety contract must be upheld by the caller
-//         unsafe { (**self).deallocate(ptr, layout) }
-//     }
+unsafe impl<A> Allocator for &A
+where
+    A: Allocator + ?Sized,
+{
+    #[inline]
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        (**self).allocate(layout)
+    }
 
-//     #[inline]
-//     unsafe fn grow(
-//         &self,
-//         ptr: NonNull<u8>,
-//         old_layout: Layout,
-//         new_layout: Layout,
-//     ) -> Result<NonNull<[u8]>, AllocError> {
-//         // SAFETY: the safety contract must be upheld by the caller
-//         unsafe { (**self).grow(ptr, old_layout, new_layout) }
-//     }
+    #[inline]
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        (**self).allocate_zeroed(layout)
+    }
 
-//     #[inline]
-//     unsafe fn grow_zeroed(
-//         &self,
-//         ptr: NonNull<u8>,
-//         old_layout: Layout,
-//         new_layout: Layout,
-//     ) -> Result<NonNull<[u8]>, AllocError> {
-//         // SAFETY: the safety contract must be upheld by the caller
-//         unsafe { (**self).grow_zeroed(ptr, old_layout, new_layout) }
-//     }
+    #[inline]
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).deallocate(ptr, layout) }
+    }
 
-//     #[inline]
-//     unsafe fn shrink(
-//         &self,
-//         ptr: NonNull<u8>,
-//         old_layout: Layout,
-//         new_layout: Layout,
-//     ) -> Result<NonNull<[u8]>, AllocError> {
-//         // SAFETY: the safety contract must be upheld by the caller
-//         unsafe { (**self).shrink(ptr, old_layout, new_layout) }
-//     }
-// }
+    #[inline]
+    unsafe fn grow(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).grow(ptr, old_layout, new_layout) }
+    }
+
+    #[inline]
+    unsafe fn grow_zeroed(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).grow_zeroed(ptr, old_layout, new_layout) }
+    }
+
+    #[inline]
+    unsafe fn shrink(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).shrink(ptr, old_layout, new_layout) }
+    }
+}
+
+impl<A> DeviceMemory for Rc<A>
+where
+    A: DeviceMemory + ?Sized,
+{
+    #[inline]
+    unsafe fn copy_nonoverlapping(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        size: usize,
+    ) -> Result<(), AllocError> {
+        (**self).copy_nonoverlapping(src, dst, size)
+    }
+
+    #[inline]
+    unsafe fn write_bytes(&self, dst: *mut u8, value: u8, size: usize) -> Result<(), AllocError> {
+        (**self).write_bytes(dst, value, size)
+    }
+}
+
+unsafe impl<A> Allocator for Rc<A>
+where
+    A: Allocator + ?Sized,
+{
+    #[inline]
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        (**self).allocate(layout)
+    }
+
+    #[inline]
+    fn allocate_zeroed(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        (**self).allocate_zeroed(layout)
+    }
+
+    #[inline]
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).deallocate(ptr, layout) }
+    }
+
+    #[inline]
+    unsafe fn grow(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).grow(ptr, old_layout, new_layout) }
+    }
+
+    #[inline]
+    unsafe fn grow_zeroed(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).grow_zeroed(ptr, old_layout, new_layout) }
+    }
+
+    #[inline]
+    unsafe fn shrink(
+        &self,
+        ptr: NonNull<u8>,
+        old_layout: Layout,
+        new_layout: Layout,
+    ) -> Result<NonNull<[u8]>, AllocError> {
+        // SAFETY: the safety contract must be upheld by the caller
+        unsafe { (**self).shrink(ptr, old_layout, new_layout) }
+    }
+}

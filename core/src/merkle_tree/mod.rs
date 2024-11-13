@@ -1,8 +1,8 @@
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{stream::CudaStream, CudaSync},
     device::{
         error::CudaError,
-        memory::{ToDevice, ToHost},
+        memory::{ToDeviceIn, ToHost},
         DeviceBuffer,
     },
     matrix::ColMajorMatrixDevice,
@@ -40,11 +40,11 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
         let tallest_matrices = leaves_largest_first
             .peeking_take_while(|m| m.height == max_height)
             .collect_vec()
-            .to_device_async(main_stream)
+            .to_device_in(main_stream.clone())
             .unwrap();
 
         let mut first_digest_layer =
-            DeviceBuffer::with_capacity_in(max_height, main_stream).unwrap();
+            DeviceBuffer::with_capacity_in(max_height, main_stream.clone()).unwrap();
         unsafe {
             first_digest_layer.set_len(max_height);
             hasher.first_digest_layer(
@@ -67,11 +67,11 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
             let matrices_to_inject = leaves_largest_first
                 .peeking_take_while(|m| m.height.next_power_of_two() == next_layer_len)
                 .collect_vec()
-                .to_device_async(main_stream)
+                .to_device_in(main_stream.clone())
                 .unwrap();
 
             let mut next_digests =
-                DeviceBuffer::<D>::with_capacity_in(next_layer_len, main_stream).unwrap();
+                DeviceBuffer::<D>::with_capacity_in(next_layer_len, main_stream.clone()).unwrap();
             unsafe {
                 next_digests.set_len(next_layer_len);
                 hasher.compress_and_inject(
@@ -94,9 +94,9 @@ impl<M: DeviceMatrix<BabyBear>, D: Copy> FieldMerkleTreeGpu<BabyBear, D, M> {
     }
 }
 
-impl<D: Copy> FieldMerkleTreeGpu<BabyBear, D, ColMajorMatrixDevice<BabyBear>> {
-    pub fn stream(&self) -> &CudaStream {
-        self.leaves[0].stream()
+impl<D: Copy> CudaSync for FieldMerkleTreeGpu<BabyBear, D, ColMajorMatrixDevice<BabyBear>> {
+    fn stream(&self) -> &CudaStream {
+        self.digest_layers[0].stream()
     }
 }
 
@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<W, const DIGEST_ELEMS: usize> ToDevice
+impl<W, const DIGEST_ELEMS: usize> ToDeviceIn<CudaStream>
     for FieldMerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
 where
     BabyBear: Field,
@@ -125,20 +125,17 @@ where
     type DeviceType =
         FieldMerkleTreeGpu<BabyBear, [W; DIGEST_ELEMS], ColMajorMatrixDevice<BabyBear>>;
 
-    fn to_device_async(
-        &self,
-        stream: &crate::cuda_runtime::stream::CudaStream,
-    ) -> Result<Self::DeviceType, CudaError> {
+    fn to_device_in(&self, stream: CudaStream) -> Result<Self::DeviceType, CudaError> {
         let leaves_device = self
             .leaves
             .iter()
-            .map(|l| Ok(l.to_device_async(stream)?.to_column_major()))
+            .map(|l| Ok(l.to_device_in(stream.clone())?.to_column_major()))
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         let digest_layers_device = self
             .digest_layers
             .iter()
-            .map(|l| l.to_device_async(stream))
+            .map(|l| l.to_device_in(stream.clone()))
             .collect::<Result<Vec<_>, CudaError>>()?;
 
         Ok(FieldMerkleTreeGpu {

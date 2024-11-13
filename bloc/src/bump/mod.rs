@@ -214,6 +214,10 @@ impl<A: Allocator> Bump<A> {
         Self::try_with_capacity_in(capacity, pool_alloc).unwrap_or_else(|_| oom())
     }
 
+    pub fn pool_allocator(&self) -> &A {
+        &self.pool_alloc
+    }
+
     /// Attempt to construct a new arena with the specified byte capacity to bump allocate into.
     pub fn try_with_capacity_in(capacity: usize, pool_alloc: A) -> Result<Self, AllocError> {
         if capacity == 0 {

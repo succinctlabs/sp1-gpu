@@ -126,9 +126,9 @@ mod tests {
 
     use super::DeviceDft;
     use crate::{
-        cuda_runtime::stream::CudaStream,
+        cuda_runtime::{stream::CudaStream, CudaSync},
         device::{
-            memory::{ToDevice, ToHost},
+            memory::{ToDevice, ToDeviceIn, ToHost},
             DeviceBuffer,
         },
         matrix::ColMajorMatrixDevice,
@@ -302,7 +302,8 @@ mod tests {
 
             let stream = CudaStream::create().unwrap();
 
-            let mut d_values = DeviceBuffer::<BabyBear>::with_capacity_in(ext_d, &stream).unwrap();
+            let mut d_values =
+                DeviceBuffer::<BabyBear>::with_capacity_in(ext_d, stream.clone()).unwrap();
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
@@ -347,7 +348,10 @@ mod tests {
             let d = 1 << log_d;
 
             let mat_h = RowMajorMatrix::rand(&mut rng, d, batch_size);
-            let mut mat_d = mat_h.to_device().unwrap().to_column_major_blowup(log_blowup);
+            let mut mat_d = mat_h
+                .to_device_in(CudaStream::default())
+                .unwrap()
+                .to_column_major_blowup(log_blowup);
 
             // Test the regulat version.
             let time = Instant::now();

@@ -1,3 +1,4 @@
+use moongate_bloc::alloc::Allocator;
 use p3_baby_bear::BabyBear;
 use p3_matrix::dense::RowMajorMatrix;
 
@@ -7,10 +8,10 @@ use rand::{
 };
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
+    cuda_runtime::{stream::CudaStream, CudaSync, DeviceAllocator},
     device::{
         error::CudaError,
-        memory::{ToDevice, ToHost},
+        memory::{ToDeviceIn, ToDevice, ToHost},
         DeviceBuffer,
     },
 };
@@ -23,29 +24,34 @@ use super::{
 /// A matrix stored on the device in row major form.
 #[derive(Debug)]
 #[repr(C)]
-pub struct RowMajorMatrixDevice<T: Copy> {
-    pub values: DeviceBuffer<T>,
+pub struct RowMajorMatrixDevice<T: Copy, A: Allocator = CudaStream> {
+    pub values: DeviceBuffer<T, A>,
     pub width: usize,
 }
 
-impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
-    pub fn new(values: DeviceBuffer<T>, width: usize) -> Self {
-        Self { values, width }
-    }
-
-    pub fn stream(&self) -> &CudaStream {
-        self.values.stream()
-    }
-
+impl<T: Copy> RowMajorMatrixDevice<T> {
     pub fn dummy(width: usize, height: usize) -> (RowMajorMatrix<T>, Self)
     where
         Standard: Distribution<T>,
+        T: Send + Sync,
     {
         let mut rng = rand::thread_rng();
         let data = (0..width * height).map(|_| rng.gen()).collect::<Vec<_>>();
         let device = RowMajorMatrixDevice::new(data.to_device().unwrap(), width);
         let host = RowMajorMatrix::new(data, width);
         (host, device)
+    }
+}
+
+impl<T: Copy, A: Allocator + CudaSync> CudaSync for RowMajorMatrixDevice<T, A> {
+    fn stream(&self) -> &CudaStream {
+        self.values.stream()
+    }
+}
+
+impl<T: Copy, A: Allocator> RowMajorMatrixDevice<T, A> {
+    pub fn new(values: DeviceBuffer<T, A>, width: usize) -> Self {
+        Self { values, width }
     }
 
     pub fn view(&self) -> MatrixViewDevice<T> {
@@ -66,20 +72,31 @@ impl<T: Copy + Send + Sync> RowMajorMatrixDevice<T> {
         }
     }
 
-    pub fn to_host(&self) -> RowMajorMatrix<T> {
+    pub fn to_host(&self) -> RowMajorMatrix<T>
+    where
+        T: Send + Sync,
+        A: CudaSync,
+    {
         RowMajorMatrix::new(self.values.to_host(), self.width)
     }
 
+    #[inline]
     pub fn height(&self) -> usize {
         self.values.len() / self.width
     }
 
-    pub fn width(&self) -> usize {
+    #[inline]
+    pub const fn width(&self) -> usize {
         self.width
+    }
+
+    #[inline]
+    pub fn allocator(&self) -> &A {
+        self.values.allocator()
     }
 }
 
-impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
+impl<T: Copy + Send + Sync, A: DeviceAllocator> DeviceMatrix<T> for RowMajorMatrixDevice<T, A> {
     fn width(&self) -> usize {
         self.width
     }
@@ -95,25 +112,28 @@ impl<T: Copy + Send + Sync> DeviceMatrix<T> for RowMajorMatrixDevice<T> {
     fn view_mut(&mut self) -> MatrixViewMutDevice<T> {
         self.view_mut()
     }
-
-    fn stream(&self) -> &CudaStream {
-        self.stream()
-    }
 }
 
-impl RowMajorMatrixDevice<BabyBear> {
-    pub fn to_column_major(&self) -> ColMajorMatrixDevice<BabyBear> {
-        let mut ret_values =
-            DeviceBuffer::with_capacity_in(self.height() * self.width(), self.stream()).unwrap();
+impl<A: DeviceAllocator> RowMajorMatrixDevice<BabyBear, A> {
+    pub fn to_column_major(&self) -> ColMajorMatrixDevice<BabyBear, A> {
+        let mut ret_values = DeviceBuffer::with_capacity_in(
+            self.height() * self.width(),
+            self.values.allocator().clone(),
+        )
+        .unwrap();
         unsafe { transpose_naive(ret_values.as_mut_ptr(), self.view(), self.stream().handle()) };
         unsafe { ret_values.set_max_len() };
 
         ColMajorMatrixDevice::new(ret_values, self.height())
     }
 
-    pub fn to_column_major_blowup(&self, log_blowup: usize) -> ColMajorMatrixDevice<BabyBear> {
+    pub fn to_column_major_blowup_in<B: Allocator>(
+        &self,
+        log_blowup: usize,
+        alloc: B,
+    ) -> ColMajorMatrixDevice<BabyBear, B> {
         let mut ret_values =
-            DeviceBuffer::with_capacity_in(self.values.len() << log_blowup, self.stream()).unwrap();
+            DeviceBuffer::with_capacity_in(self.values.len() << log_blowup, alloc).unwrap();
         unsafe {
             transpose_blowup_naive(
                 ret_values.as_mut_ptr(),
@@ -126,6 +146,10 @@ impl RowMajorMatrixDevice<BabyBear> {
 
         ColMajorMatrixDevice::new(ret_values, self.height() << log_blowup)
     }
+
+    pub fn to_column_major_blowup(&self, log_blowup: usize) -> ColMajorMatrixDevice<BabyBear, A> {
+        self.to_column_major_blowup_in(log_blowup, self.allocator().clone())
+    }
 }
 
 impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
@@ -136,14 +160,11 @@ impl<T: Copy + Send + Sync> ToHost for RowMajorMatrixDevice<T> {
     }
 }
 
-impl<T: Copy + Send + Sync> ToDevice for RowMajorMatrix<T> {
-    type DeviceType = RowMajorMatrixDevice<T>;
+impl<T: Copy + Send + Sync, A: Allocator + CudaSync> ToDeviceIn<A> for RowMajorMatrix<T> {
+    type DeviceType = RowMajorMatrixDevice<T, A>;
 
-    fn to_device_async(
-        &self,
-        stream: &crate::cuda_runtime::stream::CudaStream,
-    ) -> Result<Self::DeviceType, CudaError> {
-        let values = self.values.to_device_async(stream)?;
+    fn to_device_in(&self, alloc: A) -> Result<Self::DeviceType, CudaError> {
+        let values = self.values.to_device_in(alloc)?;
         Ok(RowMajorMatrixDevice::new(values, self.width))
     }
 }

@@ -17,19 +17,31 @@ pub const DEFAULT_CAPACITY: usize = 100;
 
 pub mod event;
 pub(crate) mod ffi;
-mod pinned;
 pub mod scope;
 pub mod spawn;
 pub mod stream;
 pub mod task;
 
-use moongate_bloc::bump::Bump;
-pub use pinned::*;
+use moongate_bloc::{alloc::Allocator, bump::Bump};
 pub use scope::*;
 pub use spawn::*;
 
 use stream::CudaStream;
 use task::TaskRef;
+
+pub trait CudaSync {
+    fn stream(&self) -> &CudaStream;
+}
+
+impl CudaSync for BumpStream {
+    fn stream(&self) -> &CudaStream {
+        self.pool_allocator()
+    }
+}
+
+pub trait DeviceAllocator: Allocator + CudaSync + Send + Clone {}
+
+impl<A> DeviceAllocator for A where A: Allocator + CudaSync + Send + Clone {}
 
 pub fn sync_device() -> Result<(), CudaError> {
     unsafe { ffi::cuda_device_synchronize() }.into()

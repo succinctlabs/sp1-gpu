@@ -1,5 +1,6 @@
 use std::ffi::{c_char, CStr};
 
+use moongate_bloc::alloc::AllocError;
 use thiserror::Error;
 
 use crate::device::ffi::CUDA_SUCCESS_MOON;
@@ -9,7 +10,7 @@ use super::ffi::CUDA_OUT_OF_MEMORY;
 #[derive(Debug, Clone, Error)]
 pub enum CudaError {
     #[error("Device out of memory: {0}")]
-    OutOfMemory(String),
+    OutOfMemory(#[from] AllocError),
     #[error("Cuda error: {0}")]
     Other(String),
 }
@@ -32,9 +33,7 @@ impl From<CudaRustError> for Result<(), CudaError> {
             if value == CUDA_SUCCESS_MOON {
                 Ok(())
             } else if value == CUDA_OUT_OF_MEMORY {
-                Err(CudaError::OutOfMemory(
-                    CStr::from_ptr(value.message).to_str().unwrap().to_string(),
-                ))
+                Err(CudaError::OutOfMemory(AllocError))
             } else {
                 Err(CudaError::Other(CStr::from_ptr(value.message).to_str().unwrap().to_string()))
             }
