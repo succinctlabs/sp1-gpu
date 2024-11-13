@@ -35,6 +35,12 @@ impl<A: Allocator + CudaSync> CudaSync for Bump<A> {
     }
 }
 
+impl<'a, T: CudaSync + ?Sized> CudaSync for &'a T {
+    fn stream(&self) -> &CudaStream {
+        (**self).stream()
+    }
+}
+
 pub trait DeviceAllocator: Allocator + CudaSync + Send + Clone {}
 
 impl<A> DeviceAllocator for A where A: Allocator + CudaSync + Send + Clone {}
@@ -71,10 +77,22 @@ mod tests {
 
     use super::stream::CudaStream;
 
+    use crate::device::memory::ToHost;
+
     #[test]
     fn test_bump_allocations() {
         let bump = Bump::<CudaStream>::default();
 
-        let buffer = DeviceBuffer::<u32, _>::with_capacity_in(100, &bump);
+        let mut buffer = DeviceBuffer::<u8, _>::with_capacity_in(100, &bump).unwrap();
+        unsafe {
+            buffer.set_len(100);
+        }
+        buffer.set(121).unwrap();
+
+        let host = buffer.to_host();
+
+        for val in host {
+            assert_eq!(val, 121);
+        }
     }
 }
