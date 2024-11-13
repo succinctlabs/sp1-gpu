@@ -1,4 +1,7 @@
-//! See https://github.com/fitzgen/bumpalo/tree/main
+//! A simple arena allocator, inspired by https://github.com/fitzgen/bumpalo/tree/main.
+//!
+//! The code has to be changed for device allocations. In particular, we save all the
+//! metadata on the host and not read anything from the device to handle the allocations.
 
 use core::{
     alloc::Layout,
@@ -228,6 +231,7 @@ impl<A: Allocator> Bump<A> {
             });
         }
 
+        println!("MADE IT");
         let layout = layout_from_size_align(capacity, 1)?;
 
         let chunk_footer = unsafe {
@@ -277,8 +281,7 @@ impl<A: Allocator> Bump<A> {
         debug_assert_eq!(footer_ptr as usize % CHUNK_ALIGN, 0);
         let footer_ptr = footer_ptr as *mut ChunkFooter;
 
-        // The bump pointer is initialized to the end of the range we will
-        // bump out of.
+        // The bump pointer is initialized to the end of the range we will bump out of.
         let ptr = Cell::new(NonNull::new_unchecked(footer_ptr as *mut u8));
 
         // The `allocated_bytes` of a new chunk counts the total size

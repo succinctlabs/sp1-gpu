@@ -9,10 +9,6 @@ static DEVICE_SENDER: OnceLock<SyncSender<TaskRef>> = OnceLock::new();
 
 pub const GLOBAL_DEVICE_ALLOCATOR: GlobalDeviceAllocator = GlobalDeviceAllocator;
 
-pub type BumpGlobalCuda = Bump<GlobalDeviceAllocator>;
-
-pub type BumpStream = Bump<CudaStream>;
-
 pub const DEFAULT_CAPACITY: usize = 100;
 
 pub mod event;
@@ -33,9 +29,9 @@ pub trait CudaSync {
     fn stream(&self) -> &CudaStream;
 }
 
-impl CudaSync for BumpStream {
+impl<A: Allocator + CudaSync> CudaSync for Bump<A> {
     fn stream(&self) -> &CudaStream {
-        self.pool_allocator()
+        self.pool_allocator().stream()
     }
 }
 
@@ -69,6 +65,14 @@ fn init_device(capacity: usize) -> SyncSender<TaskRef> {
 
 #[cfg(test)]
 mod tests {
+    use moongate_bloc::bump::Bump;
+
+    use super::stream::CudaStream;
+
     #[test]
-    fn test_bump_allocations() {}
+    fn test_bump_allocations() {
+        let bump = Bump::with_capacity_in(100, CudaStream::default());
+
+        // let buffer = DeviceBuffer::<u32, _>::with_capacity_in(95, &bump);
+    }
 }
