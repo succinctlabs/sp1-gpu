@@ -46,8 +46,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let s = sysinfo::System::new_all();
     let total_memory_gb = (s.total_memory() as f64) / (1024.0 * 1024.0 * 1024.0);
     if total_memory_gb < 20.0 {
-        opts.recursion_opts.records_and_traces_channel_capacity = 1;
-        opts.recursion_opts.trace_gen_workers = 1;
+        opts.core_opts.records_and_traces_channel_capacity = 1;
+        opts.core_opts.trace_gen_workers = 2;
     } else {
         opts.recursion_opts.records_and_traces_channel_capacity = 4;
         opts.recursion_opts.trace_gen_workers = 4;
