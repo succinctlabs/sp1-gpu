@@ -80,19 +80,24 @@ mod tests {
     use crate::device::memory::ToHost;
 
     #[test]
-    fn test_bump_allocations() {
+    fn test_bump_set_values() {
         let bump = Bump::<CudaStream>::default();
-
         let mut buffer = DeviceBuffer::<u8, _>::with_capacity_in(100, &bump).unwrap();
         unsafe {
             buffer.set_len(100);
         }
         buffer.set(121).unwrap();
-
         let host = buffer.to_host();
-
         for val in host {
             assert_eq!(val, 121);
         }
+    }
+
+    #[test]
+    fn test_bump_allocation_limit() {
+        let bump = Bump::<CudaStream>::default();
+        bump.set_allocation_limit(Some(50));
+        let res = DeviceBuffer::<u8, _>::with_capacity_in(100, &bump);
+        assert!(res.is_err())
     }
 }
