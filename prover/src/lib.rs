@@ -38,7 +38,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     tracing::info!("Deffered split threshold set to {}", deferred_split_threshold);
     opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
 
-    opts.core_opts.records_and_traces_channel_capacity = 6;
+    opts.core_opts.records_and_traces_channel_capacity = 4;
     opts.core_opts.trace_gen_workers = 6;
 
     opts.recursion_opts.shard_batch_size = 1;
