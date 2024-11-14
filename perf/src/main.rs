@@ -100,6 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut measurements = vec![];
     for (name, elf) in named_programs {
         let measurement = make_measurement(&prover, name, elf, None, opts, verify, stage);
+        let measurement = make_measurement(&prover, name, elf, None, opts, verify, stage);
         println!("{}", measurement);
         measurements.push(measurement);
     }
