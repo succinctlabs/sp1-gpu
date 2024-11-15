@@ -283,11 +283,15 @@ where
             .filter(|chip| chip.commit_scope() == interaction_scope)
             .collect::<Vec<_>>();
 
+        let span = tracing::Span::current();
         chips
             .par_iter()
             .map(|chip| {
-                let trace = chip.generate_trace(record, &mut A::Record::default());
-                (chip.name(), trace)
+                let _span = span.enter();
+                let name = chip.name();
+                let trace = tracing::debug_span!("generate trace", chip = name)
+                    .in_scope(|| chip.generate_trace(record, &mut A::Record::default()));
+                (name, trace)
             })
             .collect::<Vec<_>>()
     }
