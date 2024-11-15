@@ -322,7 +322,7 @@ where
 
         let commit_span = tracing::debug_span!("copy traces to device and commit").entered();
         let traces_rx_domains_events = named_traces
-            .into_par_iter()
+            .into_iter()
             .zip(domains)
             .map(|((name, trace), domain)| {
                 let stream = self.chip_streams.get(&name).unwrap().clone();
@@ -342,12 +342,15 @@ where
             })
             .collect::<Vec<_>>();
 
-        let trace_data = traces_rx_domains_events
-            .into_par_iter()
-            .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
-            .collect::<Vec<_>>();
+        let trace_data = tracing::debug_span!("waiting for trace async copy").in_scope(|| {
+            traces_rx_domains_events
+                .into_iter()
+                .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
+                .collect::<Vec<_>>()
+        });
 
-        let (commit, data) = self.committer.commit(&trace_data, &self.main_stream);
+        let (commit, data) = tracing::debug_span!("commiter commit")
+            .in_scope(|| self.committer.commit(&trace_data, &self.main_stream));
 
         let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
 
