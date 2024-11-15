@@ -335,8 +335,12 @@ where
                 let (tx, rx) = oneshot::channel();
                 rayon::spawn(move || {
                     let stream = stream;
-                    let trace = trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace).unwrap();
+                    let trace = trace.to_device_async(&stream).unwrap();
+                    let trace_col = trace.to_column_major();
+                    rayon::spawn(move || {
+                        drop(trace);
+                    });
+                    tx.send(trace_col).unwrap();
                 });
                 (domain, rx, event)
             })
