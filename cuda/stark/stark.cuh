@@ -7,19 +7,17 @@ extern "C" void populate_permutation_rows_flattened(
     Matrix<bb31_t> permutation, 
     Matrix<bb31_t> const preprocessed, 
     Matrix<bb31_t> const main, 
-    bb31_extension_t const global_alpha,
-    bb31_extension_t const global_beta,
-    bb31_extension_t const local_alpha,
-    bb31_extension_t const local_beta,
+    bb31_extension_t const alpha,
+    bb31_extension_t const beta,
     size_t const batch_size, 
-    size_t const nBlocks, size_t 
-    const nThreadsPerBlock,
+    size_t const nBlocks, 
+    size_t const nThreadsPerBlock,
     cudaStream_t stream) {
                         assert(!permutation.row_major);
                         assert(!main.row_major);
                         assert(!preprocessed.row_major);
                         assert(permutation.height == main.height);
                         PopulatePermutationRowsFlattened<<<nBlocks, nThreadsPerBlock, 0, stream>>>(
-                            interactions, permutation, preprocessed, main, global_alpha, global_beta,
-                            local_alpha, local_beta, batch_size);
+                            interactions, permutation, preprocessed, main, alpha, beta,
+                            batch_size);
                     }

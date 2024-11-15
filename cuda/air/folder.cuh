@@ -1,6 +1,6 @@
 #pragma once
 
-template <typename Val, typename Challenge, size_t N>
+template <typename Val, typename Challenge, typename GlobalSum, size_t N>
 struct ConstraintFolder {
    public:
     Matrix<Val> prep;
@@ -8,7 +8,8 @@ struct ConstraintFolder {
     Val* publicValues;
     Matrix<Val> perm;
     Challenge* permChallenges;
-    Challenge* cumulativeSums;
+    Challenge localCumulativeSum;
+    GlobalSum globalCumulativeSum;
     Val isFirstRow;
     Val isLastRow;
     Val isTransition;
@@ -43,6 +44,13 @@ struct ConstraintFolder {
                 return isTransition;
             case 9:
                 return publicValues[idx];
+            case 10:
+                if (idx < 7) {
+                    return globalCumulativeSum.point.x.value[idx];
+                }
+                else {
+                    return globalCumulativeSum.point.y.value[idx - 7];
+                }
         }
     }
 
@@ -69,7 +77,7 @@ struct ConstraintFolder {
             case 3:
                 return permChallenges[idx];
             case 4:
-                return cumulativeSums[idx];
+                return localCumulativeSum;
         }
     }
 };

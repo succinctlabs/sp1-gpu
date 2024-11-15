@@ -4,6 +4,7 @@
 
 #include "../air/folder.cuh"
 #include "../fields/bb31_extension_t.cuh"
+#include "../fields/bb31_curve_t.cuh"
 #include "../matrix/matrix.cuh"
 
 #define DEBUG_FLAG 0  // Set this to 0 or 1
@@ -15,12 +16,13 @@
 #endif
 
 namespace quotient_kernels {
-template <typename Val, typename Challenge, size_t MEMORY_SIZE>
+template <typename Val, typename Challenge, typename GlobalSum, size_t MEMORY_SIZE>
 __global__ void computeValues(Instruction *evalProgram,
                               size_t evalProgramLen, 
                               Val *evalConstantsF,
                               Challenge *evalConstantsEF,
-                              Challenge *cumulativeSums,
+                              Challenge localCumulativeSum,
+                              GlobalSum globalCumulativeSum,
                               TwoAdicMultiplicativeCoset<Val> traceDomain,
                               TwoAdicMultiplicativeCoset<Val> quotientDomain,
                               Matrix<Val> preprocessedTraceOnQuotientDomain,
@@ -55,14 +57,15 @@ __global__ void computeValues(Instruction *evalProgram,
     Val isTransition = selectors.is_transition[quotientIdx];
     Val invZeroifier = selectors.inv_zeroifier[quotientIdx];
 
-    ConstraintFolder<Val, Challenge, 2> folder =
-        ConstraintFolder<Val, Challenge, 2>();
+    ConstraintFolder<Val, Challenge, GlobalSum, 2> folder =
+        ConstraintFolder<Val, Challenge, GlobalSum, 2>();
     folder.prep = preprocessedTraceOnQuotientDomain;
     folder.main = mainTraceOnQuotientDomain;
     folder.publicValues = publicValues;
     folder.perm = permutationTraceOnQuotientDomain;
     folder.permChallenges = permChallenges;
-    folder.cumulativeSums = cumulativeSums;
+    folder.localCumulativeSum = localCumulativeSum;
+    folder.globalCumulativeSum = globalCumulativeSum;
     folder.isFirstRow = isFirstRow;
     folder.isLastRow = isLastRow;
     folder.isTransition = isTransition;
@@ -374,7 +377,8 @@ extern "C" void computeValues(
     bb31_t *evalConstantsF,
     bb31_extension_t *evalConstantsEF,
     size_t memorySize,
-    bb31_extension_t *cumulativeSums,
+    bb31_extension_t localCumulativeSum,
+    bb31_septic_digest_t globalCumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
     Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
@@ -390,48 +394,48 @@ extern "C" void computeValues(
     size_t numThreadsPerBlock = 512;
     size_t numBlocks = (quotientDomain.size() - 1) / numThreadsPerBlock + 1;
     if (memorySize <= 32) {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues); 
     }
     else if (memorySize <= 64)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 128)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 256)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 512)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
     }
     else if (memorySize <= 1024)
     {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, cumulativeSums,
+        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
+            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
             traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
             mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
             permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);

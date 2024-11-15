@@ -596,19 +596,13 @@ where
 
             for (i, chip) in shard_chips.iter().enumerate() {
                 let log_quotient_degree = chip.log_quotient_degree();
-                let trace = &traces[i];
                 let trace_domain = domains[i];
-
-                let stream = trace.stream();
 
                 let quotient_domain =
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
-                let local_cumulative_sum_device =
-                    [cumulative_sums[i].0].to_device_async(stream).unwrap();
-
-                let global_cumulative_sum_device =
-                    [cumulative_sums[i].1].to_device_async(stream).unwrap();
+                let local_cumulative_sum = cumulative_sums[i].0;
+                let global_cumulative_sum = cumulative_sums[i].1;
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -642,8 +636,8 @@ where
                         main_eval,
                         perm_eval,
                         &public_values_device,
-                        &local_cumulative_sum_device,
-                        &global_cumulative_sum_device,
+                        local_cumulative_sum,
+                        global_cumulative_sum,
                         folding_challenge,
                         &permutation_challenges_device,
                     );
@@ -689,8 +683,8 @@ where
                         &main_eval,
                         &perm_eval,
                         &public_values_device,
-                        &local_cumulative_sum_device,
-                        &global_cumulative_sum_device,
+                        local_cumulative_sum,
+                        global_cumulative_sum,
                         folding_challenge,
                         &permutation_challenges_device,
                     )

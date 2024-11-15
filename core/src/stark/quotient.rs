@@ -91,8 +91,8 @@ where
         main_evaluations: &ColMajorMatrixDevice<SC::Val>,
         permutation_evaluations: &ColMajorMatrixDevice<SC::Val>,
         public_values: &DeviceBuffer<SC::Val>,
-        local_cumulative_sum: &DeviceBuffer<SC::Challenge>,
-        global_cumulative_sum: &DeviceBuffer<SepticDigest<SC::Val>>,
+        local_cumulative_sum: SC::Challenge,
+        global_cumulative_sum: SepticDigest<SC::Val>,
         folding_challenge: SC::Challenge,
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
@@ -120,8 +120,8 @@ where
                 eval_f_constants_device.as_ptr(),
                 eval_ef_constants_device.as_ptr(),
                 *f_ctr as usize,
-                local_cumulative_sum.as_ptr(),
-                global_cumulative_sum.as_ptr(),
+                local_cumulative_sum,
+                global_cumulative_sum,
                 trace_domain.to_device_async(stream).unwrap(),
                 quotient_domain.to_device_async(stream).unwrap(),
                 preprocessed_evaluations.view(),
@@ -487,8 +487,6 @@ mod tests {
             .to_column_major();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
-            let local_cumulative_sum_device = [local_cumulative_sum].to_device().unwrap();
-            let global_cumulative_sum_device = [global_cumulative_sum].to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -512,8 +510,8 @@ mod tests {
                     f_constants_device.as_ptr(),
                     ef_constants_device.as_ptr(),
                     f_expr_ctr as usize,
-                    local_cumulative_sum_device.as_ptr(),
-                    global_cumulative_sum_device.as_ptr(),
+                    local_cumulative_sum,
+                    global_cumulative_sum,
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),
