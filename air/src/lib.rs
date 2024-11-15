@@ -61,6 +61,7 @@ pub struct SymbolicProverFolder<'a> {
 }
 
 impl<'a> SymbolicProverFolder<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         preprocessed: VerticalPair<
             RowMajorMatrixView<'a, SymbolicVarF>,
@@ -165,11 +166,11 @@ impl<'a> PermutationAirBuilder for SymbolicProverFolder<'a> {
 
 impl<'a> PermutationBetasBuilder for SymbolicProverFolder<'a> {
     fn global_betas(&self) -> &[Self::VarEF] {
-        &self.global_betas
+        self.global_betas
     }
 
     fn local_betas(&self) -> &[Self::VarEF] {
-        &self.local_betas
+        self.local_betas
     }
 }
 impl<'a> MultiTableAirBuilder<'a> for SymbolicProverFolder<'a> {
