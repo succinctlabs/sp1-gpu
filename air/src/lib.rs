@@ -89,7 +89,7 @@ impl<'a> SymbolicProverFolder<'a> {
         let mut local_powers = Vec::new();
         global_powers.push(curr_global_power);
         local_powers.push(curr_local_power);
-        for _ in 0..1200 {
+        for _ in 1..1200 {
             let next_global_power = curr_global_power * perm_challenges[1];
             let next_local_power = curr_local_power * perm_challenges[3];
             global_powers.push(next_global_power);
