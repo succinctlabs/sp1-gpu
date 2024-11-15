@@ -322,7 +322,7 @@ where
 
         let commit_span = tracing::debug_span!("copy traces to device and commit").entered();
         let traces_rx_domains_events = named_traces
-            .into_iter()
+            .into_par_iter()
             .zip(domains)
             .map(|((name, trace), domain)| {
                 let stream = self.chip_streams.get(&name).unwrap().clone();
@@ -343,7 +343,7 @@ where
             .collect::<Vec<_>>();
 
         let trace_data = traces_rx_domains_events
-            .into_iter()
+            .into_par_iter()
             .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
             .collect::<Vec<_>>();
 
