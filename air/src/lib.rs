@@ -18,7 +18,9 @@ use p3_air::{
 };
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_field::AbstractField;
 use p3_matrix::{dense::RowMajorMatrixView, stack::VerticalPair};
+use sp1_stark::air::PermutationPowersBuilder;
 use sp1_stark::{
     air::{EmptyMessageBuilder, MachineAir, MultiTableAirBuilder},
     Chip,
@@ -55,6 +57,59 @@ pub struct SymbolicProverFolder<'a> {
     pub is_last_row: SymbolicVarF,
     pub is_transition: SymbolicVarF,
     pub public_values: &'a [SymbolicVarF],
+
+    global_powers: Vec<SymbolicExprEF>,
+    local_powers: Vec<SymbolicExprEF>,
+}
+
+impl<'a> SymbolicProverFolder<'a> {
+    pub fn new(
+        preprocessed: VerticalPair<
+            RowMajorMatrixView<'a, SymbolicVarF>,
+            RowMajorMatrixView<'a, SymbolicVarF>,
+        >,
+        main: VerticalPair<
+            RowMajorMatrixView<'a, SymbolicVarF>,
+            RowMajorMatrixView<'a, SymbolicVarF>,
+        >,
+        perm: VerticalPair<
+            RowMajorMatrixView<'a, SymbolicVarEF>,
+            RowMajorMatrixView<'a, SymbolicVarEF>,
+        >,
+        perm_challenges: &'a [SymbolicVarEF],
+        cumulative_sums: &'a [SymbolicVarEF],
+        is_first_row: SymbolicVarF,
+        is_last_row: SymbolicVarF,
+        is_transition: SymbolicVarF,
+        public_values: &'a [SymbolicVarF],
+    ) -> Self {
+        let curr_global_power: SymbolicExprEF = EF::one().into();
+        let curr_local_power: SymbolicExprEF = EF::one().into();
+        let mut global_powers = Vec::new();
+        let mut local_powers = Vec::new();
+        global_powers.push(curr_global_power);
+        local_powers.push(curr_local_power);
+        for _ in 0..1200 {
+            let next_global_power = curr_global_power * perm_challenges[1];
+            let next_local_power = curr_local_power * perm_challenges[3];
+            global_powers.push(next_global_power);
+            local_powers.push(next_local_power);
+        }
+
+        Self {
+            preprocessed,
+            main,
+            perm,
+            perm_challenges,
+            cumulative_sums,
+            is_first_row,
+            is_last_row,
+            is_transition,
+            public_values,
+            global_powers,
+            local_powers,
+        }
+    }
 }
 
 impl<'a> AirBuilder for SymbolicProverFolder<'a> {
@@ -120,6 +175,16 @@ impl<'a> PermutationAirBuilder for SymbolicProverFolder<'a> {
         self.perm_challenges
     }
 }
+
+impl<'a> PermutationPowersBuilder for SymbolicProverFolder<'a> {
+    fn global_permutation_powers(&self) -> &[Self::ExprEF] {
+        &self.global_powers
+    }
+
+    fn local_permutation_powers(&self) -> &[Self::ExprEF] {
+        &self.local_powers
+    }
+}
 impl<'a> MultiTableAirBuilder<'a> for SymbolicProverFolder<'a> {
     type Sum = SymbolicVarEF;
 
@@ -168,17 +233,18 @@ where
         (0..PROOF_MAX_NUM_PVS as u32).map(SymbolicVarF::public_value).collect::<Vec<_>>();
     let perm_challenges = (0..4).map(SymbolicVarEF::permutation_challenge).collect::<Vec<_>>();
 
-    let mut folder = SymbolicProverFolder {
-        preprocessed: preprocessed.view(),
-        main: main.view(),
-        perm: perm.view(),
-        perm_challenges: &perm_challenges,
-        cumulative_sums: &[SymbolicVarEF::cumulative_sum(0), SymbolicVarEF::cumulative_sum(1)],
-        public_values: &public_values,
-        is_first_row: SymbolicVarF::is_first_row(),
-        is_last_row: SymbolicVarF::is_last_row(),
-        is_transition: SymbolicVarF::is_transition(),
-    };
+    let binding = [SymbolicVarEF::cumulative_sum(0), SymbolicVarEF::cumulative_sum(1)];
+    let mut folder = SymbolicProverFolder::new(
+        preprocessed.view(),
+        main.view(),
+        perm.view(),
+        &perm_challenges,
+        &binding,
+        SymbolicVarF::is_first_row(),
+        SymbolicVarF::is_last_row(),
+        SymbolicVarF::is_transition(),
+        &public_values,
+    );
 
     chip.eval(&mut folder);
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
