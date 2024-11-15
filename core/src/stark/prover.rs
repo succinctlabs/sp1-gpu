@@ -9,6 +9,7 @@ use p3_commit::{Mmcs, PolynomialSpace};
 use p3_field::{AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use sp1_stark::septic_digest::SepticDigest;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
@@ -22,7 +23,6 @@ use tracing::info;
 
 use p3_field::AbstractField;
 use std::{
-    array,
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet},
     marker::PhantomData,
@@ -125,6 +125,8 @@ where
     pub commit: Com<SC>,
     /// The start pc of the program.
     pub pc_start: Val<SC>,
+    /// The initial global cumulative sum.
+    pub initial_global_cumulative_sum: SepticDigest<Val<SC>>,
     /// The preprocessed traces.
     pub traces: Vec<ColMajorMatrixDevice<Val<SC>>>,
     /// The pcs data for the preprocessed traces.
@@ -160,13 +162,17 @@ where
         self.pc_start
     }
 
+    fn initial_global_cumulative_sum(&self) -> SepticDigest<Val<SC>> {
+        self.initial_global_cumulative_sum
+    }
+
     fn observe_into(&self, challenger: &mut sp1_stark::Challenger<SC>) {
         challenger.observe(self.commit.clone());
         challenger.observe(self.pc_start);
+        challenger.observe_slice(&self.initial_global_cumulative_sum.0.x.0);
+        challenger.observe_slice(&self.initial_global_cumulative_sum.0.y.0);
         let zero = Val::<SC>::zero();
-        for _ in 0..7 {
-            challenger.observe(zero);
-        }
+        challenger.observe(zero);
     }
 }
 
@@ -254,6 +260,7 @@ where
         StarkProvingKeyDevice {
             commit: pk.commit.clone(),
             pc_start: pk.pc_start,
+            initial_global_cumulative_sum: pk.initial_global_cumulative_sum,
             traces,
             data,
             chip_ordering,
@@ -266,6 +273,7 @@ where
         sp1_stark::StarkProvingKey {
             commit: pk.commit.clone(),
             pc_start: pk.pc_start,
+            initial_global_cumulative_sum: pk.initial_global_cumulative_sum,
             data: pk.data.to_host(),
             traces: pk.traces.iter().map(|t| t.to_host()).collect(),
             chip_ordering: pk.chip_ordering.clone(),
@@ -273,15 +281,8 @@ where
         }
     }
 
-    fn generate_traces(
-        &self,
-        record: &A::Record,
-        interaction_scope: InteractionScope,
-    ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        let chips = self
-            .shard_chips(record)
-            .filter(|chip| chip.commit_scope() == interaction_scope)
-            .collect::<Vec<_>>();
+    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+        let chips = self.shard_chips(record).collect::<Vec<_>>();
 
         chips
             .par_iter()
@@ -434,28 +435,34 @@ where
         let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
         let pc_start = program.pc_start();
+        let initial_global_cumulative_sum = program.initial_global_cumulative_sum();
 
         (
             StarkProvingKeyDevice {
                 commit: commit.clone(),
                 pc_start,
+                initial_global_cumulative_sum,
                 traces,
                 data,
                 chip_ordering: chip_ordering.clone(),
                 local_only: local_only.clone(),
                 phantom: PhantomData,
             },
-            StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
+            StarkVerifyingKey {
+                commit,
+                pc_start,
+                initial_global_cumulative_sum,
+                chip_information,
+                chip_ordering,
+            },
         )
     }
 
     fn open(
         &self,
         pk: &Self::DeviceProvingKey,
-        global_data: Option<ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>>,
-        local_data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
+        data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut SC::Challenger,
-        global_permutation_challenges: &[SC::Challenge],
     ) -> Result<ShardProof<SC>, Self::Error> {
         let proof = {
             let span = tracing::Span::current();
@@ -463,50 +470,17 @@ where
 
             let setup_span = tracing::debug_span!("process shard data").entered();
 
-            let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
-                if let Some(global_data) = global_data {
-                    let ShardMainData {
-                        traces: global_traces,
-                        main_commit: global_main_commit,
-                        main_data: global_main_data,
-                        chip_ordering: global_chip_ordering,
-                        public_values: _,
-                    } = global_data;
-                    (
-                        global_traces,
-                        global_main_commit,
-                        Some(global_main_data),
-                        global_chip_ordering,
-                    )
-                } else {
-                    (vec![], SC::zero_commitment(), None, HashMap::new())
-                };
+            let ShardMainData { traces, main_commit, mut main_data, chip_ordering, public_values } =
+                data;
 
-            let ShardMainData {
-                traces: local_traces,
-                main_commit: local_main_commit,
-                main_data: mut local_main_data,
-                chip_ordering: local_chip_ordering,
-                public_values: local_public_values,
-            } = local_data;
-
-            // Merge the chip ordering and traces from the global and local data.
-            let (all_chips_ordering, _, all_shard_data) = self.merge_shard_traces(
-                &global_traces,
-                &global_chip_ordering,
-                &local_traces,
-                &local_chip_ordering,
-            );
-            let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
-            let shard_chips =
-                self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
+            let shard_chips = self.machine.shard_chips_ordered(&chip_ordering).collect::<Vec<_>>();
             let shard_chip_names = shard_chips.iter().map(|chip| chip.name()).collect::<Vec<_>>();
             let shard_chip_stream =
-                all_traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
+                traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
 
-            assert!(shard_chips.len() == all_traces.len());
+            assert!(shard_chips.len() == traces.len());
 
-            let domains = all_traces
+            let domains = traces
                 .iter()
                 .map(|trace| {
                     let config = self.machine.config();
@@ -514,13 +488,7 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            let global_local_only = shard_chips
-                .iter()
-                .filter(|chip| chip.commit_scope() == InteractionScope::Global)
-                .map(|chip| chip.local_only())
-                .collect::<Vec<_>>();
-
-            let local_local_only = shard_chips
+            let local_only = shard_chips
                 .iter()
                 .filter(|chip| chip.commit_scope() == InteractionScope::Local)
                 .map(|chip| chip.local_only())
@@ -537,18 +505,14 @@ where
             info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
             // Observe the main commitment.
-            challenger.observe(local_main_commit.clone());
+            challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
+            challenger.observe(main_commit.clone());
 
             setup_span.exit();
 
             // Get the permutation challenges.
             let local_permutation_challenges =
                 (0..2).map(|_| challenger.sample_ext_element()).collect::<Vec<_>>();
-            let permutation_challenges = global_permutation_challenges
-                .iter()
-                .chain(local_permutation_challenges.iter())
-                .copied()
-                .collect::<Vec<_>>();
 
             // Generate permutation traces.
             let permutation_span =
@@ -556,8 +520,8 @@ where
             let permutation_traces_and_cumulative_sums = self.generate_permutation_traces(
                 pk,
                 &shard_chips,
-                &all_traces,
-                &permutation_challenges,
+                &traces,
+                &local_permutation_challenges,
             )?;
             let (permutation_traces, cumulative_sums): (Vec<_>, Vec<_>) =
                 permutation_traces_and_cumulative_sums.into_iter().unzip();
@@ -568,8 +532,8 @@ where
             );
 
             for (i, chip) in shard_chips.iter().enumerate() {
-                let width = all_traces[i].width();
-                let height = all_traces[i].height();
+                let width = traces[i].width();
+                let height = traces[i].height();
                 let permutation_width = permutation_traces[i].width();
                 let total_width = width + permutation_width;
                 info!(
@@ -602,10 +566,11 @@ where
             // Observe the permutation commitment.
             challenger.observe(permutation_commit.clone());
             for sums in cumulative_sums.iter() {
-                let global_sum = sums[0];
-                let local_sum = sums[1];
-                CanObserve::<BabyBear>::observe_slice(challenger, global_sum.as_base_slice());
+                let local_sum = sums.0;
+                let global_sum = sums.1;
                 CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
+                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.x.0);
+                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.y.0);
             }
 
             // Get a challenge for folding the constraints.
@@ -618,25 +583,20 @@ where
             let quotient_span =
                 tracing::debug_span!("generate and commit to quotient values").entered();
 
-            let permutation_challenges = global_permutation_challenges
-                .iter()
-                .chain(local_permutation_challenges.iter())
-                .copied()
-                .collect::<Vec<_>>();
+            let permutation_challenges = local_permutation_challenges.to_vec();
 
             // For each chip, get the quotient domains, evaluations on the quotient domain, and compute
             // the quotient values.
 
             let permutation_challenges_device =
                 permutation_challenges.to_device_async(&self.main_stream).unwrap();
-            let public_values_device =
-                local_public_values.to_device_async(&self.main_stream).unwrap();
+            let public_values_device = public_values.to_device_async(&self.main_stream).unwrap();
 
             let mut quotient_values = vec![];
 
             for (i, chip) in shard_chips.iter().enumerate() {
                 let log_quotient_degree = chip.log_quotient_degree();
-                let trace = &all_traces[i];
+                let trace = &traces[i];
                 let trace_domain = domains[i];
 
                 let stream = trace.stream();
@@ -644,8 +604,11 @@ where
                 let quotient_domain =
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
-                let cumulative_sums_device =
-                    cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
+                let local_cumulative_sum_device =
+                    [cumulative_sums[i].0].to_device_async(stream).unwrap();
+
+                let global_cumulative_sum_device =
+                    [cumulative_sums[i].1].to_device_async(stream).unwrap();
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -665,16 +628,7 @@ where
                         .transpose()
                         .unwrap();
                     let prep_eval = prep_eval.unwrap_or_else(ColMajorMatrixDevice::null);
-
-                    let main_eval = match chip.commit_scope() {
-                        InteractionScope::Local => {
-                            &mut local_main_data.matrices_mut()[local_chip_ordering[&chip.name()]]
-                        }
-                        InteractionScope::Global => {
-                            &mut global_main_data.as_mut().unwrap().matrices_mut()
-                                [global_chip_ordering[&chip.name()]]
-                        }
-                    };
+                    let main_eval = &mut main_data.matrices_mut()[chip_ordering[&chip.name()]];
                     main_eval.bit_reverse_rows().unwrap();
 
                     let perm_eval = &mut perm_prover_data.matrices_mut()[i];
@@ -688,7 +642,8 @@ where
                         main_eval,
                         perm_eval,
                         &public_values_device,
-                        &cumulative_sums_device,
+                        &local_cumulative_sum_device,
+                        &global_cumulative_sum_device,
                         folding_challenge,
                         &permutation_challenges_device,
                     );
@@ -715,7 +670,7 @@ where
 
                     let main_eval = self
                         .committer
-                        .get_evaluations_on_domain(trace_domain, quotient_domain, all_traces[i])
+                        .get_evaluations_on_domain(trace_domain, quotient_domain, &traces[i])
                         .unwrap();
                     let perm_eval = self
                         .committer
@@ -734,7 +689,8 @@ where
                         &main_eval,
                         &perm_eval,
                         &public_values_device,
-                        &cumulative_sums_device,
+                        &local_cumulative_sum_device,
+                        &global_cumulative_sum_device,
                         folding_challenge,
                         &permutation_challenges_device,
                     )
@@ -788,8 +744,8 @@ where
             }
 
             // Openings for global main traces (if any).
-            let mut main_global_openings = vec![];
-            for (trace, local_only) in global_traces.iter().zip(global_local_only.iter()) {
+            let mut main_openings = vec![];
+            for (trace, local_only) in traces.iter().zip(local_only.iter()) {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
@@ -798,21 +754,7 @@ where
                 } else {
                     None
                 };
-                main_global_openings.push((domain.log_n, local_open, next_open));
-            }
-
-            // Openings for local main traces.
-            let mut main_local_openings = vec![];
-            for (trace, local_only) in local_traces.iter().zip(local_local_only.iter()) {
-                let domain = natural_domain_for_degree(self.config(), trace.height());
-                input_heights.insert(domain.log_n);
-                let local_open = self.opening_prover.eval(domain, trace, zeta);
-                let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
-                } else {
-                    None
-                };
-                main_local_openings.push((domain.log_n, local_open, next_open));
+                main_openings.push((domain.log_n, local_open, next_open));
             }
 
             let mut perm_openings = vec![];
@@ -896,39 +838,9 @@ where
                 }
             }
 
-            // Batch the main global traces
-            if let Some(global_main_data) = global_main_data.as_ref() {
-                for (lde, (log_height, local_open, next_open)) in
-                    global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
-                {
-                    let lde_log_height = log_height + log_blowup;
-                    self.opening_prover.batch_update(
-                        batched_openings.get_mut(&lde_log_height).unwrap(),
-                        lde,
-                        SC::Val::generator(),
-                        local_open,
-                        zeta,
-                        alpha,
-                        alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                    );
-                    if let Some(next_open) = next_open {
-                        let g = BabyBear::two_adic_generator(*log_height);
-                        self.opening_prover.batch_update(
-                            batched_openings.get_mut(&lde_log_height).unwrap(),
-                            lde,
-                            SC::Val::generator(),
-                            next_open,
-                            zeta * g,
-                            alpha,
-                            alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                        );
-                    }
-                }
-            }
-
-            // Batch the main local traces.
+            // Batch the main traces.
             for (lde, (log_height, local_open, next_open)) in
-                local_main_data.matrices().iter().zip_eq(main_local_openings.iter())
+                main_data.matrices().iter().zip_eq(main_openings.iter())
             {
                 let lde_log_height = log_height + log_blowup;
                 self.opening_prover.batch_update(
@@ -1026,17 +938,7 @@ where
                 &self.main_stream,
             );
 
-            let prover_data = if let Some(global_main_data) = global_main_data.as_ref() {
-                vec![
-                    &pk.data,
-                    global_main_data,
-                    &local_main_data,
-                    &perm_prover_data,
-                    &quotient_prover_data,
-                ]
-            } else {
-                vec![&pk.data, &local_main_data, &perm_prover_data, &quotient_prover_data]
-            };
+            let prover_data = vec![&pk.data, &main_data, &perm_prover_data, &quotient_prover_data];
             let log_global_max_height_iter =
                 prover_data.iter().flat_map(|data| data.matrices().iter().map(|mat| mat.height));
 
@@ -1058,11 +960,7 @@ where
                 .into_iter()
                 .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
                 .collect::<Vec<_>>();
-            let main_global_openings = main_global_openings
-                .into_iter()
-                .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
-                .collect::<Vec<_>>();
-            let main_local_openings = main_local_openings
+            let main_openings = main_openings
                 .into_iter()
                 .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
                 .collect::<Vec<_>>();
@@ -1089,28 +987,14 @@ where
                     })
                     .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
 
-                let global_order = global_chip_ordering.get(&chip.name());
-                let local_order = local_chip_ordering.get(&chip.name());
-                let main = match (global_order, local_order) {
-                    (Some(idx), None) => {
-                        let (local, next) = main_global_openings[*idx].clone();
-                        if let Some(next) = next {
-                            AirOpenedValues { local, next }
-                        } else {
-                            let width = local.len();
-                            AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
-                        }
+                let main = {
+                    let (local, next) = main_openings[i].clone();
+                    if let Some(next) = next {
+                        AirOpenedValues { local, next }
+                    } else {
+                        let width = local.len();
+                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
                     }
-                    (None, Some(idx)) => {
-                        let (local, next) = main_local_openings[*idx].clone();
-                        if let Some(next) = next {
-                            AirOpenedValues { local, next }
-                        } else {
-                            let width = local.len();
-                            AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
-                        }
-                    }
-                    _ => unreachable!(),
                 };
                 let (perm_local, perm_next) = perm_opens;
                 let permutation = AirOpenedValues { local: perm_local, next: perm_next };
@@ -1126,8 +1010,8 @@ where
                     main,
                     permutation,
                     quotient,
-                    global_cumulative_sum: cumulative_sums[i][0],
-                    local_cumulative_sum: cumulative_sums[i][1],
+                    local_cumulative_sum: cumulative_sums[i].0,
+                    global_cumulative_sum: cumulative_sums[i].1,
                     log_degree,
                 });
             }
@@ -1135,16 +1019,11 @@ where
             compute_evaluations_span.exit();
 
             Ok(ShardProof::<SC> {
-                commitment: ShardCommitment {
-                    global_main_commit,
-                    local_main_commit,
-                    permutation_commit,
-                    quotient_commit,
-                },
+                commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
                 opened_values: ShardOpenedValues { chips: opened_values },
                 opening_proof,
-                chip_ordering: all_chips_ordering,
-                public_values: local_public_values,
+                chip_ordering,
+                public_values,
             })
         };
 
@@ -1173,71 +1052,20 @@ where
     where
         A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
     {
-        let contains_global_bus = self.machine().contains_global_bus();
-
         self.machine().generate_dependencies(&mut records, &opts, None);
 
         // Observe the preprocessed commitment.
-        challenger.observe(pk.commit.clone());
-        challenger.observe(pk.pc_start);
-        let zero = Val::<SC>::zero();
-        for _ in 0..7 {
-            challenger.observe(zero);
-        }
-
-        // Generate and commit the traces for each shard.
-        let global_data: Vec<_> = records
-            .iter()
-            .map(|record| {
-                if contains_global_bus {
-                    let global_named_traces =
-                        self.generate_traces(record, InteractionScope::Global);
-                    Some(self.commit(record, global_named_traces))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // Observe the challenges for each segment.
-        global_data.iter().zip_eq(records.iter()).for_each(|(global_data, record)| {
-            if contains_global_bus {
-                challenger.observe(
-                    global_data
-                        .as_ref()
-                        .expect("must have a global commitment")
-                        .main_commit
-                        .clone(),
-                );
-            }
-            challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
-        });
-
-        // Obtain the challenges used for the global permutation argument.
-        let global_permutation_challenges: [SC::Challenge; 2] = array::from_fn(|_| {
-            if contains_global_bus {
-                challenger.sample_ext_element()
-            } else {
-                SC::Challenge::zero()
-            }
-        });
+        pk.observe_into(challenger);
 
         let shard_proofs = records
             .iter()
-            .zip(global_data.into_iter())
-            .map(|(record, global_shard_data)| {
-                let traces = self.generate_traces(record, InteractionScope::Local);
-                let local_shard_data = self.commit(record, traces);
+            .map(|record| {
+                let traces = self.generate_traces(record);
+                let shard_data = self.commit(record, traces);
 
                 let span = tracing::Span::current();
                 let _span = span.enter();
-                self.open(
-                    pk,
-                    global_shard_data,
-                    local_shard_data,
-                    &mut challenger.clone(),
-                    &global_permutation_challenges,
-                )
+                self.open(pk, shard_data, &mut challenger.clone())
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
 
@@ -1265,9 +1093,9 @@ where
         &self,
         pk: &StarkProvingKeyDevice<SC, C>,
         chips: &[&Chip<SC::Val, A>],
-        main_traces: &[&GpuMatrix<SC::Val>],
+        main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
-    ) -> Result<Vec<(GpuMatrix<SC::Val>, Vec<SC::Challenge>)>, CudaError> {
+    ) -> Result<Vec<(GpuMatrix<SC::Val>, (SC::Challenge, SepticDigest<Val<SC>>))>, CudaError> {
         chips
             .iter()
             .zip(main_traces.iter())

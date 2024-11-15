@@ -1,12 +1,14 @@
 use std::{marker::PhantomData, ops::Mul};
 
-use hashbrown::HashMap;
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
 use sp1_stark::{
     air::{InteractionScope, MachineAir},
-    get_grouped_maps, Chip, Interaction,
+    septic_curve::SepticCurve,
+    septic_digest::SepticDigest,
+    septic_extension::SepticExtension,
+    Chip, Interaction,
 };
 
 use crate::{
@@ -36,22 +38,22 @@ where
         preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
         main_trace: &ColMajorMatrixDevice<BabyBear>,
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
-    ) -> Result<(ColMajorMatrixDevice<BabyBear>, Vec<BinomialExtensionField<BabyBear, 4>>), CudaError>
-    {
+    ) -> Result<
+        (
+            ColMajorMatrixDevice<BabyBear>,
+            (BinomialExtensionField<BabyBear, 4>, SepticDigest<BabyBear>),
+        ),
+        CudaError,
+    > {
         let stream = main_trace.stream();
         const D: usize = 4;
 
         let batch_size = chip.logup_batch_size();
-        let (grouped_sends, grouped_receives, grouped_widths) =
-            get_grouped_maps(chip.sends(), chip.receives(), batch_size);
 
-        let device_interactions = HostInteractions::new(
-            grouped_sends,
-            grouped_receives,
-            *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0),
-        )
-        .to_device_async(stream)
-        .unwrap();
+        let num_interactions = chip.sends().len() + chip.receives().len();
+
+        let device_interactions =
+            HostInteractions::new(chip.sends(), chip.receives()).to_device_async(stream).unwrap();
 
         let perm_width = chip.permutation_width();
         let height = main_trace.height;
@@ -62,26 +64,19 @@ where
         }
         let mut permutation_trace = ColMajorMatrixDevice::new(perm_buffer, height);
 
-        let global_alpha = random_elements[0];
-        let global_beta = random_elements[1];
-        let local_alpha = random_elements[2];
-        let local_beta = random_elements[3];
+        let alpha = random_elements[0];
+        let beta = random_elements[1];
 
         let num_threads_per_block = 256;
         let num_blocks = height.div_ceil(num_threads_per_block);
-        let global_perm_width = *grouped_widths.get(&InteractionScope::Global).unwrap_or(&0);
-        let has_local_perm = *grouped_widths.get(&InteractionScope::Local).unwrap_or(&0) > 0;
+
         device_interactions.generate_flattened_permutation_trace(
             permutation_trace.view_mut(),
             preprocessed_trace.map(|mat| mat.view()).unwrap_or(MatrixViewDevice::null(false)),
             main_trace.view(),
-            global_alpha,
-            global_beta,
-            local_alpha,
-            local_beta,
+            alpha,
+            beta,
             batch_size,
-            global_perm_width,
-            has_local_perm,
             num_blocks,
             num_threads_per_block,
             stream,
@@ -89,31 +84,40 @@ where
 
         // Retrieve the cumulative sums.
         let row_idx = permutation_trace.height() - 1;
-        let mut global_cumulative_sum = Default::default();
+        let mut global_cumulative_sum = SepticDigest::<BabyBear>::zero();
         let mut local_cumulative_sum = Default::default();
-        for (scope, width) in grouped_widths {
-            if width == 0 {
-                continue;
-            }
 
-            let (start_col_idx, scope_cumulative_sum) = match scope {
-                InteractionScope::Global => ((width - 1) * D, &mut global_cumulative_sum),
-                InteractionScope::Local => {
-                    (permutation_trace.width() - D, &mut local_cumulative_sum)
-                }
-            };
-
+        if num_interactions != 0 {
             let cumulative_sum = BinomialExtensionField::<BabyBear, 4>::from_base_fn(|i| {
-                let index = (start_col_idx + i) * permutation_trace.height() + row_idx;
+                let index =
+                    (permutation_trace.width() - D + i) * permutation_trace.height() + row_idx;
                 let val = permutation_trace.values[index..index + 1]
                     .as_host_vec(permutation_trace.stream());
                 val[0]
             });
 
-            *scope_cumulative_sum = cumulative_sum;
+            local_cumulative_sum = cumulative_sum;
         }
 
-        Ok((permutation_trace, vec![global_cumulative_sum, local_cumulative_sum]))
+        if chip.commit_scope() == InteractionScope::Global {
+            let x = SepticExtension::<BabyBear>::from_base_fn(|i| {
+                let index =
+                    (main_trace.width() - 14 + i) * main_trace.height() + main_trace.height() - 1;
+                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
+                val[0]
+            });
+
+            let y = SepticExtension::<BabyBear>::from_base_fn(|i| {
+                let index =
+                    (main_trace.width() - 14 + i) * main_trace.height() + main_trace.height() - 1;
+                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
+                val[0]
+            });
+
+            global_cumulative_sum = SepticDigest(SepticCurve { x, y });
+        }
+
+        Ok((permutation_trace, (local_cumulative_sum, global_cumulative_sum)))
     }
 }
 
@@ -141,9 +145,7 @@ pub struct HostInteractions<F: Field> {
     pub arg_indices: Vec<F>,
     pub is_send: Vec<bool>,
 
-    pub num_global_interactions: usize,
-    pub num_local_interactions: usize,
-    pub global_width: usize,
+    pub num_interactions: usize,
 }
 
 #[derive(Debug)]
@@ -162,9 +164,7 @@ pub struct DeviceInteractions<F: Field> {
     pub arg_indices: DeviceBuffer<F>,
     pub is_send: DeviceBuffer<bool>,
 
-    pub num_global_interactions: usize,
-    pub num_local_interactions: usize,
-    pub global_width: usize,
+    pub num_interactions: usize,
 }
 
 #[derive(Debug)]
@@ -183,9 +183,7 @@ pub struct DeviceInteractionsView<'a, F: Field> {
     pub arg_indices: *const F,
     pub is_send: *const bool,
 
-    pub num_global_interactions: usize,
-    pub num_local_interactions: usize,
-    pub global_width: usize,
+    pub num_interactions: usize,
 
     _marker: PhantomData<&'a F>,
 }
@@ -201,11 +199,7 @@ impl<F: Field> PairColDevice<F> {
 }
 
 impl<F: Field> HostInteractions<F> {
-    pub fn new(
-        sends: HashMap<InteractionScope, Vec<Interaction<F>>>,
-        receives: HashMap<InteractionScope, Vec<Interaction<F>>>,
-        global_width: usize,
-    ) -> Self {
+    pub fn new(sends: &[Interaction<F>], receives: &[Interaction<F>]) -> Self {
         let mut values_ptr = vec![];
         let mut values_col_weights_ptr = vec![];
         let mut multiplicities_ptr = vec![];
@@ -216,34 +210,20 @@ impl<F: Field> HostInteractions<F> {
         let mut values_col_weights = vec![];
         let mut values_constants = vec![];
 
+        let num_interactions = sends.len() + receives.len();
+
         let mut curr_values_ptr = 0;
         let mut curr_values_col_weight_ptr = 0;
         let mut curr_mult_ptr = 0;
 
-        // Put all of the interactions (for both global/local and send/receives) into a single list.
+        // Put all of the interactions (for both send/receives) into a single list.
         // The ordering of the interactions is important to match with the CPU prover's ordering.
-        // It should global sends, global receives, local sends, local receives.
-        let interactions = [InteractionScope::Global, InteractionScope::Local]
-            .map(|scope| {
-                let empty_vec = vec![];
-                let sends = sends
-                    .get(&scope)
-                    .unwrap_or(&empty_vec)
-                    .clone()
-                    .into_iter()
-                    .map(move |i| (i, true));
-                let receives = receives
-                    .get(&scope)
-                    .unwrap_or(&empty_vec)
-                    .clone()
-                    .into_iter()
-                    .map(move |i| (i, false));
-
-                sends.chain(receives)
-            })
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+        // It should local sends, local receives.
+        let interactions = {
+            let sends = sends.iter().map(move |i| (i, true));
+            let receives = receives.iter().map(move |i| (i, false));
+            sends.chain(receives)
+        };
 
         for (interaction, is_send_flag) in interactions {
             // Register the values
@@ -277,14 +257,6 @@ impl<F: Field> HostInteractions<F> {
         values_ptr.push(curr_values_ptr);
         multiplicities_ptr.push(curr_mult_ptr);
 
-        let num_global_interactions =
-            sends.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0)
-                + receives.get(&InteractionScope::Global).map(|v| v.len()).unwrap_or(0);
-
-        let num_local_interactions =
-            sends.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0)
-                + receives.get(&InteractionScope::Local).map(|v| v.len()).unwrap_or(0);
-
         Self {
             values_ptr,
             values_col_weights_ptr,
@@ -295,9 +267,7 @@ impl<F: Field> HostInteractions<F> {
             mult_constants,
             arg_indices,
             is_send,
-            num_global_interactions,
-            num_local_interactions,
-            global_width,
+            num_interactions,
         }
     }
 }
@@ -318,9 +288,7 @@ impl<F: Field> DeviceInteractions<F> {
             arg_indices: self.arg_indices.as_ptr(),
             is_send: self.is_send.as_ptr(),
 
-            num_global_interactions: self.num_global_interactions,
-            num_local_interactions: self.num_local_interactions,
-            global_width: self.global_width,
+            num_interactions: self.num_interactions,
             _marker: PhantomData,
         }
     }
@@ -332,10 +300,8 @@ impl DeviceInteractions<BabyBear> {
         permutation: MatrixViewMutDevice<BabyBear>,
         preprocessed: MatrixViewDevice<BabyBear>,
         main: MatrixViewDevice<BabyBear>,
-        global_alpha: BinomialExtensionField<BabyBear, 4>,
-        global_beta: BinomialExtensionField<BabyBear, 4>,
-        local_alpha: BinomialExtensionField<BabyBear, 4>,
-        local_beta: BinomialExtensionField<BabyBear, 4>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
@@ -345,10 +311,8 @@ impl DeviceInteractions<BabyBear> {
             permutation,
             preprocessed,
             main,
-            global_alpha,
-            global_beta,
-            local_alpha,
-            local_beta,
+            alpha,
+            beta,
             batch_size,
             num_blocks,
             num_threads_per_block,
@@ -361,13 +325,9 @@ impl DeviceInteractions<BabyBear> {
         permutation: MatrixViewMutDevice<BabyBear>,
         preprocessed: MatrixViewDevice<BabyBear>,
         main: MatrixViewDevice<BabyBear>,
-        global_alpha: BinomialExtensionField<BabyBear, 4>,
-        global_beta: BinomialExtensionField<BabyBear, 4>,
-        local_alpha: BinomialExtensionField<BabyBear, 4>,
-        local_beta: BinomialExtensionField<BabyBear, 4>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
-        global_perm_width: usize,
-        has_local_perm: bool,
         num_blocks: usize,
         num_threads_per_block: usize,
         stream: &CudaStream,
@@ -378,10 +338,8 @@ impl DeviceInteractions<BabyBear> {
             permutation,
             preprocessed,
             main,
-            global_alpha,
-            global_beta,
-            local_alpha,
-            local_beta,
+            alpha,
+            beta,
             batch_size,
             num_blocks,
             num_threads_per_block,
@@ -389,22 +347,10 @@ impl DeviceInteractions<BabyBear> {
         );
 
         // Collect the cumulative sums using a scan in place.
-
         // TODO: optimize with a single kernel call instead of scan for each column of the batch.
         let height = permutation.height;
-        if has_local_perm {
+        if permutation.width != 0 {
             let col = permutation.width - D;
-            unsafe {
-                for j in 0..4 {
-                    let last_col_ptr = permutation.values.add((col + j) * height);
-                    let cumulative_column = DeviceSlice::from_raw_parts_mut(last_col_ptr, height);
-                    cumulative_column.scan_inplace(stream)?;
-                }
-            }
-        }
-
-        if global_perm_width > 0 {
-            let col = (global_perm_width - 1) * D;
             unsafe {
                 for j in 0..4 {
                     let last_col_ptr = permutation.values.add((col + j) * height);
@@ -424,10 +370,8 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
         permutation: MatrixViewMutDevice<BabyBear>,
         preprocessed: MatrixViewDevice<BabyBear>,
         main: MatrixViewDevice<BabyBear>,
-        global_alpha: BinomialExtensionField<BabyBear, 4>,
-        global_beta: BinomialExtensionField<BabyBear, 4>,
-        local_alpha: BinomialExtensionField<BabyBear, 4>,
-        local_beta: BinomialExtensionField<BabyBear, 4>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
@@ -439,10 +383,8 @@ impl<'a> DeviceInteractionsView<'a, BabyBear> {
                 permutation,
                 preprocessed,
                 main,
-                global_alpha,
-                global_beta,
-                local_alpha,
-                local_beta,
+                alpha,
+                beta,
                 batch_size,
                 num_blocks,
                 num_threads_per_block,
@@ -490,9 +432,7 @@ impl<F: Field> ToDevice for HostInteractions<F> {
             mult_constants: self.mult_constants.to_device_async(stream)?,
             arg_indices: self.arg_indices.to_device_async(stream)?,
             is_send: self.is_send.to_device_async(stream)?,
-            num_global_interactions: self.num_global_interactions,
-            num_local_interactions: self.num_local_interactions,
-            global_width: self.global_width,
+            num_interactions: self.num_interactions,
         })
     }
 }

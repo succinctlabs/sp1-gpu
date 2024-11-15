@@ -1,5 +1,5 @@
 use air::instruction::Instruction16;
-use sp1_stark::StarkGenericConfig;
+use sp1_stark::{septic_digest::SepticDigest, StarkGenericConfig};
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
@@ -91,7 +91,8 @@ where
         main_evaluations: &ColMajorMatrixDevice<SC::Val>,
         permutation_evaluations: &ColMajorMatrixDevice<SC::Val>,
         public_values: &DeviceBuffer<SC::Val>,
-        cumulative_sums: &DeviceBuffer<SC::Challenge>,
+        local_cumulative_sum: &DeviceBuffer<SC::Challenge>,
+        global_cumulative_sum: &DeviceBuffer<SepticDigest<SC::Val>>,
         folding_challenge: SC::Challenge,
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
@@ -119,7 +120,8 @@ where
                 eval_f_constants_device.as_ptr(),
                 eval_ef_constants_device.as_ptr(),
                 *f_ctr as usize,
-                cumulative_sums.as_ptr(),
+                local_cumulative_sum.as_ptr(),
+                global_cumulative_sum.as_ptr(),
                 trace_domain.to_device_async(stream).unwrap(),
                 quotient_domain.to_device_async(stream).unwrap(),
                 preprocessed_evaluations.view(),
@@ -234,7 +236,8 @@ where
         permutation_challenges: &[SC::Challenge],
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
-        cumulative_sums: &[SC::Challenge],
+        local_cumulative_sum: &SC::Challenge,
+        global_cumulative_sum: &SepticDigest<SC::Val>,
     ) -> QuotientValues<SC> {
         let log_quotient_degree = chip.log_quotient_degree();
 
@@ -271,7 +274,8 @@ where
         // Calculate the quotient values.
         let quotient_values = quotient_values(
             chip,
-            cumulative_sums,
+            local_cumulative_sum,
+            global_cumulative_sum,
             trace_domain,
             quotient_domain,
             Some(prep_on_quotient_domain),
@@ -312,7 +316,10 @@ mod tests {
     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
     use sp1_core_machine::{riscv::RiscvAir, utils::log2_strict_usize};
     use sp1_stark::{
-        air::{MachineAir, SP1_PROOF_NUM_PV_ELTS},
+        air::{InteractionScope, MachineAir, SP1_PROOF_NUM_PV_ELTS},
+        septic_curve::SepticCurve,
+        septic_digest::SepticDigest,
+        septic_extension::SepticExtension,
         PackedChallenge, StarkGenericConfig,
     };
 
@@ -368,14 +375,24 @@ mod tests {
                 .iter()
                 .map(|c| PackedChallenge::<SC>::from_f(*c))
                 .collect::<Vec<_>>();
-            let (perm, global_cumulative_sum, local_cumulative_sum) =
+            let (perm, local_cumulative_sum) =
                 chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
+
+            let global_cumulative_sum = if chip.commit_scope() == InteractionScope::Local {
+                SepticDigest::<BabyBear>::zero()
+            } else {
+                let main_trace_size = main.height() * main.width();
+                let last_row = &main.values[main_trace_size - 14..main_trace_size];
+                SepticDigest(SepticCurve {
+                    x: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i]),
+                    y: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i + 7]),
+                })
+            };
 
             let degree = main.height();
             let log_degree = log2_strict_usize(degree);
             let log_quotient_degree = chip.log_quotient_degree();
             let trace_domain = natural_domain_for_degree(degree);
-            let cumulative_sums = vec![global_cumulative_sum, local_cumulative_sum];
 
             // Calculate evaluations on quotient domain.
 
@@ -426,7 +443,8 @@ mod tests {
             let start = std::time::Instant::now();
             let result = quotient_values::<BabyBearPoseidon2, _, _>(
                 chip,
-                &cumulative_sums,
+                &local_cumulative_sum,
+                &global_cumulative_sum,
                 trace_domain,
                 quotient_domain,
                 Some(preprocessed_trace_on_quotient_domain.clone()),
@@ -469,7 +487,8 @@ mod tests {
             .to_column_major();
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
-            let cumulative_sums_device = cumulative_sums.to_device().unwrap();
+            let local_cumulative_sum_device = [local_cumulative_sum].to_device().unwrap();
+            let global_cumulative_sum_device = [global_cumulative_sum].to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -493,7 +512,8 @@ mod tests {
                     f_constants_device.as_ptr(),
                     ef_constants_device.as_ptr(),
                     f_expr_ctr as usize,
-                    cumulative_sums_device.as_ptr(),
+                    local_cumulative_sum_device.as_ptr(),
+                    global_cumulative_sum_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),
