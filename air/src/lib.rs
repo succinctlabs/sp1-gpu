@@ -19,6 +19,7 @@ use p3_air::{
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::AbstractField;
+use p3_matrix::Matrix;
 use p3_matrix::{dense::RowMajorMatrixView, stack::VerticalPair};
 use sp1_stark::air::PermutationPowersBuilder;
 use sp1_stark::{
@@ -83,17 +84,17 @@ impl<'a> SymbolicProverFolder<'a> {
         is_transition: SymbolicVarF,
         public_values: &'a [SymbolicVarF],
     ) -> Self {
-        let curr_global_power: SymbolicExprEF = EF::one().into();
-        let curr_local_power: SymbolicExprEF = EF::one().into();
+        let mut curr_global_power: SymbolicExprEF = EF::one().into();
+        let mut curr_local_power: SymbolicExprEF = EF::one().into();
         let mut global_powers = Vec::new();
         let mut local_powers = Vec::new();
         global_powers.push(curr_global_power);
         local_powers.push(curr_local_power);
-        for _ in 1..1200 {
-            let next_global_power = curr_global_power * perm_challenges[1];
-            let next_local_power = curr_local_power * perm_challenges[3];
-            global_powers.push(next_global_power);
-            local_powers.push(next_local_power);
+        for _ in 1..(main.width() + preprocessed.width() + 1) {
+            curr_global_power = curr_global_power * perm_challenges[1];
+            curr_local_power = curr_local_power * perm_challenges[3];
+            global_powers.push(curr_global_power);
+            local_powers.push(curr_local_power);
         }
 
         Self {
