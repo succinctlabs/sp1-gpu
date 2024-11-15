@@ -47,6 +47,8 @@ pub(super) mod quotient_gpu {
             eval_ef_constants: *const BinomialExtensionField<BabyBear, 4>,
             memory_size: usize,
             cumulative_sums: *const BinomialExtensionField<BabyBear, 4>,
+            global_betas: *const BinomialExtensionField<BabyBear, 4>,
+            local_betas: *const BinomialExtensionField<BabyBear, 4>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             preprocessed_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,

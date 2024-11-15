@@ -8,6 +8,8 @@ struct ConstraintFolder {
     Val* publicValues;
     Matrix<Val> perm;
     Challenge* permChallenges;
+    Challenge* globalBetas;
+    Challenge* localBetas;
     Challenge* cumulativeSums;
     Val isFirstRow;
     Val isLastRow;
@@ -70,6 +72,10 @@ struct ConstraintFolder {
                 return permChallenges[idx];
             case 4:
                 return cumulativeSums[idx];
+            case 5:
+                return globalBetas[idx];
+            case 6:
+                return localBetas[idx];
         }
     }
 };

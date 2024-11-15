@@ -10,6 +10,8 @@ pub enum SymbolicVarEF {
     PermutationNext(u32),
     PermutationChallenge(u32),
     CumulativeSum(u32),
+    GlobalBetas(u32),
+    LocalBetas(u32),
 }
 
 impl SymbolicVarEF {
@@ -38,6 +40,14 @@ impl SymbolicVarEF {
         Self::CumulativeSum(idx)
     }
 
+    pub fn global_beta(idx: u32) -> Self {
+        Self::GlobalBetas(idx)
+    }
+
+    pub fn local_beta(idx: u32) -> Self {
+        Self::LocalBetas(idx)
+    }
+
     pub fn variant(&self) -> u8 {
         match self {
             Self::Empty => 0x00,
@@ -45,6 +55,8 @@ impl SymbolicVarEF {
             Self::PermutationNext(_) => 0x02,
             Self::PermutationChallenge(_) => 0x03,
             Self::CumulativeSum(_) => 0x04,
+            Self::GlobalBetas(_) => 0x05,
+            Self::LocalBetas(_) => 0x06,
         }
     }
 
@@ -55,6 +67,8 @@ impl SymbolicVarEF {
             Self::PermutationNext(idx) => *idx,
             Self::PermutationChallenge(idx) => *idx,
             Self::CumulativeSum(idx) => *idx,
+            Self::GlobalBetas(idx) => *idx,
+            Self::LocalBetas(idx) => *idx,
         }
     }
 }

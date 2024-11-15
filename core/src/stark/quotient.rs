@@ -94,6 +94,8 @@ where
         cumulative_sums: &DeviceBuffer<SC::Challenge>,
         folding_challenge: SC::Challenge,
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
+        global_betas: &DeviceBuffer<SC::Challenge>,
+        local_betas: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         let stream = main_evaluations.stream();
         let (operations, f_ctr, f_constants, ef_constants) = self.get_eval_program(chip);
@@ -120,6 +122,8 @@ where
                 eval_ef_constants_device.as_ptr(),
                 *f_ctr as usize,
                 cumulative_sums.as_ptr(),
+                global_betas.as_ptr(),
+                local_betas.as_ptr(),
                 trace_domain.to_device_async(stream).unwrap(),
                 quotient_domain.to_device_async(stream).unwrap(),
                 preprocessed_evaluations.view(),
@@ -235,6 +239,8 @@ where
         folding_challenge: SC::Challenge,
         public_values: &[SC::Val],
         cumulative_sums: &[SC::Challenge],
+        global_betas: &[SC::Challenge],
+        local_betas: &[SC::Challenge],
     ) -> QuotientValues<SC> {
         let log_quotient_degree = chip.log_quotient_degree();
 
@@ -280,6 +286,8 @@ where
             &packed_perm_challenges,
             folding_challenge,
             public_values,
+            global_betas,
+            local_betas,
         );
 
         // Flatten and split to create the traces.
@@ -364,6 +372,12 @@ mod tests {
 
             let permutation_challenges =
                 vec![EF::one(), EF::two(), EF::two() + EF::one(), EF::two() + EF::two()];
+            let mut global_betas = vec![EF::one()];
+            let mut local_betas = vec![EF::one()];
+            for _ in 0..64 {
+                global_betas.push(global_betas[i] * permutation_challenges[1]);
+                local_betas.push(local_betas[i] * permutation_challenges[3]);
+            }
             let packed_permutation_challenges = permutation_challenges
                 .iter()
                 .map(|c| PackedChallenge::<SC>::from_f(*c))
@@ -435,6 +449,8 @@ mod tests {
                 &packed_permutation_challenges,
                 alpha,
                 &public_values,
+                &global_betas,
+                &local_betas,
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
             info!("> CPU Time: {:?} ms", start.elapsed().as_millis());
@@ -470,6 +486,8 @@ mod tests {
             let permutation_challenges_device = permutation_challenges.to_device().unwrap();
             let public_values_device = public_values.to_device().unwrap();
             let cumulative_sums_device = cumulative_sums.to_device().unwrap();
+            let global_betas_device = global_betas.to_device().unwrap();
+            let local_betas_device = local_betas.to_device().unwrap();
 
             let mut quotient_output =
                 ColMajorMatrixDevice::with_capacity(D, quotient_domain.size()).unwrap();
@@ -494,6 +512,8 @@ mod tests {
                     ef_constants_device.as_ptr(),
                     f_expr_ctr as usize,
                     cumulative_sums_device.as_ptr(),
+                    global_betas_device.as_ptr(),
+                    local_betas_device.as_ptr(),
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),
