@@ -488,11 +488,7 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            let local_only = shard_chips
-                .iter()
-                .filter(|chip| chip.commit_scope() == InteractionScope::Local)
-                .map(|chip| chip.local_only())
-                .collect::<Vec<_>>();
+            let local_only = shard_chips.iter().map(|chip| chip.local_only()).collect::<Vec<_>>();
 
             // Compute some statistics.
             let mut total_lde_size = 0;
