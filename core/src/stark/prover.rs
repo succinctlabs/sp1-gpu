@@ -1153,7 +1153,6 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources.
         for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
