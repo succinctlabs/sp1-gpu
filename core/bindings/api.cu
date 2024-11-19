@@ -11,3 +11,4 @@
 #include "../../cuda/opening/fri_batch.cuh"
 #include "../../cuda/univariate/eval.cuh"
 #include "../../cuda/reduce/reduce.cuh"
+#include "../../cuda/challenger/challenger.cuh"

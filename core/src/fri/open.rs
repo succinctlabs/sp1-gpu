@@ -14,6 +14,7 @@ use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
 use crate::{
+    challenger::duplex_challenger::GrindOnDevice,
     cuda_runtime::stream::CudaStream,
     device::{
         memory::{ToDevice, ToHost},
@@ -76,6 +77,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+        Challenger<SC>: GrindOnDevice,
     {
         let log_max_height = Iterator::max(input.keys()).copied().unwrap();
 
@@ -83,8 +85,9 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let commit_phase_result = tracing::debug_span!("commit phase")
             .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
-        let pow_witness = tracing::debug_span!("pow witness")
-            .in_scope(|| challenger.grind(config.proof_of_work_bits));
+        let pow_witness = tracing::debug_span!("pow witness").in_scope(|| {
+            challenger.grind_on_device(config.proof_of_work_bits, main_stream.handle())
+        });
 
         let query_indices: Vec<usize> =
             (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();

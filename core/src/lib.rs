@@ -3,6 +3,7 @@
 #![allow(clippy::type_complexity)]
 
 pub mod baby_bear;
+pub mod challenger;
 pub mod cuda_runtime;
 pub mod device;
 pub mod dft;
