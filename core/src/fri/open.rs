@@ -76,7 +76,6 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
     ) -> (FriProof<SC::Challenge, FriMmcs<SC>, SC::Val>, Vec<usize>)
     where
         C: FriQueryProver<SC::Val, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-        Challenger<SC>: GrindOnDevice,
     {
         let log_max_height = Iterator::max(input.keys()).copied().unwrap();
 
