@@ -93,3 +93,38 @@ extern "C" {
         stream: CudaStreamHandle,
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use p3_baby_bear::BabyBear;
+    use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
+    use p3_field::AbstractField;
+    use sp1_stark::{inner_perm, InnerChallenger};
+
+    use crate::challenger::duplex_challenger::GrindOnDevice;
+
+    #[test]
+    fn test_grinding() {
+        (1..20).for_each(|bits| {
+            let mut challenger = InnerChallenger::new(inner_perm());
+            challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
+            challenger.observe(BabyBear::from_canonical_u32(0xCAFEBABE));
+            let mut challenger_2 = challenger.clone();
+            let _elt: BabyBear = challenger.sample();
+
+            // Clone the original challenger because after grinding the internal state will change.
+            let mut original_challenger = challenger.clone();
+            let result = challenger.grind_on_device(bits);
+
+            assert!(original_challenger.check_witness(bits, result));
+
+            let mut original_challenger_2 = challenger_2.clone();
+            let result_2 = challenger_2.grind_on_device(bits);
+
+            assert!(original_challenger_2.check_witness(bits, result_2));
+            assert!(original_challenger_2.sponge_state == challenger_2.sponge_state);
+            assert!(original_challenger_2.input_buffer == challenger_2.input_buffer);
+            assert!(original_challenger_2.output_buffer == challenger_2.output_buffer);
+        })
+    }
+}
