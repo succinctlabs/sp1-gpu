@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+
 #include <algorithm>
 
 #include "../fields/bb31_t.cuh"
@@ -45,7 +46,7 @@ __device__ void compressAndInject(
     size_t layerLen
 ) {
     int rowIdx = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (rowIdx >= layerLen){
+    if (rowIdx >= layerLen) {
         return;
     }
 
@@ -95,8 +96,7 @@ using Hasher_t = BabyBearHasher;
 using HasherState_t = BabyBearHasherState;
 using Matrix_t = Matrix<bb31_t>;
 
-__launch_bounds__(256, 2) 
-__global__ void firstDigestLayer(
+__launch_bounds__(256, 2) __global__ void firstDigestLayer(
     Matrix_t* tallestMatrices,
     size_t nTallestMatrices,
     bb31_t (*digests)[HashParams::DIGEST_WIDTH]
@@ -110,8 +110,7 @@ __global__ void firstDigestLayer(
     );
 }
 
-__launch_bounds__(128, 1) 
-__global__ void compressAndInject(
+__launch_bounds__(128, 1) __global__ void compressAndInject(
     bb31_t (*prevLayer)[HashParams::DIGEST_WIDTH],
     Matrix_t* matricesToInject,
     size_t nMatricesToInject,
@@ -139,8 +138,7 @@ using Hasher_t = Bn254Hasher;
 using HasherState_t = Bn254HasherState;
 using Matrix_t = Matrix<bb31_t>;
 
-__launch_bounds__(256, 2) 
-__global__ void firstDigestLayer(
+__launch_bounds__(256, 2) __global__ void firstDigestLayer(
     Hasher_t hasher,
     Matrix_t* tallestMatrices,
     size_t nTallestMatrices,
@@ -154,8 +152,7 @@ __global__ void firstDigestLayer(
     );
 }
 
-__launch_bounds__(128, 1) 
-__global__ void compressAndInject(
+__launch_bounds__(128, 1) __global__ void compressAndInject(
     Hasher_t hasher,
     bn254_t (*prevLayer)[HashParams::DIGEST_WIDTH],
     Matrix_t* matricesToInject,
@@ -177,7 +174,6 @@ namespace column_major {}
 
 }  // namespace merkle_tree_kernels_bn254_3
 
-
 extern "C" namespace merkle_tree_baby_bear_16_gpu {
     using HashParams = poseidon2_bb31_16::BabyBear;
     using F_t = typename HashParams::F_t;
@@ -192,7 +188,7 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         cudaStream_t stream
     ) {
         size_t blockSize = std::min(max_height, static_cast<size_t>(256));
-        size_t gridSize = (max_height-1) / blockSize +1;
+        size_t gridSize = (max_height - 1) / blockSize + 1;
         merkle_tree_kernels_baby_bear_16::
             firstDigestLayer<<<gridSize, blockSize, 0, stream>>>(
                 tallestMatrices,
@@ -210,7 +206,7 @@ extern "C" namespace merkle_tree_baby_bear_16_gpu {
         cudaStream_t stream
     ) {
         size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
-        size_t gridSize = (layerLen-1) / blockSize +1;
+        size_t gridSize = (layerLen - 1) / blockSize + 1;
         merkle_tree_kernels_baby_bear_16::
             compressAndInject<<<gridSize, blockSize, 0, stream>>>(
                 prevLayer,
@@ -239,7 +235,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         cudaStream_t stream
     ) {
         size_t blockSize = std::min(max_height, static_cast<size_t>(256));
-        size_t gridSize = (max_height-1) / blockSize +1;
+        size_t gridSize = (max_height - 1) / blockSize + 1;
         poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);
@@ -265,7 +261,7 @@ extern "C" namespace merkle_tree_bn254_3_gpu {
         cudaStream_t stream
     ) {
         size_t blockSize = std::min(layerLen, static_cast<size_t>(128));
-        size_t gridSize = (layerLen-1) / blockSize +1;
+        size_t gridSize = (layerLen - 1) / blockSize + 1;
         poseidon2::Bn254Hasher hasher;
         hasher.setInternalRoundConstants(internalRoundConstants);
         hasher.setExternalRoundConstants(externalRoundConstants);

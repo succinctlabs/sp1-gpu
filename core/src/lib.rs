@@ -1,6 +1,7 @@
 #![allow(clippy::uninit_vec)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
+#![allow(unused_doc_comments)]
 
 pub mod baby_bear;
 pub mod cuda_runtime;

@@ -8,6 +8,7 @@ use crate::{
 
 use super::DeviceInteractionsView;
 
+/// cbindgen:ignore
 extern "C" {
     pub fn populate_permutation_rows_flattened(
         interactions: DeviceInteractionsView<BabyBear>,
@@ -36,6 +37,7 @@ pub(super) mod quotient_gpu {
 
     #[link_name = "quotient_gpu"]
     #[allow(unused_attributes)]
+    /// cbindgen:ignore
     extern "C" {
         #[link_name = "computeValues"]
         #[allow(unused)]

@@ -516,6 +516,7 @@ pub mod opening_gpu {
 
     #[link_name = "opening_gpu"]
     #[allow(unused_attributes)]
+    /// cbindgen:ignore
     extern "C" {
 
         #[link_name = "shiftedPowers"]
@@ -574,6 +575,7 @@ pub mod opening_gpu {
 
     #[link_name = "fri_batch"]
     #[allow(unused_attributes)]
+    /// cbindgen:ignore
     extern "C" {
         #[link_name = "batchFri"]
         pub fn batch_fri_update(

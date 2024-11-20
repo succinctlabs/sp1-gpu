@@ -1,11 +1,10 @@
 #pragma once
 
-#include "./utils.cuh"
-
 #include "../air/folder.cuh"
-#include "../fields/bb31_extension_t.cuh"
 #include "../fields/bb31_curve_t.cuh"
+#include "../fields/bb31_extension_t.cuh"
 #include "../matrix/matrix.cuh"
+#include "./utils.cuh"
 
 #define DEBUG_FLAG 0  // Set this to 0 or 1
 
@@ -16,24 +15,30 @@
 #endif
 
 namespace quotient_kernels {
-template <typename Val, typename Challenge, typename GlobalSum, size_t MEMORY_SIZE>
-__global__ void computeValues(Instruction *evalProgram,
-                              size_t evalProgramLen, 
-                              Val *evalConstantsF,
-                              Challenge *evalConstantsEF,
-                              Challenge localCumulativeSum,
-                              GlobalSum globalCumulativeSum,
-                              TwoAdicMultiplicativeCoset<Val> traceDomain,
-                              TwoAdicMultiplicativeCoset<Val> quotientDomain,
-                              Matrix<Val> preprocessedTraceOnQuotientDomain,
-                              Matrix<Val> mainTraceOnQuotientDomain,
-                              Matrix<Val> permutationTraceOnQuotientDomain,
-                              Challenge *permChallenges, 
-                              Challenge alpha,
-                              Val *publicValues,
-                              Val traceDomainGenerator,
-                              Val quotientDomaingenerator,
-                              Matrix<Val> quotientValues) {
+template<
+    typename Val,
+    typename Challenge,
+    typename GlobalSum,
+    size_t MEMORY_SIZE>
+__global__ void computeValues(
+    Instruction* evalProgram,
+    size_t evalProgramLen,
+    Val* evalConstantsF,
+    Challenge* evalConstantsEF,
+    Challenge localCumulativeSum,
+    GlobalSum globalCumulativeSum,
+    TwoAdicMultiplicativeCoset<Val> traceDomain,
+    TwoAdicMultiplicativeCoset<Val> quotientDomain,
+    Matrix<Val> preprocessedTraceOnQuotientDomain,
+    Matrix<Val> mainTraceOnQuotientDomain,
+    Matrix<Val> permutationTraceOnQuotientDomain,
+    Challenge* permChallenges,
+    Challenge alpha,
+    Val* publicValues,
+    Val traceDomainGenerator,
+    Val quotientDomaingenerator,
+    Matrix<Val> quotientValues
+) {
     size_t quotientSize = quotientDomain.size();
     size_t prepWidth = preprocessedTraceOnQuotientDomain.width;
     size_t mainWidth = mainTraceOnQuotientDomain.width;
@@ -46,11 +51,13 @@ __global__ void computeValues(Instruction *evalProgram,
         return;
     }
 
-    Val generatorPower = quotientDomaingenerator^((blockIdx.x * blockDim.x) + threadIdx.x);
+    Val generatorPower =
+        quotientDomaingenerator ^ ((blockIdx.x * blockDim.x) + threadIdx.x);
 
-    Val point = generatorPower * quotientDomain.shift; 
+    Val point = generatorPower * quotientDomain.shift;
 
-    LagrangeSelectorsAtPoint<Val> selectors = traceDomain.selectors_at_point(traceDomainGenerator, point);
+    LagrangeSelectorsAtPoint<Val> selectors =
+        traceDomain.selectors_at_point(traceDomainGenerator, point);
 
     Val isFirstRow = selectors.is_first_row[quotientIdx];
     Val isLastRow = selectors.is_last_row[quotientIdx];
@@ -75,10 +82,9 @@ __global__ void computeValues(Instruction *evalProgram,
     folder.quotientSize = quotientSize;
     folder.nextStep = nextStep;
 
-
     Val expr_f[MEMORY_SIZE];
     for (size_t i = 0; i < MEMORY_SIZE; i++) {
-        expr_f[i] = Val{0};
+        expr_f[i] = Val {0};
     }
     Challenge expr_ef[10];
     for (size_t i = 0; i < 10; i++) {
@@ -86,7 +92,7 @@ __global__ void computeValues(Instruction *evalProgram,
     }
 
     for (size_t i = 0; i < evalProgramLen; i++) {
-        Instruction instr = evalProgram[i]; 
+        Instruction instr = evalProgram[i];
         switch (instr.opcode) {
             case 0:
                 DEBUG("EMPTY\n");
@@ -97,7 +103,12 @@ __global__ void computeValues(Instruction *evalProgram,
                 expr_f[instr.a] = evalConstantsF[instr.b];
                 break;
             case 2:
-                DEBUG("FAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "FAssignV: %d <- (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b);
                 break;
             case 3:
@@ -106,25 +117,58 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 4:
-                DEBUG("FAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + evalConstantsF[instr.c];
+                DEBUG(
+                    "FAddVC: %d <- %d + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    + evalConstantsF[instr.c];
                 break;
             case 5:
-                DEBUG("FAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FAddVV: %d <- (%d, %d) + (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    + folder.var_f(instr.c_variant, instr.c);
                 break;
             case 6:
-                DEBUG("FAddVE: %d <- (%d, %d) + %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) + expr_f[instr.c];
+                DEBUG(
+                    "FAddVE: %d <- (%d, %d) + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    folder.var_f(instr.b_variant, instr.b) + expr_f[instr.c];
                 break;
-            
+
             case 7:
-                DEBUG("FAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "FAddEC: %d <- %d + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_f[instr.a] = expr_f[instr.b] + evalConstantsF[instr.c];
                 break;
             case 8:
-                DEBUG("FAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = expr_f[instr.b] + folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FAddEV: %d <- %d + (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    expr_f[instr.b] + folder.var_f(instr.c_variant, instr.c);
                 break;
             case 9:
                 DEBUG("FAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
@@ -136,25 +180,53 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 11:
-                DEBUG("FSubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - evalConstantsF[instr.c];
+                DEBUG(
+                    "FSubVC: %d <- %d - %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    - evalConstantsF[instr.c];
                 break;
             case 12:
-                DEBUG("FSubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FSubVV: %d <- (%d, %d) - (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    - folder.var_f(instr.c_variant, instr.c);
                 break;
             case 13:
-                DEBUG("FSubVE: %d <- (%d, %d) - %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) - expr_f[instr.c];
+                DEBUG(
+                    "FSubVE: %d <- (%d, %d) - %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    folder.var_f(instr.b_variant, instr.b) - expr_f[instr.c];
                 break;
-            
+
             case 14:
                 DEBUG("FSubEC: %d <- %d - %d\n", instr.a, instr.b, instr.c);
                 expr_f[instr.a] = expr_f[instr.b] - evalConstantsF[instr.c];
                 break;
             case 15:
-                DEBUG("FSubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = expr_f[instr.b] - folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FSubEV: %d <- %d - (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    expr_f[instr.b] - folder.var_f(instr.c_variant, instr.c);
                 break;
             case 16:
                 DEBUG("FSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
@@ -166,29 +238,66 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 18:
-                DEBUG("FMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * evalConstantsF[instr.c];
+                DEBUG(
+                    "FMulVC: %d <- %d * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    * evalConstantsF[instr.c];
                 break;
             case 19:
-                DEBUG("FMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FMulVV: %d <- (%d, %d) * (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b)
+                    * folder.var_f(instr.c_variant, instr.c);
                 break;
             case 20:
-                DEBUG("FMulVE: %d <- (%d, %d) * %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_f[instr.a] = folder.var_f(instr.b_variant, instr.b) * expr_f[instr.c];
+                DEBUG(
+                    "FMulVE: %d <- (%d, %d) * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    folder.var_f(instr.b_variant, instr.b) * expr_f[instr.c];
                 break;
 
             case 21:
-                DEBUG("FMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "FMulEC: %d <- %d * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_f[instr.a] = expr_f[instr.b] * evalConstantsF[instr.c];
                 break;
             case 22:
-                DEBUG("FMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_f[instr.a] = expr_f[instr.b] * folder.var_f(instr.c_variant, instr.c);
+                DEBUG(
+                    "FMulEV: %d <- %d * (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_f[instr.a] =
+                    expr_f[instr.b] * folder.var_f(instr.c_variant, instr.c);
                 break;
             case 23:
                 DEBUG("FMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
-                DEBUG("FMulEE Input: %d, %d\n", expr_f[instr.b], expr_f[instr.c]);
+                DEBUG(
+                    "FMulEE Input: %d, %d\n",
+                    expr_f[instr.b],
+                    expr_f[instr.c]
+                );
                 expr_f[instr.a] = expr_f[instr.b] * expr_f[instr.c];
                 DEBUG("FMulEE Output: %d\n", expr_f[instr.a]);
                 break;
@@ -207,7 +316,12 @@ __global__ void computeValues(Instruction *evalProgram,
                 expr_ef[instr.a] = evalConstantsEF[instr.b];
                 break;
             case 27:
-                DEBUG("EAssignV: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "EAssignV: %d <- (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b);
                 break;
             case 28:
@@ -216,25 +330,58 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 29:
-                DEBUG("EAddVC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + evalConstantsEF[instr.c];
+                DEBUG(
+                    "EAddVC: %d <- %d + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    + evalConstantsEF[instr.c];
                 break;
             case 30:
-                DEBUG("EAddVV: %d <- (%d, %d) + (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "EAddVV: %d <- (%d, %d) + (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    + folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 31:
-                DEBUG("EAddVE: %d <- (%d, %d) + %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) + expr_ef[instr.c];
+                DEBUG(
+                    "EAddVE: %d <- (%d, %d) + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    folder.var_ef(instr.b_variant, instr.b) + expr_ef[instr.c];
                 break;
-            
+
             case 32:
-                DEBUG("EAddEC: %d <- %d + %d\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "EAddEC: %d <- %d + %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_ef[instr.a] = expr_ef[instr.b] + evalConstantsEF[instr.b];
                 break;
             case 33:
-                DEBUG("EAddEV: %d <- %d + (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] + folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "EAddEV: %d <- %d + (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    expr_ef[instr.b] + folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 34:
                 DEBUG("EAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
@@ -246,25 +393,58 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 36:
-                DEBUG("ESubVC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - evalConstantsEF[instr.c];
+                DEBUG(
+                    "ESubVC: %d <- %d - %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    - evalConstantsEF[instr.c];
                 break;
             case 37:
-                DEBUG("ESubVV: %d <- (%d, %d) - (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "ESubVV: %d <- (%d, %d) - (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    - folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 38:
-                DEBUG("ESubVE: %d <- (%d, %d) - %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) - expr_ef[instr.c];
+                DEBUG(
+                    "ESubVE: %d <- (%d, %d) - %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    folder.var_ef(instr.b_variant, instr.b) - expr_ef[instr.c];
                 break;
 
             case 39:
-                DEBUG("ESubEC: %d <- %d - %d\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "ESubEC: %d <- %d - %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_ef[instr.a] = expr_ef[instr.b] - evalConstantsEF[instr.b];
                 break;
             case 40:
-                DEBUG("ESubEV: %d <- %d - (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] - folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "ESubEV: %d <- %d - (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    expr_ef[instr.b] - folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 41:
                 DEBUG("ESubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
@@ -276,25 +456,58 @@ __global__ void computeValues(Instruction *evalProgram,
                 break;
 
             case 43:
-                DEBUG("EMulVC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * evalConstantsEF[instr.c];
+                DEBUG(
+                    "EMulVC: %d <- %d * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    * evalConstantsEF[instr.c];
                 break;
             case 44:
-                DEBUG("EMulVV: %d <- (%d, %d) * (%d, %d)\n", instr.a, instr.b_variant, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "EMulVV: %d <- (%d, %d) * (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+                    * folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 45:
-                DEBUG("EMulVE: %d <- (%d, %d) * %d\n", instr.a, instr.b_variant, instr.b, instr.c);
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b) * expr_ef[instr.c];
+                DEBUG(
+                    "EMulVE: %d <- (%d, %d) * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    folder.var_ef(instr.b_variant, instr.b) * expr_ef[instr.c];
                 break;
 
             case 46:
-                DEBUG("EMulEC: %d <- %d * %d\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "EMulEC: %d <- %d * %d\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 expr_ef[instr.a] = expr_ef[instr.b] * evalConstantsEF[instr.b];
                 break;
             case 47:
-                DEBUG("EMulEV: %d <- %d * (%d, %d)\n", instr.a, instr.b, instr.c_variant, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] * folder.var_ef(instr.c_variant, instr.c);
+                DEBUG(
+                    "EMulEV: %d <- %d * (%d, %d)\n",
+                    instr.a,
+                    instr.b,
+                    instr.c_variant,
+                    instr.c
+                );
+                expr_ef[instr.a] =
+                    expr_ef[instr.b] * folder.var_ef(instr.c_variant, instr.c);
                 break;
             case 48:
                 DEBUG("EMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
@@ -314,15 +527,15 @@ __global__ void computeValues(Instruction *evalProgram,
                 DEBUG("EFFromE: %d <- %d\n", instr.a, instr.b);
                 Challenge result;
                 result.value[0] = expr_f[instr.b];
-                result.value[1] = Val{0};
-                result.value[2] = Val{0};
-                result.value[3] = Val{0};
+                result.value[1] = Val {0};
+                result.value[2] = Val {0};
+                result.value[3] = Val {0};
                 expr_ef[instr.a] = result;
                 break;
             case 52:
                 DEBUG("EFAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
                 expr_ef[instr.a] = expr_ef[instr.b] + expr_f[instr.c];
-                break;  
+                break;
             case 53:
                 DEBUG("EFAddAssignE: %d <- %d\n", instr.a, instr.b);
                 expr_ef[instr.a] += expr_f[instr.b];
@@ -344,7 +557,12 @@ __global__ void computeValues(Instruction *evalProgram,
                 expr_ef[instr.a] *= expr_f[instr.b];
                 break;
             case 58:
-                DEBUG("EFAsBaseSlice: %d <- (%d, %d)\n", instr.a, instr.b_variant, instr.b);
+                DEBUG(
+                    "EFAsBaseSlice: %d <- (%d, %d)\n",
+                    instr.a,
+                    instr.b_variant,
+                    instr.b
+                );
                 // UNSUPPORTED
                 break;
 
@@ -358,24 +576,26 @@ __global__ void computeValues(Instruction *evalProgram,
                 folder.accumulator *= folder.alpha;
                 folder.accumulator += expr_ef[instr.a];
                 break;
-        } 
+        }
     }
 
     bb31_extension_t quotient_value = folder.accumulator * invZeroifier;
 
-    #pragma unroll
+#pragma unroll
     for (size_t k = 0; k < bb31_extension_t::D; k++) {
-        quotientValues.values[k * quotientValues.height + quotientIdx] = quotient_value.value[k];
+        quotientValues.values[k * quotientValues.height + quotientIdx] =
+            quotient_value.value[k];
     }
 }
 }  // namespace quotient_kernels
 
 namespace quotient_gpu {
+
 extern "C" void computeValues(
-    Instruction *evalProgram, 
+    Instruction* evalProgram,
     size_t evalProgramLen,
-    bb31_t *evalConstantsF,
-    bb31_extension_t *evalConstantsEF,
+    bb31_t* evalConstantsF,
+    bb31_extension_t* evalConstantsEF,
     size_t memorySize,
     bb31_extension_t localCumulativeSum,
     bb31_septic_digest_t globalCumulativeSum,
@@ -384,64 +604,150 @@ extern "C" void computeValues(
     Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
     Matrix<bb31_t> mainTraceOnQuotientDomain,
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
-    bb31_extension_t *permChallenges, 
+    bb31_extension_t* permChallenges,
     bb31_extension_t alpha,
-    bb31_t *publicValues, 
-    bb31_t traceDomainGenerator, 
+    bb31_t* publicValues,
+    bb31_t traceDomainGenerator,
     bb31_t quotientDomaingenerator,
-    Matrix<bb31_t> quotientValues, 
-    cudaStream_t stream) {
+    Matrix<bb31_t> quotientValues,
+    cudaStream_t stream
+) {
     size_t numThreadsPerBlock = 512;
     size_t numBlocks = (quotientDomain.size() - 1) / numThreadsPerBlock + 1;
     if (memorySize <= 32) {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 32><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues); 
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 32>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else if (memorySize <= 64) {
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 64>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else if (memorySize <= 128) {
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 128>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else if (memorySize <= 256) {
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 256>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else if (memorySize <= 512) {
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 512>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else if (memorySize <= 1024) {
+        quotient_kernels::
+            computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 1024>
+            <<<numBlocks, numThreadsPerBlock, 0, stream>>>(
+                evalProgram,
+                evalProgramLen,
+                evalConstantsF,
+                evalConstantsEF,
+                localCumulativeSum,
+                globalCumulativeSum,
+                traceDomain,
+                quotientDomain,
+                preprocessedTraceOnQuotientDomain,
+                mainTraceOnQuotientDomain,
+                permutationTraceOnQuotientDomain,
+                permChallenges,
+                alpha,
+                publicValues,
+                traceDomainGenerator,
+                quotientDomaingenerator,
+                quotientValues
+            );
+    } else {
+        assert(false);
     }
-    else if (memorySize <= 64)
-    {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 64><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
-    }
-    else if (memorySize <= 128)
-    {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 128><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
-    }
-    else if (memorySize <= 256)
-    {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 256><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
-    }
-    else if (memorySize <= 512)
-    {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 512><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
-    }
-    else if (memorySize <= 1024)
-    {
-        quotient_kernels::computeValues<bb31_t, bb31_extension_t, bb31_septic_digest_t, 1024><<<numBlocks, numThreadsPerBlock, 0, stream>>>(  
-            evalProgram, evalProgramLen, evalConstantsF, evalConstantsEF, localCumulativeSum, globalCumulativeSum,
-            traceDomain, quotientDomain, preprocessedTraceOnQuotientDomain,  
-            mainTraceOnQuotientDomain, permutationTraceOnQuotientDomain,     
-            permChallenges, alpha, publicValues, traceDomainGenerator, quotientDomaingenerator, quotientValues);
-    }
-    else {
-        assert(false);   
-    }
-    }
+}
 }  // namespace quotient_gpu

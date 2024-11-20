@@ -160,7 +160,8 @@ pub mod poseidon2_bn254_3_kernels {
 
     #[allow(unused_attributes)]
     #[link_name = "poseidon2_bn254_3_gpu"]
-    extern "C" {
+    /// cbindgen:ignore
+extern "C" {
         pub fn permute_bn254(
             input: *const [Bn254Fr; WIDTH],
             output: *mut [Bn254Fr; WIDTH],
@@ -197,9 +198,11 @@ pub mod poseidon2_bn254_3_kernels {
         );
     }
 
+    /// cbindgen:ignore
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_bn254_16_gpu"]
-    extern "C" {
+    /// cbindgen:ignore
+extern "C" {
         pub fn first_digest_layer_bn254(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,

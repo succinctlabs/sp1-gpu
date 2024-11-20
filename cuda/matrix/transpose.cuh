@@ -1,45 +1,49 @@
 #pragma once
 
-#include "type.cuh"
-#include "../fields/bb31_t.cuh"
 #include <cassert>
 
+#include "../fields/bb31_t.cuh"
+#include "type.cuh"
 
 namespace matrix_transpose {
 const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;
 
-__global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
+__global__ void TransposeNaiveRowToCol(bb31_t* output, Matrix<bb31_t> input) {
     size_t id_x = (blockIdx.x * TILE_DIM) + threadIdx.x;
     size_t id_y = (blockIdx.y * TILE_DIM) + threadIdx.y;
-     
+
     size_t len = input.width * input.height;
 
-    #pragma unroll
-    for (int j = 0; j < TILE_DIM; j+=BLOCK_ROWS) {
-      size_t idx_in = (id_x + j) * input.width + id_y;
-      size_t idx_out = id_y  * input.height + id_x + j;
-      if (idx_in < len && idx_out < len)
-        output[idx_out] = input.values[idx_in];
+#pragma unroll
+    for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS) {
+        size_t idx_in = (id_x + j) * input.width + id_y;
+        size_t idx_out = id_y * input.height + id_x + j;
+        if (idx_in < len && idx_out < len)
+            output[idx_out] = input.values[idx_in];
     }
- }
+}
 
- __global__ void TransposeNaiveColToRow(bb31_t *output, Matrix<bb31_t> input) {
+__global__ void TransposeNaiveColToRow(bb31_t* output, Matrix<bb31_t> input) {
     size_t id_x = (blockIdx.x * TILE_DIM) + threadIdx.x;
     size_t id_y = (blockIdx.y * TILE_DIM) + threadIdx.y;
-     
+
     size_t len = input.width * input.height;
 
-    #pragma unroll
-    for (int j = 0; j < TILE_DIM; j+=BLOCK_ROWS) {
-      size_t idx_in = id_y  * input.height + id_x + j;
-      size_t idx_out = (id_x + j) * input.width + id_y;
-      if (idx_in < len && idx_out < len)
-        output[idx_out] = input.values[idx_in];
+#pragma unroll
+    for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS) {
+        size_t idx_in = id_y * input.height + id_x + j;
+        size_t idx_out = (id_x + j) * input.width + id_y;
+        if (idx_in < len && idx_out < len)
+            output[idx_out] = input.values[idx_in];
     }
- }
+}
 
- __global__ void TransposeBlowupNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input, size_t log_blowup) {
+__global__ void TransposeBlowupNaiveRowToCol(
+    bb31_t* output,
+    Matrix<bb31_t> input,
+    size_t log_blowup
+) {
     size_t id_x = (blockIdx.x * TILE_DIM) + threadIdx.x;
     size_t id_y = (blockIdx.y * TILE_DIM) + threadIdx.y;
 
@@ -47,41 +51,49 @@ __global__ void TransposeNaiveRowToCol(bb31_t *output, Matrix<bb31_t> input) {
     size_t len = input.width * input.height;
     size_t ext_len = input.width * ext_height;
 
-    #pragma unroll
-    for (int j = 0; j < TILE_DIM; j+=BLOCK_ROWS) {
-      size_t idx_in = (id_x + j) * input.width + id_y;
-      size_t idx_out = id_y  * ext_height + ext_height - input.height + id_x + j;
-      if (idx_in < len && idx_out < ext_len ) 
-          output[idx_out] = input.values[idx_in];
+#pragma unroll
+    for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS) {
+        size_t idx_in = (id_x + j) * input.width + id_y;
+        size_t idx_out =
+            id_y * ext_height + ext_height - input.height + id_x + j;
+        if (idx_in < len && idx_out < ext_len)
+            output[idx_out] = input.values[idx_in];
     }
- }
+}
 
-extern "C" void transpose_naive(
-  bb31_t *output, 
-  Matrix<bb31_t> input,
-  cudaStream_t stream) {
-    dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
+extern "C" void
+transpose_naive(bb31_t* output, Matrix<bb31_t> input, cudaStream_t stream) {
+    dim3 dimGrid(
+        ceil(input.height / (double)TILE_DIM),
+        ceil(input.width / (double)TILE_DIM),
+        1
+    );
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
     if (input.row_major) {
         TransposeNaiveRowToCol<<<dimGrid, dimBlock, 0, stream>>>(output, input);
-    }
-    else {
-       TransposeNaiveColToRow<<<dimGrid, dimBlock, 0, stream>>>(output, input);
+    } else {
+        TransposeNaiveColToRow<<<dimGrid, dimBlock, 0, stream>>>(output, input);
     }
 }
 
 extern "C" void transpose_blowup_naive(
-  bb31_t *output, 
-  Matrix<bb31_t> input, 
-  size_t log_blowup,
-  cudaStream_t stream) {
+    bb31_t* output,
+    Matrix<bb31_t> input,
+    size_t log_blowup,
+    cudaStream_t stream
+) {
     assert(input.row_major);
-    dim3 dimGrid(ceil(input.height  /(double) TILE_DIM), ceil(input.width /(double) TILE_DIM), 1);
+    dim3 dimGrid(
+        ceil(input.height / (double)TILE_DIM),
+        ceil(input.width / (double)TILE_DIM),
+        1
+    );
     dim3 dimBlock(BLOCK_ROWS, TILE_DIM, 1);
-    TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock, 0, stream>>>(output, input, log_blowup);
+    TransposeBlowupNaiveRowToCol<<<dimGrid, dimBlock, 0, stream>>>(
+        output,
+        input,
+        log_blowup
+    );
 }
 
-}  // namespace matrix_kernels
-
-
-
+}  // namespace matrix_transpose

@@ -131,7 +131,8 @@ pub mod poseidon2_baby_bear_16_kernels {
 
     #[allow(unused_attributes)]
     #[link_name = "poseidon2_baby_bear_16_gpu"]
-    extern "C" {
+    /// cbindgen:ignore
+extern "C" {
         pub fn permute_baby_bear(
             input: *const [BabyBear; WIDTH],
             output: *mut [BabyBear; WIDTH],
@@ -161,7 +162,8 @@ pub mod poseidon2_baby_bear_16_kernels {
 
     #[allow(unused_attributes)]
     #[link_name = "merkle_tree_baby_bear_16_gpu"]
-    extern "C" {
+    /// cbindgen:ignore
+extern "C" {
         pub fn first_digest_layer_baby_bear(
             tallest_matrices: *const MatrixViewDevice<BabyBear>,
             n_tallest_matrices: usize,

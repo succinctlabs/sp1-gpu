@@ -3,6 +3,7 @@ use p3_field::extension::BinomialExtensionField;
 
 use crate::{cuda_runtime::stream::CudaStreamHandle, device::error::CudaRustError};
 
+/// cbindgen:ignore
 extern "C" {
     #[link_name = "evalUnivariateBabyBear"]
     pub(crate) fn univariate_eval_babybear(

@@ -3,21 +3,28 @@
 #include "permutation.cu"
 
 extern "C" void populate_permutation_rows_flattened(
-    Interactions<bb31_t> const interactions, 
-    Matrix<bb31_t> permutation, 
-    Matrix<bb31_t> const preprocessed, 
-    Matrix<bb31_t> const main, 
+    Interactions<bb31_t> const interactions,
+    Matrix<bb31_t> permutation,
+    Matrix<bb31_t> const preprocessed,
+    Matrix<bb31_t> const main,
     bb31_extension_t const alpha,
     bb31_extension_t const beta,
-    size_t const batch_size, 
-    size_t const nBlocks, 
+    size_t const batch_size,
+    size_t const nBlocks,
     size_t const nThreadsPerBlock,
-    cudaStream_t stream) {
-                        assert(!permutation.row_major);
-                        assert(!main.row_major);
-                        assert(!preprocessed.row_major);
-                        assert(permutation.height == main.height);
-                        PopulatePermutationRowsFlattened<<<nBlocks, nThreadsPerBlock, 0, stream>>>(
-                            interactions, permutation, preprocessed, main, alpha, beta,
-                            batch_size);
-                    }
+    cudaStream_t stream
+) {
+    assert(!permutation.row_major);
+    assert(!main.row_major);
+    assert(!preprocessed.row_major);
+    assert(permutation.height == main.height);
+    PopulatePermutationRowsFlattened<<<nBlocks, nThreadsPerBlock, 0, stream>>>(
+        interactions,
+        permutation,
+        preprocessed,
+        main,
+        alpha,
+        beta,
+        batch_size
+    );
+}
