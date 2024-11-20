@@ -16,7 +16,7 @@ use sp1_stark::{
 };
 pub use utils::*;
 
-use p3_challenger::{CanObserve, CanSample, FieldChallenger, GrindingChallenger};
+use p3_challenger::{CanObserve, CanSample, FieldChallenger};
 use p3_commit::{ExtensionMmcs, Mmcs};
 use p3_dft::Radix2DitParallel;
 use p3_field::AbstractField;
@@ -27,6 +27,8 @@ use sp1_recursion_core::stark::{
 };
 
 use p3_baby_bear::BabyBear;
+
+use crate::challenger::grind_on_device::GrindOnDevice;
 
 type EF = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge;
 
@@ -57,7 +59,7 @@ pub trait BabyBearFriConfig:
     type RowMajorProverData: Clone;
     type FriChallenger: CanObserve<<Self::ValMmcs as Mmcs<BabyBear>>::Commitment>
         + CanSample<EF>
-        + GrindingChallenger<Witness = BabyBear>
+        + GrindOnDevice<Witness = BabyBear>
         + FieldChallenger<BabyBear>;
 
     fn zero_commitment() -> Com<Self>;

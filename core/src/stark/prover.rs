@@ -29,7 +29,6 @@ use std::{
 };
 
 use crate::{
-    challenger::duplex_challenger::GrindOnDevice,
     cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
         error::CudaError,
@@ -199,7 +198,6 @@ where
     SC::FriChallenger: Send,
     <SC::ValMmcs as Mmcs<SC::Val>>::Commitment: Send + Sync,
     SC::RowMajorProverData: Send + Sync,
-    SC::Challenger: GrindOnDevice,
 {
     type DeviceMatrix = ColMajorMatrixDevice<Val<SC>>;
     type DeviceProverData = C::ProverData;
@@ -550,9 +548,7 @@ where
             info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
             // Observe the main commitment.
-            <SC::Challenger as CanObserve<
-                <<SC as BabyBearFriConfig>::ValMmcs as Mmcs<BabyBear>>::Commitment,
-            >>::observe(challenger, local_main_commit.clone());
+            challenger.observe(local_main_commit.clone());
 
             setup_span.exit();
 
@@ -615,9 +611,7 @@ where
             permutation_span.exit();
 
             // Observe the permutation commitment.
-            <SC::Challenger as CanObserve<
-                <<SC as BabyBearFriConfig>::ValMmcs as Mmcs<BabyBear>>::Commitment,
-            >>::observe(challenger, permutation_commit.clone());
+            challenger.observe(permutation_commit.clone());
             for sums in cumulative_sums.iter() {
                 let global_sum = sums[0];
                 let local_sum = sums[1];
@@ -779,9 +773,7 @@ where
                 self.committer.commit(&quotient_domains_and_chunks, &self.main_stream);
             quotient_span.exit();
             // Observe the quotient commitment.
-            <SC::Challenger as CanObserve<
-                <<SC as BabyBearFriConfig>::ValMmcs as Mmcs<BabyBear>>::Commitment,
-            >>::observe(challenger, quotient_commit.clone());
+            challenger.observe(quotient_commit.clone());
 
             // Generate the opening proof and assemble the shard proof.
 
@@ -1196,9 +1188,7 @@ where
         self.machine().generate_dependencies(&mut records, &opts, None);
 
         // Observe the preprocessed commitment.
-        <SC::Challenger as CanObserve<
-            <<SC as BabyBearFriConfig>::ValMmcs as Mmcs<BabyBear>>::Commitment,
-        >>::observe(challenger, pk.commit.clone());
+        challenger.observe(pk.commit.clone());
         challenger.observe(pk.pc_start);
         let zero = Val::<SC>::zero();
         for _ in 0..7 {
@@ -1222,10 +1212,7 @@ where
         // Observe the challenges for each segment.
         global_data.iter().zip_eq(records.iter()).for_each(|(global_data, record)| {
             if contains_global_bus {
-                <SC::Challenger as CanObserve<
-                    <<SC as BabyBearFriConfig>::ValMmcs as Mmcs<BabyBear>>::Commitment,
-                >>::observe(
-                    challenger,
+                challenger.observe(
                     global_data
                         .as_ref()
                         .expect("must have a global commitment")

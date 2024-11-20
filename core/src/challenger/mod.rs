@@ -1,1 +1,1 @@
-pub mod duplex_challenger;
+pub mod grind_on_device;

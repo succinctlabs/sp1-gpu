@@ -100,11 +100,6 @@ extern "C" namespace poseidon2_baby_bear_16_gpu {
         size_t nBlocks,
         size_t nThreadsPerBlock
     ) {
-        printf("Calling permute_baby_bear\n");
-        printf("n is %d\n", n);
-        printf("nBlocks is %d\n", nBlocks);
-        printf("nThreadsPerBlock is %d\n", nThreadsPerBlock);
-
         poseidon2_baby_bear_kernels::permute<<<nBlocks, nThreadsPerBlock>>>(
             in,
             out,

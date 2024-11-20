@@ -13,7 +13,7 @@ use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
 use crate::{
-    challenger::duplex_challenger::GrindOnDevice,
+    challenger::grind_on_device::GrindOnDevice,
     cuda_runtime::stream::CudaStream,
     device::{
         memory::{ToDevice, ToHost},
