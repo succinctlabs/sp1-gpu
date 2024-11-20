@@ -24,25 +24,15 @@ __device__ void duplexing(
         sponge_state[i] = input_buffer[i];
     }
 
-    // Clear input buffer
+    // Clear input buffer.
     *input_buffer_size = 0;
 
-    // Apply the permutation
+    // Apply the permutation to the sponge state and store the output in the output buffer.
     poseidon2::BabyBearHasher hasher;
-    // if (threadIdx.x == 0) {
-    //     for (size_t i = 0; i < WIDTH; i++) {
-    //         printf("sponge start at index %d, %d \n ", i, sponge_state[i]);
-    //     }
-    //     printf("\n");
-    // }
     hasher.permute(sponge_state, output_buffer);
-    // if (threadIdx.x == 0) {
-    //     for (size_t i = 0; i < WIDTH; i++) {
-    //         printf("output buffer at index %d, %d \n ", i, output_buffer[i]);
-    //     }
-    //     printf("\n");
-    // }
 
+
+    // Copy the output buffer to the sponge state.
     *output_buffer_size = WIDTH;
     for (size_t i = 0; i < WIDTH; i++) {
         sponge_state[i] = output_buffer[i];
@@ -57,13 +47,13 @@ __device__ void observe(
     size_t* output_buffer_size,
     bb31_t* value
 ) {
+    // Clear the output buffer.
     *output_buffer_size = 0;
+
+    // Push value to the input buffer.
     *input_buffer_size += 1;
     input_buffer[*input_buffer_size - 1] = *value;
 
-    // sponge_state[0] = input_buffer[*input_buffer_size - 1];
-
-    // printf("New input buffer size %d\n", input_buffer_size);
     if (*input_buffer_size == poseidon2_bb31_16::constants::RATE) {
         duplexing(
             sponge_state,
@@ -92,6 +82,7 @@ __device__ bb31_t sample(
             output_buffer_size
         );
     }
+    // Pop the last element of the buffer.
     result = output_buffer[*output_buffer_size - 1];
     *output_buffer_size -= 1;
     return result;
@@ -105,7 +96,6 @@ __device__ size_t sample_bits(
     size_t* output_buffer_size,
     size_t* bits
 ) {
-    // Some assertions.
     bb31_t rand_f = sample(
         sponge_state,
         input_buffer,
@@ -113,6 +103,8 @@ __device__ size_t sample_bits(
         input_buffer_size,
         output_buffer_size
     );
+
+    // Equivalent to "as_canonical_u32" in the Rust implementation.
     size_t rand_usize = (uint32_t)rand_f;
     return rand_usize & ((1 << *bits) - 1);
 }
@@ -158,16 +150,21 @@ __global__ void grind(
 ) {
     static constexpr const int WIDTH = poseidon2_bb31_16::BabyBear::WIDTH;
     static constexpr const int RATE = poseidon2_bb31_16::constants::RATE;
-    // Compute the current value of
+
     size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-    out[0] = bb31_t(56474);
+    size_t original_input_buffer_size = input_buffer_size;
+    size_t original_output_buffer_size = output_buffer_size;
 
     bb31_t sponge_state_clone[WIDTH];
     bb31_t input_buffer_clone[RATE];
     bb31_t output_buffer_clone[WIDTH];
 
     for (size_t i = idx; i < n && !*found_flag; i += blockDim.x * gridDim.x) {
+        // Reset the buffer sizes to their values at the start of the loop (as they were when the 
+        // function was called), and make a deep clone of the challenger.
+        input_buffer_size = original_input_buffer_size;
+        output_buffer_size = original_output_buffer_size;
         for (size_t j = 0; j < input_buffer_size; j++) {
             input_buffer_clone[j] = input_buffer[j];
         }
@@ -179,9 +176,8 @@ __global__ void grind(
         }
 
         bb31_t witness = bb31_t((int)i);
-        // sponge_state[0] = witness;
-        // atomicExch(found_flag, 1);
-        bool val = check_witness(
+
+        if (check_witness(
             sponge_state_clone,
             input_buffer_clone,
             output_buffer_clone,
@@ -189,25 +185,14 @@ __global__ void grind(
             &output_buffer_size,
             &bits,
             &witness
-        );
-
-        // sponge_state[0] = bb31_t(val);
-
-        // {
-        if (val) {
+        )) {
             out[0] = witness;
+
+            // Set the flag to 1 so that other threads can stop.
             atomicExch(found_flag, 1);
             return;
         }
-        //     out[0] = bb31_t((int)32583475);
-        // }
-
-        //     // Send a message to the other threads that they can terminate.
-
-        // }
     }
-
-    __syncthreads();
 }
 }  // namespace duplex_challenger
 
@@ -226,21 +211,12 @@ extern "C" namespace grinding_challenger_gpu {
         size_t nThreadsPerBlock,
         cudaStream_t stream
     ) {
-        // printf("bits, n: %d, %d\n", bits, n);
-
+        // Allocate an atomic flag to signal when a solution is found.
         int* d_found_flag;
         cudaMalloc(&d_found_flag, sizeof(int));
         cudaMemset(d_found_flag, 0, sizeof(int));
 
-        // size_t* input_buffer_size_ptr;
-        // cudaMalloc(&input_buffer_size_ptr,sizeof(size_t));
-        // cudaMemcpy(input_buffer_size_ptr, &input_buffer_size, sizeof(size_t), cudaMemcpyHostToDevice);
-
-        // size_t* output_buffer_size_ptr;
-        // cudaMalloc(&output_buffer_size_ptr,sizeof(size_t));
-        // cudaMemcpy(output_buffer_size_ptr, &output_buffer_size, sizeof(size_t), cudaMemcpyHostToDevice);
-
-        duplex_challenger::grind<<<32, 32>>>(
+        duplex_challenger::grind<<<(2<<18 + nThreadsPerBlock -1)/nThreadsPerBlock, nThreadsPerBlock>>>(
             out,
             input_buffer,
             sponge_state,

@@ -16,9 +16,11 @@ pub trait GrindOnDevice: GrindingChallenger {
 
 impl GrindOnDevice for InnerChallenger {
     fn grind_on_device(&mut self, bits: usize) -> Self::Witness {
+        // Initialize the result and move it to the device.
         let result = vec![BabyBear::zero()];
         let mut result_d = result.to_device().unwrap();
 
+        // Move the challenger state to device.
         let mut sponge_d = self.sponge_state.to_device().unwrap();
         let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
             if i < self.input_buffer.len() {
@@ -36,6 +38,8 @@ impl GrindOnDevice for InnerChallenger {
             }
         });
         let output_d = output_array.to_device().unwrap();
+
+        // Grind on device.
         unsafe {
             result_d.set_len(1);
             grind_baby_bear(
@@ -47,7 +51,7 @@ impl GrindOnDevice for InnerChallenger {
                 bits,
                 BabyBear::ORDER_U64 as usize,
                 result_d.as_mut_ptr(),
-                1,
+                32,
                 input_d.stream().handle(),
             );
         }
