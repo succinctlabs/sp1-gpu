@@ -22,6 +22,7 @@ impl GrindOnDevice for InnerChallenger {
 
         // Move the challenger state to device.
         let mut sponge_d = self.sponge_state.to_device().unwrap();
+
         let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
             if i < self.input_buffer.len() {
                 self.input_buffer[i]
@@ -30,6 +31,7 @@ impl GrindOnDevice for InnerChallenger {
             }
         });
         let input_d = input_array.to_device().unwrap();
+
         let output_array: [BabyBear; WIDTH] = std::array::from_fn(|i| {
             if i < self.output_buffer.len() {
                 self.output_buffer[i]
@@ -58,7 +60,12 @@ impl GrindOnDevice for InnerChallenger {
 
         let result = result_d.to_host();
 
-        let _ = self.check_witness(bits, result[0]);
+        // Check the witness. This is necessary, because it changes the internal state of the
+        // challenger, and the CPU version of the challenger does this as well. (It's also necessary
+        // for the security of the protocol.)
+        let _val = self.check_witness(bits, result[0]);
+
+        debug_assert!(_val);
 
         result[0]
     }
