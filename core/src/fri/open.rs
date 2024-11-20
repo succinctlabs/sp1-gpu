@@ -85,9 +85,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let commit_phase_result = tracing::debug_span!("commit phase")
             .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
-        let pow_witness = tracing::debug_span!("pow witness").in_scope(|| {
-            challenger.grind_on_device(config.proof_of_work_bits, main_stream.handle())
-        });
+        let pow_witness = tracing::debug_span!("pow witness")
+            .in_scope(|| challenger.grind_on_device(config.proof_of_work_bits));
 
         let query_indices: Vec<usize> =
             (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();

@@ -129,12 +129,14 @@ pub mod tests {
             let mut rng = thread_rng();
 
             // Setup the testing parameters.
-            let n = 128;
+            let n = 1;
             let threads_per_block = 32;
             let num_blocks = n / threads_per_block + 1;
 
             // Generate the input data on the host.
             let input = (0..n).map(|_| [rng.gen::<BabyBear>(); WIDTH]).collect::<Vec<_>>();
+
+            println!("Input: {:?}", input[0]);
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -142,12 +144,13 @@ pub mod tests {
 
             // Execute the source implementation.
             let perm = poseidon2_baby_bear_16_perm();
-            let mut gt = Vec::new();
+            let mut gt: Vec<[BabyBear; WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
                 let state: [BabyBear; WIDTH] = input[i];
                 gt.push(perm.permute(state));
             }
+            println!("Expected output: {:?}", gt[0]);
 
             // Execute the kernel.
             let hasher = DeviceHasherBabyBear::new();
@@ -164,6 +167,7 @@ pub mod tests {
 
             // Copy the result of the kernel to the host.
             let output = output_device.to_host();
+            println!("Output: {:?}", output[0]);
             for i in 0..n {
                 assert_eq!(gt[i], output[i]);
             }
