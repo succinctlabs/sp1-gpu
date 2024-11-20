@@ -51,7 +51,7 @@ impl GrindOnDevice for InnerChallenger {
                 bits,
                 BabyBear::ORDER_U64 as usize,
                 result_d.as_mut_ptr(),
-                32,
+                512,
                 input_d.stream().handle(),
             );
         }

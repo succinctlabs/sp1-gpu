@@ -216,7 +216,7 @@ extern "C" namespace grinding_challenger_gpu {
         cudaMalloc(&d_found_flag, sizeof(int));
         cudaMemset(d_found_flag, 0, sizeof(int));
 
-        duplex_challenger::grind<<<(2<<18 + nThreadsPerBlock -1)/nThreadsPerBlock, nThreadsPerBlock>>>(
+        duplex_challenger::grind<<<1, nThreadsPerBlock>>>(
             out,
             input_buffer,
             sponge_state,
