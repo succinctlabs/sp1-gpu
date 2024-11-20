@@ -6,10 +6,7 @@ use sp1_stark::InnerChallenger;
 
 use crate::{
     cuda_runtime::stream::CudaStreamHandle,
-    device::{
-        memory::{copy_host_to_device, ToDevice, ToHost},
-        DeviceBuffer,
-    },
+    device::memory::{ToDevice, ToHost},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
 
@@ -19,19 +16,30 @@ pub trait GrindOnDevice: GrindingChallenger {
 
 impl GrindOnDevice for InnerChallenger {
     fn grind_on_device(&mut self, bits: usize) -> Self::Witness {
-        let mut result = vec![BabyBear::zero()];
-        println!("Sponge state size: {}", self.sponge_state.len());
+        let result = vec![BabyBear::zero()];
         let mut result_d = result.to_device().unwrap();
 
-        let mut sponge_d = vec![self.sponge_state].to_device().unwrap();
-        let mut input_d = vec![[BabyBear::zero(); WIDTH]].to_device().unwrap();
-        // let input_d = self.input_buffer.to_device().unwrap();
-        let output_d = self.output_buffer.to_device().unwrap();
+        let mut sponge_d = self.sponge_state.to_device().unwrap();
+        let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
+            if i < self.input_buffer.len() {
+                self.input_buffer[i]
+            } else {
+                BabyBear::zero()
+            }
+        });
+        let input_d = input_array.to_device().unwrap();
+        let output_array: [BabyBear; WIDTH] = std::array::from_fn(|i| {
+            if i < self.output_buffer.len() {
+                self.output_buffer[i]
+            } else {
+                BabyBear::zero()
+            }
+        });
+        let output_d = output_array.to_device().unwrap();
         unsafe {
             result_d.set_len(1);
-            input_d.set_len(1);
-            grind(
-                input_d.as_mut_ptr(),
+            grind_baby_bear(
+                input_d.as_ptr(),
                 sponge_d.as_mut_ptr(),
                 output_d.as_ptr(),
                 self.input_buffer.len(),
@@ -39,18 +47,14 @@ impl GrindOnDevice for InnerChallenger {
                 bits,
                 BabyBear::ORDER_U64 as usize,
                 result_d.as_mut_ptr(),
-                512,
+                1,
                 input_d.stream().handle(),
             );
         }
 
-        // self.input_buffer = input_buffer_buffer.to_host();
-        // self.sponge_state = sponge_buffer.to_host().try_into().unwrap();
-        // self.output_buffer = output_buffer_buffer.to_host();
+        let result = result_d.to_host();
 
-        // result = result_d.to_host();
-
-        // self.check_witness(bits, result[0]);
+        let _ = self.check_witness(bits, result[0]);
 
         result[0]
     }
@@ -65,9 +69,9 @@ impl GrindOnDevice for OuterChallenger {
 #[allow(unused_attributes)]
 #[link_name = "duplex_challenger"]
 extern "C" {
-    pub fn grind(
-        input_buffer: *mut [BabyBear; WIDTH],
-        sponge_state: *mut [BabyBear; WIDTH],
+    pub fn grind_baby_bear(
+        input_buffer: *const BabyBear,
+        sponge_state: *mut BabyBear,
         output_buffer: *const BabyBear,
         input_buffer_size: usize,
         output_buffer_size: usize,
