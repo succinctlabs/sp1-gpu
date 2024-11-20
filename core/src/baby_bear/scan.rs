@@ -9,7 +9,7 @@ use crate::{
 use super::ffi;
 
 type F = BabyBear;
-const D: usize = 4;
+pub const D: usize = 4;
 type EF = BinomialExtensionField<F, D>;
 
 impl CudaScan for F {

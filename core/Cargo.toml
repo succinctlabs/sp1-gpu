@@ -17,9 +17,9 @@ p3-matrix = { workspace = true }
 p3-commit = { workspace = true }
 itertools = "0.13.0"
 sp1-core-executor = { workspace = true, features = ["programs"] }
-sp1-core-machine = { workspace = true }
+sp1-core-machine = { workspace = true, features = ["sys"] }
 sp1-stark = { workspace = true }
-sp1-recursion-core = { workspace = true }
+sp1-recursion-core = { workspace = true, features = ["sys"] }
 p3-air = { workspace = true }
 air = { path = "../air" }
 p3-challenger = { workspace = true }
@@ -37,8 +37,11 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0.63"
 
 [build-dependencies]
-cc = "1.0"
+cc = "1.1"
 which = "6.0"
+cbindgen = "0.27.0"
+pathdiff = "0.2.1"
+ignore = "0.4.23"
 
 [dev-dependencies]
 rand = "0.8.5"
