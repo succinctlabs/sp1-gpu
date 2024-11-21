@@ -100,7 +100,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        // We currently do not support accelerating any chips in recursion.
         match self {
             _ => None,
         }
