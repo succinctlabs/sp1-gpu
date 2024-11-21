@@ -60,13 +60,10 @@ impl DeviceAir<BabyBear> for BaseAluChip {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        cuda_runtime::stream::CudaStream, device::memory::ToDevice, matrix::RowMajorMatrixDevice,
-    };
+    use crate::cuda_runtime::stream::CudaStream;
     use p3_baby_bear::BabyBear;
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
-    use p3_matrix::Matrix;
     use sp1_recursion_core::chips::alu_base::BaseAluChip;
     use sp1_recursion_core::{BaseAluIo, ExecutionRecord};
     use sp1_stark::air::MachineAir;
@@ -74,7 +71,7 @@ mod tests {
     use crate::tracegen::DeviceAir;
 
     #[test]
-    fn test_recursion_base_alu_generate_trace() {
+    fn test_generate_trace_device_eq() {
         type F = BabyBear;
 
         let chip = BaseAluChip;
