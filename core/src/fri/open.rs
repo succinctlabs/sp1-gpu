@@ -5,15 +5,15 @@ use p3_commit::{Mmcs, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
 use sp1_stark::Com;
-use tracing::trace_span;
 
 use p3_baby_bear::BabyBear;
-use p3_challenger::{CanObserve, CanSample, CanSampleBits, GrindingChallenger};
+use p3_challenger::{CanObserve, CanSample, CanSampleBits};
 use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
 use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
 use crate::{
+    challenger::grinding_challenger::DeviceGrindingChallenger,
     cuda_runtime::stream::CudaStream,
     device::{
         memory::{ToDevice, ToHost},
@@ -84,7 +84,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
         let pow_witness = tracing::debug_span!("pow witness")
-            .in_scope(|| challenger.grind(config.proof_of_work_bits));
+            .in_scope(|| challenger.grind_device(config.proof_of_work_bits));
 
         let query_indices: Vec<usize> =
             (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
