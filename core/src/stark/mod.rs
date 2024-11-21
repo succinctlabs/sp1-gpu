@@ -28,7 +28,7 @@ use sp1_recursion_core::stark::{
 
 use p3_baby_bear::BabyBear;
 
-use crate::challenger::grind_on_device::GrindOnDevice;
+use crate::challenger::grind_on_device::DeviceGrindingChallenger;
 
 type EF = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge;
 
@@ -44,22 +44,22 @@ pub type FriMmcs<SC> = ExtensionMmcs<BabyBear, EF, <SC as BabyBearFriConfig>::Va
 
 pub trait BabyBearFriConfig:
     StarkGenericConfig<
-    Val = BabyBear,
-    Challenge = EF,
-    Challenger = Self::FriChallenger,
-    Pcs = TwoAdicFriPcs<
-        BabyBear,
-        Radix2DitParallel,
-        Self::ValMmcs,
-        ExtensionMmcs<BabyBear, EF, Self::ValMmcs>,
-    >,
->
+        Val = BabyBear,
+        Challenge = EF,
+        Challenger = Self::FriChallenger,
+        Pcs = TwoAdicFriPcs<
+            BabyBear,
+            Radix2DitParallel,
+            Self::ValMmcs,
+            ExtensionMmcs<BabyBear, EF, Self::ValMmcs>,
+        >,
+    >
 {
     type ValMmcs: Mmcs<BabyBear, ProverData<RowMajorMatrix<BabyBear>> = Self::RowMajorProverData>;
     type RowMajorProverData: Clone;
     type FriChallenger: CanObserve<<Self::ValMmcs as Mmcs<BabyBear>>::Commitment>
         + CanSample<EF>
-        + GrindOnDevice<Witness = BabyBear>
+        + DeviceGrindingChallenger<Witness = BabyBear>
         + FieldChallenger<BabyBear>;
 
     fn zero_commitment() -> Com<Self>;

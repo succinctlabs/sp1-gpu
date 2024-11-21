@@ -10,37 +10,26 @@ use crate::{
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
 
-
-/// A GrindingChallenger possibly capable of grinding on device. It is expected, though not 
+/// A GrindingChallenger possibly capable of grinding on device. It is expected, though not
 /// guaranteed, that `self.check_witness(bits, self.grind_on_device(bits))==true`.
-pub trait GrindOnDevice: GrindingChallenger {
-    fn grind_on_device(&mut self, bits: usize) -> Self::Witness;
+pub trait DeviceGrindingChallenger: GrindingChallenger {
+    fn grind_device(&mut self, bits: usize) -> Self::Witness;
 }
 
-impl GrindOnDevice for InnerChallenger {
-    fn grind_on_device(&mut self, bits: usize) -> Self::Witness {
+impl DeviceGrindingChallenger for InnerChallenger {
+    fn grind_device(&mut self, bits: usize) -> Self::Witness {
         // Initialize the result and move it to the device.
         let result = vec![BabyBear::zero()];
         let mut result_d = result.to_device().unwrap();
 
         // Move the challenger state to device.
         let mut sponge_d = self.sponge_state.to_device().unwrap();
-
         let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
-            if i < self.input_buffer.len() {
-                self.input_buffer[i]
-            } else {
-                BabyBear::zero()
-            }
+            if i < self.input_buffer.len() { self.input_buffer[i] } else { BabyBear::zero() }
         });
         let input_d = input_array.to_device().unwrap();
-
         let output_array: [BabyBear; WIDTH] = std::array::from_fn(|i| {
-            if i < self.output_buffer.len() {
-                self.output_buffer[i]
-            } else {
-                BabyBear::zero()
-            }
+            if i < self.output_buffer.len() { self.output_buffer[i] } else { BabyBear::zero() }
         });
         let output_d = output_array.to_device().unwrap();
 
@@ -64,8 +53,8 @@ impl GrindOnDevice for InnerChallenger {
         let result = result_d.to_host();
 
         // Check the witness. This is necessary, because it changes the internal state of the
-        // challenger, and the CPU version of the challenger does this as well. (It's also necessary
-        // for the security of the protocol.)
+        // challenger, and the CPU version of the challenger does this as well. It's also necessary
+        // for the security of the protocol.
         assert!(self.check_witness(bits, result[0]));
 
         result[0]
@@ -73,8 +62,8 @@ impl GrindOnDevice for InnerChallenger {
 }
 
 /// The implementation for the OuterChallenger is identical to its underlying host implementation.
-impl GrindOnDevice for OuterChallenger {
-    fn grind_on_device(&mut self, bits: usize) -> Self::Witness {
+impl DeviceGrindingChallenger for OuterChallenger {
+    fn grind_device(&mut self, bits: usize) -> Self::Witness {
         self.grind(bits)
     }
 }
@@ -103,7 +92,7 @@ mod tests {
     use p3_field::AbstractField;
     use sp1_stark::{inner_perm, InnerChallenger};
 
-    use crate::challenger::grind_on_device::GrindOnDevice;
+    use crate::challenger::grind_on_device::DeviceGrindingChallenger;
 
     #[test]
     fn test_grinding() {
@@ -119,20 +108,20 @@ mod tests {
             challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
             challenger.observe(BabyBear::from_canonical_u32(0xCAFEBABE));
             challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
-    
+
             // Make another challenger that also samples before grinding (this empties the input buffer).
             let mut challenger_2 = challenger.clone();
             let _: BabyBear = challenger.sample();
 
-            // Clone the original challenger because after grinding on device the internal state 
+            // Clone the original challenger because after grinding on device the internal state
             // of `challenger` will change.
             let mut original_challenger = challenger.clone();
-            let result = challenger.grind_on_device(bits);
+            let result = challenger.grind_device(bits);
 
             assert!(original_challenger.check_witness(bits, result));
 
             let mut original_challenger_2 = challenger_2.clone();
-            let result_2 = challenger_2.grind_on_device(bits);
+            let result_2 = challenger_2.grind_device(bits);
 
             assert!(original_challenger_2.check_witness(bits, result_2));
 
