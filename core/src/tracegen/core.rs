@@ -9,8 +9,8 @@ use crate::{
     matrix::ColMajorMatrixDevice,
 };
 
-use super::ffi::add_sub;
 use super::DeviceAir;
+use crate::tracegen;
 
 impl DeviceAir<BabyBear> for AddSubChip {
     fn generate_trace_device(
@@ -27,13 +27,10 @@ impl DeviceAir<BabyBear> for AddSubChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = next_power_of_two(
-            input.add_events.len() + input.sub_events.len(),
-            input.fixed_log2_rows::<BabyBear, _>(self),
-        );
+        let nb_rows = self.num_rows(input).unwrap();
 
         // Allocate the matrix.
-        let mut mat = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <AddSubChip as BaseAir<BabyBear>>::width(self),
             nb_rows,
             stream,
@@ -41,16 +38,16 @@ impl DeviceAir<BabyBear> for AddSubChip {
 
         // Generate the trace.
         unsafe {
-            mat.set_max_width();
-            add_sub::generate_trace(
-                mat.view_mut(),
+            trace.set_max_width();
+            tracegen::ffi::core_add_sub_generate_trace(
+                trace.view_mut(),
                 events.as_ptr(),
                 events.len() as u32,
                 stream.handle(),
             );
         }
 
-        Ok(Some(mat))
+        Ok(Some(trace))
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
@@ -75,7 +72,7 @@ mod tests {
     use sp1_core_machine::alu::AddSubChip;
     use sp1_stark::air::MachineAir;
 
-    use super::add_sub;
+    use crate::tracegen;
 
     #[test]
     fn test_add_sub_generate_trace() {
@@ -92,7 +89,7 @@ mod tests {
 
         let events = shard.add_events.to_device().unwrap().as_ptr();
         unsafe {
-            add_sub::generate_trace(
+            tracegen::ffi::core_add_sub_generate_trace(
                 trace_device.view_mut(),
                 events,
                 shard.add_events.len() as u32,

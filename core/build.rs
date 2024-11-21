@@ -33,9 +33,13 @@ fn main() {
     // The output directory, where built artifacts should be placed.
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    // The include directory of sp1tracegen.
+    // The include directory of sp1-core-machine-sys.
     let sp1_core_machine_sys_include = env::var("DEP_SP1_CORE_MACHINE_SYS_INCLUDE").unwrap();
     println!("cargo::rustc-link-lib=static=sp1-core-machine-sys");
+
+    // The include directory of sp1-recursion-core-sys.
+    let sp1_recursion_core_sys_include = env::var("DEP_SP1_RECURSION_CORE_SYS_INCLUDE").unwrap();
+    println!("cargo::rustc-link-lib=static=sp1-recursion-core-sys");
 
     // The target directory that the cargo invocation is using.
     // Headers are symlinked into `target/include` purely for IDE purposes.
@@ -110,6 +114,7 @@ fn main() {
             "p3-field",
             "sp1-core-executor",
             "sp1-core-machine",
+            "sp1-recursion-core",
             "sp1-stark",
         ])
         .with_namespace("moongate")
@@ -195,6 +200,7 @@ fn main() {
             .files(compilation_units.iter().map(DirEntry::path))
             .include(target_include_dir)
             .include(sp1_core_machine_sys_include)
+            .include(sp1_recursion_core_sys_include)
             .std("c++20")
             .compile("moongate_cuda");
     }

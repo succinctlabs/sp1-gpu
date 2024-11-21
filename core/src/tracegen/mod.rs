@@ -11,6 +11,7 @@ use crate::{
 
 pub mod core;
 pub mod ffi;
+pub mod recursion;
 
 /// An AIR that can generate the trace on either the host or the device.
 pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
@@ -81,21 +82,27 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
         output: &mut Self::Record,
     ) -> Option<RowMajorMatrix<BabyBear>> {
         // We currently do not support accelerating any chips in recursion.
-        Some(self.generate_trace(input, output))
+        match self {
+            _ => Some(self.generate_trace(input, output)),
+        }
     }
 
     fn generate_trace_device(
         &self,
-        _: &Self::Record,
-        _: &mut Self::Record,
-        _: &CudaStream,
+        input: &Self::Record,
+        output: &mut Self::Record,
+        stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // We currently do not support accelerating any chips in recursion.
-        Ok(None)
+        match self {
+            _ => Ok(None),
+        }
     }
 
-    fn num_rows(&self, _: &Self::Record) -> Option<usize> {
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         // We currently do not support accelerating any chips in recursion.
-        None
+        match self {
+            _ => None,
+        }
     }
 }
