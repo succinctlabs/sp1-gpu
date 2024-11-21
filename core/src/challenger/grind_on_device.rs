@@ -10,6 +10,9 @@ use crate::{
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
 
+
+/// A GrindingChallenger possibly capable of grinding on device. It is expected, though not 
+/// guaranteed, that `self.check_witness(bits, self.grind_on_device(bits))==true`.
 pub trait GrindOnDevice: GrindingChallenger {
     fn grind_on_device(&mut self, bits: usize) -> Self::Witness;
 }
@@ -63,14 +66,13 @@ impl GrindOnDevice for InnerChallenger {
         // Check the witness. This is necessary, because it changes the internal state of the
         // challenger, and the CPU version of the challenger does this as well. (It's also necessary
         // for the security of the protocol.)
-        let _val = self.check_witness(bits, result[0]);
-
-        debug_assert!(_val);
+        assert!(self.check_witness(bits, result[0]));
 
         result[0]
     }
 }
 
+/// The implementation for the OuterChallenger is identical to its underlying host implementation.
 impl GrindOnDevice for OuterChallenger {
     fn grind_on_device(&mut self, bits: usize) -> Self::Witness {
         self.grind(bits)
@@ -107,12 +109,23 @@ mod tests {
     fn test_grinding() {
         (1..20).for_each(|bits| {
             let mut challenger = InnerChallenger::new(inner_perm());
+
+            // Observe 7 elements to make the input buffer almost full and trigger duplexing on
+            // device.
             challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
             challenger.observe(BabyBear::from_canonical_u32(0xCAFEBABE));
+            challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
+            challenger.observe(BabyBear::from_canonical_u32(0xCAFEBABE));
+            challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
+            challenger.observe(BabyBear::from_canonical_u32(0xCAFEBABE));
+            challenger.observe(BabyBear::from_canonical_u32(0xDEADBEEF));
+    
+            // Make another challenger that also samples before grinding (this empties the input buffer).
             let mut challenger_2 = challenger.clone();
-            let _elt: BabyBear = challenger.sample();
+            let _: BabyBear = challenger.sample();
 
-            // Clone the original challenger because after grinding the internal state will change.
+            // Clone the original challenger because after grinding on device the internal state 
+            // of `challenger` will change.
             let mut original_challenger = challenger.clone();
             let result = challenger.grind_on_device(bits);
 
@@ -122,6 +135,8 @@ mod tests {
             let result_2 = challenger_2.grind_on_device(bits);
 
             assert!(original_challenger_2.check_witness(bits, result_2));
+
+            // Checks to make sure the pow witness was properly observed in `grind_on_device`.
             assert!(original_challenger_2.sponge_state == challenger_2.sponge_state);
             assert!(original_challenger_2.input_buffer == challenger_2.input_buffer);
             assert!(original_challenger_2.output_buffer == challenger_2.output_buffer);

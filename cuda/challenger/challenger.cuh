@@ -4,10 +4,11 @@
 
 #include "../fields/bb31_t.cuh"
 
-static constexpr const int WIDTH = poseidon2_bb31_16::BabyBear::WIDTH;
-static constexpr const int RATE = poseidon2_bb31_16::constants::RATE;
 
 namespace duplex_challenger {
+
+static constexpr const int WIDTH = poseidon2_bb31_16::BabyBear::WIDTH;
+static constexpr const int RATE = poseidon2_bb31_16::constants::RATE;
 
 __device__ void duplexing(
     bb31_t* sponge_state,
@@ -17,7 +18,7 @@ __device__ void duplexing(
     size_t* output_buffer_size
 ) {
     // Assert input size doesn't exceed RATE
-    assert(*input_buffer_size <= poseidon2_bb31_16::constants::RATE);
+    assert(*input_buffer_size <= RATE);
 
     // Copy input buffer elements to sponge state
     for (size_t i = 0; i < *input_buffer_size; i++) {
@@ -54,7 +55,7 @@ __device__ void observe(
     *input_buffer_size += 1;
     input_buffer[*input_buffer_size - 1] = *value;
 
-    if (*input_buffer_size == poseidon2_bb31_16::constants::RATE) {
+    if (*input_buffer_size == RATE) {
         duplexing(
             sponge_state,
             input_buffer,
@@ -148,9 +149,6 @@ __global__ void grind(
     size_t bits,
     size_t n
 ) {
-    static constexpr const int WIDTH = poseidon2_bb31_16::BabyBear::WIDTH;
-    static constexpr const int RATE = poseidon2_bb31_16::constants::RATE;
-
     size_t idx = (blockIdx.x * blockDim.x) + threadIdx.x;
 
     size_t original_input_buffer_size = input_buffer_size;
@@ -171,7 +169,7 @@ __global__ void grind(
         for (size_t j = 0; j < output_buffer_size; j++) {
             output_buffer_clone[j] = output_buffer[j];
         }
-        for (size_t j = 0; j < poseidon2_bb31_16::BabyBear::WIDTH; j++) {
+        for (size_t j = 0; j < WIDTH; j++) {
             sponge_state_clone[j] = sponge_state[j];
         }
 

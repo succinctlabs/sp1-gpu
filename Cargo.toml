@@ -51,13 +51,13 @@ debug-assertions = true
 # p3-interpolation = "0.1.4-succinct"
 
 # for local development
-sp1-core-executor = { path = "../sp1/crates/core/executor" }
-sp1-core-machine = { path = "../sp1/crates/core/machine" }
-sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
-sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-sp1-cuda = { path = "../sp1/crates/cuda" }
-sp1-stark = { path = "../sp1/crates/stark" }
-sp1-eval = { path = "../sp1/crates/eval" }
+sp1-core-executor = { path = "../sp1-wip/crates/core/executor" }
+sp1-core-machine = { path = "../sp1-wip/crates/core/machine" }
+sp1-prover = { path = "../sp1-wip/crates/prover", features = ["native-gnark"] }
+sp1-recursion-core = { path = "../sp1-wip/crates/recursion/core" }
+sp1-cuda = { path = "../sp1-wip/crates/cuda" }
+sp1-stark = { path = "../sp1-wip/crates/stark" }
+sp1-eval = { path = "../sp1-wip/crates/eval" }
 
 # p3-field = { path = "../Plonky3/field" }
 # p3-air = { path = "../Plonky3/air" }
