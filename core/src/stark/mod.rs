@@ -1,4 +1,3 @@
-mod air;
 mod error;
 pub(super) mod ffi;
 mod permutation;

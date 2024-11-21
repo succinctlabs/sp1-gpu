@@ -40,8 +40,8 @@ use crate::{
     matrix::{ColMajorMatrixDevice, RowMajorMatrixDevice},
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
-    stark::air::DeviceAir,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    tracegen::DeviceAir,
     univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
@@ -289,9 +289,9 @@ where
 
         chips
             .par_iter()
-            .map(|chip| {
-                let trace = chip.generate_trace(record, &mut A::Record::default());
-                (chip.name(), trace)
+            .filter_map(|chip| {
+                let trace = chip.air.generate_trace_host(record, &mut A::Record::default())?;
+                Some((chip.name(), trace))
             })
             .collect::<Vec<_>>()
     }
@@ -299,7 +299,7 @@ where
     fn commit(
         &self,
         shard: &A::Record,
-        mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         /// A possibly finished trace generation job.
         ///
@@ -343,7 +343,7 @@ where
             .into_iter()
             .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
             .chain(chips.into_iter().filter_map(|chip| {
-                Some(TraceGenerationJob::Device(chip, chip.air.height_device(shard)?))
+                Some(TraceGenerationJob::Device(chip, chip.air.num_rows(shard)?))
             }))
             .collect();
 
@@ -400,7 +400,7 @@ where
             .iter()
             .copied()
             .zip(traces.iter())
-            .zip(events.into_iter())
+            .zip(events)
             .map(|((domain, trace), event)| (domain, trace, event))
             .collect::<Vec<_>>();
         let (commit, data) = tracing::debug_span!("commit")
