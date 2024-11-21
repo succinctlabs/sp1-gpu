@@ -13,6 +13,7 @@ pub mod merkle_tree;
 pub mod poseidon2;
 pub mod stark;
 pub mod time;
+pub mod trace;
 pub mod univariate;
 pub mod utils;
 

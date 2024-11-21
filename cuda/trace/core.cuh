@@ -16,10 +16,18 @@ __global__ void generate_trace_kernel(
     const sp1_core_machine_sys::AluEvent* events,
     uintptr_t nb_events
 ) {
+    static const size_t COLUMNS =
+        sizeof(sp1_core_machine_sys::AddSubCols<T>) / sizeof(T);
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
         sp1_core_machine_sys::AddSubCols<T> cols;
         sp1_core_machine_sys::add_sub::event_to_row<T>(events[i], cols);
+
+        const T* arr = std::bit_cast<T*>(&cols);
+        for (size_t j = 0; j < COLUMNS; ++j) {
+            trace.values[i + j * trace.height] = arr[j];
+        }
     }
 }
 
@@ -38,8 +46,11 @@ extern "C" rustCudaError_t generate_trace(
     ));
 
     static const int M = 256;
-    generate_trace_kernel<bb31_t>
-        <<<1, M, 0, stream>>>(trace, events, nb_events);
+    generate_trace_kernel<bb31_t><<<(trace.height - 1) / M + 1, M, 0, stream>>>(
+        trace,
+        events,
+        nb_events
+    );
 
     return CUDA_SUCCESS_MOON;
 }
