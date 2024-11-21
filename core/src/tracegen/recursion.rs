@@ -11,6 +11,7 @@ use sp1_recursion_core::chips::{
     alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
     alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
     batch_fri::BatchFRIChip,
+    fri_fold::FriFoldChip,
 };
 
 use super::DeviceAir;
@@ -129,15 +130,53 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
     }
 }
 
+impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.fri_fold_events;
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <FriFoldChip<DEGREE> as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_fri_fold_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.base_alu_events;
+        Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
     use p3_baby_bear::BabyBear;
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use sp1_recursion_core::{
         air::Block, BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo,
-        BatchFRIExtVecIo, ExecutionRecord, ExtAluIo,
+        BatchFRIExtVecIo, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
+        FriFoldExtSingleIo, FriFoldExtVecIo,
     };
     use sp1_stark::air::MachineAir;
 
@@ -194,6 +233,44 @@ mod tests {
                 ext_vec: BatchFRIExtVecIo { alpha_pow: Block::default(), p_at_z: Block::default() },
                 base_vec: BatchFRIBaseVecIo { p_at_x: F::one() },
             }],
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    fn test_fri_fold() {
+        type F = BabyBear;
+
+        let mut rng = StdRng::seed_from_u64(0xDEADBEEF);
+        let mut rng2 = StdRng::seed_from_u64(0xDEADBEEF);
+        let mut random_felt = move || -> F { F::from_canonical_u32(rng.gen_range(0..1 << 16)) };
+        let mut random_block = move || Block::from([random_felt(); 4]);
+
+        let chip = FriFoldChip::<3>::default();
+        let shard = ExecutionRecord {
+            fri_fold_events: (0..17)
+                .map(|_| FriFoldEvent {
+                    base_single: FriFoldBaseIo {
+                        x: F::from_canonical_u32(rng2.gen_range(0..1 << 16)),
+                    },
+                    ext_single: FriFoldExtSingleIo { z: random_block(), alpha: random_block() },
+                    ext_vec: FriFoldExtVecIo {
+                        mat_opening: random_block(),
+                        ps_at_z: random_block(),
+                        alpha_pow_input: random_block(),
+                        ro_input: random_block(),
+                        alpha_pow_output: random_block(),
+                        ro_output: random_block(),
+                    },
+                })
+                .collect(),
             ..Default::default()
         };
         let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
