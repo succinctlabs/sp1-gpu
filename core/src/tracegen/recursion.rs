@@ -86,7 +86,7 @@ impl DeviceAir<BabyBear> for ExtAluChip {
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.base_alu_events;
+        let events = &input.ext_alu_events;
         Some(next_power_of_two(
             events.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW),
             input.fixed_log2_rows(self),
@@ -125,7 +125,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.base_alu_events;
+        let events = &input.batch_fri_events;
         Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
     }
 }
@@ -161,7 +161,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.base_alu_events;
+        let events = &input.fri_fold_events;
         Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
     }
 }
