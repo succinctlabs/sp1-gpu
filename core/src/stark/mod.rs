@@ -28,7 +28,7 @@ use sp1_recursion_core::stark::{
 
 use p3_baby_bear::BabyBear;
 
-use crate::challenger::grind_on_device::DeviceGrindingChallenger;
+use crate::challenger::grinding_challenger::DeviceGrindingChallenger;
 
 type EF = <BabyBearPoseidon2 as StarkGenericConfig>::Challenge;
 

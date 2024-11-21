@@ -10,9 +10,11 @@ use crate::{
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
 
-/// A GrindingChallenger possibly capable of grinding on device. It is expected, though not
-/// guaranteed, that `self.check_witness(bits, self.grind_on_device(bits))==true`.
+/// A [`GrindingChallenger`] that can also grind on device.
+///
+/// Useful for finding a proof-of-work witness on machines with not that many cores.
 pub trait DeviceGrindingChallenger: GrindingChallenger {
+    /// Grinds on device.
     fn grind_device(&mut self, bits: usize) -> Self::Witness;
 }
 
@@ -92,7 +94,7 @@ mod tests {
     use p3_field::AbstractField;
     use sp1_stark::{inner_perm, InnerChallenger};
 
-    use crate::challenger::grind_on_device::DeviceGrindingChallenger;
+    use crate::challenger::grinding_challenger::DeviceGrindingChallenger;
 
     #[test]
     fn test_grinding() {

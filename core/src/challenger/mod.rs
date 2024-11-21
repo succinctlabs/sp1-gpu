@@ -1,1 +1,1 @@
-pub mod grind_on_device;
+pub mod grinding_challenger;
