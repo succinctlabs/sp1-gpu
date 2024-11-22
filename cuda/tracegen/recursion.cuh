@@ -210,20 +210,21 @@ __global__ void recursion_public_values_generate_trace_kernel(
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::PublicValuesCols<T> cols;
         for (size_t digest_idx = 0;
              digest_idx < sp1_recursion_core_sys::DIGEST_SIZE;
              ++digest_idx) {
+            sp1_recursion_core_sys::PublicValuesCols<T> cols;
+
             sp1_recursion_core_sys::public_values::event_to_row<T>(
                 events[i],
                 digest_idx,
                 cols
             );
-        }
 
-        const T* arr = std::bit_cast<T*>(&cols);
-        for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+            const T* arr = std::bit_cast<T*>(&cols);
+            for (size_t j = 0; j < COLUMNS; ++j) {
+                trace.values[i + digest_idx + j * trace.height] = arr[j];
+            }
         }
     }
 }
