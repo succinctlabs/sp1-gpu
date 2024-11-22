@@ -12,6 +12,7 @@ use sp1_recursion_core::chips::{
     alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
     batch_fri::BatchFRIChip,
     fri_fold::FriFoldChip,
+    public_values::PublicValuesChip,
     select::SelectChip,
 };
 
@@ -167,6 +168,42 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
     }
 }
 
+impl DeviceAir<BabyBear> for PublicValuesChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.commit_pv_hash_events;
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <PublicValuesChip as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_public_values_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.commit_pv_hash_events;
+        Some(next_power_of_two(events.len() * 8, input.fixed_log2_rows(self)))
+    }
+}
+
 impl DeviceAir<BabyBear> for SelectChip {
     fn generate_trace_device(
         &self,
@@ -211,11 +248,13 @@ mod tests {
     use p3_matrix::dense::RowMajorMatrix;
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use sp1_recursion_core::{
-        air::Block, BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo,
-        BatchFRIExtVecIo, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
+        air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
+        BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo, BatchFRIExtVecIo,
+        CommitPublicValuesEvent, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
         FriFoldExtSingleIo, FriFoldExtVecIo, SelectIo,
     };
     use sp1_stark::air::MachineAir;
+    use std::{array, borrow::Borrow};
 
     use super::*;
 
@@ -308,6 +347,31 @@ mod tests {
                     },
                 })
                 .collect(),
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    fn test_public_values() {
+        type F = BabyBear;
+
+        let mut rng = StdRng::seed_from_u64(0xDEADBEEF);
+        let random_felts: [F; RECURSIVE_PROOF_NUM_PV_ELTS] =
+            array::from_fn(|_| F::from_canonical_u32(rng.gen_range(0..1 << 16)));
+        let random_public_values: &RecursionPublicValues<F> = random_felts.as_slice().borrow();
+
+        let chip = PublicValuesChip;
+        let shard = ExecutionRecord {
+            commit_pv_hash_events: vec![CommitPublicValuesEvent {
+                public_values: *random_public_values,
+            }],
             ..Default::default()
         };
         let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
