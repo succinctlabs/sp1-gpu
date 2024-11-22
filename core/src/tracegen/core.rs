@@ -2,6 +2,7 @@ use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use sp1_core_machine::utils::next_power_of_two;
 use sp1_core_machine::{alu::AddSubChip, memory::MemoryLocalChip};
+use sp1_stark::septic_curve::SepticCurve;
 
 use crate::{
     cuda_runtime::stream::CudaStream,
@@ -68,6 +69,7 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // Get the events for the chip.
         let events = input.get_local_mem_events().cloned().collect::<Vec<_>>();
+        let nb_events = events.len() as u32;
 
         // Copy the events to device.
         let events = events.to_device_async(stream)?;
@@ -88,7 +90,27 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
             tracegen::ffi::core_memory_local_generate_trace_round_1(
                 trace.view_mut(),
                 events.as_ptr(),
-                events.len() as u32,
+                nb_events,
+                stream.handle(),
+            );
+        }
+
+        let mut cumulative_sums =
+            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+        unsafe {
+            tracegen::ffi::core_memory_local_generate_trace_round_2(
+                trace.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                stream.handle(),
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_memory_local_generate_trace_round_3(
+                trace.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events,
                 stream.handle(),
             );
         }
@@ -107,10 +129,7 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
 
 #[cfg(test)]
 mod tests {
-    use crate::cuda_runtime::ffi::cuda_device_synchronize;
-    use crate::cuda_runtime::stream::CudaStream;
     use crate::device::memory::ToHost;
-    use crate::tracegen::ffi::core_memory_local_generate_trace_round_2;
     use crate::{
         cuda_runtime::ffi::DEFAULT_STREAM, device::memory::ToDevice, matrix::RowMajorMatrixDevice,
     };
