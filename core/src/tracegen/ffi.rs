@@ -2,7 +2,9 @@ use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::matrix::MatrixViewMutDevice;
 use p3_baby_bear::BabyBear;
 use sp1_core_executor::events::AluEvent;
+use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_recursion_core::BaseAluEvent;
+use sp1_stark::septic_curve::SepticCurve;
 
 /// cbindgen:ignore
 #[allow(unused_attributes)]
@@ -11,6 +13,26 @@ extern "C" {
     pub fn core_add_sub_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const AluEvent,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_memory_local_generate_trace_round_1(
+        trace: MatrixViewMutDevice<BabyBear>,
+        events: *const MemoryLocalEvent,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_memory_local_generate_trace_round_2(
+        trace: MatrixViewMutDevice<BabyBear>,
+        cumulative_sums: *mut SepticCurve<BabyBear>,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_memory_local_generate_trace_round_3(
+        trace: MatrixViewMutDevice<BabyBear>,
+        cumulative_sums: *const SepticCurve<BabyBear>,
         nb_events: u32,
         stream: CudaStreamHandle,
     );

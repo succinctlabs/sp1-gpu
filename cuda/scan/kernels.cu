@@ -2,7 +2,8 @@
 
 namespace scan_kernels {
 
-const size_t SECTION_SIZE = 1024;
+// TODO: make this a const parmaeter
+const size_t SECTION_SIZE = 32;
 
 template<typename T> __device__ __inline__ void BrentKungScan(T *d_out, T * d_in, T* aux, 
 size_t block_idx, size_t block_dim, size_t thread_idx, size_t n) {
@@ -46,7 +47,6 @@ template<typename T> __global__ void SingleBlockScan(T *d_out, T* d_in, size_t n
 
 template<typename T> __global__ void Scan(T *d_out, T * d_in, size_t n, 
   T* scan_values, unsigned int * BlockCounter, unsigned int* flags) {
-
     // Set up a global block_id to make contiguous blocks which are scheduled sequentially.
     __shared__ size_t bid_s;
     if (threadIdx.x == 0) {

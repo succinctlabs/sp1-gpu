@@ -49,6 +49,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
             RiscvAir::Add(_) => None,
+            //        RiscvAir::MemoryLocal(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -62,6 +63,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
             RiscvAir::Add(chip) => chip.generate_trace_device(input, output, stream),
+            //        RiscvAir::MemoryLocal(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
@@ -70,6 +72,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
             RiscvAir::Add(chip) => chip.num_rows(input),
+            // RiscAir::MemoryLocal(chip) => chip.num_rows(input),
             _ => None,
         }
     }

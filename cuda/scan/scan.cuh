@@ -6,10 +6,10 @@
 
 template<typename T>
 RustCudaError ScanTemplate(T* d_out, T* d_in, size_t n, cudaStream_t stream) {
-    if ((2 * n) <= scan_kernels::SECTION_SIZE)
+    if ((2 * n) <= scan_kernels::SECTION_SIZE) {
         scan_kernels::SingleBlockScan<<<1, n, 0, stream>>>(d_out, d_in, n);
-    else {
-        size_t block_dim = 512;
+    } else {
+        size_t block_dim = 16; // TODO: change
         size_t num_blocks = ceil(n / (float)block_dim);
         T* scanValues;
         unsigned int* BlockCounter;
@@ -32,6 +32,7 @@ RustCudaError ScanTemplate(T* d_out, T* d_in, size_t n, cudaStream_t stream) {
             BlockCounter,
             flags
         );
+        CUDA_OK(cudaGetLastError());
         CUDA_OK(cudaFreeAsync(scanValues, stream));
         CUDA_OK(cudaFreeAsync(BlockCounter, stream));
         CUDA_OK(cudaFreeAsync(flags, stream));
