@@ -14,6 +14,7 @@ use sp1_recursion_core::{
         batch_fri::BatchFRIChip,
         exp_reverse_bits::ExpReverseBitsLenChip,
         fri_fold::FriFoldChip,
+        poseidon2_skinny::Poseidon2SkinnyChip,
         public_values::PublicValuesChip,
         select::SelectChip,
     },
@@ -281,6 +282,42 @@ impl DeviceAir<BabyBear> for SelectChip {
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         let events = &input.select_events;
+        Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
+    }
+}
+
+impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.poseidon2_events;
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <Poseidon2SkinnyChip<DEGREE> as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_poseidon2_skinny_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.poseidon2_events;
         Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
     }
 }

@@ -4,7 +4,7 @@ use p3_baby_bear::BabyBear;
 use sp1_core_executor::events::AluEvent;
 use sp1_recursion_core::{
     BaseAluEvent, BatchFRIEvent, CommitPublicValuesEvent, ExpReverseBitsEventFFI, ExtAluEvent,
-    FriFoldEvent, SelectEvent,
+    FriFoldEvent, Poseidon2Event, SelectEvent,
 };
 
 /// cbindgen:ignore
@@ -68,6 +68,13 @@ extern "C" {
     pub fn recursion_select_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const SelectEvent<BabyBear>,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn recursion_poseidon2_skinny_generate_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        events: *const Poseidon2Event<BabyBear>,
         nb_events: u32,
         stream: CudaStreamHandle,
     );
