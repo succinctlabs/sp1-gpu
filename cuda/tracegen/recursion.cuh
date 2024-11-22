@@ -165,16 +165,19 @@ __global__ void recursion_exp_reverse_bits_generate_trace_kernel(
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::ExpReverseBitsLenCols<T> cols;
-        sp1_recursion_core_sys::exp_reverse_bits::event_to_row<T>(
-            events[i],
-            i,
-            cols
-        );
+        // This doesn't work since the exp_ptr is a pointer to the device memory
+        for (size_t exp_idx = 0; exp_idx < events[i].exp_len; ++exp_idx) {
+            sp1_recursion_core_sys::ExpReverseBitsLenCols<T> cols;
+            sp1_recursion_core_sys::exp_reverse_bits::event_to_row<T>(
+                events[i],
+                exp_idx,
+                cols
+            );
 
-        const T* arr = std::bit_cast<T*>(&cols);
-        for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+            const T* arr = std::bit_cast<T*>(&cols);
+            for (size_t j = 0; j < COLUMNS; ++j) {
+                trace.values[i + exp_idx + j * trace.height] = arr[j];
+            }
         }
     }
 }

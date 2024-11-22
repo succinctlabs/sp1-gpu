@@ -7,13 +7,17 @@ use crate::{
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use sp1_core_machine::utils::next_power_of_two;
-use sp1_recursion_core::chips::{
-    alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
-    alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
-    batch_fri::BatchFRIChip,
-    fri_fold::FriFoldChip,
-    public_values::PublicValuesChip,
-    select::SelectChip,
+use sp1_recursion_core::{
+    chips::{
+        alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
+        alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
+        batch_fri::BatchFRIChip,
+        exp_reverse_bits::ExpReverseBitsLenChip,
+        fri_fold::FriFoldChip,
+        public_values::PublicValuesChip,
+        select::SelectChip,
+    },
+    ExpReverseBitsEventFFI,
 };
 
 use super::DeviceAir;
@@ -129,6 +133,47 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         let events = &input.batch_fri_events;
         Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
+    }
+}
+
+impl<const DEGREE: usize> DeviceAir<BabyBear> for ExpReverseBitsLenChip<DEGREE> {
+    /// DO NOT USE. See comment in recursion_exp_reverse_bits_generate_trace_kernel.
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events: &Vec<ExpReverseBitsEventFFI<BabyBear>> =
+            &input.exp_reverse_bits_len_events.iter().map(|e| e.into()).collect::<Vec<_>>();
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <ExpReverseBitsLenChip<DEGREE> as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_exp_reverse_bits_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.exp_reverse_bits_len_events;
+        Some(next_power_of_two(
+            events.iter().map(|e| e.exp.len()).sum::<usize>(),
+            input.fixed_log2_rows(self),
+        ))
     }
 }
 
@@ -250,8 +295,8 @@ mod tests {
     use sp1_recursion_core::{
         air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
         BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo, BatchFRIExtVecIo,
-        CommitPublicValuesEvent, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
-        FriFoldExtSingleIo, FriFoldExtVecIo, SelectIo,
+        CommitPublicValuesEvent, ExecutionRecord, ExpReverseBitsEvent, ExtAluIo, FriFoldBaseIo,
+        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, SelectIo,
     };
     use sp1_stark::air::MachineAir;
     use std::{array, borrow::Borrow};
@@ -308,6 +353,29 @@ mod tests {
                 ext_single: BatchFRIExtSingleIo { acc: Block::default() },
                 ext_vec: BatchFRIExtVecIo { alpha_pow: Block::default(), p_at_z: Block::default() },
                 base_vec: BatchFRIBaseVecIo { p_at_x: F::one() },
+            }],
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[ignore]
+    fn test_exp_reverse_bits() {
+        type F = BabyBear;
+
+        let chip = ExpReverseBitsLenChip::<3>;
+        let shard = ExecutionRecord {
+            exp_reverse_bits_len_events: vec![ExpReverseBitsEvent {
+                base: F::two(),
+                exp: vec![F::zero(), F::one(), F::one()],
+                result: F::two().exp_u64(0b110),
             }],
             ..Default::default()
         };
