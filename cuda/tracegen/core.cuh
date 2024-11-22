@@ -25,7 +25,7 @@ __global__ void core_add_sub_generate_trace_kernel(
         sp1_core_machine_sys::AddSubCols<T> cols;
         sp1_core_machine_sys::add_sub::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -38,7 +38,7 @@ extern "C" rustCudaError_t core_add_sub_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -70,7 +70,7 @@ __global__ void recursion_base_alu_generate_trace_kernel(
         sp1_recursion_core_sys::BaseAluValueCols<T> cols;
         sp1_recursion_core_sys::alu_base::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -83,7 +83,7 @@ extern "C" rustCudaError_t recursion_base_alu_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
