@@ -138,9 +138,15 @@ mod tests {
     use p3_matrix::dense::RowMajorMatrix;
     use p3_matrix::Matrix;
     use sp1_core_executor::events::MemoryRecord;
-    use sp1_core_executor::{events::AluEvent, events::MemoryLocalEvent, ExecutionRecord, Opcode};
+    use sp1_core_executor::events::SyscallEvent;
+    use sp1_core_executor::{
+        events::AluEvent, events::MemoryInitializeFinalizeEvent, events::MemoryLocalEvent,
+        ExecutionRecord, Opcode,
+    };
     use sp1_core_machine::alu::AddSubChip;
-    use sp1_core_machine::memory::MemoryLocalChip;
+    use sp1_core_machine::memory::{MemoryChipType, MemoryLocalChip};
+    use sp1_core_machine::riscv::MemoryGlobalChip;
+    use sp1_core_machine::syscall::chip::SyscallChip;
     use sp1_stark::air::MachineAir;
     use sp1_stark::septic_curve::SepticCurve;
 
@@ -229,6 +235,152 @@ mod tests {
 
         unsafe {
             tracegen::ffi::core_memory_local_generate_trace_round_3(
+                trace_device.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events as u32,
+                DEFAULT_STREAM,
+            );
+        }
+
+        let gpu_trace = trace_device.to_host();
+        assert_eq!(trace, gpu_trace);
+    }
+
+    #[test]
+    fn test_memory_global_generate_trace() {
+        let mut rng = rand::thread_rng();
+
+        for (chip_type, is_receive) in
+            [(MemoryChipType::Initialize, false), (MemoryChipType::Finalize, true)]
+        {
+            let mut shard = ExecutionRecord::default();
+            let start_addr = 5;
+            let bits: [u32; 32] =
+                (0..32).map(|i| (start_addr >> i) & 1).collect::<Vec<_>>().try_into().unwrap();
+            let mut events = (0..1 << 19)
+                .map(|i| MemoryInitializeFinalizeEvent {
+                    addr: 5 + 13 * i, // need this to be distinct, and larger than start_addr
+                    value: rng.gen_range(0..1000000),
+                    shard: rng.gen_range(0..10000),
+                    timestamp: rng.gen_range(0..1000000),
+                    used: 1,
+                })
+                .collect::<Vec<_>>();
+            events.sort_by_key(|e| e.addr);
+            let nb_events = events.len() as u32;
+
+            match chip_type {
+                MemoryChipType::Initialize => {
+                    shard.global_memory_initialize_events = events.clone();
+                    shard.public_values.previous_init_addr_bits = bits;
+                }
+                MemoryChipType::Finalize => {
+                    shard.global_memory_finalize_events = events.clone();
+                    shard.public_values.previous_finalize_addr_bits = bits;
+                }
+            }
+
+            let chip = MemoryGlobalChip::new(chip_type);
+
+            let trace: RowMajorMatrix<BabyBear> =
+                chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+            let mut trace_copy = trace.clone();
+            trace_copy.values.fill(BabyBear::zero());
+            let mut trace_device =
+                RowMajorMatrixDevice::new(trace_copy.values.to_device().unwrap(), trace.width())
+                    .to_column_major();
+
+            let events = events.to_device().unwrap().as_ptr();
+            unsafe {
+                tracegen::ffi::core_memory_global_generate_trace_round_1(
+                    trace_device.view_mut(),
+                    events,
+                    start_addr,
+                    nb_events,
+                    is_receive,
+                    DEFAULT_STREAM,
+                );
+            }
+
+            let mut cumulative_sums =
+                vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+            unsafe {
+                tracegen::ffi::core_memory_global_generate_trace_round_2(
+                    trace_device.view_mut(),
+                    cumulative_sums.as_mut_ptr(),
+                    DEFAULT_STREAM,
+                );
+            }
+
+            unsafe {
+                tracegen::ffi::core_memory_global_generate_trace_round_3(
+                    trace_device.view_mut(),
+                    cumulative_sums.as_ptr(),
+                    nb_events,
+                    DEFAULT_STREAM,
+                );
+            }
+
+            let gpu_trace = trace_device.to_host();
+            assert_eq!(trace, gpu_trace);
+        }
+    }
+
+    #[test]
+    fn test_syscall_generate_trace() {
+        let mut rng = rand::thread_rng();
+        let mut shard = ExecutionRecord::default();
+        shard.syscall_events = (0..1 << 17)
+            .map(|_| SyscallEvent {
+                shard: rng.gen_range(0..10000),
+                clk: rng.gen_range(0..1000000),
+                lookup_id: sp1_core_executor::events::LookupId(rng.gen_range(0..1000000)),
+                syscall_id: rng.gen_range(0..256),
+                arg1: rng.gen_range(0..1000000),
+                arg2: rng.gen_range(0..1000000),
+                nonce: rng.gen_range(0..1000000),
+            })
+            .collect::<Vec<_>>();
+
+        let chip = SyscallChip::core();
+
+        let trace: RowMajorMatrix<BabyBear> =
+            chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let mut trace_copy = trace.clone();
+        trace_copy.values.fill(BabyBear::zero());
+        let mut trace_device =
+            RowMajorMatrixDevice::new(trace_copy.values.to_device().unwrap(), trace.width())
+                .to_column_major();
+
+        let events = shard.syscall_events;
+        let nb_events = events.len();
+        let events = events.to_device().unwrap().as_ptr();
+        unsafe {
+            tracegen::ffi::core_syscall_generate_trace_round_1(
+                trace_device.view_mut(),
+                events,
+                nb_events as u32,
+                false,
+                DEFAULT_STREAM,
+            );
+        }
+
+        let mut cumulative_sums =
+            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+        unsafe {
+            tracegen::ffi::core_syscall_generate_trace_round_2(
+                trace_device.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                DEFAULT_STREAM,
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_syscall_generate_trace_round_3(
                 trace_device.view_mut(),
                 cumulative_sums.as_ptr(),
                 nb_events as u32,
