@@ -48,7 +48,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
     ) -> Option<RowMajorMatrix<BabyBear>> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
-            RiscvAir::Add(_) => None,
+            // RiscvAir::Add(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -61,7 +61,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
-            RiscvAir::Add(chip) => chip.generate_trace_device(input, output, stream),
+            // RiscvAir::Add(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
@@ -69,7 +69,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         // We currently only support accelerating the `AddSubChip`.
         match self {
-            RiscvAir::Add(chip) => chip.num_rows(input),
+            // RiscvAir::Add(chip) => chip.num_rows(input),
             _ => None,
         }
     }
