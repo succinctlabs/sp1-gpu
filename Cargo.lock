@@ -4566,6 +4566,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
+name = "raki"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dccdb3beb952393ed8d70a096a8e3714403e057105ae496be4bbb13368b4cb2"
+
+[[package]]
 name = "rand"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5467,7 +5473,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5482,6 +5487,7 @@ dependencies = [
  "num",
  "p3-field",
  "p3-maybe-rayon",
+ "raki",
  "rand 0.8.5",
  "rrs-succinct",
  "serde",
@@ -5500,7 +5506,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "bincode",
  "cfg-if",
@@ -5524,7 +5529,6 @@ dependencies = [
  "p3-uni-stark",
  "p3-util",
  "rand 0.8.5",
- "rayon",
  "serde",
  "size",
  "snowbridge-amcl",
@@ -5548,7 +5552,6 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5564,7 +5567,6 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5586,7 +5588,6 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5595,7 +5596,6 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5614,7 +5614,6 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "bincode",
  "hex",
@@ -5631,7 +5630,6 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5667,7 +5665,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5700,7 +5697,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5721,7 +5717,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "backtrace",
  "ff 0.13.0",
@@ -5756,7 +5751,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5765,7 +5759,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5790,7 +5783,6 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -5831,7 +5823,6 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=dev#adcda87e3d40208470981d13efa81ae102c3fa1b"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",

@@ -5,7 +5,7 @@ use p3_commit::{Mmcs, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
 use sp1_stark::Com;
-use tracing::trace_span;
+use tracing::debug_span;
 
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, CanSample, CanSampleBits, GrindingChallenger};
@@ -80,16 +80,16 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let log_max_height = Iterator::max(input.keys()).copied().unwrap();
 
         debug_assert_eq!(committer.log_blowup, config.log_blowup);
-        let commit_phase_result = trace_span!("Commit phase")
+        let commit_phase_result = debug_span!("Commit phase")
             .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
         let pow_witness =
-            trace_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
+            debug_span!("POW witness").in_scope(|| challenger.grind(config.proof_of_work_bits));
 
         let query_indices: Vec<usize> =
             (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
 
-        let query_proofs_span = trace_span!("Compute query proofs").entered();
+        let query_proofs_span = debug_span!("Compute query proofs").entered();
 
         let query_proofs_data = committer.mmcs_committer.query_open_batch(
             &query_indices,
