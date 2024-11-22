@@ -3,7 +3,8 @@ use crate::matrix::MatrixViewMutDevice;
 use p3_baby_bear::BabyBear;
 use sp1_core_executor::events::AluEvent;
 use sp1_recursion_core::{
-    BaseAluEvent, BatchFRIEvent, CommitPublicValuesEvent, ExtAluEvent, FriFoldEvent, SelectEvent,
+    BaseAluEvent, BatchFRIEvent, CommitPublicValuesEvent, ExpReverseBitsEventFFI, ExtAluEvent,
+    FriFoldEvent, SelectEvent,
 };
 
 /// cbindgen:ignore
@@ -39,6 +40,13 @@ extern "C" {
     pub fn recursion_batch_fri_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const BatchFRIEvent<BabyBear>,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn recursion_exp_reverse_bits_generate_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        events: *const ExpReverseBitsEventFFI<BabyBear>,
         nb_events: u32,
         stream: CudaStreamHandle,
     );
