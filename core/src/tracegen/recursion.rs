@@ -12,6 +12,7 @@ use sp1_recursion_core::chips::{
     alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
     batch_fri::BatchFRIChip,
     fri_fold::FriFoldChip,
+    select::SelectChip,
 };
 
 use super::DeviceAir;
@@ -166,6 +167,42 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
     }
 }
 
+impl DeviceAir<BabyBear> for SelectChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.select_events;
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <SelectChip as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_select_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.select_events;
+        Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
@@ -176,7 +213,7 @@ mod tests {
     use sp1_recursion_core::{
         air::Block, BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo,
         BatchFRIExtVecIo, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
-        FriFoldExtSingleIo, FriFoldExtVecIo,
+        FriFoldExtSingleIo, FriFoldExtVecIo, SelectIo,
     };
     use sp1_stark::air::MachineAir;
 
@@ -271,6 +308,39 @@ mod tests {
                     },
                 })
                 .collect(),
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    fn test_select() {
+        type F = BabyBear;
+
+        let chip = SelectChip;
+        let shard = ExecutionRecord {
+            select_events: vec![
+                SelectIo {
+                    bit: F::one(),
+                    out1: F::from_canonical_u32(5),
+                    out2: F::from_canonical_u32(3),
+                    in1: F::from_canonical_u32(3),
+                    in2: F::from_canonical_u32(5),
+                },
+                SelectIo {
+                    bit: F::zero(),
+                    out1: F::from_canonical_u32(5),
+                    out2: F::from_canonical_u32(3),
+                    in1: F::from_canonical_u32(5),
+                    in2: F::from_canonical_u32(3),
+                },
+            ],
             ..Default::default()
         };
         let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
