@@ -185,8 +185,6 @@ mod tests {
             RowMajorMatrixDevice::new(trace_copy.values.to_device().unwrap(), trace.width())
                 .to_column_major();
 
-        println!("height: {}", trace.height());
-        println!("width: {}", trace.width());
         let events = shard.get_local_mem_events().cloned().collect::<Vec<_>>();
         let nb_events = events.len();
         let events = events.to_device().unwrap().as_ptr();
@@ -219,43 +217,7 @@ mod tests {
             );
         }
 
-        println!("about to convert to host");
-        let cumulative_sums_host = cumulative_sums.to_host();
-        println!("got here");
-
         let gpu_trace = trace_device.to_host();
-
-        for i in 0..trace.values.len() {
-            assert_eq!(trace.values[i], gpu_trace.values[i], "fuck! {}", i);
-        }
-        // assert_eq!(trace.values[376..390], gpu_trace.values[208..222]);
-
-        for i in 0..trace.height() {
-            for j in 0..7 {
-                let trace_x = trace.values[390 * i + 390 - 14 + j];
-                let gpu_trace_x = cumulative_sums_host[i].x.0[j];
-                assert_eq!(trace_x, gpu_trace_x);
-
-                let trace_y = trace.values[390 * i + 390 - 14 + j + 7];
-                let gpu_trace_y = cumulative_sums_host[i].y.0[j];
-                assert_eq!(trace_y, gpu_trace_y);
-
-                if i < 5 {
-                    println!("{}", gpu_trace_x);
-                    println!("{}", gpu_trace_y);
-                }
-            }
-        }
-
-        let mut trace_row_sum = Vec::new();
-        for i in 376..390 {
-            trace_row_sum.push(trace.values[i])
-        }
-        let mut gpu_trace_row_sum = Vec::new();
-        for i in 208..222 {
-            gpu_trace_row_sum.push(gpu_trace.values[i])
-        }
-        println!("{:?}", trace_row_sum);
-        println!("{:?}", gpu_trace_row_sum);
+        assert_eq!(trace, gpu_trace);
     }
 }
