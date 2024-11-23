@@ -30,7 +30,7 @@ __global__ void core_add_sub_generate_trace_kernel(
         sp1_core_machine_sys::AddSubCols<T> cols;
         sp1_core_machine_sys::add_sub::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -43,7 +43,7 @@ extern "C" rustCudaError_t core_add_sub_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -84,7 +84,7 @@ __global__ void core_memory_local_generate_trace_decompress_kernel(
             sum = bb31_septic_curve_t::start_point();
         }
         sp1_core_machine_sys::MemoryLocalCols<F> cols;
-        F* cols_arr = std::bit_cast<F*>(&cols);
+        F* cols_arr = reinterpret_cast<F*>(&cols);
         for (int k = 0; k < MEMORY_LOCAL_COLUMNS; k++) {
             cols_arr[k] = F::zero();
         }
@@ -133,7 +133,7 @@ __global__ void core_memory_local_generate_trace_decompress_kernel(
             cols.global_accumulation_cols.initial_digest[1]._0[k] =
                 sum.y.value[k];
         }
-        const F* arr = std::bit_cast<F*>(&cols);
+        const F* arr = reinterpret_cast<F*>(&cols);
         for (size_t k = 0; k < MEMORY_LOCAL_COLUMNS; ++k) {
             trace.values[i + k * trace.height] = arr[k];
         }
@@ -278,7 +278,7 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_3(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     static const int M = 64;
 
@@ -299,7 +299,7 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_2(
     CudaStreamHandle stream_handle
 ) {
     // Get the stream.
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     // Select the right set of columns from the trace.
     Matrix<bb31_t> initial_digest_trace_col_major;
@@ -348,7 +348,7 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_1(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -390,7 +390,7 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
             sum = bb31_septic_curve_t::start_point();
         }
         sp1_core_machine_sys::MemoryInitCols<F> cols;
-        F* cols_arr = std::bit_cast<F*>(&cols);
+        F* cols_arr = reinterpret_cast<F*>(&cols);
         for (int k = 0; k < MEMORY_INIT_COLUMNS; k++) {
             cols_arr[k] = F::zero();
         }
@@ -449,7 +449,7 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
         if (nb_events >= 1 && i == nb_events - 1) {
             cols.is_last_addr = F::one();
         }
-        const F* arr = std::bit_cast<F*>(&cols);
+        const F* arr = reinterpret_cast<F*>(&cols);
         for (size_t k = 0; k < MEMORY_INIT_COLUMNS; ++k) {
             trace.values[i + k * trace.height] = arr[k];
         }
@@ -533,7 +533,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_3(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     static const int M = 64;
 
@@ -554,7 +554,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_2(
     CudaStreamHandle stream_handle
 ) {
     // Get the stream.
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     // Select the right set of columns from the trace.
     Matrix<bb31_t> initial_digest_trace_col_major;
@@ -605,7 +605,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_1(
     bool is_receive,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -648,7 +648,7 @@ __global__ void core_syscall_generate_trace_decompress_kernel(
             sum = bb31_septic_curve_t::start_point();
         }
         sp1_core_machine_sys::SyscallCols<F> cols;
-        F* cols_arr = std::bit_cast<F*>(&cols);
+        F* cols_arr = reinterpret_cast<F*>(&cols);
         for (int k = 0; k < SYSCALL_COLUMNS; k++) {
             cols_arr[k] = F::zero();
         }
@@ -675,7 +675,7 @@ __global__ void core_syscall_generate_trace_decompress_kernel(
             cols.global_accumulation_cols.initial_digest[1]._0[k] =
                 sum.y.value[k];
         }
-        const F* arr = std::bit_cast<F*>(&cols);
+        const F* arr = reinterpret_cast<F*>(&cols);
         for (size_t k = 0; k < SYSCALL_COLUMNS ; ++k) {
             trace.values[i + k * trace.height] = arr[k];
         }
@@ -759,7 +759,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_3(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     static const int M = 64;
 
@@ -780,7 +780,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
     CudaStreamHandle stream_handle
 ) {
     // Get the stream.
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
 
     // Select the right set of columns from the trace.
     Matrix<bb31_t> initial_digest_trace_col_major;
@@ -830,7 +830,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_1(
     bool is_receive,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -866,7 +866,7 @@ __global__ void recursion_base_alu_generate_trace_kernel(
         sp1_recursion_core_sys::BaseAluValueCols<T> cols;
         sp1_recursion_core_sys::alu_base::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -879,7 +879,7 @@ extern "C" rustCudaError_t recursion_base_alu_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
