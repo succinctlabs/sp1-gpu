@@ -318,7 +318,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         let events = &input.poseidon2_events;
-        Some(next_power_of_two(events.len().div_ceil(1), input.fixed_log2_rows(self)))
+        Some(next_power_of_two(events.len() * 11, input.fixed_log2_rows(self)))
     }
 }
 
@@ -328,15 +328,18 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
+    use p3_symmetric::Permutation;
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use sp1_recursion_core::{
         air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
+        chips::poseidon2_skinny::WIDTH,
         BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo, BatchFRIExtVecIo,
         CommitPublicValuesEvent, ExecutionRecord, ExpReverseBitsEvent, ExtAluIo, FriFoldBaseIo,
-        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, SelectIo,
+        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
     };
-    use sp1_stark::air::MachineAir;
+    use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
+    use zkhash::ark_ff::UniformRand;
 
     use super::*;
 
@@ -509,6 +512,34 @@ mod tests {
                     in1: F::from_canonical_u32(5),
                     in2: F::from_canonical_u32(3),
                 },
+            ],
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    fn test_poseidon2_skinny() {
+        type F = BabyBear;
+
+        let chip = Poseidon2SkinnyChip::<9>::default();
+        let input_0 = [F::one(); WIDTH];
+        let permuter = inner_perm();
+        let output_0 = permuter.permute(input_0);
+        let mut rng = rand::thread_rng();
+
+        let input_1 = [F::rand(&mut rng); WIDTH];
+        let output_1 = permuter.permute(input_1);
+        let shard = ExecutionRecord {
+            poseidon2_events: vec![
+                Poseidon2Event { input: input_0, output: output_0 },
+                Poseidon2Event { input: input_1, output: output_1 },
             ],
             ..Default::default()
         };

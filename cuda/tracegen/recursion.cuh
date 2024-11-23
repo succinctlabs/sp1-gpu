@@ -9,8 +9,8 @@
 #include "exp_reverse_bits.hpp"
 #include "fri_fold.hpp"
 #include "moongate-core-sys-cbindgen.hpp"
-#include "poseidon2_skinny.hpp"
 #include "poseidon2.hpp"
+#include "poseidon2_skinny.hpp"
 #include "public_values.hpp"
 #include "select.hpp"
 #include "sp1-core-machine-sys-cbindgen.hpp"
@@ -375,8 +375,11 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
         );
 
         const T* arr = std::bit_cast<T*>(&cols);
-        for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+        for (size_t round_idx = 0; round_idx < 11; ++round_idx) {
+            for (size_t j = 0; j < COLUMNS; ++j) {
+                trace.values[i + (round_idx * 11) + (j * trace.height)] =
+                    arr[(round_idx * 11) + j];
+            }
         }
     }
 }
