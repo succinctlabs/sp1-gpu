@@ -215,6 +215,7 @@ where
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
+        unsafe { crate::cuda_runtime::ffi::cuda_setup_mem_pool() };
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine
