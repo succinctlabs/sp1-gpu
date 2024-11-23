@@ -368,17 +368,16 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::Poseidon2<T> cols;
+        sp1_recursion_core_sys::Poseidon2<T> cols[11];
         sp1_recursion_core_sys::poseidon2_skinny::event_to_row<T>(
             events[i],
-            &cols
+            cols
         );
 
-        const T* arr = std::bit_cast<T*>(&cols);
         for (size_t round_idx = 0; round_idx < 11; ++round_idx) {
+            const T* arr = std::bit_cast<T*>(&cols[round_idx]);
             for (size_t j = 0; j < COLUMNS; ++j) {
-                trace.values[i + (round_idx * 11) + (j * trace.height)] =
-                    arr[(round_idx * 11) + j];
+                trace.values[i * 11 + round_idx + j * trace.height] = arr[j];
             }
         }
     }
@@ -397,6 +396,8 @@ extern "C" rustCudaError_t recursion_poseidon2_skinny_generate_trace(
         trace.width * trace.height * sizeof(bb31_t),
         stream
     ));
+
+    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 8192));
 
     static const int M = 256;
     recursion_poseidon2_skinny_generate_trace_kernel<bb31_t>
