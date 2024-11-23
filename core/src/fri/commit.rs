@@ -21,9 +21,9 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
 }
 
 impl<
-        SC: BabyBearFriConfig,
-        C: MmcsCommitterAsync<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-    > TwoAdicFriCommitter<SC, C>
+    SC: BabyBearFriConfig,
+    C: MmcsCommitterAsync<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+> TwoAdicFriCommitter<SC, C>
 {
     pub fn new(log_blowup: usize) -> Self
     where
@@ -140,6 +140,7 @@ impl<
     {
         // Encode all the matrices and register the events.
         let lde_evaluations = self.encode_batch(evaluations, true).unwrap();
+
         // Get the committer stream to wait for encodings to be done.
         for (_, _, event) in evaluations.iter() {
             stream.wait_event(event).unwrap();

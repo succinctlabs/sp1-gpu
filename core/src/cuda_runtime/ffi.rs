@@ -74,5 +74,5 @@ extern "C" {
         count: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
-
+    pub(crate) fn cuda_setup_mem_pool() -> CudaRustError;
 }

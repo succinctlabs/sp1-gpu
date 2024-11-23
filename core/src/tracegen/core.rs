@@ -1,11 +1,18 @@
+use std::any::Any;
+
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
+use sp1_core_executor::events::AluEvent;
 use sp1_core_machine::alu::AddSubChip;
 use sp1_core_machine::utils::next_power_of_two;
+use sp1_stark::MachineTrace;
 
 use crate::{
-    cuda_runtime::stream::CudaStream,
-    device::{error::CudaError, memory::ToDevice},
+    cuda_runtime::{
+        ffi::{cuda_stream_synchronize, DEFAULT_STREAM},
+        stream::{CudaStream, CudaStreamHandle},
+    },
+    device::{error::CudaError, memory::ToDevice, DeviceBuffer},
     matrix::ColMajorMatrixDevice,
 };
 
@@ -13,26 +20,36 @@ use super::DeviceAir;
 use crate::tracegen;
 
 impl DeviceAir<BabyBear> for AddSubChip {
-    fn generate_trace_device(
+    fn generate_trace_host(
         &self,
         input: &Self::Record,
         _: &mut Self::Record,
         stream: &CudaStream,
+    ) -> Option<MachineTrace<BabyBear>> {
+        let events = input
+            .add_events
+            .iter()
+            .chain(input.sub_events.iter())
+            .copied()
+            .collect::<Vec<_>>()
+            .to_device_async(stream)
+            .unwrap();
+        Some(MachineTrace::Deferred(Box::new(events)))
+    }
+
+    fn generate_trace_device(
+        &self,
+        input: Box<dyn Any + Send + Sync>,
+        num_rows: usize,
+        stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-        // Get the events for the chip.
-        let events =
-            input.add_events.iter().chain(input.sub_events.iter()).copied().collect::<Vec<_>>();
-
-        // Copy the events to device.
-        let events = events.to_device_async(stream)?;
-
-        // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        // Get the events.
+        let events = input.downcast::<DeviceBuffer<AluEvent>>().unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <AddSubChip as BaseAir<BabyBear>>::width(self),
-            nb_rows,
+            num_rows,
             stream,
         )?;
 

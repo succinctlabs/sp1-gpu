@@ -2,6 +2,7 @@ use hashbrown::HashMap;
 
 use rayon::prelude::*;
 
+use crate::cuda_runtime::ffi::DEFAULT_STREAM;
 use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -11,6 +12,7 @@ use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::septic_digest::SepticDigest;
 use sp1_stark::MachineChip;
+use sp1_stark::MachineTrace;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
@@ -18,6 +20,7 @@ use sp1_stark::{
     SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkGenericConfig,
     StarkMachine, StarkVerifyingKey, Val,
 };
+use std::any::Any;
 
 use itertools::Itertools;
 use tracing::info;
@@ -215,6 +218,9 @@ where
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
+        // Setup the memory pool.
+        unsafe { crate::cuda_runtime::ffi::cuda_setup_mem_pool() };
+
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine
@@ -284,22 +290,27 @@ where
         }
     }
 
-    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+    fn generate_traces(&self, record: &A::Record) -> Vec<(String, MachineTrace<Val<SC>>)> {
         let chips = self.shard_chips(record).collect::<Vec<_>>();
-
-        chips
+        let traces = chips
             .par_iter()
             .filter_map(|chip| {
-                let trace = chip.air.generate_trace_host(record, &mut A::Record::default())?;
+                let trace = chip.air.generate_trace_host(
+                    record,
+                    &mut A::Record::default(),
+                    self.chip_streams.get(&chip.name()).unwrap(),
+                )?;
                 Some((chip.name(), trace))
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        traces
     }
 
     fn commit(
         &self,
         shard: &A::Record,
-        named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        named_traces: Vec<(String, MachineTrace<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
         /// A possibly finished trace generation job.
         ///
@@ -312,7 +323,7 @@ where
             /// A finished trace generated on the host, along with its name.
             Host(String, RowMajorMatrix<Val<SC>>),
             /// A chip that needs trace generation on device, along with its height.
-            Device(&'b MachineChip<SC, A>, usize),
+            Device(&'b MachineChip<SC, A>, usize, Box<dyn Any + Send + Sync>),
         }
 
         impl<'b, SC, A> TraceGenerationJob<'b, SC, A>
@@ -323,14 +334,14 @@ where
             fn name(&self) -> String {
                 match self {
                     TraceGenerationJob::Host(name, _) => name.clone(),
-                    TraceGenerationJob::Device(chip, _) => chip.name(),
+                    TraceGenerationJob::Device(chip, _, _) => chip.name(),
                 }
             }
 
             fn height(&self) -> usize {
                 match self {
                     TraceGenerationJob::Host(_, mat) => mat.height(),
-                    TraceGenerationJob::Device(_, height) => *height,
+                    TraceGenerationJob::Device(_, height, _) => *height,
                 }
             }
         }
@@ -341,10 +352,13 @@ where
         // Create the trace jobs.
         let mut trace_jobs: Vec<TraceGenerationJob<'_, SC, A>> = named_traces
             .into_iter()
-            .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
-            .chain(chips.into_iter().filter_map(|chip| {
-                Some(TraceGenerationJob::Device(chip, chip.air.num_rows(shard)?))
-            }))
+            .zip(chips.iter())
+            .map(|((name, mat), chip)| match mat {
+                MachineTrace::InMemory(mat) => TraceGenerationJob::Host(name, mat),
+                MachineTrace::Deferred(events) => {
+                    TraceGenerationJob::Device(chip, chip.air.num_rows(shard).unwrap(), events)
+                }
+            })
             .collect();
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
@@ -363,10 +377,6 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let chip_streams = trace_jobs
-            .iter()
-            .map(|job| self.chip_streams.get(&job.name()).unwrap())
-            .collect::<Vec<_>>();
         let events = trace_jobs
             .iter()
             .map(|job| {
@@ -377,23 +387,35 @@ where
                     .clone()
             })
             .collect::<Vec<_>>();
-        let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
-            .in_scope(|| {
-                trace_jobs
-                    .into_par_iter()
-                    .zip(chip_streams)
-                    .map(|(job, stream)| match job {
-                        TraceGenerationJob::Host(_, mat) => {
-                            mat.to_device_async(stream).unwrap().to_column_major()
+
+        let traces: Vec<_> = tracing::debug_span!("generate trace accel").in_scope(|| {
+            let traces: Vec<_> = trace_jobs
+                .into_iter()
+                .map(|job| {
+                    let (tx, rx) = oneshot::channel();
+                    match job {
+                        TraceGenerationJob::Host(name, mat) => {
+                            let stream = self.chip_streams.get(&name).unwrap().clone();
+                            rayon::spawn(move || {
+                                let trace = mat.to_device_async(&stream).unwrap().to_column_major();
+                                tx.send(trace).unwrap();
+                            });
                         }
-                        TraceGenerationJob::Device(chip, _) => chip
-                            .air
-                            .generate_trace_device(shard, &mut A::Record::default(), stream)
-                            .unwrap()
-                            .unwrap(),
-                    })
-                    .collect()
-            });
+                        TraceGenerationJob::Device(chip, height, events) => {
+                            let stream = self.chip_streams.get(&chip.name()).unwrap().clone();
+                            let trace = chip
+                                .air
+                                .generate_trace_device(events, height, &stream)
+                                .unwrap()
+                                .unwrap();
+                            tx.send(trace).unwrap();
+                        }
+                    }
+                    rx
+                })
+                .collect();
+            traces.into_iter().map(|rx| rx.recv().unwrap()).collect()
+        });
 
         // Commit to the traces.
         let domains_and_traces = domains
@@ -406,7 +428,7 @@ where
         let (commit, data) = tracing::debug_span!("commit")
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
 
-        tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
+        tracing::debug_span!("construct main data").in_scope(move || ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
@@ -1069,10 +1091,9 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources.
-        for stream in self.chip_streams.values() {
+        self.chip_streams.values().collect::<Vec<_>>().par_iter().for_each(|stream| {
             stream.synchronize().unwrap();
-        }
+        });
         self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 
