@@ -329,7 +329,7 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_2(
         reinterpret_cast<bb31_septic_curve_t*>(initial_digest_trace_row_major);
 
     // Compute the cumulative sums of the initial digest trace.
-    ScanTemplate(
+    ScanTemplateLarge(
         cumulative_sums,
         initial_digest_trace_row_major_curve,
         trace.height,
@@ -401,6 +401,10 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                     cols.is_prev_addr_zero.inverse = F::zero();
                     cols.is_prev_addr_zero.result = F::one();
                     cols.is_first_comp = F::zero();
+                } else {
+                    cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
+                    cols.is_prev_addr_zero.result = F::zero();
+                    cols.is_first_comp = F::one();
                     for(int idx = 31 ; idx >= 0; idx--) {
                         int prev_bit = (previous_addr >> idx) & 1;
                         int cur_bit = (events[event_idx].addr >> idx) & 1;
@@ -409,10 +413,6 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                             break;
                         }
                     }
-                } else {
-                    cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
-                    cols.is_prev_addr_zero.result = F::zero();
-                    cols.is_first_comp = F::one();
                 }
             } else {
                 cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
@@ -584,7 +584,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_2(
         reinterpret_cast<bb31_septic_curve_t*>(initial_digest_trace_row_major);
 
     // Compute the cumulative sums of the initial digest trace.
-    ScanTemplate(
+    ScanTemplateLarge(
         cumulative_sums,
         initial_digest_trace_row_major_curve,
         trace.height,
@@ -810,7 +810,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
         reinterpret_cast<bb31_septic_curve_t*>(initial_digest_trace_row_major);
 
     // Compute the cumulative sums of the initial digest trace.
-    ScanTemplate(
+    ScanTemplateLarge(
         cumulative_sums,
         initial_digest_trace_row_major_curve,
         trace.height,

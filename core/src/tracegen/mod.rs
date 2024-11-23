@@ -46,10 +46,14 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         input: &Self::Record,
         output: &mut Self::Record,
     ) -> Option<RowMajorMatrix<BabyBear>> {
-        // We currently only support accelerating the `AddSubChip`.
+        // We currently only support accelerating the `AddSubChip` and chips with global interaction.
         match self {
             RiscvAir::Add(_) => None,
-            //        RiscvAir::MemoryLocal(_) => None,
+            RiscvAir::MemoryLocal(_) => None,
+            RiscvAir::MemoryGlobalFinal(_) => None,
+            RiscvAir::MemoryGlobalInit(_) => None,
+            RiscvAir::SyscallCore(_) => None,
+            RiscvAir::SyscallPrecompile(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -60,19 +64,27 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-        // We currently only support accelerating the `AddSubChip`.
+        // We currently only support accelerating the `AddSubChip` and chips with global interaction.
         match self {
             RiscvAir::Add(chip) => chip.generate_trace_device(input, output, stream),
-            //        RiscvAir::MemoryLocal(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::MemoryLocal(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::MemoryGlobalFinal(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::MemoryGlobalInit(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::SyscallCore(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::SyscallPrecompile(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        // We currently only support accelerating the `AddSubChip`.
+        // We currently only support accelerating the `AddSubChip` and chips with global interaction.
         match self {
             RiscvAir::Add(chip) => chip.num_rows(input),
-            // RiscAir::MemoryLocal(chip) => chip.num_rows(input),
+            RiscvAir::MemoryLocal(chip) => chip.num_rows(input),
+            RiscvAir::MemoryGlobalFinal(chip) => chip.num_rows(input),
+            RiscvAir::MemoryGlobalInit(chip) => chip.num_rows(input),
+            RiscvAir::SyscallCore(chip) => chip.num_rows(input),
+            RiscvAir::SyscallPrecompile(chip) => chip.num_rows(input),
             _ => None,
         }
     }

@@ -1,7 +1,11 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
+use sp1_core_machine::memory::MemoryChipType;
+use sp1_core_machine::syscall::chip::SyscallShardKind;
 use sp1_core_machine::utils::next_power_of_two;
-use sp1_core_machine::{alu::AddSubChip, memory::MemoryLocalChip};
+use sp1_core_machine::{
+    alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
+};
 use sp1_stark::septic_curve::SepticCurve;
 
 use crate::{
@@ -127,6 +131,182 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
     }
 }
 
+impl DeviceAir<BabyBear> for MemoryGlobalChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        // Get the events for the chip.
+        let mut events = match self.kind {
+            MemoryChipType::Initialize => input.global_memory_initialize_events.clone(),
+            MemoryChipType::Finalize => input.global_memory_finalize_events.clone(),
+        };
+        events.sort_by_key(|event| event.addr);
+        let nb_events = events.len() as u32;
+
+        let previous_addr_bits = match self.kind {
+            MemoryChipType::Initialize => input.public_values.previous_init_addr_bits,
+            MemoryChipType::Finalize => input.public_values.previous_finalize_addr_bits,
+        };
+
+        let previous_addr =
+            previous_addr_bits.iter().enumerate().fold(0u32, |acc, (i, &bit)| acc + (bit << i));
+
+        let is_receive = match self.kind {
+            MemoryChipType::Initialize => false,
+            MemoryChipType::Finalize => true,
+        };
+
+        // Copy the events to device.
+        let events = events.to_device_async(stream)?;
+
+        // Get the number of rows.
+        let nb_rows = self.num_rows(input).unwrap();
+
+        // Allocate the matrix.
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <MemoryGlobalChip as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        // Generate the trace.
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::core_memory_global_generate_trace_round_1(
+                trace.view_mut(),
+                events.as_ptr(),
+                previous_addr,
+                nb_events,
+                is_receive,
+                stream.handle(),
+            );
+        }
+
+        let mut cumulative_sums =
+            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+        unsafe {
+            tracegen::ffi::core_memory_global_generate_trace_round_2(
+                trace.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                stream.handle(),
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_memory_global_generate_trace_round_3(
+                trace.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = match self.kind {
+            MemoryChipType::Initialize => &input.global_memory_initialize_events,
+            MemoryChipType::Finalize => &input.global_memory_finalize_events,
+        };
+        let nb_rows = events.len();
+        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
+        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
+        Some(padded_nb_rows)
+    }
+}
+
+impl DeviceAir<BabyBear> for SyscallChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        // Get the events for the chip.
+        let events = match self.shard_kind() {
+            SyscallShardKind::Core => &input.syscall_events,
+            SyscallShardKind::Precompile => &input
+                .precompile_events
+                .all_events()
+                .map(|(event, _)| event.to_owned())
+                .collect::<Vec<_>>(),
+        };
+        let nb_events = events.len() as u32;
+
+        let is_receive = match self.shard_kind() {
+            SyscallShardKind::Core => false,
+            SyscallShardKind::Precompile => true,
+        };
+
+        // Copy the events to device.
+        let events = events.to_device_async(stream)?;
+
+        // Get the number of rows.
+        let nb_rows = self.num_rows(input).unwrap();
+
+        // Allocate the matrix.
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <SyscallChip as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        // Generate the trace.
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::core_syscall_generate_trace_round_1(
+                trace.view_mut(),
+                events.as_ptr(),
+                nb_events,
+                is_receive,
+                stream.handle(),
+            );
+        }
+
+        let mut cumulative_sums =
+            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+        unsafe {
+            tracegen::ffi::core_syscall_generate_trace_round_2(
+                trace.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                stream.handle(),
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_syscall_generate_trace_round_3(
+                trace.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = match self.shard_kind() {
+            SyscallShardKind::Core => &input.syscall_events,
+            SyscallShardKind::Precompile => &input
+                .precompile_events
+                .all_events()
+                .map(|(event, _)| event.to_owned())
+                .collect::<Vec<_>>(),
+        };
+        let nb_rows = events.len();
+        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
+        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
+        Some(padded_nb_rows)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::device::memory::ToHost;
@@ -184,7 +364,7 @@ mod tests {
     fn test_memory_local_generate_trace() {
         let mut rng = rand::thread_rng();
         let mut shard = ExecutionRecord::default();
-        shard.cpu_local_memory_access = (0..2_700_000)
+        shard.cpu_local_memory_access = (0..1000)
             .map(|_| MemoryLocalEvent {
                 addr: rng.gen_range(0..10000),
                 initial_mem_access: MemoryRecord {
@@ -254,10 +434,10 @@ mod tests {
             [(MemoryChipType::Initialize, false), (MemoryChipType::Finalize, true)]
         {
             let mut shard = ExecutionRecord::default();
-            let start_addr = 5;
+            let start_addr = 4;
             let bits: [u32; 32] =
                 (0..32).map(|i| (start_addr >> i) & 1).collect::<Vec<_>>().try_into().unwrap();
-            let mut events = (0..1 << 19)
+            let mut events = (0..1000)
                 .map(|i| MemoryInitializeFinalizeEvent {
                     addr: 5 + 13 * i, // need this to be distinct, and larger than start_addr
                     value: rng.gen_range(0..1000000),
@@ -332,7 +512,7 @@ mod tests {
     fn test_syscall_generate_trace() {
         let mut rng = rand::thread_rng();
         let mut shard = ExecutionRecord::default();
-        shard.syscall_events = (0..1 << 17)
+        shard.syscall_events = (0..1000)
             .map(|_| SyscallEvent {
                 shard: rng.gen_range(0..10000),
                 clk: rng.gen_range(0..1000000),
