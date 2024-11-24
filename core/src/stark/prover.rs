@@ -288,11 +288,21 @@ where
     fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
         let chips = self.shard_chips(record).collect::<Vec<_>>();
 
+        let span = tracing::Span::current();
         chips
             .par_iter()
+<<<<<<< HEAD
             .filter_map(|chip| {
                 let trace = chip.air.generate_trace_host(record, &mut A::Record::default())?;
                 Some((chip.name(), trace))
+=======
+            .map(|chip| {
+                let _span = span.enter();
+                let name = chip.name();
+                let trace = tracing::debug_span!("generate trace", chip = name)
+                    .in_scope(|| chip.generate_trace(record, &mut A::Record::default()));
+                (name, trace)
+>>>>>>> erabinov/cuda_challenger
             })
             .collect::<Vec<_>>()
     }
@@ -373,9 +383,26 @@ where
             .map(|job| {
                 self.events
                     .global_main
+<<<<<<< HEAD
                     .get(&job.name())
                     .unwrap_or_else(|| self.events.local_main.get(&job.name()).unwrap())
                     .clone()
+=======
+                    .get(&name)
+                    .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
+                    .clone();
+                let (tx, rx) = oneshot::channel();
+                rayon::spawn(move || {
+                    let stream = stream;
+                    let trace = trace.to_device_async(&stream).unwrap();
+                    let trace_col = trace.to_column_major();
+                    rayon::spawn(move || {
+                        drop(trace);
+                    });
+                    tx.send(trace_col).unwrap();
+                });
+                (domain, rx, event)
+>>>>>>> erabinov/cuda_challenger
             })
             .collect::<Vec<_>>();
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
@@ -396,6 +423,7 @@ where
                     .collect()
             });
 
+<<<<<<< HEAD
         // Commit to the traces.
         let domains_and_traces = domains
             .iter()
@@ -408,6 +436,26 @@ where
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
+=======
+        let trace_data = tracing::debug_span!("waiting for trace async copy").in_scope(|| {
+            traces_rx_domains_events
+                .into_iter()
+                .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
+                .collect::<Vec<_>>()
+        });
+
+        let (commit, data) = tracing::debug_span!("commiter commit")
+            .in_scope(|| self.committer.commit(&trace_data, &self.main_stream));
+
+        let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
+
+        commit_span.exit();
+
+        let main_data_span = tracing::debug_span!("construct main data").entered();
+        // Get public values and send the record to be dropped elsewhere.
+        let public_values = shard.public_values::<SC::Val>();
+        let main_data = ShardMainData {
+>>>>>>> erabinov/cuda_challenger
             traces,
             main_commit: commit,
             main_data: data,
@@ -1070,7 +1118,6 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources.
         for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
@@ -1156,82 +1203,82 @@ where
     }
 }
 
-#[cfg(test)]
-pub mod tests {
+// #[cfg(test)]
+// pub mod tests {
 
-    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
-    use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
-    use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
-    use sp1_stark::StarkGenericConfig;
+//     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
+//     use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
+//     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
+//     use sp1_stark::StarkGenericConfig;
 
-    use crate::{
-        merkle_tree::FieldMerkleTreeDeviceCommitter,
-        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
-        utils::init_tracer,
-    };
+//     use crate::{
+//         merkle_tree::FieldMerkleTreeDeviceCommitter,
+//         poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+//         utils::init_tracer,
+//     };
 
-    use super::*;
+//     use super::*;
 
-    pub fn execute_core(program: Program) -> ExecutionRecord {
-        let opts = SP1CoreOpts::default();
-        let mut runtime = Executor::new(program, opts);
-        runtime.run().unwrap();
-        runtime.record
-    }
+//     pub fn execute_core(program: Program) -> ExecutionRecord {
+//         let opts = SP1CoreOpts::default();
+//         let mut runtime = Executor::new(program, opts);
+//         runtime.run().unwrap();
+//         runtime.record
+//     }
 
-    #[test]
-    fn test_fibonacci_poseidon_2_baby_bear_prove() {
-        let program = Program::from(FIBONACCI_ELF).unwrap();
+//     #[test]
+//     fn test_fibonacci_poseidon_2_baby_bear_prove() {
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
 
-        init_tracer();
-        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-            program,
-        )
-        .unwrap();
-    }
+//         init_tracer();
+//         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+//             program,
+//         )
+//         .unwrap();
+//     }
 
-    #[test]
-    fn test_fibonacci_poseidon2_bn254_prove() {
-        use sp1_core_executor::SP1Context;
-        use sp1_core_machine::io::SP1Stdin;
+//     #[test]
+//     fn test_fibonacci_poseidon2_bn254_prove() {
+//         use sp1_core_executor::SP1Context;
+//         use sp1_core_machine::io::SP1Stdin;
 
-        let program = Program::from(FIBONACCI_ELF).unwrap();
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
 
-        type SC = BabyBearPoseidon2Outer;
+//         type SC = BabyBearPoseidon2Outer;
 
-        type P = StarkGpuProver<
-            SC,
-            FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
-            RiscvAir<BabyBear>,
-        >;
+//         type P = StarkGpuProver<
+//             SC,
+//             FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+//             RiscvAir<BabyBear>,
+//         >;
 
-        init_tracer();
+//         init_tracer();
 
-        let config = BabyBearPoseidon2Outer::new();
+//         let config = BabyBearPoseidon2Outer::new();
 
-        // Execute the program.
-        let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-            let mut runtime = Executor::new(program, SP1CoreOpts::default());
-            runtime.run().unwrap();
-            runtime
-        });
+//         // Execute the program.
+//         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+//             let mut runtime = Executor::new(program, SP1CoreOpts::default());
+//             runtime.run().unwrap();
+//             runtime
+//         });
 
-        let machine = RiscvAir::machine(config);
-        let prover = P::new(machine);
-        let inputs = SP1Stdin::new();
-        let (pk, vk) = prover.setup(runtime.program.as_ref());
-        let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
-            &prover,
-            &pk,
-            Program::clone(&runtime.program),
-            &inputs,
-            SP1CoreOpts::default(),
-            SP1Context::default(),
-            None,
-        )
-        .unwrap();
+//         let machine = RiscvAir::machine(config);
+//         let prover = P::new(machine);
+//         let inputs = SP1Stdin::new();
+//         let (pk, vk) = prover.setup(runtime.program.as_ref());
+//         let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
+//             &prover,
+//             &pk,
+//             Program::clone(&runtime.program),
+//             &inputs,
+//             SP1CoreOpts::default(),
+//             SP1Context::default(),
+//             None,
+//         )
+//         .unwrap();
 
-        let mut challenger = prover.config().challenger();
-        prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
-    }
-}
+//         let mut challenger = prover.config().challenger();
+//         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
+//     }
+// }

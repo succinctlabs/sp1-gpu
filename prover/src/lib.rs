@@ -11,7 +11,7 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
-const MAX_SHARD_SIZE: usize = 1 << 21;
+const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -39,15 +39,15 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
 
     opts.core_opts.records_and_traces_channel_capacity = 4;
-    opts.core_opts.trace_gen_workers = 4;
+    opts.core_opts.trace_gen_workers = 6;
 
     opts.recursion_opts.shard_batch_size = 1;
 
     let s = sysinfo::System::new_all();
     let total_memory_gb = (s.total_memory() as f64) / (1024.0 * 1024.0 * 1024.0);
     if total_memory_gb < 20.0 {
-        opts.recursion_opts.records_and_traces_channel_capacity = 1;
-        opts.recursion_opts.trace_gen_workers = 1;
+        opts.core_opts.records_and_traces_channel_capacity = 1;
+        opts.core_opts.trace_gen_workers = 2;
     } else {
         opts.recursion_opts.records_and_traces_channel_capacity = 4;
         opts.recursion_opts.trace_gen_workers = 4;
