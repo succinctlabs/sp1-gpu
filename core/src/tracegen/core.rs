@@ -372,6 +372,8 @@ mod tests {
     fn test_memory_local_generate_trace() {
         let mut rng = rand::thread_rng();
         let mut shard = ExecutionRecord::default();
+        // Print current working directory to debug file path issue
+        println!("Current working directory: {:?}", std::env::current_dir().unwrap());
 
         let events: Vec<MemoryLocalEvent> =
             bincode::deserialize(&std::fs::read("./memory_local_events_34.bin").unwrap()).unwrap();
