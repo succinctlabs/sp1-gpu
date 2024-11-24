@@ -106,7 +106,7 @@ __device__ size_t sample_bits(
     );
 
     // Equivalent to "as_canonical_u32" in the Rust implementation.
-    size_t rand_usize = (uint32_t)rand_f;
+    size_t rand_usize = rand_f.as_canonical_u32();
     return rand_usize & ((1 << *bits) - 1);
 }
 

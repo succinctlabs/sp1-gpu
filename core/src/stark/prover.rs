@@ -291,18 +291,9 @@ where
         let span = tracing::Span::current();
         chips
             .par_iter()
-<<<<<<< HEAD
             .filter_map(|chip| {
                 let trace = chip.air.generate_trace_host(record, &mut A::Record::default())?;
                 Some((chip.name(), trace))
-=======
-            .map(|chip| {
-                let _span = span.enter();
-                let name = chip.name();
-                let trace = tracing::debug_span!("generate trace", chip = name)
-                    .in_scope(|| chip.generate_trace(record, &mut A::Record::default()));
-                (name, trace)
->>>>>>> erabinov/cuda_challenger
             })
             .collect::<Vec<_>>()
     }
@@ -383,26 +374,9 @@ where
             .map(|job| {
                 self.events
                     .global_main
-<<<<<<< HEAD
                     .get(&job.name())
                     .unwrap_or_else(|| self.events.local_main.get(&job.name()).unwrap())
                     .clone()
-=======
-                    .get(&name)
-                    .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
-                    .clone();
-                let (tx, rx) = oneshot::channel();
-                rayon::spawn(move || {
-                    let stream = stream;
-                    let trace = trace.to_device_async(&stream).unwrap();
-                    let trace_col = trace.to_column_major();
-                    rayon::spawn(move || {
-                        drop(trace);
-                    });
-                    tx.send(trace_col).unwrap();
-                });
-                (domain, rx, event)
->>>>>>> erabinov/cuda_challenger
             })
             .collect::<Vec<_>>();
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
@@ -423,7 +397,6 @@ where
                     .collect()
             });
 
-<<<<<<< HEAD
         // Commit to the traces.
         let domains_and_traces = domains
             .iter()
@@ -436,26 +409,6 @@ where
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
-=======
-        let trace_data = tracing::debug_span!("waiting for trace async copy").in_scope(|| {
-            traces_rx_domains_events
-                .into_iter()
-                .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
-                .collect::<Vec<_>>()
-        });
-
-        let (commit, data) = tracing::debug_span!("commiter commit")
-            .in_scope(|| self.committer.commit(&trace_data, &self.main_stream));
-
-        let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
-
-        commit_span.exit();
-
-        let main_data_span = tracing::debug_span!("construct main data").entered();
-        // Get public values and send the record to be dropped elsewhere.
-        let public_values = shard.public_values::<SC::Val>();
-        let main_data = ShardMainData {
->>>>>>> erabinov/cuda_challenger
             traces,
             main_commit: commit,
             main_data: data,
