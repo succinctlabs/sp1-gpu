@@ -193,7 +193,8 @@ where
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>
         + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>
-        + DeviceAir<BabyBear>,
+        + DeviceAir<BabyBear>
+        + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static
@@ -596,6 +597,29 @@ where
                     total_width,
                     height,
                 );
+
+                // let pk_host = self.pk_to_host(pk);
+                // let preprocessed_trace =
+                //     pk_host.chip_ordering.get(&chip.name()).map(|index| &pk_host.traces[*index]);
+                // let permutation_trace = &permutation_traces[i].to_host();
+                // let permutation_trace_extension = RowMajorMatrix::new(
+                //     permutation_trace
+                //         .values
+                //         .chunks(4)
+                //         .map(|x| SC::Challenge::from_base_slice(x))
+                //         .collect(),
+                //     permutation_trace.width() / 4,
+                // );
+                // sp1_stark::debug_constraints::<SC, A>(
+                //     chip,
+                //     preprocessed_trace,
+                //     &traces[i].to_host(),
+                //     &permutation_trace_extension,
+                //     &local_permutation_challenges,
+                //     &public_values,
+                //     &cumulative_sums[i].0,
+                //     &cumulative_sums[i].1,
+                // );
             }
 
             // Commit to the permutation traces.
@@ -1096,7 +1120,7 @@ where
         opts: <A::Record as MachineRecord>::Config,
     ) -> Result<MachineProof<SC>, Self::Error>
     where
-        A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
+        A: for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     {
         self.machine().generate_dependencies(&mut records, &opts, None);
 

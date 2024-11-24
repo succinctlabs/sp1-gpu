@@ -132,10 +132,10 @@ fn main() {
             }
         }
         Err(cbindgen::Error::ParseSyntaxError { src_path, crate_name, error, .. }) => {
-            panic!(
-                "Failed to generate cbindgen header: {:?} in crate {:?}: {}",
-                src_path, crate_name, error
-            );
+            // panic!(
+            //     "Failed to generate cbindgen header: {:?} in crate {:?}: {}",
+            //     src_path, crate_name, error
+            // );
         } // Ignore parse errors so rust-analyzer can run.
         Err(e) => panic!("{:?}", e),
     }
