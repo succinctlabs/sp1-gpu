@@ -372,21 +372,25 @@ mod tests {
     fn test_memory_local_generate_trace() {
         let mut rng = rand::thread_rng();
         let mut shard = ExecutionRecord::default();
-        shard.cpu_local_memory_access = (0..1000)
-            .map(|_| MemoryLocalEvent {
-                addr: rng.gen_range(0..10000),
-                initial_mem_access: MemoryRecord {
-                    shard: rng.gen_range(0..10000),
-                    timestamp: rng.gen_range(0..10000),
-                    value: rng.gen_range(0..10000),
-                },
-                final_mem_access: MemoryRecord {
-                    shard: rng.gen_range(0..10000),
-                    timestamp: rng.gen_range(0..10000),
-                    value: rng.gen_range(0..10000),
-                },
-            })
-            .collect::<Vec<_>>();
+
+        let events: Vec<MemoryLocalEvent> =
+            bincode::deserialize(&std::fs::read("memory_local_events_34.bin").unwrap()).unwrap();
+
+        shard.cpu_local_memory_access = events;
+        // shard.cpu_local_memory_access = events;
+        //         addr: rng.gen_range(0..10000),
+        //         initial_mem_access: MemoryRecord {
+        //             shard: rng.gen_range(0..10000),
+        //             timestamp: rng.gen_range(0..10000),
+        //             value: rng.gen_range(0..10000),
+        //         },
+        //         final_mem_access: MemoryRecord {
+        //             shard: rng.gen_range(0..10000),
+        //             timestamp: rng.gen_range(0..10000),
+        //             value: rng.gen_range(0..10000),
+        //         },
+        //     })
+        //     .collect::<Vec<_>>();
 
         let chip = MemoryLocalChip::new();
         let trace: RowMajorMatrix<BabyBear> =
