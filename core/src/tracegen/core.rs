@@ -75,13 +75,13 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
         let events = input.get_local_mem_events().cloned().collect::<Vec<_>>();
         let nb_events = events.len() as u32;
 
-        // // Save events to disk for debugging
-        // let event_bytes = bincode::serialize(&events).unwrap();
-        // std::fs::write(
-        //     format!("memory_local_events_{}.bin", input.public_values.shard),
-        //     event_bytes,
-        // )
-        // .unwrap();
+        // Save events to disk for debugging
+        let event_bytes = bincode::serialize(&events).unwrap();
+        std::fs::write(
+            format!("memory_local_events_{}.bin", input.public_values.shard),
+            event_bytes,
+        )
+        .unwrap();
 
         // Copy the events to device.
         let events = events.to_device_async(stream)?;
