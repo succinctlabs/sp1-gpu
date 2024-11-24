@@ -193,8 +193,8 @@ where
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>
         + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>
-        + DeviceAir<BabyBear>
-        + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
+        + DeviceAir<BabyBear>,
+    // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static
