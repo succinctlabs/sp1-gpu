@@ -312,9 +312,10 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_2(
 
     // Allocate memory for the row-major version of the initial digest trace.
     bb31_t* initial_digest_trace_row_major;
-    CUDA_OK(cudaMalloc(
+    CUDA_OK(cudaMallocAsync(
         &initial_digest_trace_row_major,
-        sizeof(bb31_t) * 14 * trace.height
+        sizeof(bb31_t) * 14 * trace.height,
+        stream
     ));
 
     // Transpose the initial digest trace from column-major to row-major.
@@ -793,9 +794,10 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
 
     // Allocate memory for the row-major version of the initial digest trace.
     bb31_t* initial_digest_trace_row_major;
-    CUDA_OK(cudaMalloc(
+    CUDA_OK(cudaMallocAsync(
         &initial_digest_trace_row_major,
-        sizeof(bb31_t) * 14 * trace.height
+        sizeof(bb31_t) * 14 * trace.height,
+        stream
     ));
 
     // Transpose the initial digest trace from column-major to row-major.
@@ -818,7 +820,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
     );
 
     // Free the allocated memory for the row-major initial digest trace.
-    CUDA_OK(cudaFree(initial_digest_trace_row_major));
+    CUDA_OK(cudaFreeAsync(initial_digest_trace_row_major, stream));
 
     return CUDA_SUCCESS_MOON;
 }
