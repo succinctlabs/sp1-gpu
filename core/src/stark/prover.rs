@@ -288,7 +288,6 @@ where
     fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
         let chips = self.shard_chips(record).collect::<Vec<_>>();
 
-        let span = tracing::Span::current();
         chips
             .par_iter()
             .filter_map(|chip| {
@@ -396,6 +395,11 @@ where
                     })
                     .collect()
             });
+
+        // Synchronize the chip streams.
+        for stream in chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
 
         // Commit to the traces.
         let domains_and_traces = domains

@@ -3373,6 +3373,7 @@ name = "moongate-core"
 version = "0.1.0"
 dependencies = [
  "air",
+ "bincode",
  "cbindgen",
  "cc",
  "hashbrown 0.14.5",

@@ -1,6 +1,5 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
-use sp1_core_machine::alu::AddSubChip;
 use sp1_core_machine::utils::next_power_of_two;
 use sp1_recursion_core::chips::alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW};
 
