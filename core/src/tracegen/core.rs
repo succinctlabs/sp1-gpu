@@ -374,7 +374,7 @@ mod tests {
         let mut shard = ExecutionRecord::default();
 
         let events: Vec<MemoryLocalEvent> =
-            bincode::deserialize(&std::fs::read("memory_local_events_34.bin").unwrap()).unwrap();
+            bincode::deserialize(&std::fs::read("./memory_local_events_34.bin").unwrap()).unwrap();
 
         shard.cpu_local_memory_access = events;
         // shard.cpu_local_memory_access = events;
