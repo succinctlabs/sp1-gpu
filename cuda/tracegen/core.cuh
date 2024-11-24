@@ -326,7 +326,6 @@ extern "C" rustCudaError_t core_memory_local_generate_trace_round_2(
         stream
     );
     CUDA_OK(cudaStreamSynchronize(stream));
-    // CUDA_OK(cudaGetLastError(stream));
 
     // Cast the row-major initial digest trace to a curve.
     bb31_septic_curve_t* initial_digest_trace_row_major_curve =
@@ -550,6 +549,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_3(
         cumulative_sums,
         nb_events
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     return CUDA_SUCCESS_MOON;
 }
@@ -573,9 +573,10 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_2(
 
     // Allocate memory for the row-major version of the initial digest trace.
     bb31_t* initial_digest_trace_row_major;
-    CUDA_OK(cudaMalloc(
+    CUDA_OK(cudaMallocAsync(
         &initial_digest_trace_row_major,
-        sizeof(bb31_t) * 14 * trace.height
+        sizeof(bb31_t) * 14 * trace.height,
+        stream
     ));
 
     // Transpose the initial digest trace from column-major to row-major.
@@ -584,6 +585,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_2(
         initial_digest_trace_col_major,
         stream
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     // Cast the row-major initial digest trace to a curve.
     bb31_septic_curve_t* initial_digest_trace_row_major_curve =
@@ -596,9 +598,10 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_2(
         trace.height,
         stream
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     // Free the allocated memory for the row-major initial digest trace.
-    CUDA_OK(cudaFree(initial_digest_trace_row_major));
+    CUDA_OK(cudaFreeAsync(initial_digest_trace_row_major, stream));
 
     return CUDA_SUCCESS_MOON;
 }
@@ -630,6 +633,7 @@ extern "C" rustCudaError_t core_memory_global_generate_trace_round_1(
         previous_addr,
         nb_events
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     return CUDA_SUCCESS_MOON;
 }
@@ -776,6 +780,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_3(
         cumulative_sums,
         nb_events
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     return CUDA_SUCCESS_MOON;
 }
@@ -811,6 +816,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
         initial_digest_trace_col_major,
         stream
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     // Cast the row-major initial digest trace to a curve.
     bb31_septic_curve_t* initial_digest_trace_row_major_curve =
@@ -823,6 +829,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_2(
         trace.height,
         stream
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     // Free the allocated memory for the row-major initial digest trace.
     CUDA_OK(cudaFreeAsync(initial_digest_trace_row_major, stream));
@@ -855,6 +862,7 @@ extern "C" rustCudaError_t core_syscall_generate_trace_round_1(
         is_receive,
         nb_events
     );
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     return CUDA_SUCCESS_MOON;
 }
