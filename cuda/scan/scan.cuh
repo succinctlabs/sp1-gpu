@@ -32,7 +32,6 @@ RustCudaError ScanTemplateSmall(T* d_out, T* d_in, size_t n, cudaStream_t stream
             BlockCounter,
             flags
         );
-        CUDA_OK(cudaGetLastError());
         CUDA_OK(cudaFreeAsync(scanValues, stream));
         CUDA_OK(cudaFreeAsync(BlockCounter, stream));
         CUDA_OK(cudaFreeAsync(flags, stream));
@@ -68,7 +67,6 @@ RustCudaError ScanTemplateLarge(T* d_out, T* d_in, size_t n, cudaStream_t stream
             BlockCounter,
             flags
         );
-        CUDA_OK(cudaGetLastError());
         CUDA_OK(cudaFreeAsync(scanValues, stream));
         CUDA_OK(cudaFreeAsync(BlockCounter, stream));
         CUDA_OK(cudaFreeAsync(flags, stream));
