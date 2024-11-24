@@ -397,7 +397,7 @@ where
             });
 
         // Synchronize the chip streams.
-        for stream in chip_streams.iter() {
+        for (_, stream) in self.chip_streams.iter() {
             stream.synchronize().unwrap();
         }
 
