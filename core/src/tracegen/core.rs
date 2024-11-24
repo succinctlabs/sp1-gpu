@@ -107,8 +107,9 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
             );
         }
 
-        let mut cumulative_sums =
-            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
+            .to_device_async(stream)
+            .unwrap();
 
         unsafe {
             tracegen::ffi::core_memory_local_generate_trace_round_2(
@@ -193,8 +194,9 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
             );
         }
 
-        let mut cumulative_sums =
-            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
+            .to_device_async(stream)
+            .unwrap();
 
         unsafe {
             tracegen::ffi::core_memory_global_generate_trace_round_2(
@@ -276,8 +278,9 @@ impl DeviceAir<BabyBear> for SyscallChip {
             );
         }
 
-        let mut cumulative_sums =
-            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
+            .to_device_async(stream)
+            .unwrap();
 
         unsafe {
             tracegen::ffi::core_syscall_generate_trace_round_2(
