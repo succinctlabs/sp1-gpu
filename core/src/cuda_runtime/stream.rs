@@ -100,20 +100,11 @@ impl CudaStream {
     }
 
     /// Allocate memory on the device.
-    ///
-    /// This function will block until the memory is available. The method will return an error if
-    /// the allocator failed for a reason other than out of memory.
-    ///
     /// # Safety
     /// See [Self::try_alloc]
     #[inline]
     pub unsafe fn alloc<T: Copy>(&self, len: usize) -> Result<*mut T, CudaError> {
-        self.alloc_timeout(len, DEFAULT_TIMEOUT).map_err(|e| match e {
-            AllocTimeoutError::CudaError(e) => e,
-            AllocTimeoutError::Timeout => {
-                CudaError::OutOfMemory("Out of memory: cudaMallocAsync timeout".to_string())
-            }
-        })
+        self.try_alloc(len)
     }
 
     /// Trt to allocate memory on the device or return an error after a timeout.
