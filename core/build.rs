@@ -189,7 +189,7 @@ fn main() {
         cc_builder.flag("-lnvToolsExt");
         cc_builder.flag("-ldl");
         cc_builder.flag("--expt-relaxed-constexpr");
-        cc_builder.flag("-arch=native");
+        cc_builder.flag("-arch=sm_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
