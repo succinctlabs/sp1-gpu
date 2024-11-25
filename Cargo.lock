@@ -3400,6 +3400,7 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
+ "serial_test",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-recursion-core",

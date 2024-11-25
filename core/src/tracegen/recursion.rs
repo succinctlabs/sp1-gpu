@@ -20,6 +20,8 @@ use sp1_recursion_core::{
     },
     ExpReverseBitsEventFFI,
 };
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use super::DeviceAir;
 
@@ -330,6 +332,7 @@ mod tests {
     use p3_matrix::dense::RowMajorMatrix;
     use p3_symmetric::Permutation;
     use rand::{rngs::StdRng, Rng, SeedableRng};
+    use serial_test::serial;
     use sp1_recursion_core::{
         air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
         chips::poseidon2_skinny::WIDTH,
@@ -344,6 +347,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[serial]
     fn test_base_alu() {
         type F = BabyBear;
 
@@ -362,6 +366,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_ext_alu() {
         type F = BabyBear;
 
@@ -384,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_batch_fri() {
         type F = BabyBear;
 
@@ -406,6 +412,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     #[ignore]
     fn test_exp_reverse_bits() {
         type F = BabyBear;
@@ -429,6 +436,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_fri_fold() {
         type F = BabyBear;
 
@@ -467,6 +475,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_public_values() {
         type F = BabyBear;
 
@@ -492,6 +501,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_select() {
         type F = BabyBear;
 
@@ -525,6 +535,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_poseidon2_skinny() {
         type F = BabyBear;
 

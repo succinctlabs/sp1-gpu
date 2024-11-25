@@ -366,18 +366,27 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
     static const size_t COLUMNS =
         sizeof(sp1_recursion_core_sys::Poseidon2<T>) / sizeof(T);
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::Poseidon2<T> cols[11];
-        sp1_recursion_core_sys::poseidon2_skinny::event_to_row<T>(
-            events[i],
-            cols
-        );
+    int event_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (event_idx >= nb_events) {
+        return;
+    }
 
-        for (size_t round_idx = 0; round_idx < 11; ++round_idx) {
-            const T* arr = std::bit_cast<T*>(&cols[round_idx]);
-            for (size_t j = 0; j < COLUMNS; ++j) {
-                trace.values[i * 11 + round_idx + j * trace.height] = arr[j];
+    sp1_recursion_core_sys::Poseidon2<T> cols[11];
+    sp1_recursion_core_sys::poseidon2_skinny::event_to_row<T>(
+        events[event_idx],
+        cols
+    );
+
+    size_t base_row = event_idx * 11;
+
+    for (size_t round_idx = 0; round_idx < 11; ++round_idx) {
+        const T* arr = std::bit_cast<T*>(&cols[round_idx]);
+        size_t row = base_row + round_idx;
+
+        for (size_t col = 0; col < COLUMNS; ++col) {
+            size_t idx = row + col * trace.height;
+            if (idx < trace.height * trace.width) {
+                trace.values[idx] = arr[col];
             }
         }
     }
@@ -390,6 +399,8 @@ extern "C" rustCudaError_t recursion_poseidon2_skinny_generate_trace(
     CudaStreamHandle stream_handle
 ) {
     const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+
+    // Zero out the entire trace first
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -397,11 +408,13 @@ extern "C" rustCudaError_t recursion_poseidon2_skinny_generate_trace(
         stream
     ));
 
-    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 8192));
+    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 4096));
 
-    static const int M = 256;
+    static const int THREADS_PER_BLOCK = 256;
+    int num_blocks = (nb_events + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+
     recursion_poseidon2_skinny_generate_trace_kernel<bb31_t>
-        <<<(trace.height - 1) / M + 1, M, 0, stream>>>(
+        <<<num_blocks, THREADS_PER_BLOCK, 0, stream>>>(
             trace,
             events,
             nb_events
