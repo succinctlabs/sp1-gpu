@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use moongate_core::utils::init_tracer;
 use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
 use sp1_core_machine::io::SP1Stdin;
@@ -105,6 +107,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;
+
+    sleep(Duration::from_secs(2));
 
     Ok(())
 }

@@ -118,7 +118,6 @@ fn main() {
             "sp1-stark",
         ])
         .with_namespace("moongate")
-        .with_language(cbindgen::Language::Cxx)
         .with_crate(crate_dir)
         .include_item("MatrixViewMutDevice")
         .include_item("CudaStreamHandle")
@@ -132,7 +131,12 @@ fn main() {
                 rel_symlink_file(header_path, target_include_dir_fixed.join(cbindgen_hpp));
             }
         }
-        Err(cbindgen::Error::ParseSyntaxError { .. }) => {} // Ignore parse errors so rust-analyzer can run.
+        Err(cbindgen::Error::ParseSyntaxError { src_path, crate_name, error, .. }) => {
+            // panic!(
+            //     "Failed to generate cbindgen header: {:?} in crate {:?}: {}",
+            //     src_path, crate_name, error
+            // );
+        } // Ignore parse errors so rust-analyzer can run.
         Err(e) => panic!("{:?}", e),
     }
 

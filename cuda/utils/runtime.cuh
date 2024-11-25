@@ -160,3 +160,10 @@ extern "C" rustCudaError_t cuda_mem_copy_host_to_host_async(
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyHostToHost, stream));
     return CUDA_SUCCESS_MOON;
 }
+
+extern "C" rustCudaError_t cuda_setup_mem_pool(cudaStream_t stream) {
+    cudaMemPool_t mempool;
+    CUDA_OK(cudaDeviceGetDefaultMemPool(&mempool, 0));
+    uint64_t threshold = UINT64_MAX;
+    CUDA_OK(cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold));
+}
