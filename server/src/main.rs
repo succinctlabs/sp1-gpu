@@ -17,7 +17,7 @@ use sp1_cuda::{
     CompressRequestPayload, ProveCoreRequestPayload, SetupRequestPayload, SetupResponsePayload,
     ShrinkRequestPayload, WrapRequestPayload,
 };
-use sp1_prover::{DeviceProvingKey, SP1Prover, SP1ProvingKey};
+use sp1_prover::{DeviceProvingKey, SP1Prover};
 use tower_http::catch_panic::CatchPanicLayer;
 use twirp::{
     axum::{self},
