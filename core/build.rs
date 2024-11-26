@@ -131,12 +131,9 @@ fn main() {
                 rel_symlink_file(header_path, target_include_dir_fixed.join(cbindgen_hpp));
             }
         }
-        Err(cbindgen::Error::ParseSyntaxError { src_path, crate_name, error, .. }) => {
-            // panic!(
-            //     "Failed to generate cbindgen header: {:?} in crate {:?}: {}",
-            //     src_path, crate_name, error
-            // );
-        } // Ignore parse errors so rust-analyzer can run.
+        Err(cbindgen::Error::ParseSyntaxError { .. }) => {
+            // Ignore parse errors so rust-analyzer can run.
+        }
         Err(e) => panic!("{:?}", e),
     }
 
@@ -189,7 +186,7 @@ fn main() {
         cc_builder.flag("-lnvToolsExt");
         cc_builder.flag("-ldl");
         cc_builder.flag("--expt-relaxed-constexpr");
-        cc_builder.flag("-arch=native");
+        cc_builder.flag("-arch=sm_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {

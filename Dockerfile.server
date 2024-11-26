@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     protobuf-compiler \
     libssl-dev \
+    git \   
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,8 +21,13 @@ WORKDIR /usr/src/app
 # Copy the Rust project files
 COPY . .
 
+# Add the SSH private key to the container
+RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh \
+    && ssh-keyscan github.com >> /root/.ssh/known_hosts \
+    && git config --global url."git@github.com:".insteadOf "https://github.com/"
+
 # Build the Rust project
-RUN cargo build -p moongate-server --release
+RUN --mount=type=ssh CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build -p moongate-server --release
 
 # Runtime stage
 FROM nvidia/cuda:12.5.1-runtime-ubuntu22.04
