@@ -3196,9 +3196,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.164"
+version = "0.2.165"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "433bfe06b8c75da9b2e3fbea6e5329ff87748f0b144ef75306e674c3f6f7c13f"
+checksum = "fcb4d3d38eab6c5239a362fa8bae48c03baf980a6e7079f063942d563ef3533e"
 
 [[package]]
 name = "libgit2-sys"
@@ -5568,7 +5568,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5601,7 +5601,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5654,7 +5654,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5670,7 +5670,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5692,7 +5692,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5701,7 +5701,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5720,7 +5720,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "bincode",
  "hex",
@@ -5737,7 +5737,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5773,7 +5773,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5806,7 +5806,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5827,7 +5827,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5867,7 +5867,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5876,7 +5876,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5901,7 +5901,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -5942,7 +5942,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0"
-source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#5db4bc5214373882cc41eeeab9f8690644de8464"
+source = "git+ssh://git@github.com/succinctlabs/sp1-wip.git?branch=min/eclogup-tracegen#51e22e04f3bfbef5469d07110607c6c91a9c3d6c"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6688,9 +6688,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.32"
+version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
+checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 dependencies = [
  "once_cell",
  "valuable",
