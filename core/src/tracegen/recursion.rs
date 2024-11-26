@@ -323,41 +323,44 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
     }
 }
 
-// impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
-//     fn generate_trace_device(
-//         &self,
-//         input: &Self::Record,
-//         _: &mut Self::Record,
-//         stream: &CudaStream,
-//     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-//         let events = &input.poseidon2_events;
-//         let events = events.to_device_async(stream)?;
+impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.poseidon2_events;
+        let events = events.to_device_async(stream)?;
 
-//         let nb_rows = self.num_rows(input).unwrap();
-//         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
-//             <Poseidon2SkinnyChip<DEGREE> as BaseAir<BabyBear>>::width(self),
-//             nb_rows,
-//             stream,
-//         )?;
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <Poseidon2WideChip<DEGREE> as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
 
-//         unsafe {
-//             trace.set_max_width();
-//             tracegen::ffi::recursion_poseidon2_skinny_generate_trace(
-//                 trace.view_mut(),
-//                 events.as_ptr(),
-//                 events.len() as u32,
-//                 stream.handle(),
-//             );
-//         }
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_poseidon2_wide_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
 
-//         Ok(Some(trace))
-//     }
+        Ok(Some(trace))
+    }
 
-//     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-//         let events = &input.poseidon2_events;
-//         Some(next_power_of_two(events.len() * 11, input.fixed_log2_rows(self)))
-//     }
-// }
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = &input.poseidon2_events;
+        match input.fixed_log2_rows(self) {
+            Some(log2_rows) => Some(1 << log2_rows),
+            None => Some(next_power_of_two(events.len(), None)),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -575,6 +578,35 @@ mod tests {
         type F = BabyBear;
 
         let chip = Poseidon2SkinnyChip::<9>::default();
+        let input_0 = [F::one(); WIDTH];
+        let permuter = inner_perm();
+        let output_0 = permuter.permute(input_0);
+        let mut rng = rand::thread_rng();
+
+        let input_1 = [F::rand(&mut rng); WIDTH];
+        let output_1 = permuter.permute(input_1);
+        let shard = ExecutionRecord {
+            poseidon2_events: vec![
+                Poseidon2Event { input: input_0, output: output_0 },
+                Poseidon2Event { input: input_1, output: output_1 },
+            ],
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_poseidon2_wide_deg_3() {
+        type F = BabyBear;
+
+        let chip = Poseidon2WideChip::<3>;
         let input_0 = [F::one(); WIDTH];
         let permuter = inner_perm();
         let output_0 = permuter.permute(input_0);

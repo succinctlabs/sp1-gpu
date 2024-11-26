@@ -463,7 +463,7 @@ extern "C" rustCudaError_t recursion_poseidon2_wide_generate_trace(
         stream
     ));
 
-    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 4096));
+    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 8192));
 
     static const int M = 256;
     recursion_poseidon2_wide_generate_trace_kernel<bb31_t>

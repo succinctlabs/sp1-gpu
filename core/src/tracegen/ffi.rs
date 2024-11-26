@@ -145,4 +145,11 @@ extern "C" {
         nb_events: u32,
         stream: CudaStreamHandle,
     );
+
+    pub fn recursion_poseidon2_wide_generate_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        events: *const Poseidon2Event<BabyBear>,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
 }
