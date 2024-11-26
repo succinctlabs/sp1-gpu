@@ -11,13 +11,13 @@
 #include "moongate-core-sys-cbindgen.hpp"
 #include "poseidon2.hpp"
 #include "poseidon2_skinny.hpp"
+#include "poseidon2_wide.hpp"
 #include "public_values.hpp"
 #include "select.hpp"
 #include "sp1-core-machine-sys-cbindgen.hpp"
 #include "sp1-recursion-core-sys-cbindgen.hpp"
 
 using namespace moongate;
-using namespace sp1_recursion_core_sys::poseidon2;
 
 template<class T>
 __global__ void recursion_base_alu_generate_trace_kernel(
@@ -369,16 +369,15 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
         sp1_recursion_core_sys::Poseidon2<T>
-            cols[sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1];
+            cols[sp1_recursion_core_sys::OUTPUT_ROUND_IDX + 1];
         sp1_recursion_core_sys::poseidon2_skinny::event_to_row<T>(
             events[i],
             cols
         );
 
-        size_t base_row =
-            i * (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
-        for (size_t round_idx = 0; round_idx
-             < (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
+        size_t base_row = i * (sp1_recursion_core_sys::OUTPUT_ROUND_IDX + 1);
+        for (size_t round_idx = 0;
+             round_idx < (sp1_recursion_core_sys::OUTPUT_ROUND_IDX + 1);
              ++round_idx) {
             const T* arr = std::bit_cast<T*>(&cols[round_idx]);
             size_t row = base_row + round_idx;
@@ -408,6 +407,66 @@ extern "C" rustCudaError_t recursion_poseidon2_skinny_generate_trace(
 
     static const int M = 256;
     recursion_poseidon2_skinny_generate_trace_kernel<bb31_t>
+        <<<(trace.height - 1) / M + 1, M, 0, stream>>>(
+            trace,
+            events,
+            nb_events
+        );
+
+    return CUDA_SUCCESS_MOON;
+}
+
+template<class T>
+__global__ void recursion_poseidon2_wide_generate_trace_kernel(
+    MatrixViewMutDevice<T> trace,
+    const sp1_recursion_core_sys::Poseidon2Event<T>* events,
+    uintptr_t nb_events
+) {
+    static const size_t COLUMNS =
+        sizeof(sp1_recursion_core_sys::Poseidon2<T>) / sizeof(T);
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    for (; i < nb_events; i += blockDim.x * gridDim.x) {
+        sp1_recursion_core_sys::poseidon2_wide::event_to_row<T>(
+            events[i].input,
+            trace.values,
+            i,
+            false
+        );
+
+        // size_t base_row =
+        //     i * (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
+        // for (size_t round_idx = 0; round_idx
+        //      < (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
+        //      ++round_idx) {
+        //     const T* arr = std::bit_cast<T*>(&cols[round_idx]);
+        //     size_t row = base_row + round_idx;
+
+        //     for (size_t j = 0; j < COLUMNS; ++j) {
+        //         trace.values[row + j * trace.height] = arr[j];
+        //     }
+        // }
+    }
+}
+
+extern "C" rustCudaError_t recursion_poseidon2_wide_generate_trace(
+    MatrixViewMutDevice<bb31_t> trace,
+    const sp1_recursion_core_sys::Poseidon2Event<bb31_t>* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
+    CUDA_OK(cudaMemsetAsync(
+        trace.values,
+        0,
+        trace.width * trace.height * sizeof(bb31_t),
+        stream
+    ));
+
+    CUDA_OK(cudaDeviceSetLimit(cudaLimitStackSize, 4096));
+
+    static const int M = 256;
+    recursion_poseidon2_wide_generate_trace_kernel<bb31_t>
         <<<(trace.height - 1) / M + 1, M, 0, stream>>>(
             trace,
             events,
