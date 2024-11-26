@@ -160,7 +160,7 @@ extern "C" rustCudaError_t recursion_batch_fri_generate_trace(
 template<class T>
 __global__ void recursion_exp_reverse_bits_generate_trace_kernel(
     MatrixViewMutDevice<T> trace,
-    const sp1_recursion_core_sys::ExpReverseBitsEventFFI<T>* events,
+    const sp1_recursion_core_sys::ExpReverseBitsEvent<T>* events,
     uintptr_t nb_events
 ) {
     static const size_t COLUMNS =
@@ -168,14 +168,25 @@ __global__ void recursion_exp_reverse_bits_generate_trace_kernel(
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        // This doesn't work since the exp_ptr is a pointer to the device memory
-        for (size_t exp_idx = 0; exp_idx < events[i].exp_len; ++exp_idx) {
+        // Per event accumulator
+        T accum = T::one();
+
+        for (size_t exp_idx = 0; exp_idx < events[i].len; ++exp_idx) {
             sp1_recursion_core_sys::ExpReverseBitsLenCols<T> cols;
             sp1_recursion_core_sys::exp_reverse_bits::event_to_row<T>(
                 events[i],
                 exp_idx,
                 cols
             );
+
+            T prev_accum = accum;
+            accum = prev_accum * prev_accum * cols.multiplier;
+
+            cols.accum = accum;
+            cols.accum_squared = accum * accum;
+            cols.prev_accum_squared = prev_accum * prev_accum;
+            cols.prev_accum_squared_times_multiplier =
+                cols.prev_accum_squared * cols.multiplier;
 
             const T* arr = std::bit_cast<T*>(&cols);
             for (size_t j = 0; j < COLUMNS; ++j) {
@@ -187,7 +198,7 @@ __global__ void recursion_exp_reverse_bits_generate_trace_kernel(
 
 extern "C" rustCudaError_t recursion_exp_reverse_bits_generate_trace(
     MatrixViewMutDevice<bb31_t> trace,
-    const sp1_recursion_core_sys::ExpReverseBitsEventFFI<bb31_t>* events,
+    const sp1_recursion_core_sys::ExpReverseBitsEvent<bb31_t>* events,
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
