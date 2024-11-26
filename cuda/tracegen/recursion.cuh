@@ -17,7 +17,7 @@
 #include "sp1-recursion-core-sys-cbindgen.hpp"
 
 using namespace moongate;
-using namespace poseidon2;
+using namespace sp1_recursion_core_sys::poseidon2;
 
 template<class T>
 __global__ void recursion_base_alu_generate_trace_kernel(
@@ -368,14 +368,18 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::Poseidon2<T> cols[11];
+        sp1_recursion_core_sys::Poseidon2<T>
+            cols[sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1];
         sp1_recursion_core_sys::poseidon2_skinny::event_to_row<T>(
             events[i],
             cols
         );
 
-        size_t base_row = i * 11;
-        for (size_t round_idx = 0; round_idx < 11; ++round_idx) {
+        size_t base_row =
+            i * (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
+        for (size_t round_idx = 0; round_idx
+             < (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
+             ++round_idx) {
             const T* arr = std::bit_cast<T*>(&cols[round_idx]);
             size_t row = base_row + round_idx;
 
