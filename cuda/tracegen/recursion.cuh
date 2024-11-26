@@ -425,27 +425,29 @@ __global__ void recursion_poseidon2_wide_generate_trace_kernel(
     static const size_t COLUMNS =
         sizeof(sp1_recursion_core_sys::Poseidon2<T>) / sizeof(T);
 
+    bool sbox_state =
+        trace.width == sp1_recursion_core_sys::poseidon2::PERMUTATION_SBOX;
+    T dummy_input[WIDTH];
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    for (; i < nb_events; i += blockDim.x * gridDim.x) {
-        sp1_recursion_core_sys::poseidon2_wide::event_to_row<T>(
-            events[i].input,
-            trace.values,
-            i,
-            false
-        );
-
-        // size_t base_row =
-        //     i * (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
-        // for (size_t round_idx = 0; round_idx
-        //      < (sp1_recursion_core_sys::poseidon2::OUTPUT_ROUND_IDX + 1);
-        //      ++round_idx) {
-        //     const T* arr = std::bit_cast<T*>(&cols[round_idx]);
-        //     size_t row = base_row + round_idx;
-
-        //     for (size_t j = 0; j < COLUMNS; ++j) {
-        //         trace.values[row + j * trace.height] = arr[j];
-        //     }
-        // }
+    for (; i < trace.height; i += blockDim.x * gridDim.x) {
+        if (i < nb_events) {
+            sp1_recursion_core_sys::poseidon2_wide::event_to_row<T>(
+                events[i].input,
+                trace.values,
+                i,
+                trace.height,
+                sbox_state
+            );
+        } else {
+            sp1_recursion_core_sys::poseidon2_wide::event_to_row<T>(
+                dummy_input,
+                trace.values,
+                i,
+                trace.height,
+                sbox_state
+            );
+        }
     }
 }
 

@@ -629,4 +629,33 @@ mod tests {
             .unwrap();
         assert_eq!(trace, device_trace.to_host_naive());
     }
+
+    #[test]
+    #[serial]
+    fn test_poseidon2_wide_deg_9() {
+        type F = BabyBear;
+
+        let chip = Poseidon2WideChip::<9>;
+        let input_0 = [F::one(); WIDTH];
+        let permuter = inner_perm();
+        let output_0 = permuter.permute(input_0);
+        let mut rng = rand::thread_rng();
+
+        let input_1 = [F::rand(&mut rng); WIDTH];
+        let output_1 = permuter.permute(input_1);
+        let shard = ExecutionRecord {
+            poseidon2_events: vec![
+                Poseidon2Event { input: input_0, output: output_0 },
+                Poseidon2Event { input: input_1, output: output_1 },
+            ],
+            ..Default::default()
+        };
+        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 }
