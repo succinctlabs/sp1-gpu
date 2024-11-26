@@ -328,7 +328,6 @@ mod tests {
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
     use p3_matrix::Matrix;
-    use sp1_core_executor::events::MemoryRecord;
     use sp1_core_executor::events::SyscallEvent;
     use sp1_core_executor::{
         events::AluEvent, events::MemoryInitializeFinalizeEvent, events::MemoryLocalEvent,
@@ -373,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_memory_local_generate_trace() {
-        let mut rng = rand::thread_rng();
+        // let mut rng = rand::thread_rng();
         let mut shard = ExecutionRecord::default();
         // Print current working directory to debug file path issue
         println!("Current working directory: {:?}", std::env::current_dir().unwrap());
