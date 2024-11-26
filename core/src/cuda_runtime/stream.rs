@@ -6,8 +6,6 @@ use crate::{device::error::CudaError, time::CudaInstant};
 
 use super::{event::CudaEvent, ffi};
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct CudaStreamHandle(*mut c_void);
