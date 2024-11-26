@@ -27,11 +27,19 @@ impl DeviceGrindingChallenger for InnerChallenger {
         // Move the challenger state to device.
         let mut sponge_d = self.sponge_state.to_device().unwrap();
         let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
-            if i < self.input_buffer.len() { self.input_buffer[i] } else { BabyBear::zero() }
+            if i < self.input_buffer.len() {
+                self.input_buffer[i]
+            } else {
+                BabyBear::zero()
+            }
         });
         let input_d = input_array.to_device().unwrap();
         let output_array: [BabyBear; WIDTH] = std::array::from_fn(|i| {
-            if i < self.output_buffer.len() { self.output_buffer[i] } else { BabyBear::zero() }
+            if i < self.output_buffer.len() {
+                self.output_buffer[i]
+            } else {
+                BabyBear::zero()
+            }
         });
         let output_d = output_array.to_device().unwrap();
 
@@ -70,6 +78,7 @@ impl DeviceGrindingChallenger for OuterChallenger {
     }
 }
 
+/// cbindgen:ignore
 #[allow(unused_attributes)]
 #[link_name = "duplex_challenger"]
 extern "C" {

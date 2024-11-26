@@ -9,8 +9,9 @@ use p3_commit::{Mmcs, PolynomialSpace};
 use p3_field::{AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use sp1_stark::septic_curve::{SepticCurve, SepticCurveComplete};
 use sp1_stark::septic_digest::SepticDigest;
-use sp1_stark::MachineChip;
+use sp1_stark::septic_extension::SepticExtension;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
@@ -18,6 +19,7 @@ use sp1_stark::{
     SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkGenericConfig,
     StarkMachine, StarkVerifyingKey, Val,
 };
+use sp1_stark::{InteractionKind, MachineChip};
 
 use itertools::Itertools;
 use tracing::info;
@@ -29,6 +31,8 @@ use std::{
     marker::PhantomData,
 };
 
+use crate::cuda_runtime::ffi::DEFAULT_STREAM;
+use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::{
     cuda_runtime::{event::CudaEvent, stream::CudaStream},
     device::{
@@ -196,6 +200,7 @@ where
         + DeviceAir<BabyBear>,
     // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
+    A::Program: DeviceProgram<SC>,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static
         + Send
@@ -428,12 +433,17 @@ where
         let generate_traces_copy_span =
             tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
+        let start = std::time::Instant::now();
+
+        let prep_start = std::time::Instant::now();
         let mut named_preprocessed_data = self
             .machine()
             .chips()
             .par_iter()
             .map(|chip| {
+                let start = std::time::Instant::now();
                 let prep_trace = chip.generate_preprocessed_trace(program);
+                println!("chip {} took {:?}", chip.name(), start.elapsed());
                 // Assert that the chip width data is correct.
                 let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
@@ -461,10 +471,12 @@ where
                 (name, domain, event, local_only, rx, dimensions)
             })
             .collect::<Vec<_>>();
+        println!("prep took {:?}", prep_start.elapsed());
 
         named_preprocessed_data
             .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
 
+        let copy_start = std::time::Instant::now();
         let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
             named_preprocessed_data
                 .into_iter()
@@ -473,14 +485,17 @@ where
                     (((name, domain, dimensions), (domain, trace, event)), local_only)
                 })
                 .collect();
+        println!("copy took {:?}", copy_start.elapsed());
 
         generate_traces_copy_span.exit();
 
         // Commit to the batch of traces.
+        let commit_start = std::time::Instant::now();
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
         commit_span.exit();
+        println!("commit took {:?}", commit_start.elapsed());
 
         // // Get the chip ordering.
         let chip_ordering = chip_information
@@ -490,11 +505,19 @@ where
             .collect::<HashMap<_, _>>();
 
         // Get the preprocessed traces
+        let trace_start = std::time::Instant::now();
         let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
+        println!("trace took {:?}", trace_start.elapsed());
 
         let pc_start = program.pc_start();
-        let initial_global_cumulative_sum = program.initial_global_cumulative_sum();
+        let sum_start = std::time::Instant::now();
+        // let initial_global_cumulative_sum = program.initial_global_cumulative_sum();
 
+        let initial_global_cumulative_sum = program.initial_global_cumulative_sum_device();
+
+        println!("sum took {:?}", sum_start.elapsed());
+
+        println!("SETUP took {:?}", start.elapsed());
         (
             StarkProvingKeyDevice {
                 commit: commit.clone(),
@@ -1263,3 +1286,157 @@ where
 //         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
 //     }
 // }
+
+/// cbindgen:ignore
+#[allow(unused_attributes)]
+#[link_name = "cumulative_sum"]
+extern "C" {
+    // extern "C" void compute_initial_global_cumulative_sum(
+    //     uint32_t* memory_image,
+    //     size_t n,
+    //     bb31_septic_curve_t* out,
+    //     uint32_t interaction_kind,
+    //     cudaStream_t stream
+    pub fn compute_initial_global_cumulative_sum(
+        memory_image: *const u32,
+        n: usize,
+        out: *mut sp1_stark::septic_curve::SepticCurve<BabyBear>,
+        interaction_kind: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn lift_x_device(
+        x: *const sp1_stark::septic_extension::SepticExtension<BabyBear>,
+        x_out: *mut sp1_stark::septic_extension::SepticExtension<BabyBear>,
+        y_out: *mut sp1_stark::septic_extension::SepticExtension<BabyBear>,
+    ) -> u8;
+}
+
+trait DeviceProgram<SC: StarkGenericConfig> {
+    fn initial_global_cumulative_sum_device(&self) -> SepticDigest<Val<SC>>;
+}
+
+impl<SC: StarkGenericConfig<Val = BabyBear>> DeviceProgram<SC> for sp1_core_executor::Program {
+    fn initial_global_cumulative_sum_device(&self) -> SepticDigest<Val<SC>> {
+        let mut initial_global_cumulative_sum =
+            vec![SepticCurve::<Val<SC>>::dummy(); self.memory_image.len() + 1].to_device().unwrap();
+        let start = std::time::Instant::now();
+        let memory_image =
+            self.memory_image.iter().sorted().flat_map(|x| [*x.0, *x.1]).collect::<Vec<_>>();
+        println!("memory_image took {:?} {}", start.elapsed(), memory_image.len());
+        let memory_image_device = memory_image.to_device().unwrap();
+        println!("memory_image_device took {:?}", start.elapsed());
+        unsafe {
+            compute_initial_global_cumulative_sum(
+                memory_image_device.as_ptr(),
+                self.memory_image.len(),
+                initial_global_cumulative_sum.as_mut_ptr(),
+                InteractionKind::Memory as u32,
+                DEFAULT_STREAM,
+            );
+        }
+        println!("initial_global_cumulative_sum took {:?}", start.elapsed());
+        let result = initial_global_cumulative_sum.to_host().pop().unwrap();
+        println!("initial_global_cumulative_sum_device took {:?}", start.elapsed());
+        SepticDigest(result)
+
+        // let start = std::time::Instant::now();
+        // let mut digests: Vec<SepticCurveComplete<Val<SC>>> = self
+        //     .memory_image
+        //     .iter()
+        //     .sorted()
+        //     .par_bridge()
+        //     .map(|(&addr, &word)| {
+        //         let values = [
+        //             (InteractionKind::Memory as u32) << 24,
+        //             0,
+        //             addr,
+        //             word & 255,
+        //             (word >> 8) & 255,
+        //             (word >> 16) & 255,
+        //             (word >> 24) & 255,
+        //         ];
+        //         let x_start = SepticExtension::<Val<SC>>::from_base_fn(|i| {
+        //             Val::<SC>::from_canonical_u32(values[i])
+        //         });
+        //         let (point, _) = SepticCurve::<Val<SC>>::lift_x(x_start);
+        //         SepticCurveComplete::Affine(point.neg())
+        //     })
+        //     .collect();
+        // println!("digests took {:?}", start.elapsed());
+        // digests.push(SepticCurveComplete::Affine(SepticDigest::<Val<SC>>::zero().0));
+        // let sum_start = std::time::Instant::now();
+        // let sum =
+        //     digests.into_par_iter().reduce(|| SepticCurveComplete::Infinity, |a, b| a + b).point();
+        // println!("sum took {:?}", sum_start.elapsed());
+        // SepticDigest(sum)
+
+        // digest: SepticDigest(SepticCurve { x: SepticExtension([547117276, 321374872, 704896192, 1974589581, 507476242, 1573248788, 1680691978]), y: SepticExtension([743960968, 1918410898, 1029642588, 522523432, 1686694278, 424592197, 1860697093]) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sp1_core_executor::{
+        programs::tests::{FIBONACCI_ELF, SSZ_WITHDRAWALS_ELF},
+        Program,
+    };
+    use sp1_core_machine::riscv::RiscvAir;
+    use sp1_stark::baby_bear_poseidon2::BabyBearPoseidon2;
+
+    use crate::{
+        merkle_tree::FieldMerkleTreeDeviceCommitter,
+        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_initial_global_cumulative_sum() {
+        let elf = include_bytes!("../../../../../../sp1/crates/perf/temp/rsp-20526624/program.bin");
+        // let elf = bincode::deserialize::<Vec<u8>>(elf).unwrap();
+        let program = Program::from(elf).unwrap();
+
+        type SC = BabyBearPoseidon2;
+
+        type P = StarkGpuProver<
+            SC,
+            FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>,
+            RiscvAir<BabyBear>,
+        >;
+
+        let config = SC::new();
+        let machine = RiscvAir::machine(config);
+        let prover = P::new(machine);
+
+        let random_point = SepticExtension::<Val<SC>>::one();
+        // println!("lift_x: {:?}", random_point.lift_x());
+        let (curve, offset) = SepticCurve::lift_x(random_point);
+        println!("lift_x: {:?}", curve);
+
+        // let mut points = vec![
+        //     random_point,
+        //     SepticExtension::<Val<SC>>::zero(),
+        //     SepticExtension::<Val<SC>>::zero(),
+        // ];
+        let x = random_point;
+        let mut x_out = SepticExtension::<Val<SC>>::zero();
+        let mut y_out = SepticExtension::<Val<SC>>::zero();
+        unsafe {
+            println!("entering");
+            lift_x_device(&x as *const _, &mut x_out, &mut y_out);
+            // println!("offset: {}", offset);
+            println!("done");
+        }
+        println!("x_out: {:?}", x_out);
+        println!("y_out: {:?}", y_out);
+
+        let (pk, vk) = prover.setup(&program);
+        let (pk, vk) = prover.setup(&program);
+        let (pk, vk) = prover.setup(&program);
+        let (pk, vk) = prover.setup(&program);
+        println!("digest: {:?}", vk.initial_global_cumulative_sum);
+        let (pk, vk) = prover.setup(&program);
+        println!("digest: {:?}", vk.initial_global_cumulative_sum);
+    }
+}
