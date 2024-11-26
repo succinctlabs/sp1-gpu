@@ -46,7 +46,7 @@ extern "C" rustCudaError_t recursion_base_alu_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -92,7 +92,7 @@ extern "C" rustCudaError_t recursion_ext_alu_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -138,7 +138,7 @@ extern "C" rustCudaError_t recursion_batch_fri_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -191,7 +191,7 @@ extern "C" rustCudaError_t recursion_exp_reverse_bits_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -237,7 +237,7 @@ extern "C" rustCudaError_t recursion_fri_fold_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -292,7 +292,7 @@ extern "C" rustCudaError_t recursion_public_values_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -338,7 +338,7 @@ extern "C" rustCudaError_t recursion_select_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
@@ -392,7 +392,7 @@ extern "C" rustCudaError_t recursion_poseidon2_skinny_generate_trace(
     uintptr_t nb_events,
     CudaStreamHandle stream_handle
 ) {
-    const cudaStream_t stream = std::bit_cast<cudaStream_t>(stream_handle);
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
     CUDA_OK(cudaMemsetAsync(
         trace.values,
         0,
