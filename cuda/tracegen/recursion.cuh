@@ -428,6 +428,9 @@ __global__ void recursion_poseidon2_wide_generate_trace_kernel(
     bool sbox_state =
         trace.width == sp1_recursion_core_sys::poseidon2::PERMUTATION_SBOX;
     T dummy_input[WIDTH];
+    for (size_t i = 0; i < WIDTH; ++i) {
+        dummy_input[i] = T::zero();
+    }
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (; i < trace.height; i += blockDim.x * gridDim.x) {
