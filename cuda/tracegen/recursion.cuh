@@ -33,7 +33,7 @@ __global__ void recursion_base_alu_generate_trace_kernel(
         sp1_recursion_core_sys::BaseAluValueCols<T> cols;
         sp1_recursion_core_sys::alu_base::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         size_t start = (i % 4) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
@@ -80,7 +80,7 @@ __global__ void recursion_ext_alu_generate_trace_kernel(
         sp1_recursion_core_sys::ExtAluValueCols<T> cols;
         sp1_recursion_core_sys::alu_ext::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         size_t start = (i % 4) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
@@ -127,7 +127,7 @@ __global__ void recursion_batch_fri_generate_trace_kernel(
         sp1_recursion_core_sys::BatchFRICols<T> cols;
         sp1_recursion_core_sys::batch_fri::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -190,7 +190,7 @@ __global__ void recursion_exp_reverse_bits_generate_trace_kernel(
             cols.prev_accum_squared_times_multiplier =
                 cols.prev_accum_squared * cols.multiplier;
 
-            const T* arr = std::bit_cast<T*>(&cols);
+            const T* arr = reinterpret_cast<T*>(&cols);
             for (size_t j = 0; j < COLUMNS; ++j) {
                 trace.values[i + exp_idx + j * trace.height] = arr[j];
             }
@@ -237,7 +237,7 @@ __global__ void recursion_fri_fold_generate_trace_kernel(
         sp1_recursion_core_sys::FriFoldCols<T> cols;
         sp1_recursion_core_sys::fri_fold::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -291,7 +291,7 @@ __global__ void recursion_public_values_generate_trace_kernel(
                 cols
             );
 
-            const T* arr = std::bit_cast<T*>(&cols);
+            const T* arr = reinterpret_cast<T*>(&cols);
             for (size_t j = 0; j < COLUMNS; ++j) {
                 trace.values[i + digest_idx + j * trace.height] = arr[j];
             }
@@ -338,7 +338,7 @@ __global__ void recursion_select_generate_trace_kernel(
         sp1_recursion_core_sys::SelectCols<T> cols;
         sp1_recursion_core_sys::select::event_to_row<T>(events[i], cols);
 
-        const T* arr = std::bit_cast<T*>(&cols);
+        const T* arr = reinterpret_cast<T*>(&cols);
         for (size_t j = 0; j < COLUMNS; ++j) {
             trace.values[i + j * trace.height] = arr[j];
         }
@@ -392,7 +392,7 @@ __global__ void recursion_poseidon2_skinny_generate_trace_kernel(
         for (size_t round_idx = 0;
              round_idx < (sp1_recursion_core_sys::OUTPUT_ROUND_IDX + 1);
              ++round_idx) {
-            const T* arr = std::bit_cast<T*>(&cols[round_idx]);
+            const T* arr = reinterpret_cast<T*>(&cols[round_idx]);
             size_t row = base_row + round_idx;
 
             for (size_t j = 0; j < COLUMNS; ++j) {
