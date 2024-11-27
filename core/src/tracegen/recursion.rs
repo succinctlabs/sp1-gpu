@@ -53,10 +53,12 @@ impl DeviceAir<BabyBear> for BaseAluChip {
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         let events = &input.base_alu_events;
-        Some(next_power_of_two(
-            events.len().div_ceil(NUM_BASE_ALU_ENTRIES_PER_ROW),
-            input.fixed_log2_rows(self),
-        ))
+        let nb_rows = events.len().div_ceil(NUM_BASE_ALU_ENTRIES_PER_ROW);
+        let fixed_log2_rows = input.fixed_log2_rows(self);
+        Some(match fixed_log2_rows {
+            Some(log2_rows) => 1 << log2_rows,
+            None => next_power_of_two(nb_rows, None),
+        })
     }
 }
 
@@ -92,10 +94,12 @@ impl DeviceAir<BabyBear> for ExtAluChip {
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
         let events = &input.ext_alu_events;
-        Some(next_power_of_two(
-            events.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW),
-            input.fixed_log2_rows(self),
-        ))
+        let nb_rows = events.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW);
+        let fixed_log2_rows = input.fixed_log2_rows(self);
+        Some(match fixed_log2_rows {
+            Some(log2_rows) => 1 << log2_rows,
+            None => next_power_of_two(nb_rows, None),
+        })
     }
 }
 
@@ -386,7 +390,10 @@ mod tests {
 
         let chip = BaseAluChip;
         let shard = ExecutionRecord {
-            base_alu_events: vec![BaseAluIo { out: F::one(), in1: F::one(), in2: F::one() }],
+            base_alu_events: vec![
+                BaseAluIo { out: F::one(), in1: F::one(), in2: F::one() },
+                BaseAluIo { out: F::one(), in1: F::zero(), in2: F::one() },
+            ],
             ..Default::default()
         };
         let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
@@ -405,11 +412,10 @@ mod tests {
 
         let chip = ExtAluChip;
         let shard = ExecutionRecord {
-            ext_alu_events: vec![ExtAluIo {
-                out: F::one().into(),
-                in1: F::one().into(),
-                in2: F::one().into(),
-            }],
+            ext_alu_events: vec![
+                ExtAluIo { out: F::one().into(), in1: F::one().into(), in2: F::one().into() },
+                ExtAluIo { out: F::one().into(), in1: F::zero().into(), in2: F::one().into() },
+            ],
             ..Default::default()
         };
         let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());

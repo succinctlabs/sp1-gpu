@@ -34,8 +34,9 @@ __global__ void recursion_base_alu_generate_trace_kernel(
         sp1_recursion_core_sys::alu_base::event_to_row<T>(events[i], cols);
 
         const T* arr = std::bit_cast<T*>(&cols);
+        size_t start = (i % 4) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+            trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
         }
     }
 }
@@ -80,8 +81,9 @@ __global__ void recursion_ext_alu_generate_trace_kernel(
         sp1_recursion_core_sys::alu_ext::event_to_row<T>(events[i], cols);
 
         const T* arr = std::bit_cast<T*>(&cols);
+        size_t start = (i % 4) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+            trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
         }
     }
 }
