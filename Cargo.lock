@@ -1202,6 +1202,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "camino"
+version = "1.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b96ec4966b5813e2c0507c1f86115c8c5abaadc3980879c3424042a02fd1ad3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24b1f0365a6c6bb4020cd05806fd0d33c44d38046b8bd7f0e40814b9763cabfc"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver 1.0.23",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "cbindgen"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5254,6 +5286,9 @@ name = "semver"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "semver-parser"
@@ -5568,8 +5603,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp1-build"
+version = "4.0.0-rc.1"
+dependencies = [
+ "anyhow",
+ "cargo_metadata",
+ "chrono",
+ "clap",
+ "dirs",
+]
+
+[[package]]
 name = "sp1-core-executor"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5592,6 +5638,7 @@ dependencies = [
  "sp1-stark",
  "strum",
  "strum_macros",
+ "test-artifacts",
  "thiserror 1.0.69",
  "tiny-keccak",
  "tracing",
@@ -5601,7 +5648,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5653,7 +5700,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5668,7 +5715,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5689,7 +5736,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5697,7 +5744,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5715,7 +5762,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "bincode",
  "hex",
@@ -5731,7 +5778,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5759,14 +5806,16 @@ dependencies = [
  "sp1-recursion-core",
  "sp1-recursion-gnark-ffi",
  "sp1-stark",
+ "test-artifacts",
  "thiserror 1.0.69",
  "tracing",
+ "tracing-appender",
  "tracing-subscriber",
 ]
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5798,7 +5847,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5818,7 +5867,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5857,7 +5906,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5865,7 +5914,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5889,7 +5938,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -5912,6 +5961,7 @@ dependencies = [
  "reqwest",
  "reqwest-middleware",
  "serde",
+ "sp1-build",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-primitives",
@@ -5929,7 +5979,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "3.0.0"
+version = "4.0.0-rc.1"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6262,6 +6312,13 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
+]
+
+[[package]]
+name = "test-artifacts"
+version = "4.0.0-rc.1"
+dependencies = [
+ "sp1-build",
 ]
 
 [[package]]
@@ -6660,6 +6717,18 @@ dependencies = [
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-appender"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3566e8ce28cc0a3fe42519fc80e6b4c943cc4c8cef275620eb8dac2d3d4e06cf"
+dependencies = [
+ "crossbeam-channel",
+ "thiserror 1.0.69",
+ "time 0.3.36",
+ "tracing-subscriber",
 ]
 
 [[package]]
