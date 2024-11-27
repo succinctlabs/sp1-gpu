@@ -104,7 +104,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(_) => None,
             RecursionAir::FriFold(_) => None,
             RecursionAir::BatchFRI(_) => None,
-            // RecursionAir::ExpReverseBitsLen(_) => None,
             RecursionAir::PublicValues(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
@@ -126,9 +125,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::ExpReverseBitsLen(chip) => {
-            //     chip.generate_trace_device(input, output, stream)
-            // }
             RecursionAir::PublicValues(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
@@ -143,7 +139,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(chip) => chip.num_rows(input),
             RecursionAir::FriFold(chip) => chip.num_rows(input),
             RecursionAir::BatchFRI(chip) => chip.num_rows(input),
-            // RecursionAir::ExpReverseBitsLen(chip) => chip.num_rows(input),
             RecursionAir::PublicValues(chip) => chip.num_rows(input),
             _ => None,
         }
