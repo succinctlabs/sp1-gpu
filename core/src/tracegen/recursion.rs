@@ -11,7 +11,7 @@ use sp1_recursion_core::chips::{
     alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
     alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
     batch_fri::BatchFRIChip,
-    exp_reverse_bits::ExpReverseBitsLenChip,
+    // exp_reverse_bits::ExpReverseBitsLenChip,
     fri_fold::FriFoldChip,
     poseidon2_skinny::{trace::OUTPUT_ROUND_IDX, Poseidon2SkinnyChip},
     poseidon2_wide::Poseidon2WideChip,
@@ -139,44 +139,44 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
     }
 }
 
-impl<const DEGREE: usize> DeviceAir<BabyBear> for ExpReverseBitsLenChip<DEGREE> {
-    fn generate_trace_device(
-        &self,
-        input: &Self::Record,
-        _: &mut Self::Record,
-        stream: &CudaStream,
-    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-        let events = &input.exp_reverse_bits_len_events;
-        let events = events.to_device_async(stream)?;
+// impl<const DEGREE: usize> DeviceAir<BabyBear> for ExpReverseBitsLenChip<DEGREE> {
+//     fn generate_trace_device(
+//         &self,
+//         input: &Self::Record,
+//         _: &mut Self::Record,
+//         stream: &CudaStream,
+//     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+//         let events = &input.exp_reverse_bits_len_events;
+//         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows(input).unwrap();
-        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
-            <ExpReverseBitsLenChip<DEGREE> as BaseAir<BabyBear>>::width(self),
-            nb_rows,
-            stream,
-        )?;
+//         let nb_rows = self.num_rows(input).unwrap();
+//         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+//             <ExpReverseBitsLenChip<DEGREE> as BaseAir<BabyBear>>::width(self),
+//             nb_rows,
+//             stream,
+//         )?;
 
-        unsafe {
-            trace.set_max_width();
-            tracegen::ffi::recursion_exp_reverse_bits_generate_trace(
-                trace.view_mut(),
-                events.as_ptr(),
-                events.len() as u32,
-                stream.handle(),
-            );
-        }
+//         unsafe {
+//             trace.set_max_width();
+//             tracegen::ffi::recursion_exp_reverse_bits_generate_trace(
+//                 trace.view_mut(),
+//                 events.as_ptr(),
+//                 events.len() as u32,
+//                 stream.handle(),
+//             );
+//         }
 
-        Ok(Some(trace))
-    }
+//         Ok(Some(trace))
+//     }
 
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.exp_reverse_bits_len_events;
-        Some(next_power_of_two(
-            events.iter().map(|e| e.len).sum::<usize>(),
-            input.fixed_log2_rows(self),
-        ))
-    }
-}
+//     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+//         let events = &input.exp_reverse_bits_len_events;
+//         Some(next_power_of_two(
+//             events.iter().map(|e| e.len).sum::<usize>(),
+//             input.fixed_log2_rows(self),
+//         ))
+//     }
+// }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
     fn generate_trace_device(
@@ -374,8 +374,8 @@ mod tests {
         air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
         chips::poseidon2_skinny::WIDTH,
         BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo, BatchFRIExtVecIo,
-        CommitPublicValuesEvent, ExecutionRecord, ExpReverseBitsEvent, ExtAluIo, FriFoldBaseIo,
-        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
+        CommitPublicValuesEvent, ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent,
+        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
     };
     use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
@@ -450,37 +450,29 @@ mod tests {
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
-    #[test]
-    #[serial]
-    fn test_exp_reverse_bits() {
-        type F = BabyBear;
+    // #[test]
+    // #[serial]
+    // fn test_exp_reverse_bits() {
+    //     type F = BabyBear;
 
-        let chip = ExpReverseBitsLenChip::<3>;
-        let shard = ExecutionRecord {
-            exp_reverse_bits_len_events: vec![ExpReverseBitsEvent {
-                base: F::two(),
-                exp: to_fixed_array(vec![F::zero(), F::one(), F::one()]),
-                len: 3,
-                result: F::two().exp_u64(0b110),
-            }],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+    //     let chip = ExpReverseBitsLenChip::<3>;
+    //     let shard = ExecutionRecord {
+    //         exp_reverse_bits_len_events: vec![ExpReverseBitsEvent {
+    //             base: F::two(),
+    //             exp: to_fixed_array(vec![F::zero(), F::one(), F::one()]),
+    //             len: 3,
+    //             result: F::two().exp_u64(0b110),
+    //         }],
+    //         ..Default::default()
+    //     };
+    //     let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
 
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
-
-    fn to_fixed_array(vec: Vec<BabyBear>) -> [BabyBear; 32] {
-        let mut arr = [BabyBear::zero(); 32];
-        for (i, val) in vec.into_iter().take(32).enumerate() {
-            arr[i] = val;
-        }
-        arr
-    }
+    //     let device_trace = chip
+    //         .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+    //         .unwrap()
+    //         .unwrap();
+    //     assert_eq!(trace, device_trace.to_host_naive());
+    // }
 
     #[test]
     #[serial]
