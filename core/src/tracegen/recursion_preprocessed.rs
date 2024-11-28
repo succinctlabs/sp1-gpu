@@ -13,9 +13,9 @@ use sp1_recursion_core::{
         alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
         batch_fri::BatchFRIChip,
         fri_fold::FriFoldChip,
-        poseidon2_skinny::{trace::OUTPUT_ROUND_IDX, Poseidon2SkinnyChip},
+        poseidon2_skinny::{trace::OUTPUT_ROUND_IDX, Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
-        public_values::PublicValuesChip,
+        public_values::{PublicValuesChip, PUB_VALUES_LOG_HEIGHT},
         select::SelectChip,
     },
     runtime::{instruction as instr, Instruction, RecursionProgram},
@@ -124,12 +124,8 @@ impl DevicePreprocessedAir<BabyBear> for PublicValuesChip {
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let nb_rows = instrs.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW);
-        let fixed_log2_rows = program.fixed_log2_rows(self);
-        let padded_nb_rows = match fixed_log2_rows {
-            Some(log2_rows) => 1 << log2_rows,
-            None => next_power_of_two(nb_rows, None),
-        };
+        let nb_rows = instrs.len();
+        let padded_nb_rows = next_power_of_two(nb_rows, Some(PUB_VALUES_LOG_HEIGHT));
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <PublicValuesChip as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
@@ -181,6 +177,45 @@ impl DevicePreprocessedAir<BabyBear> for SelectChip {
         unsafe {
             trace.set_max_width();
             tracegen::ffi::recursion_select_generate_preprocessed_trace(
+                trace.view_mut(),
+                instrs.as_ptr(),
+                instrs.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
+impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let instrs = program
+            .instructions
+            .iter()
+            .filter_map(|instruction| match instruction {
+                Instruction::Poseidon2(instr) => Some(**instr),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let instrs = instrs.to_device_async(stream)?;
+
+        let nb_rows = instrs.len() * (NUM_EXTERNAL_ROUNDS + 3);
+        let fixed_log2_rows = program.fixed_log2_rows(self);
+        let padded_nb_rows = next_power_of_two(nb_rows, fixed_log2_rows);
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <Poseidon2SkinnyChip<DEGREE> as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_poseidon2_skinny_generate_preprocessed_trace(
                 trace.view_mut(),
                 instrs.as_ptr(),
                 instrs.len() as u32,
