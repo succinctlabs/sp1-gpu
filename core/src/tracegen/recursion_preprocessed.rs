@@ -242,7 +242,8 @@ mod tests {
         Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, BatchFRIBaseVecIo, BatchFRIEvent,
         BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, CommitPublicValuesInstr,
         ExecutionRecord, ExtAluInstr, ExtAluIo, ExtAluOpcode, FriFoldBaseIo, FriFoldEvent,
-        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectInstr, SelectIo,
+        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, Poseidon2Instr, Poseidon2Io,
+        SelectInstr, SelectIo,
     };
     use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
@@ -358,6 +359,31 @@ mod tests {
                     mult2: F::one(),
                 }),
             ],
+            ..Default::default()
+        };
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_poseidon2_skinny() {
+        type F = BabyBear;
+
+        let chip = Poseidon2SkinnyChip::<9>::default();
+        let program = RecursionProgram::<BabyBear> {
+            instructions: vec![Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                addrs: Poseidon2Io {
+                    input: [Address(F::one()); WIDTH],
+                    output: [Address(F::two()); WIDTH],
+                },
+                mults: [F::one(); WIDTH],
+            }))],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
