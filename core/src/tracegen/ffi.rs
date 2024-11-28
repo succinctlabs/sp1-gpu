@@ -98,7 +98,7 @@ extern "C" {
     );
     pub fn recursion_base_alu_generate_preprocessed_trace(
         trace: MatrixViewMutDevice<BabyBear>,
-        instructions: *const &BaseAluInstr<BabyBear>,
+        instructions: *const BaseAluInstr<BabyBear>,
         nb_instructions: u32,
         stream: CudaStreamHandle,
     );

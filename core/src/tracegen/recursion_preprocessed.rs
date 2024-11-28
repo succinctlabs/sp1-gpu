@@ -34,7 +34,7 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
             .instructions
             .iter()
             .filter_map(|instruction| match instruction {
-                Instruction::BaseAlu(x) => Some(x),
+                Instruction::BaseAlu(x) => Some(x.clone()),
                 _ => None,
             })
             .collect::<Vec<_>>();
