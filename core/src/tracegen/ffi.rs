@@ -6,8 +6,8 @@ use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_executor::events::SyscallEvent;
 use sp1_recursion_core::{
-    BaseAluEvent, BaseAluInstr, BatchFRIEvent, CommitPublicValuesEvent, ExtAluEvent, FriFoldEvent,
-    Poseidon2Event, SelectEvent,
+    BaseAluEvent, BaseAluInstr, BatchFRIEvent, CommitPublicValuesEvent, ExtAluEvent, ExtAluInstr,
+    FriFoldEvent, Poseidon2Event, SelectEvent,
 };
 use sp1_stark::septic_curve::SepticCurve;
 
@@ -107,6 +107,12 @@ extern "C" {
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const ExtAluEvent<BabyBear>,
         nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+    pub fn recursion_ext_alu_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const ExtAluInstr<BabyBear>,
+        nb_instructions: u32,
         stream: CudaStreamHandle,
     );
 

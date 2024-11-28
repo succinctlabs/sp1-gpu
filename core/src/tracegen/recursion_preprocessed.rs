@@ -66,6 +66,48 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
     }
 }
 
+impl DevicePreprocessedAir<BabyBear> for ExtAluChip {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let instrs = program
+            .instructions
+            .iter() // Faster than using `rayon` for some reason. Maybe vectorization?
+            .filter_map(|instruction| match instruction {
+                Instruction::ExtAlu(x) => Some(*x),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let instrs = instrs.to_device_async(stream)?;
+
+        let nb_rows = instrs.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW);
+        let fixed_log2_rows = program.fixed_log2_rows(self);
+        let padded_nb_rows = match fixed_log2_rows {
+            Some(log2_rows) => 1 << log2_rows,
+            None => next_power_of_two(nb_rows, None),
+        };
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <ExtAluChip as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_ext_alu_generate_preprocessed_trace(
+                trace.view_mut(),
+                instrs.as_ptr(),
+                instrs.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
@@ -79,8 +121,9 @@ mod tests {
         air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
         chips::poseidon2_skinny::WIDTH,
         Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, BatchFRIBaseVecIo, BatchFRIEvent,
-        BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, ExecutionRecord, ExtAluIo,
-        FriFoldBaseIo, FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
+        BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, ExecutionRecord,
+        ExtAluInstr, ExtAluIo, ExtAluOpcode, FriFoldBaseIo, FriFoldEvent, FriFoldExtSingleIo,
+        FriFoldExtVecIo, Poseidon2Event, SelectIo,
     };
     use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
@@ -99,6 +142,33 @@ mod tests {
                 opcode: BaseAluOpcode::AddF,
                 mult: F::one(),
                 addrs: BaseAluIo {
+                    out: Address(F::zero()),
+                    in1: Address(F::one()),
+                    in2: Address(F::two()),
+                },
+            })],
+            ..Default::default()
+        };
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_ext_alu() {
+        type F = BabyBear;
+
+        let chip = ExtAluChip;
+        let program = RecursionProgram {
+            instructions: vec![Instruction::ExtAlu(ExtAluInstr {
+                opcode: ExtAluOpcode::AddE,
+                mult: F::one(),
+                addrs: ExtAluIo {
                     out: Address(F::zero()),
                     in1: Address(F::one()),
                     in2: Address(F::two()),
