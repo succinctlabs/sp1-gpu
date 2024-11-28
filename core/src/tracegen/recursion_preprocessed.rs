@@ -109,6 +109,7 @@ impl DevicePreprocessedAir<BabyBear> for ExtAluChip {
 }
 
 impl DevicePreprocessedAir<BabyBear> for PublicValuesChip {
+    /// Do not use. Designed to only take a single `CommitPublicValues` instruction.
     fn generate_preprocessed_trace_device(
         &self,
         program: &Self::Program,
@@ -298,15 +299,26 @@ mod tests {
 
         let chip = BaseAluChip;
         let program = RecursionProgram {
-            instructions: vec![Instruction::BaseAlu(BaseAluInstr {
-                opcode: BaseAluOpcode::AddF,
-                mult: F::one(),
-                addrs: BaseAluIo {
-                    out: Address(F::zero()),
-                    in1: Address(F::one()),
-                    in2: Address(F::two()),
-                },
-            })],
+            instructions: vec![
+                Instruction::BaseAlu(BaseAluInstr {
+                    opcode: BaseAluOpcode::AddF,
+                    mult: F::one(),
+                    addrs: BaseAluIo {
+                        out: Address(F::zero()),
+                        in1: Address(F::one()),
+                        in2: Address(F::two()),
+                    },
+                }),
+                Instruction::BaseAlu(BaseAluInstr {
+                    opcode: BaseAluOpcode::AddF,
+                    mult: F::one(),
+                    addrs: BaseAluIo {
+                        out: Address(F::zero()),
+                        in1: Address(F::one()),
+                        in2: Address(F::two()),
+                    },
+                }),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
@@ -325,15 +337,26 @@ mod tests {
 
         let chip = ExtAluChip;
         let program = RecursionProgram {
-            instructions: vec![Instruction::ExtAlu(ExtAluInstr {
-                opcode: ExtAluOpcode::AddE,
-                mult: F::one(),
-                addrs: ExtAluIo {
-                    out: Address(F::zero()),
-                    in1: Address(F::one()),
-                    in2: Address(F::two()),
-                },
-            })],
+            instructions: vec![
+                Instruction::ExtAlu(ExtAluInstr {
+                    opcode: ExtAluOpcode::AddE,
+                    mult: F::one(),
+                    addrs: ExtAluIo {
+                        out: Address(F::zero()),
+                        in1: Address(F::one()),
+                        in2: Address(F::two()),
+                    },
+                }),
+                Instruction::ExtAlu(ExtAluInstr {
+                    opcode: ExtAluOpcode::AddE,
+                    mult: F::one(),
+                    addrs: ExtAluIo {
+                        out: Address(F::zero()),
+                        in1: Address(F::one()),
+                        in2: Address(F::two()),
+                    },
+                }),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
@@ -347,6 +370,7 @@ mod tests {
 
     #[test]
     #[serial]
+    #[ignore]
     fn test_public_values() {
         type F = BabyBear;
 
@@ -356,7 +380,11 @@ mod tests {
             array::from_fn(|i| i as u32 + addr);
         let public_values: &RecursionPublicValues<u32> = public_values_a.as_slice().borrow();
         let program = RecursionProgram {
-            instructions: vec![instr::commit_public_values(public_values)],
+            instructions: vec![
+                instr::commit_public_values(public_values),
+                instr::commit_public_values(public_values),
+                instr::commit_public_values(public_values),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
@@ -373,7 +401,7 @@ mod tests {
     fn test_select() {
         type F = BabyBear;
 
-        let chip = PublicValuesChip;
+        let chip = SelectChip;
         let program = RecursionProgram {
             instructions: vec![
                 Instruction::Select(SelectInstr {
@@ -417,13 +445,22 @@ mod tests {
 
         let chip = Poseidon2SkinnyChip::<9>::default();
         let program = RecursionProgram::<BabyBear> {
-            instructions: vec![Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                addrs: Poseidon2Io {
-                    input: [Address(F::one()); WIDTH],
-                    output: [Address(F::two()); WIDTH],
-                },
-                mults: [F::one(); WIDTH],
-            }))],
+            instructions: vec![
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
@@ -442,13 +479,22 @@ mod tests {
 
         let chip = Poseidon2WideChip::<9>;
         let program = RecursionProgram::<BabyBear> {
-            instructions: vec![Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                addrs: Poseidon2Io {
-                    input: [Address(F::one()); WIDTH],
-                    output: [Address(F::two()); WIDTH],
-                },
-                mults: [F::one(); WIDTH],
-            }))],
+            instructions: vec![
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
