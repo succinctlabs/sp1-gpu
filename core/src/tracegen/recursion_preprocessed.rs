@@ -150,6 +150,48 @@ impl DevicePreprocessedAir<BabyBear> for PublicValuesChip {
     }
 }
 
+impl DevicePreprocessedAir<BabyBear> for SelectChip {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let instrs = program
+            .instructions
+            .iter()
+            .filter_map(|instruction| match instruction {
+                Instruction::Select(x) => Some(*x),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let instrs = instrs.to_device_async(stream)?;
+
+        let nb_rows = instrs.len();
+        let fixed_log2_rows = program.fixed_log2_rows(self);
+        let padded_nb_rows = match fixed_log2_rows {
+            Some(log2_rows) => 1 << log2_rows,
+            None => next_power_of_two(nb_rows, None),
+        };
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <SelectChip as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_select_generate_preprocessed_trace(
+                trace.view_mut(),
+                instrs.as_ptr(),
+                instrs.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
@@ -165,7 +207,7 @@ mod tests {
         Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, BatchFRIBaseVecIo, BatchFRIEvent,
         BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, CommitPublicValuesInstr,
         ExecutionRecord, ExtAluInstr, ExtAluIo, ExtAluOpcode, FriFoldBaseIo, FriFoldEvent,
-        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
+        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectInstr, SelectIo,
     };
     use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
@@ -239,6 +281,48 @@ mod tests {
         let public_values: &RecursionPublicValues<u32> = public_values_a.as_slice().borrow();
         let program = RecursionProgram {
             instructions: vec![instr::commit_public_values(public_values)],
+            ..Default::default()
+        };
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_select() {
+        type F = BabyBear;
+
+        let chip = PublicValuesChip;
+        let program = RecursionProgram {
+            instructions: vec![
+                Instruction::Select(SelectInstr {
+                    addrs: SelectIo {
+                        bit: Address(F::zero()),
+                        out1: Address(F::one()),
+                        out2: Address(F::from_canonical_u32(2)),
+                        in1: Address(F::from_canonical_u32(3)),
+                        in2: Address(F::from_canonical_u32(4)),
+                    },
+                    mult1: F::one(),
+                    mult2: F::one(),
+                }),
+                Instruction::Select(SelectInstr {
+                    addrs: SelectIo {
+                        bit: Address(F::from_canonical_u32(5)),
+                        out1: Address(F::from_canonical_u32(6)),
+                        out2: Address(F::from_canonical_u32(7)),
+                        in1: Address(F::from_canonical_u32(8)),
+                        in2: Address(F::from_canonical_u32(9)),
+                    },
+                    mult1: F::one(),
+                    mult2: F::one(),
+                }),
+            ],
             ..Default::default()
         };
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
