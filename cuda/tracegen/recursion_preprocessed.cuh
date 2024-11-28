@@ -283,9 +283,8 @@ __global__ void recursion_poseidon2_wide_generate_preprocessed_trace_kernel(
         );
 
         const T* arr = reinterpret_cast<T*>(&cols);
-        size_t start = (i % 4) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
+            trace.values[i + j * trace.height] = arr[j];
         }
     }
 }
