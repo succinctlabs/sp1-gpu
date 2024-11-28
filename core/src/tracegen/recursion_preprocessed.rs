@@ -227,6 +227,46 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2SkinnyChi
     }
 }
 
+impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<DEGREE> {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let instrs = program
+            .instructions
+            .iter() // Faster than using `rayon` for some reason. Maybe vectorization?
+            .filter_map(|instruction| match instruction {
+                Instruction::Poseidon2(instr) => Some(**instr),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let instrs = instrs.to_device_async(stream)?;
+
+        let padded_nb_rows = match program.fixed_log2_rows(self) {
+            Some(log2_rows) => 1 << log2_rows,
+            None => next_power_of_two(instrs.len(), None),
+        };
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <Poseidon2WideChip<DEGREE> as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_poseidon2_wide_generate_preprocessed_trace(
+                trace.view_mut(),
+                instrs.as_ptr(),
+                instrs.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
@@ -376,6 +416,31 @@ mod tests {
         type F = BabyBear;
 
         let chip = Poseidon2SkinnyChip::<9>::default();
+        let program = RecursionProgram::<BabyBear> {
+            instructions: vec![Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                addrs: Poseidon2Io {
+                    input: [Address(F::one()); WIDTH],
+                    output: [Address(F::two()); WIDTH],
+                },
+                mults: [F::one(); WIDTH],
+            }))],
+            ..Default::default()
+        };
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_poseidon2_wide() {
+        type F = BabyBear;
+
+        let chip = Poseidon2WideChip::<9>;
         let program = RecursionProgram::<BabyBear> {
             instructions: vec![Instruction::Poseidon2(Box::new(Poseidon2Instr {
                 addrs: Poseidon2Io {

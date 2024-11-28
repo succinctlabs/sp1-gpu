@@ -183,4 +183,10 @@ extern "C" {
         nb_events: u32,
         stream: CudaStreamHandle,
     );
+    pub fn recursion_poseidon2_wide_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const Poseidon2SkinnyInstr<BabyBear>,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
 }
