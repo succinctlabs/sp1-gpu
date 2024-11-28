@@ -460,6 +460,13 @@ mod tests {
                     },
                     mults: [F::one(); WIDTH],
                 })),
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
             ],
             ..Default::default()
         };
@@ -480,6 +487,13 @@ mod tests {
         let chip = Poseidon2WideChip::<9>;
         let program = RecursionProgram::<BabyBear> {
             instructions: vec![
+                Instruction::Poseidon2(Box::new(Poseidon2Instr {
+                    addrs: Poseidon2Io {
+                        input: [Address(F::one()); WIDTH],
+                        output: [Address(F::two()); WIDTH],
+                    },
+                    mults: [F::one(); WIDTH],
+                })),
                 Instruction::Poseidon2(Box::new(Poseidon2Instr {
                     addrs: Poseidon2Io {
                         input: [Address(F::one()); WIDTH],
