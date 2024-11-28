@@ -41,7 +41,7 @@ use crate::{
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
-    tracegen::DeviceAir,
+    tracegen::{DeviceAir, DevicePreprocessedAir},
     univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
@@ -193,7 +193,8 @@ where
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>
         + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>
-        + DeviceAir<BabyBear>,
+        + DeviceAir<BabyBear>
+        + DevicePreprocessedAir<BabyBear>,
     // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>

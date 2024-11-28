@@ -167,3 +167,38 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
         }
     }
 }
+
+impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, D> {
+    fn generate_preprocessed_trace_host(
+        &self,
+        program: &Self::Program,
+    ) -> Option<RowMajorMatrix<BabyBear>> {
+        match self {
+            RecursionAir::BaseAlu(_) => None,
+            RecursionAir::ExtAlu(_) => None,
+            RecursionAir::Poseidon2Skinny(_) => None,
+            RecursionAir::Poseidon2Wide(_) => None,
+            RecursionAir::Select(_) => None,
+            _ => self.generate_preprocessed_trace(program),
+        }
+    }
+
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        match self {
+            RecursionAir::BaseAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::ExtAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::Poseidon2Skinny(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Poseidon2Wide(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Select(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            _ => Ok(None),
+        }
+    }
+}
