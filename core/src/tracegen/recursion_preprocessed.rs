@@ -18,7 +18,7 @@ use sp1_recursion_core::{
         public_values::PublicValuesChip,
         select::SelectChip,
     },
-    runtime::Instruction,
+    runtime::{Instruction, RecursionProgram},
 };
 use sp1_stark::air::MachineAir;
 
@@ -38,6 +38,7 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
                 _ => None,
             })
             .collect::<Vec<_>>();
+        let instrs = instrs.to_device_async(stream)?;
 
         let nb_rows = instrs.len().div_ceil(NUM_BASE_ALU_ENTRIES_PER_ROW);
         let fixed_log2_rows = program.fixed_log2_rows(self);
@@ -62,5 +63,55 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
         }
 
         Ok(Some(trace))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tracegen::DeviceAir;
+    use p3_baby_bear::BabyBear;
+    use p3_field::AbstractField;
+    use p3_matrix::dense::RowMajorMatrix;
+    use p3_symmetric::Permutation;
+    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use serial_test::serial;
+    use sp1_recursion_core::{
+        air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
+        chips::poseidon2_skinny::WIDTH,
+        Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, BatchFRIBaseVecIo, BatchFRIEvent,
+        BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, ExecutionRecord, ExtAluIo,
+        FriFoldBaseIo, FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
+    };
+    use sp1_stark::{air::MachineAir, inner_perm};
+    use std::{array, borrow::Borrow};
+    use zkhash::ark_ff::UniformRand;
+
+    use super::*;
+
+    #[test]
+    #[serial]
+    fn test_base_alu() {
+        type F = BabyBear;
+
+        let chip = BaseAluChip;
+        let program = RecursionProgram {
+            instructions: vec![Instruction::BaseAlu(BaseAluInstr {
+                opcode: BaseAluOpcode::AddF,
+                mult: F::one(),
+                addrs: BaseAluIo {
+                    out: Address(F::zero()),
+                    in1: Address(F::one()),
+                    in2: Address(F::two()),
+                },
+            })],
+            ..Default::default()
+        };
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
     }
 }
