@@ -12,6 +12,7 @@ use crate::{
 pub mod core;
 pub mod ffi;
 pub mod recursion;
+pub mod recursion_preprocessed;
 
 /// An AIR that can generate the trace on either the host or the device.
 pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
@@ -38,6 +39,28 @@ pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
 
     /// Get the height of the trace that would be generated on device.
     fn num_rows(&self, input: &Self::Record) -> Option<usize>;
+}
+
+/// An AIR that can generate the preprocessed trace on either the host or the device.
+pub trait DevicePreprocessedAir<F: PrimeField32>: MachineAir<F> {
+    /// Generate the preprocessed trace on the host.
+    ///
+    /// This function returns `None` if the preprocessed trace is designed to be generated on device.
+    fn generate_preprocessed_trace_host(
+        &self,
+        program: &Self::Program,
+    ) -> Option<RowMajorMatrix<F>> {
+        self.generate_preprocessed_trace(program)
+    }
+
+    /// Generate the preprocessed trace on the device.
+    ///
+    /// This function returns `None` if the preprocessed trace is designed to be generated on host.
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<F>>, CudaError>;
 }
 
 impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
