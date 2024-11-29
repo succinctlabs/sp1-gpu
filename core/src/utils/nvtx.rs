@@ -42,7 +42,7 @@ mod ffi {
     use super::NvtxRangeId;
 
     /// cbindgen:ignore
-extern "C" {
+    extern "C" {
         pub fn nvtx_range_start(name: *const c_char) -> NvtxRangeId;
 
         pub fn nvtx_range_end(domain: NvtxRangeId);

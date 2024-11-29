@@ -96,22 +96,51 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
         input: &Self::Record,
         output: &mut Self::Record,
     ) -> Option<RowMajorMatrix<BabyBear>> {
-        // We currently do not support accelerating any chips in recursion.
-        Some(self.generate_trace(input, output))
+        match self {
+            RecursionAir::BaseAlu(_) => None,
+            RecursionAir::ExtAlu(_) => None,
+            RecursionAir::Poseidon2Skinny(_) => None,
+            RecursionAir::Poseidon2Wide(_) => None,
+            RecursionAir::Select(_) => None,
+            RecursionAir::FriFold(_) => None,
+            RecursionAir::BatchFRI(_) => None,
+            RecursionAir::PublicValues(_) => None,
+            _ => Some(self.generate_trace(input, output)),
+        }
     }
 
     fn generate_trace_device(
         &self,
-        _: &Self::Record,
-        _: &mut Self::Record,
-        _: &CudaStream,
+        input: &Self::Record,
+        output: &mut Self::Record,
+        stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-        // We currently do not support accelerating any chips in recursion.
-        Ok(None)
+        match self {
+            RecursionAir::BaseAlu(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::ExtAlu(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::Poseidon2Skinny(chip) => {
+                chip.generate_trace_device(input, output, stream)
+            }
+            RecursionAir::Poseidon2Wide(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::PublicValues(chip) => chip.generate_trace_device(input, output, stream),
+            _ => Ok(None),
+        }
     }
 
-    fn num_rows(&self, _: &Self::Record) -> Option<usize> {
-        // We currently do not support accelerating any chips in recursion.
-        None
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        match self {
+            RecursionAir::BaseAlu(chip) => chip.num_rows(input),
+            RecursionAir::ExtAlu(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Skinny(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Wide(chip) => chip.num_rows(input),
+            RecursionAir::Select(chip) => chip.num_rows(input),
+            RecursionAir::FriFold(chip) => chip.num_rows(input),
+            RecursionAir::BatchFRI(chip) => chip.num_rows(input),
+            RecursionAir::PublicValues(chip) => chip.num_rows(input),
+            _ => None,
+        }
     }
 }
