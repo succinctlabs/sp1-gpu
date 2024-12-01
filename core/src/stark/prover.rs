@@ -428,39 +428,40 @@ where
         let generate_traces_copy_span =
             tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
-        let mut named_preprocessed_data = self
-            .machine()
-            .chips()
-            .par_iter()
-            .map(|chip| {
-                let prep_trace = chip.generate_preprocessed_trace(program);
-                // Assert that the chip width data is correct.
-                let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
-                assert_eq!(
-                    expected_width,
-                    chip.preprocessed_width(),
-                    "Incorrect number of preprocessed columns for chip {}",
-                    chip.name()
-                );
+        let mut named_preprocessed_data = tracing::info_span!("preprocessed").in_scope(|| {
+            self.machine()
+                .chips()
+                .par_iter()
+                .map(|chip| {
+                    let prep_trace = chip.generate_preprocessed_trace(program);
+                    // Assert that the chip width data is correct.
+                    let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                    assert_eq!(
+                        expected_width,
+                        chip.preprocessed_width(),
+                        "Incorrect number of preprocessed columns for chip {}",
+                        chip.name()
+                    );
 
-                (chip.name(), chip.local_only(), prep_trace)
-            })
-            .filter(|(_, _, prep_trace)| prep_trace.is_some())
-            .map(|(name, local_only, prep_trace)| {
-                let prep_trace = prep_trace.unwrap();
-                let event = self.events.preprocessed.get(&name).unwrap().clone();
-                let stream = self.chip_streams.get(&name).unwrap().clone();
-                let domain = natural_domain_for_degree(self.config(), prep_trace.height());
-                let dimensions = prep_trace.dimensions();
-                let (tx, rx) = oneshot::channel();
-                rayon::spawn(move || {
-                    let stream = stream;
-                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace).unwrap();
-                });
-                (name, domain, event, local_only, rx, dimensions)
-            })
-            .collect::<Vec<_>>();
+                    (chip.name(), chip.local_only(), prep_trace)
+                })
+                .filter(|(_, _, prep_trace)| prep_trace.is_some())
+                .map(|(name, local_only, prep_trace)| {
+                    let prep_trace = prep_trace.unwrap();
+                    let event = self.events.preprocessed.get(&name).unwrap().clone();
+                    let stream = self.chip_streams.get(&name).unwrap().clone();
+                    let domain = natural_domain_for_degree(self.config(), prep_trace.height());
+                    let dimensions = prep_trace.dimensions();
+                    let (tx, rx) = oneshot::channel();
+                    rayon::spawn(move || {
+                        let stream = stream;
+                        let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                        tx.send(trace).unwrap();
+                    });
+                    (name, domain, event, local_only, rx, dimensions)
+                })
+                .collect::<Vec<_>>()
+        });
 
         named_preprocessed_data
             .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
