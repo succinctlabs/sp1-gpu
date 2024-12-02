@@ -70,75 +70,75 @@ __global__ void core_memory_local_generate_trace_decompress_kernel(
     const sp1_core_machine_sys::MemoryLocalEvent* events,
     uintptr_t nb_events
 ) {
-    // static const size_t MEMORY_LOCAL_COLUMNS =
-    //     sizeof(sp1_core_machine_sys::MemoryLocalCols<F>) / sizeof(F);
+    static const size_t MEMORY_LOCAL_COLUMNS =
+        sizeof(sp1_core_machine_sys::MemoryLocalCols<F>) / sizeof(F);
 
-    // static const size_t SINGLE_MEMORY_LOCAL_COLUMNS =
-    //     sizeof(sp1_core_machine_sys::SingleMemoryLocal<F>) / sizeof(F);
+    static const size_t SINGLE_MEMORY_LOCAL_COLUMNS =
+        sizeof(sp1_core_machine_sys::SingleMemoryLocal<F>) / sizeof(F);
 
-    // int i = blockIdx.x * blockDim.x + threadIdx.x;
-    // #pragma unroll(1)
-    // for (; i < trace.height; i += blockDim.x * gridDim.x) {
-    //     // ok so we're on the ith row
-    //     bb31_septic_curve_t sum = bb31_septic_curve_t();
-    //     if (i == 0) {
-    //         sum = bb31_septic_curve_t::start_point();
-    //     }
-    //     sp1_core_machine_sys::MemoryLocalCols<F> cols;
-    //     F* cols_arr = reinterpret_cast<F*>(&cols);
-    //     for (int k = 0; k < MEMORY_LOCAL_COLUMNS; k++) {
-    //         cols_arr[k] = F::zero();
-    //     }
-    //     for (int j = 0; j < 4; j++) {
-    //         int event_idx = 4 * i + j;
-    //         if (event_idx < nb_events) {
-    //             sp1_core_machine_sys::memory_local::event_to_row<F, EF7>(
-    //                 &events[event_idx],
-    //                 &cols.memory_local_entries[j]
-    //             );
-    //             {
-    //                 cols.global_accumulation_cols.cumulative_sum[2 * j][0] =
-    //                     cols.memory_local_entries[j]
-    //                         .initial_global_interaction_cols.x_coordinate;
-    //                 cols.global_accumulation_cols.cumulative_sum[2 * j][1] =
-    //                     cols.memory_local_entries[j]
-    //                         .initial_global_interaction_cols.y_coordinate;
-    //                 bb31_septic_curve_t point = bb31_septic_curve_t(
-    //                     cols.memory_local_entries[j]
-    //                         .initial_global_interaction_cols.x_coordinate._0,
-    //                     cols.memory_local_entries[j]
-    //                         .initial_global_interaction_cols.y_coordinate._0
-    //                 );
-    //                 sum += point;
-    //             }
-    //             {
-    //                 cols.global_accumulation_cols.cumulative_sum[2 * j + 1][0] =
-    //                     cols.memory_local_entries[j]
-    //                         .final_global_interaction_cols.x_coordinate;
-    //                 cols.global_accumulation_cols.cumulative_sum[2 * j + 1][1] =
-    //                     cols.memory_local_entries[j]
-    //                         .final_global_interaction_cols.y_coordinate;
-    //                 bb31_septic_curve_t point = bb31_septic_curve_t(
-    //                     cols.memory_local_entries[j]
-    //                         .final_global_interaction_cols.x_coordinate._0,
-    //                     cols.memory_local_entries[j]
-    //                         .final_global_interaction_cols.y_coordinate._0
-    //                 );
-    //                 sum += point;
-    //             }
-    //         }
-    //     }
-    //     for (int k = 0; k < 7; k++) {
-    //         cols.global_accumulation_cols.initial_digest[0]._0[k] =
-    //             sum.x.value[k];
-    //         cols.global_accumulation_cols.initial_digest[1]._0[k] =
-    //             sum.y.value[k];
-    //     }
-    //     const F* arr = reinterpret_cast<F*>(&cols);
-    //     for (size_t k = 0; k < MEMORY_LOCAL_COLUMNS; ++k) {
-    //         trace.values[i + k * trace.height] = arr[k];
-    //     }
-    // }
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    #pragma unroll(1)
+    for (; i < trace.height; i += blockDim.x * gridDim.x) {
+        // ok so we're on the ith row
+        bb31_septic_curve_t sum = bb31_septic_curve_t();
+        if (i == 0) {
+            sum = bb31_septic_curve_t::start_point();
+        }
+        sp1_core_machine_sys::MemoryLocalCols<F> cols;
+        F* cols_arr = reinterpret_cast<F*>(&cols);
+        for (int k = 0; k < MEMORY_LOCAL_COLUMNS; k++) {
+            cols_arr[k] = F::zero();
+        }
+        for (int j = 0; j < 4; j++) {
+            int event_idx = 4 * i + j;
+            if (event_idx < nb_events) {
+                sp1_core_machine_sys::memory_local::event_to_row<F, EF7>(
+                    &events[event_idx],
+                    &cols.memory_local_entries[j]
+                );
+                // {
+                //     cols.global_accumulation_cols.cumulative_sum[2 * j][0] =
+                //         cols.memory_local_entries[j]
+                //             .initial_global_interaction_cols.x_coordinate;
+                //     cols.global_accumulation_cols.cumulative_sum[2 * j][1] =
+                //         cols.memory_local_entries[j]
+                //             .initial_global_interaction_cols.y_coordinate;
+                //     bb31_septic_curve_t point = bb31_septic_curve_t(
+                //         cols.memory_local_entries[j]
+                //             .initial_global_interaction_cols.x_coordinate._0,
+                //         cols.memory_local_entries[j]
+                //             .initial_global_interaction_cols.y_coordinate._0
+                //     );
+                //     sum += point;
+                // }
+                // {
+                //     cols.global_accumulation_cols.cumulative_sum[2 * j + 1][0] =
+                //         cols.memory_local_entries[j]
+                //             .final_global_interaction_cols.x_coordinate;
+                //     cols.global_accumulation_cols.cumulative_sum[2 * j + 1][1] =
+                //         cols.memory_local_entries[j]
+                //             .final_global_interaction_cols.y_coordinate;
+                //     bb31_septic_curve_t point = bb31_septic_curve_t(
+                //         cols.memory_local_entries[j]
+                //             .final_global_interaction_cols.x_coordinate._0,
+                //         cols.memory_local_entries[j]
+                //             .final_global_interaction_cols.y_coordinate._0
+                //     );
+                //     sum += point;
+                // }
+            }
+        }
+        // for (int k = 0; k < 7; k++) {
+        //     cols.global_accumulation_cols.initial_digest[0]._0[k] =
+        //         sum.x.value[k];
+        //     cols.global_accumulation_cols.initial_digest[1]._0[k] =
+        //         sum.y.value[k];
+        // }
+        const F* arr = reinterpret_cast<F*>(&cols);
+        for (size_t k = 0; k < MEMORY_LOCAL_COLUMNS; ++k) {
+            trace.values[i + k * trace.height] = arr[k];
+        }
+    }
 }
 
 template<class F, class EF7>
@@ -385,82 +385,82 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
     uint32_t previous_addr,
     uintptr_t nb_events
 ) {
-    // static const size_t MEMORY_INIT_COLUMNS =
-    //     sizeof(sp1_core_machine_sys::MemoryInitCols<F>) / sizeof(F);
+    static const size_t MEMORY_INIT_COLUMNS =
+        sizeof(sp1_core_machine_sys::MemoryInitCols<F>) / sizeof(F);
 
-    // int i = blockIdx.x * blockDim.x + threadIdx.x;
-    // #pragma unroll(1)
-    // for (; i < trace.height; i += blockDim.x * gridDim.x) {
-    //     // ok so we're on the ith row
-    //     bb31_septic_curve_t sum = bb31_septic_curve_t();
-    //     if (i == 0) {
-    //         sum = bb31_septic_curve_t::start_point();
-    //     }
-    //     sp1_core_machine_sys::MemoryInitCols<F> cols;
-    //     F* cols_arr = reinterpret_cast<F*>(&cols);
-    //     for (int k = 0; k < MEMORY_INIT_COLUMNS; k++) {
-    //         cols_arr[k] = F::zero();
-    //     }
-    //     int event_idx = i;
-    //     if (event_idx < nb_events) {
-    //         if (i == 0) {
-    //             if (previous_addr == 0) {
-    //                 cols.is_prev_addr_zero.inverse = F::zero();
-    //                 cols.is_prev_addr_zero.result = F::one();
-    //                 cols.is_first_comp = F::zero();
-    //             } else {
-    //                 cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
-    //                 cols.is_prev_addr_zero.result = F::zero();
-    //                 cols.is_first_comp = F::one();
-    //                 for(int idx = 31 ; idx >= 0; idx--) {
-    //                     int prev_bit = (previous_addr >> idx) & 1;
-    //                     int cur_bit = (events[event_idx].addr >> idx) & 1;
-    //                     if (prev_bit == 0 && cur_bit == 1) {
-    //                         cols.lt_cols.bit_flags[idx] = F::one();
-    //                         break;
-    //                     }
-    //                 }
-    //             }
-    //         } else {
-    //             cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
-    //             for(int idx = 31 ; idx >= 0; idx--) {
-    //                 int prev_bit = (events[event_idx - 1].addr >> idx) & 1;
-    //                 int cur_bit = (events[event_idx].addr >> idx) & 1;
-    //                 if (prev_bit == 0 && cur_bit == 1) {
-    //                     cols.lt_cols.bit_flags[idx] = F::one();
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         sp1_core_machine_sys::memory_global::event_to_row<F, EF7>(
-    //             &events[event_idx],
-    //             is_receive,
-    //             &cols
-    //         );
-    //         cols.global_accumulation_cols.cumulative_sum[0][0] = 
-    //             cols.global_interaction_cols.x_coordinate;
-    //         cols.global_accumulation_cols.cumulative_sum[0][1] =
-    //             cols.global_interaction_cols.y_coordinate;
-    //         bb31_septic_curve_t point = bb31_septic_curve_t(
-    //             cols.global_interaction_cols.x_coordinate._0,
-    //             cols.global_interaction_cols.y_coordinate._0
-    //         );
-    //         sum += point;
-    //     }
-    //     for (int k = 0; k < 7; k++) {
-    //         cols.global_accumulation_cols.initial_digest[0]._0[k] =
-    //             sum.x.value[k];
-    //         cols.global_accumulation_cols.initial_digest[1]._0[k] =
-    //             sum.y.value[k];
-    //     }
-    //     if (nb_events >= 1 && i == nb_events - 1) {
-    //         cols.is_last_addr = F::one();
-    //     }
-    //     const F* arr = reinterpret_cast<F*>(&cols);
-    //     for (size_t k = 0; k < MEMORY_INIT_COLUMNS; ++k) {
-    //         trace.values[i + k * trace.height] = arr[k];
-    //     }
-    // }
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    #pragma unroll(1)
+    for (; i < trace.height; i += blockDim.x * gridDim.x) {
+        // ok so we're on the ith row
+        // bb31_septic_curve_t sum = bb31_septic_curve_t();
+        // if (i == 0) {
+        //     sum = bb31_septic_curve_t::start_point();
+        // }
+        sp1_core_machine_sys::MemoryInitCols<F> cols;
+        F* cols_arr = reinterpret_cast<F*>(&cols);
+        for (int k = 0; k < MEMORY_INIT_COLUMNS; k++) {
+            cols_arr[k] = F::zero();
+        }
+        int event_idx = i;
+        if (event_idx < nb_events) {
+            if (i == 0) {
+                if (previous_addr == 0) {
+                    cols.is_prev_addr_zero.inverse = F::zero();
+                    cols.is_prev_addr_zero.result = F::one();
+                    cols.is_first_comp = F::zero();
+                } else {
+                    cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
+                    cols.is_prev_addr_zero.result = F::zero();
+                    cols.is_first_comp = F::one();
+                    for(int idx = 31 ; idx >= 0; idx--) {
+                        int prev_bit = (previous_addr >> idx) & 1;
+                        int cur_bit = (events[event_idx].addr >> idx) & 1;
+                        if (prev_bit == 0 && cur_bit == 1) {
+                            cols.lt_cols.bit_flags[idx] = F::one();
+                            break;
+                        }
+                    }
+                }
+            } else {
+                cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
+                for(int idx = 31 ; idx >= 0; idx--) {
+                    int prev_bit = (events[event_idx - 1].addr >> idx) & 1;
+                    int cur_bit = (events[event_idx].addr >> idx) & 1;
+                    if (prev_bit == 0 && cur_bit == 1) {
+                        cols.lt_cols.bit_flags[idx] = F::one();
+                        break;
+                    }
+                }
+            }
+            sp1_core_machine_sys::memory_global::event_to_row<F, EF7>(
+                &events[event_idx],
+                is_receive,
+                &cols
+            );
+            // cols.global_accumulation_cols.cumulative_sum[0][0] = 
+            //     cols.global_interaction_cols.x_coordinate;
+            // cols.global_accumulation_cols.cumulative_sum[0][1] =
+            //     cols.global_interaction_cols.y_coordinate;
+            // bb31_septic_curve_t point = bb31_septic_curve_t(
+            //     cols.global_interaction_cols.x_coordinate._0,
+            //     cols.global_interaction_cols.y_coordinate._0
+            // );
+            // sum += point;
+        }
+        // for (int k = 0; k < 7; k++) {
+        //     cols.global_accumulation_cols.initial_digest[0]._0[k] =
+        //         sum.x.value[k];
+        //     cols.global_accumulation_cols.initial_digest[1]._0[k] =
+        //         sum.y.value[k];
+        // }
+        if (nb_events >= 1 && i == nb_events - 1) {
+            cols.is_last_addr = F::one();
+        }
+        const F* arr = reinterpret_cast<F*>(&cols);
+        for (size_t k = 0; k < MEMORY_INIT_COLUMNS; ++k) {
+            trace.values[i + k * trace.height] = arr[k];
+        }
+    }
 }
 
 template<class F, class EF7>
@@ -648,50 +648,50 @@ __global__ void core_syscall_generate_trace_decompress_kernel(
     bool is_receive,
     uintptr_t nb_events
 ) {
-    // static const size_t SYSCALL_COLUMNS =
-    //     sizeof(sp1_core_machine_sys::SyscallCols<F>) / sizeof(F);
+    static const size_t SYSCALL_COLUMNS =
+        sizeof(sp1_core_machine_sys::SyscallCols<F>) / sizeof(F);
 
-    // int i = blockIdx.x * blockDim.x + threadIdx.x;
-    // #pragma unroll(1)
-    // for (; i < trace.height ; i += blockDim.x * gridDim.x) {
-    //     // ok so we're on the ith row
-    //     bb31_septic_curve_t sum = bb31_septic_curve_t();
-    //     if (i == 0) {
-    //         sum = bb31_septic_curve_t::start_point();
-    //     }
-    //     sp1_core_machine_sys::SyscallCols<F> cols;
-    //     F* cols_arr = reinterpret_cast<F*>(&cols);
-    //     for (int k = 0; k < SYSCALL_COLUMNS; k++) {
-    //         cols_arr[k] = F::zero();
-    //     }
-    //     int event_idx = i;
-    //     if (event_idx < nb_events) {
-    //         sp1_core_machine_sys::syscall::event_to_row<F, EF7>(
-    //             &events[event_idx],
-    //             is_receive,
-    //             &cols
-    //         );
-    //         cols.global_accumulation_cols.cumulative_sum[0][0] = 
-    //             cols.global_interaction_cols.x_coordinate;
-    //         cols.global_accumulation_cols.cumulative_sum[0][1] =
-    //             cols.global_interaction_cols.y_coordinate;
-    //         bb31_septic_curve_t point = bb31_septic_curve_t(
-    //             cols.global_interaction_cols.x_coordinate._0,
-    //             cols.global_interaction_cols.y_coordinate._0
-    //         );
-    //         sum += point;
-    //     }
-    //     for (int k = 0; k < 7; k++) {
-    //         cols.global_accumulation_cols.initial_digest[0]._0[k] =
-    //             sum.x.value[k];
-    //         cols.global_accumulation_cols.initial_digest[1]._0[k] =
-    //             sum.y.value[k];
-    //     }
-    //     const F* arr = reinterpret_cast<F*>(&cols);
-    //     for (size_t k = 0; k < SYSCALL_COLUMNS ; ++k) {
-    //         trace.values[i + k * trace.height] = arr[k];
-    //     }
-    // }
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    #pragma unroll(1)
+    for (; i < trace.height ; i += blockDim.x * gridDim.x) {
+        // ok so we're on the ith row
+        // bb31_septic_curve_t sum = bb31_septic_curve_t();
+        // if (i == 0) {
+        //     sum = bb31_septic_curve_t::start_point();
+        // }
+        sp1_core_machine_sys::SyscallCols<F> cols;
+        F* cols_arr = reinterpret_cast<F*>(&cols);
+        for (int k = 0; k < SYSCALL_COLUMNS; k++) {
+            cols_arr[k] = F::zero();
+        }
+        int event_idx = i;
+        if (event_idx < nb_events) {
+            sp1_core_machine_sys::syscall::event_to_row<F, EF7>(
+                &events[event_idx],
+                is_receive,
+                &cols
+            );
+            // cols.global_accumulation_cols.cumulative_sum[0][0] = 
+            //     cols.global_interaction_cols.x_coordinate;
+            // cols.global_accumulation_cols.cumulative_sum[0][1] =
+            //     cols.global_interaction_cols.y_coordinate;
+            // bb31_septic_curve_t point = bb31_septic_curve_t(
+            //     cols.global_interaction_cols.x_coordinate._0,
+            //     cols.global_interaction_cols.y_coordinate._0
+            // );
+            // sum += point;
+        }
+        // for (int k = 0; k < 7; k++) {
+        //     cols.global_accumulation_cols.initial_digest[0]._0[k] =
+        //         sum.x.value[k];
+        //     cols.global_accumulation_cols.initial_digest[1]._0[k] =
+        //         sum.y.value[k];
+        // }
+        const F* arr = reinterpret_cast<F*>(&cols);
+        for (size_t k = 0; k < SYSCALL_COLUMNS ; ++k) {
+            trace.values[i + k * trace.height] = arr[k];
+        }
+    }
 }
 
 template<class F, class EF7>
