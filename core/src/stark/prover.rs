@@ -434,7 +434,7 @@ where
             .chips()
             .par_iter()
             .map(|chip| {
-                let prep_trace = chip.generate_preprocessed_trace(program);
+                let prep_trace = chip.air.generate_preprocessed_trace_host(program);
                 // Assert that the chip width data is correct.
                 let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
@@ -453,13 +453,10 @@ where
                 let stream = self.chip_streams.get(&name).unwrap().clone();
                 let domain = natural_domain_for_degree(self.config(), prep_trace.height());
                 let dimensions = prep_trace.dimensions();
-                let (tx, rx) = oneshot::channel();
-                rayon::spawn(move || {
-                    let stream = stream;
-                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace).unwrap();
-                });
-                (name, domain, event, local_only, rx, dimensions)
+
+                let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+
+                (name, domain, event, local_only, trace, dimensions)
             })
             .collect::<Vec<_>>();
 
@@ -469,8 +466,7 @@ where
         let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
             named_preprocessed_data
                 .into_iter()
-                .map(|(name, domain, event, local_only, rx, dimensions)| {
-                    let trace = rx.recv().unwrap();
+                .map(|(name, domain, event, local_only, trace, dimensions)| {
                     (((name, domain, dimensions), (domain, trace, event)), local_only)
                 })
                 .collect();
