@@ -4,21 +4,18 @@ use crate::{
     matrix::ColMajorMatrixDevice,
     tracegen,
 };
-use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use sp1_core_machine::utils::next_power_of_two;
 use sp1_recursion_core::{
     chips::{
-        alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW, NUM_BASE_ALU_PREPROCESSED_COLS},
+        alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
         alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
-        batch_fri::BatchFRIChip,
-        fri_fold::FriFoldChip,
-        poseidon2_skinny::{trace::OUTPUT_ROUND_IDX, Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
+        poseidon2_skinny::{Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
         public_values::{PublicValuesChip, PUB_VALUES_LOG_HEIGHT},
         select::SelectChip,
     },
-    runtime::{instruction as instr, Instruction, RecursionProgram},
+    runtime::Instruction,
 };
 use sp1_stark::air::MachineAir;
 
@@ -270,25 +267,17 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
 
 #[cfg(test)]
 mod tests {
-    use crate::tracegen::DeviceAir;
     use p3_baby_bear::BabyBear;
     use p3_field::AbstractField;
-    use p3_matrix::dense::RowMajorMatrix;
-    use p3_symmetric::Permutation;
-    use rand::{rngs::StdRng, Rng, SeedableRng};
     use serial_test::serial;
+    use sp1_recursion_core::runtime::{instruction as instr, Instruction, RecursionProgram};
     use sp1_recursion_core::{
-        air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
+        air::{RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
         chips::poseidon2_skinny::WIDTH,
-        Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, BatchFRIBaseVecIo, BatchFRIEvent,
-        BatchFRIExtSingleIo, BatchFRIExtVecIo, CommitPublicValuesEvent, CommitPublicValuesInstr,
-        ExecutionRecord, ExtAluInstr, ExtAluIo, ExtAluOpcode, FriFoldBaseIo, FriFoldEvent,
-        FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, Poseidon2Instr, Poseidon2Io,
-        SelectInstr, SelectIo,
+        Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, ExtAluInstr, ExtAluIo, ExtAluOpcode,
+        Poseidon2Instr, Poseidon2Io, SelectInstr, SelectIo,
     };
-    use sp1_stark::{air::MachineAir, inner_perm};
     use std::{array, borrow::Borrow};
-    use zkhash::ark_ff::UniformRand;
 
     use super::*;
 
@@ -372,8 +361,6 @@ mod tests {
     #[serial]
     #[ignore]
     fn test_public_values() {
-        type F = BabyBear;
-
         let chip = PublicValuesChip;
         let addr = 0u32;
         let public_values_a: [u32; RECURSIVE_PROOF_NUM_PV_ELTS] =
