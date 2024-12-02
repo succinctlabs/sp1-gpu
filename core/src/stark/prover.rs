@@ -435,8 +435,17 @@ where
             .par_iter()
             .map(|chip| {
                 let prep_trace = chip.air.generate_preprocessed_trace_host(program);
+
+                let name = chip.name();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
+
+                let trace = match prep_trace {
+                    Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
+                    None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
+                };
+
                 // Assert that the chip width data is correct.
-                let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
                     expected_width,
                     chip.preprocessed_width(),
@@ -444,17 +453,14 @@ where
                     chip.name()
                 );
 
-                (chip.name(), chip.local_only(), prep_trace)
+                (chip.name(), chip.local_only(), trace)
             })
-            .filter(|(_, _, prep_trace)| prep_trace.is_some())
-            .map(|(name, local_only, prep_trace)| {
-                let prep_trace = prep_trace.unwrap();
+            .filter(|(_, _, trace)| trace.is_some())
+            .map(|(name, local_only, trace)| {
+                let trace = trace.unwrap();
                 let event = self.events.preprocessed.get(&name).unwrap().clone();
-                let stream = self.chip_streams.get(&name).unwrap().clone();
-                let domain = natural_domain_for_degree(self.config(), prep_trace.height());
-                let dimensions = prep_trace.dimensions();
-
-                let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                let domain = natural_domain_for_degree(self.config(), trace.height());
+                let dimensions = trace.dimensions();
 
                 (name, domain, event, local_only, trace, dimensions)
             })
