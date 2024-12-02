@@ -168,6 +168,27 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
     }
 }
 
+impl DevicePreprocessedAir<BabyBear> for RiscvAir<BabyBear> {
+    fn generate_preprocessed_trace_host(
+        &self,
+        _program: &<sp1_core_machine::riscv::RiscvAir<p3_baby_bear::BabyBear> as MachineAir<
+            BabyBear,
+        >>::Program,
+    ) -> Option<RowMajorMatrix<BabyBear>> {
+        None
+    }
+
+    fn generate_preprocessed_trace_device(
+        &self,
+        _program: &<sp1_core_machine::riscv::RiscvAir<p3_baby_bear::BabyBear> as MachineAir<
+            BabyBear,
+        >>::Program,
+        _stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        Ok(None)
+    }
+}
+
 impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, D> {
     fn generate_preprocessed_trace_host(
         &self,
