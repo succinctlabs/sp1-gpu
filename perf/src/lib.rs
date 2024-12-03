@@ -34,7 +34,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let context = SP1Context::default();
 
     tracing::info!("Setup elf");
-    let (pk_host, pk_device, program, vk) = prover.setup(elf);
+    let (_pk_host, pk_device, program, vk) = prover.setup(elf);
 
     tracing::info!("prove core");
     let time = std::time::Instant::now();

@@ -63,9 +63,8 @@ mod tests {
     use moongate_core::utils::init_tracer;
 
     use serial_test::serial;
-    use sp1_core_machine::{
-        io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
-    };
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_machine::{io::SP1Stdin, riscv::try_generate_dummy_proof};
     use sp1_prover::{
         tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
         SP1Prover,

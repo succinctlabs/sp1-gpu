@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-recursion-core = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-cuda = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-stark = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
-sp1-eval = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "5288e15cdf24081064e0be34433f951225eb4d28" }
+sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-recursion-core = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-cuda = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-stark = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
+sp1-eval = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "25b23668e82677d3597d53fb7394fb16ddcd8cdd" }
 
 # p3
 # p3-air = "0.1.4-succinct"
