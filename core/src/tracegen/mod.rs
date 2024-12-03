@@ -195,11 +195,11 @@ impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, 
         program: &Self::Program,
     ) -> Option<RowMajorMatrix<BabyBear>> {
         match self {
-            // RecursionAir::BaseAlu(_) => None,
-            // RecursionAir::ExtAlu(_) => None,
-            // RecursionAir::Poseidon2Skinny(_) => None,
-            // RecursionAir::Poseidon2Wide(_) => None,
-            // RecursionAir::Select(_) => None,
+            RecursionAir::BaseAlu(_) => None,
+            RecursionAir::ExtAlu(_) => None,
+            RecursionAir::Poseidon2Skinny(_) => None,
+            RecursionAir::Poseidon2Wide(_) => None,
+            RecursionAir::Select(_) => None,
             _ => self.generate_preprocessed_trace(program),
         }
     }
@@ -210,15 +210,15 @@ impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, 
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         match self {
-            // RecursionAir::BaseAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
-            // RecursionAir::ExtAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
-            // RecursionAir::Poseidon2Skinny(chip) => {
-            //     chip.generate_preprocessed_trace_device(program, stream)
-            // }
-            // RecursionAir::Poseidon2Wide(chip) => {
-            //     chip.generate_preprocessed_trace_device(program, stream)
-            // }
-            // RecursionAir::Select(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::BaseAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::ExtAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::Poseidon2Skinny(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Poseidon2Wide(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Select(chip) => chip.generate_preprocessed_trace_device(program, stream),
             _ => Ok(None),
         }
     }
