@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-# sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-recursion-core = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-cuda = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-stark = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
-# sp1-eval = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "77ae95c6f9dce81318b6f60b60b91f1fdc5f09a1" }
+sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-recursion-core = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-cuda = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-stark = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
+sp1-eval = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", rev = "9ba47fb398b8e53d430418fef9905a15494b7d73" }
 
 # p3
 # p3-air = "0.1.4-succinct"
@@ -51,13 +51,13 @@ debug-assertions = true
 # p3-interpolation = "0.1.4-succinct"
 
 # for local development
-sp1-core-executor = { path = "../sp1/crates/core/executor" }
-sp1-core-machine = { path = "../sp1/crates/core/machine" }
-sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
-sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-sp1-cuda = { path = "../sp1/crates/cuda" }
-sp1-stark = { path = "../sp1/crates/stark" }
-sp1-eval = { path = "../sp1/crates/eval" }
+# sp1-core-executor = { path = "../sp1/crates/core/executor" }
+# sp1-core-machine = { path = "../sp1/crates/core/machine" }
+# sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
+# sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
+# sp1-cuda = { path = "../sp1/crates/cuda" }
+# sp1-stark = { path = "../sp1/crates/stark" }
+# sp1-eval = { path = "../sp1/crates/eval" }
 
 # p3-field = { path = "../Plonky3/field" }
 # p3-air = { path = "../Plonky3/air" }
