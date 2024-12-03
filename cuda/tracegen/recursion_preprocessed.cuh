@@ -26,9 +26,13 @@ __global__ void recursion_base_alu_generate_preprocessed_trace_kernel(
         );
 
         const T* arr = reinterpret_cast<T*>(&cols);
-        size_t start = (i % 4) * COLUMNS;
+        size_t start =
+            (i % sp1_recursion_core_sys::NUM_BASE_ALU_ENTRIES_PER_ROW)
+            * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
+            trace.values
+                [(i / sp1_recursion_core_sys::NUM_BASE_ALU_ENTRIES_PER_ROW)
+                 + (j + start) * trace.height] = arr[j];
         }
     }
 }
@@ -73,9 +77,12 @@ __global__ void recursion_ext_alu_generate_preprocessed_trace_kernel(
         sp1_recursion_core_sys::alu_ext::instr_to_row<T>(instructions[i], cols);
 
         const T* arr = reinterpret_cast<T*>(&cols);
-        size_t start = (i % 4) * COLUMNS;
+        size_t start =
+            (i % sp1_recursion_core_sys::NUM_EXT_ALU_ENTRIES_PER_ROW) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[(i / 4) + (j + start) * trace.height] = arr[j];
+            trace.values
+                [(i / sp1_recursion_core_sys::NUM_EXT_ALU_ENTRIES_PER_ROW)
+                 + (j + start) * trace.height] = arr[j];
         }
     }
 }
