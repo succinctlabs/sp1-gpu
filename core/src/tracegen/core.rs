@@ -102,33 +102,33 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
             );
         }
 
-        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
-            .to_device_async(stream)
-            .unwrap();
+        // let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
+        //     .to_device_async(stream)
+        //     .unwrap();
 
-        unsafe {
-            tracegen::ffi::core_memory_local_generate_trace_round_2(
-                trace.view_mut(),
-                cumulative_sums.as_mut_ptr(),
-                stream.handle(),
-            );
-        }
+        // unsafe {
+        //     tracegen::ffi::core_memory_local_generate_trace_round_2(
+        //         trace.view_mut(),
+        //         cumulative_sums.as_mut_ptr(),
+        //         stream.handle(),
+        //     );
+        // }
 
-        unsafe {
-            tracegen::ffi::core_memory_local_generate_trace_round_3(
-                trace.view_mut(),
-                cumulative_sums.as_ptr(),
-                nb_events,
-                stream.handle(),
-            );
-        }
+        // unsafe {
+        //     tracegen::ffi::core_memory_local_generate_trace_round_3(
+        //         trace.view_mut(),
+        //         cumulative_sums.as_ptr(),
+        //         nb_events,
+        //         stream.handle(),
+        //     );
+        // }
 
         Ok(Some(trace))
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = input.get_local_mem_events().collect::<Vec<_>>();
-        let nb_rows = (events.len() + 3) / 4;
+        let count = input.get_local_mem_events().count();
+        let nb_rows = (count + 3) / 4;
         let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
         let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
         Some(padded_nb_rows)
@@ -321,7 +321,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // Get the events for the chip.
-        let events = input.global_interaction_events.clone();
+        let events = &input.global_interaction_events;
         let nb_events = events.len() as u32;
 
         // Copy the events to device.
@@ -338,7 +338,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
         )?;
 
         // Generate the trace.
-        unsafe {
+        tracing::debug_span!("global generate trace round 1").in_scope(|| unsafe {
             trace.set_max_width();
             tracegen::ffi::core_global_generate_trace_round_1(
                 trace.view_mut(),
@@ -346,34 +346,36 @@ impl DeviceAir<BabyBear> for GlobalChip {
                 nb_events,
                 stream.handle(),
             );
-        }
+        });
 
-        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
-            .to_device_async(stream)
-            .unwrap();
+        let mut cumulative_sums = tracing::debug_span!("copy cumulative sums").in_scope(|| {
+            vec![SepticCurve::<BabyBear>::default(); trace.height()]
+                .to_device_async(stream)
+                .unwrap()
+        });
 
-        unsafe {
+        tracing::debug_span!("global generate trace round 2").in_scope(|| unsafe {
             tracegen::ffi::core_global_generate_trace_round_2(
                 trace.view_mut(),
                 cumulative_sums.as_mut_ptr(),
                 stream.handle(),
             );
-        }
+        });
 
-        unsafe {
+        tracing::debug_span!("global generate trace round 3").in_scope(|| unsafe {
             tracegen::ffi::core_global_generate_trace_round_3(
                 trace.view_mut(),
                 cumulative_sums.as_ptr(),
                 nb_events,
                 stream.handle(),
             );
-        }
+        });
 
         Ok(Some(trace))
     }
 
     fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = input.global_interaction_events.clone();
+        let events = &input.global_interaction_events;
         let nb_rows = events.len();
         let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
         let padded_nb_rows = next_power_of_two(nb_rows, size_log2);

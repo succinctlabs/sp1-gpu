@@ -379,6 +379,7 @@ where
                     .clone()
             })
             .collect::<Vec<_>>();
+
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
             .in_scope(|| {
                 let span = tracing::Span::current();
@@ -401,7 +402,7 @@ where
                                             .generate_trace_device(
                                                 shard,
                                                 &mut A::Record::default(),
-                                                stream,
+                                                &self.main_stream,
                                             )
                                             .unwrap()
                                             .unwrap()
