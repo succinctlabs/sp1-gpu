@@ -54,6 +54,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryGlobalInit(_) => None,
             RiscvAir::SyscallCore(_) => None,
             RiscvAir::SyscallPrecompile(_) => None,
+            RiscvAir::Global(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -72,6 +73,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryGlobalInit(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::SyscallCore(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::SyscallPrecompile(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::Global(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
@@ -85,6 +87,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryGlobalInit(chip) => chip.num_rows(input),
             RiscvAir::SyscallCore(chip) => chip.num_rows(input),
             RiscvAir::SyscallPrecompile(chip) => chip.num_rows(input),
+            RiscvAir::Global(chip) => chip.num_rows(input),
             _ => None,
         }
     }

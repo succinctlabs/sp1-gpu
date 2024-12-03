@@ -1,5 +1,7 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
+use sp1_core_executor::events::MemoryLocalEvent;
+use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
 use sp1_core_machine::utils::next_power_of_two;
@@ -8,6 +10,7 @@ use sp1_core_machine::{
 };
 use sp1_stark::septic_curve::SepticCurve;
 
+use crate::device::DeviceBuffer;
 use crate::{
     cuda_runtime::stream::CudaStream,
     device::{error::CudaError, memory::ToDevice},
@@ -310,6 +313,74 @@ impl DeviceAir<BabyBear> for SyscallChip {
     }
 }
 
+impl DeviceAir<BabyBear> for GlobalChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        // Get the events for the chip.
+        let events = input.global_interaction_events.clone();
+        let nb_events = events.len() as u32;
+
+        // Copy the events to device.
+        let events = events.to_device_async(stream)?;
+
+        // Get the number of rows.
+        let nb_rows = self.num_rows(input).unwrap();
+
+        // Allocate the matrix.
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <GlobalChip as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        // Generate the trace.
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::core_global_generate_trace_round_1(
+                trace.view_mut(),
+                events.as_ptr(),
+                nb_events,
+                stream.handle(),
+            );
+        }
+
+        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
+            .to_device_async(stream)
+            .unwrap();
+
+        unsafe {
+            tracegen::ffi::core_global_generate_trace_round_2(
+                trace.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                stream.handle(),
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_global_generate_trace_round_3(
+                trace.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+
+    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
+        let events = input.global_interaction_events.clone();
+        let nb_rows = events.len();
+        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
+        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
+        Some(padded_nb_rows)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::device::memory::ToHost;
@@ -320,12 +391,13 @@ mod tests {
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
     use p3_matrix::Matrix;
-    use sp1_core_executor::events::SyscallEvent;
+    use sp1_core_executor::events::{GlobalInteractionEvent, SyscallEvent};
     use sp1_core_executor::{
         events::AluEvent, events::MemoryInitializeFinalizeEvent, events::MemoryLocalEvent,
         ExecutionRecord, Opcode,
     };
     use sp1_core_machine::alu::AddSubChip;
+    use sp1_core_machine::global::GlobalChip;
     use sp1_core_machine::memory::{MemoryChipType, MemoryLocalChip};
     use sp1_core_machine::riscv::MemoryGlobalChip;
     use sp1_core_machine::syscall::chip::SyscallChip;
@@ -577,6 +649,80 @@ mod tests {
         }
 
         let gpu_trace = trace_device.to_host();
+        assert_eq!(trace, gpu_trace);
+    }
+
+    #[test]
+    fn test_global_generate_trace() {
+        let mut rng = rand::thread_rng();
+        let mut shard = ExecutionRecord::default();
+        shard.global_interaction_events = (0..1000)
+            .map(|_| GlobalInteractionEvent {
+                message: [rng.gen_range(0..10000); 7],
+                is_receive: false,
+            })
+            .collect::<Vec<_>>();
+
+        let chip = GlobalChip;
+
+        let trace: RowMajorMatrix<BabyBear> =
+            chip.generate_trace(&shard, &mut ExecutionRecord::default());
+
+        let mut trace_copy = trace.clone();
+        trace_copy.values.fill(BabyBear::zero());
+        let mut trace_device =
+            RowMajorMatrixDevice::new(trace_copy.values.to_device().unwrap(), trace.width())
+                .to_column_major();
+
+        let og_events = shard.global_interaction_events;
+        let nb_events = og_events.len();
+        let events = og_events.to_device().unwrap().as_ptr();
+        unsafe {
+            tracegen::ffi::core_global_generate_trace_round_1(
+                trace_device.view_mut(),
+                events,
+                nb_events as u32,
+                DEFAULT_STREAM,
+            );
+        }
+
+        let mut cumulative_sums =
+            vec![SepticCurve::<BabyBear>::default(); trace.height()].to_device().unwrap();
+
+        unsafe {
+            tracegen::ffi::core_global_generate_trace_round_2(
+                trace_device.view_mut(),
+                cumulative_sums.as_mut_ptr(),
+                DEFAULT_STREAM,
+            );
+        }
+
+        unsafe {
+            tracegen::ffi::core_global_generate_trace_round_3(
+                trace_device.view_mut(),
+                cumulative_sums.as_ptr(),
+                nb_events as u32,
+                DEFAULT_STREAM,
+            );
+        }
+
+        let gpu_trace = trace_device.to_host();
+
+        for j in 0..trace.height() {
+            let trace_row_0 = trace.row_slice(j).to_vec();
+            let gpu_trace_row_0 = gpu_trace.row_slice(j).to_vec();
+            if j < og_events.len() {
+                println!("event: {:?}", og_events[j]);
+            }
+            for i in 0..trace.width() {
+                assert_eq!(
+                    trace_row_0[i], gpu_trace_row_0[i],
+                    "mismatch on index {} and row {}",
+                    i, j
+                );
+            }
+        }
+
         assert_eq!(trace, gpu_trace);
     }
 }

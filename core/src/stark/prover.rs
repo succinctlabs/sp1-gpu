@@ -381,18 +381,33 @@ where
             .collect::<Vec<_>>();
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
             .in_scope(|| {
+                let span = tracing::Span::current();
                 trace_jobs
                     .into_par_iter()
                     .zip(chip_streams)
-                    .map(|(job, stream)| match job {
-                        TraceGenerationJob::Host(_, mat) => {
-                            mat.to_device_async(stream).unwrap().to_column_major()
+                    .map(|(job, stream)| {
+                        let _span = span.enter();
+                        match job {
+                            TraceGenerationJob::Host(name, mat) => {
+                                tracing::debug_span!("copy host trace to device", chip = name)
+                                    .in_scope(|| {
+                                        mat.to_device_async(stream).unwrap().to_column_major()
+                                    })
+                            }
+                            TraceGenerationJob::Device(chip, _) => {
+                                tracing::debug_span!("generate trace on device", chip = chip.name())
+                                    .in_scope(|| {
+                                        chip.air
+                                            .generate_trace_device(
+                                                shard,
+                                                &mut A::Record::default(),
+                                                stream,
+                                            )
+                                            .unwrap()
+                                            .unwrap()
+                                    })
+                            }
                         }
-                        TraceGenerationJob::Device(chip, _) => chip
-                            .air
-                            .generate_trace_device(shard, &mut A::Record::default(), stream)
-                            .unwrap()
-                            .unwrap(),
                     })
                     .collect()
             });

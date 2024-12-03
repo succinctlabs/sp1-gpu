@@ -2,6 +2,7 @@ use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::matrix::MatrixViewMutDevice;
 use p3_baby_bear::BabyBear;
 use sp1_core_executor::events::AluEvent;
+use sp1_core_executor::events::GlobalInteractionEvent;
 use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_executor::events::SyscallEvent;
@@ -79,6 +80,26 @@ extern "C" {
     );
 
     pub fn core_syscall_generate_trace_round_3(
+        trace: MatrixViewMutDevice<BabyBear>,
+        cumulative_sums: *const SepticCurve<BabyBear>,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_global_generate_trace_round_1(
+        trace: MatrixViewMutDevice<BabyBear>,
+        events: *const GlobalInteractionEvent,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_global_generate_trace_round_2(
+        trace: MatrixViewMutDevice<BabyBear>,
+        cumulative_sums: *mut SepticCurve<BabyBear>,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn core_global_generate_trace_round_3(
         trace: MatrixViewMutDevice<BabyBear>,
         cumulative_sums: *const SepticCurve<BabyBear>,
         nb_events: u32,
