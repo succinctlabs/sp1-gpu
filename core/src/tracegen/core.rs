@@ -351,11 +351,8 @@ impl DeviceAir<BabyBear> for GlobalChip {
             );
         });
 
-        let mut cumulative_sums = tracing::debug_span!("copy cumulative sums").in_scope(|| {
-            vec![SepticCurve::<BabyBear>::default(); trace.height()]
-                .to_device_async(stream)
-                .unwrap()
-        });
+        let mut cumulative_sums =
+            DeviceBuffer::<SepticCurve<BabyBear>>::with_capacity_in(trace.height(), stream)?;
 
         tracing::debug_span!("global generate trace round 2").in_scope(|| unsafe {
             tracegen::ffi::core_global_generate_trace_round_2(
