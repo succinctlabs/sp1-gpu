@@ -121,6 +121,9 @@ __global__ void recursion_public_values_generate_preprocessed_trace_kernel(
              digest_idx < sp1_recursion_core_sys::DIGEST_SIZE;
              ++digest_idx) {
             sp1_recursion_core_sys::PublicValuesPreprocessedCols<T> cols;
+            for (size_t j = 0; j < sp1_recursion_core_sys::DIGEST_SIZE; ++j) {
+                cols.pv_idx[j] = T::zero();
+            }
 
             sp1_recursion_core_sys::public_values::instr_to_row<T>(
                 instructions[i],
@@ -223,6 +226,11 @@ __global__ void recursion_poseidon2_skinny_generate_preprocessed_trace_kernel(
              round_idx < (sp1_recursion_core_sys::NUM_EXTERNAL_ROUNDS + 3);
              ++round_idx) {
             sp1_recursion_core_sys::Poseidon2PreprocessedColsSkinny<T> cols;
+            for (size_t j = 0; j < WIDTH; ++j) {
+                cols.memory_preprocessed[j].addr = T::zero();
+                cols.memory_preprocessed[j].mult = T::zero();
+                cols.round_counters_preprocessed.round_constants[j] = T::zero();
+            }
 
             sp1_recursion_core_sys::poseidon2_skinny::instr_to_row<T>(
                 instructions[i],
