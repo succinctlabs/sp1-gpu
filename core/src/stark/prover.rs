@@ -384,7 +384,7 @@ where
             .in_scope(|| {
                 let span = tracing::Span::current();
                 trace_jobs
-                    .into_par_iter()
+                    .par_iter()
                     .zip(chip_streams)
                     .map(|(job, stream)| {
                         let _span = span.enter();
@@ -402,7 +402,7 @@ where
                                             .generate_trace_device(
                                                 shard,
                                                 &mut A::Record::default(),
-                                                &self.main_stream,
+                                                stream,
                                             )
                                             .unwrap()
                                             .unwrap()
@@ -496,6 +496,10 @@ where
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
+        for (_, stream) in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
         commit_span.exit();
 
         // // Get the chip ordering.
@@ -1115,9 +1119,7 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
+
         self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 

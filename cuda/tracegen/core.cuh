@@ -292,7 +292,7 @@ extern "C" rustCudaError_t core_global_generate_trace_round_1(
         events,
         nb_events
     );
-    // CUDA_OK(cudaStreamSynchronize(stream));
+    CUDA_OK(cudaStreamSynchronize(stream));
 
     return CUDA_SUCCESS_MOON;
 }

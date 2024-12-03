@@ -44,7 +44,7 @@ RustCudaError ScanTemplateLarge(T* d_out, T* d_in, size_t n, cudaStream_t stream
     if ((2 * n) <= scan_kernel_large::SECTION_SIZE) {
         scan_kernel_large::SingleBlockScan<<<1, n, 0, stream>>>(d_out, d_in, n);
     } else {
-        size_t block_dim = 16;
+        size_t block_dim = 64;
         size_t num_blocks = ceil(n / (float)block_dim);
         T* scanValues;
         unsigned int* BlockCounter;
