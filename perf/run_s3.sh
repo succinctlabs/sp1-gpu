@@ -20,3 +20,6 @@ export FIX_RECURSION_SHAPES=true
 
 # Run moongate-perf
 RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage
+
+# Remove the downloaded files
+rm program.bin stdin.bin 
