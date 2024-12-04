@@ -13,3 +13,4 @@
 #include "../../cuda/reduce/reduce.cuh"
 #include "../../cuda/tracegen/core.cuh"
 #include "../../cuda/challenger/challenger.cuh"
+#include "../../cuda/tracegen/global.cuh"
