@@ -10,8 +10,8 @@ pub mod components;
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 22) as f64 / (23.0 * 1e9);
-const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
-const MAX_DEFERRED_SPLIT_LOG: usize = 15;
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 7;
+const MAX_DEFERRED_SPLIT_LOG: usize = 14;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
@@ -27,7 +27,6 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
         .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
     let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
     opts.core_opts.set_shard_size(shard_size);
-    opts.core_opts.global_threshold = 1 << 25;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
 
@@ -271,7 +270,7 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().enumerate() {
+        for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
             tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
