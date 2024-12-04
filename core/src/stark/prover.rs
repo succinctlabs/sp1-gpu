@@ -380,20 +380,36 @@ where
                     .clone()
             })
             .collect::<Vec<_>>();
+
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
             .in_scope(|| {
+                let span = tracing::Span::current();
                 trace_jobs
-                    .into_par_iter()
+                    .par_iter()
                     .zip(chip_streams)
-                    .map(|(job, stream)| match job {
-                        TraceGenerationJob::Host(_, mat) => {
-                            mat.to_device_async(stream).unwrap().to_column_major()
+                    .map(|(job, stream)| {
+                        let _span = span.enter();
+                        match job {
+                            TraceGenerationJob::Host(name, mat) => {
+                                tracing::debug_span!("copy host trace to device", chip = name)
+                                    .in_scope(|| {
+                                        mat.to_device_async(stream).unwrap().to_column_major()
+                                    })
+                            }
+                            TraceGenerationJob::Device(chip, _) => {
+                                tracing::debug_span!("generate trace on device", chip = chip.name())
+                                    .in_scope(|| {
+                                        chip.air
+                                            .generate_trace_device(
+                                                shard,
+                                                &mut A::Record::default(),
+                                                stream,
+                                            )
+                                            .unwrap()
+                                            .unwrap()
+                                    })
+                            }
                         }
-                        TraceGenerationJob::Device(chip, _) => chip
-                            .air
-                            .generate_trace_device(shard, &mut A::Record::default(), stream)
-                            .unwrap()
-                            .unwrap(),
                     })
                     .collect()
             });
@@ -483,6 +499,10 @@ where
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
+        for (_, stream) in self.chip_streams.iter() {
+            stream.synchronize().unwrap();
+        }
+
         commit_span.exit();
 
         // // Get the chip ordering.
@@ -1102,9 +1122,7 @@ where
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
+
         self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 

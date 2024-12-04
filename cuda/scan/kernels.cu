@@ -2,7 +2,7 @@
 // Scan kernel for T with large sizeof(T).
 namespace scan_kernel_large {
     // TODO: make this a const parmaeter
-    const size_t SECTION_SIZE = 32;
+    const size_t SECTION_SIZE = 128;
 
     template<typename T> __device__ __inline__ void BrentKungScan(T *d_out, T * d_in, T* aux, 
     size_t block_idx, size_t block_dim, size_t thread_idx, size_t n) {
