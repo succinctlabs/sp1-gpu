@@ -8,7 +8,7 @@ use sp1_core_machine::utils::next_power_of_two;
 use sp1_core_machine::{
     alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
 };
-use sp1_stark::septic_curve::SepticCurve;
+use sp1_stark::{air::MachineAir, septic_curve::SepticCurve};
 
 use crate::device::DeviceBuffer;
 use crate::{
@@ -124,14 +124,6 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
         // }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let count = input.get_local_mem_events().count();
-        let nb_rows = (count + 3) / 4;
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
     }
 }
 

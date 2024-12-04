@@ -36,9 +36,6 @@ pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
         output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<F>>, CudaError>;
-
-    /// Get the height of the trace that would be generated on device.
-    fn num_rows(&self, input: &Self::Record) -> Option<usize>;
 }
 
 /// An AIR that can generate the preprocessed trace on either the host or the device.
@@ -100,20 +97,6 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             _ => Ok(None),
         }
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        // We currently only support accelerating the `AddSubChip` and chips with global interaction.
-        match self {
-            // RiscvAir::Add(chip) => chip.num_rows(input),
-            RiscvAir::MemoryLocal(chip) => chip.num_rows(input),
-            RiscvAir::MemoryGlobalFinal(chip) => chip.num_rows(input),
-            RiscvAir::MemoryGlobalInit(chip) => chip.num_rows(input),
-            RiscvAir::SyscallCore(chip) => chip.num_rows(input),
-            RiscvAir::SyscallPrecompile(chip) => chip.num_rows(input),
-            RiscvAir::Global(chip) => chip.num_rows(input),
-            _ => None,
-        }
-    }
 }
 
 impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
@@ -153,20 +136,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::PublicValues(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
-        }
-    }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        match self {
-            RecursionAir::BaseAlu(chip) => chip.num_rows(input),
-            RecursionAir::ExtAlu(chip) => chip.num_rows(input),
-            RecursionAir::Poseidon2Skinny(chip) => chip.num_rows(input),
-            RecursionAir::Poseidon2Wide(chip) => chip.num_rows(input),
-            RecursionAir::Select(chip) => chip.num_rows(input),
-            RecursionAir::FriFold(chip) => chip.num_rows(input),
-            RecursionAir::BatchFRI(chip) => chip.num_rows(input),
-            RecursionAir::PublicValues(chip) => chip.num_rows(input),
-            _ => None,
         }
     }
 }
