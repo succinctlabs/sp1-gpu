@@ -41,7 +41,7 @@ use crate::{
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
-    tracegen::DeviceAir,
+    tracegen::{DeviceAir, DevicePreprocessedAir},
     univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
@@ -193,7 +193,8 @@ where
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>
         + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>
-        + DeviceAir<BabyBear>,
+        + DeviceAir<BabyBear>
+        + DevicePreprocessedAir<BabyBear>,
     // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
@@ -449,9 +450,18 @@ where
             .chips()
             .par_iter()
             .map(|chip| {
-                let prep_trace = chip.generate_preprocessed_trace(program);
+                let prep_trace = chip.air.generate_preprocessed_trace_host(program);
+
+                let name = chip.name();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
+
+                let trace = match prep_trace {
+                    Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
+                    None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
+                };
+
                 // Assert that the chip width data is correct.
-                let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
                     expected_width,
                     chip.preprocessed_width(),
@@ -459,22 +469,16 @@ where
                     chip.name()
                 );
 
-                (chip.name(), chip.local_only(), prep_trace)
+                (chip.name(), chip.local_only(), trace)
             })
-            .filter(|(_, _, prep_trace)| prep_trace.is_some())
-            .map(|(name, local_only, prep_trace)| {
-                let prep_trace = prep_trace.unwrap();
+            .filter(|(_, _, trace)| trace.is_some())
+            .map(|(name, local_only, trace)| {
+                let trace = trace.unwrap();
                 let event = self.events.preprocessed.get(&name).unwrap().clone();
-                let stream = self.chip_streams.get(&name).unwrap().clone();
-                let domain = natural_domain_for_degree(self.config(), prep_trace.height());
-                let dimensions = prep_trace.dimensions();
-                let (tx, rx) = oneshot::channel();
-                rayon::spawn(move || {
-                    let stream = stream;
-                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace).unwrap();
-                });
-                (name, domain, event, local_only, rx, dimensions)
+                let domain = natural_domain_for_degree(self.config(), trace.height());
+                let dimensions = trace.dimensions();
+
+                (name, domain, event, local_only, trace, dimensions)
             })
             .collect::<Vec<_>>();
 
@@ -484,8 +488,7 @@ where
         let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
             named_preprocessed_data
                 .into_iter()
-                .map(|(name, domain, event, local_only, rx, dimensions)| {
-                    let trace = rx.recv().unwrap();
+                .map(|(name, domain, event, local_only, trace, dimensions)| {
                     (((name, domain, dimensions), (domain, trace, event)), local_only)
                 })
                 .collect();

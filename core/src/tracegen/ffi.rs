@@ -7,8 +7,9 @@ use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_executor::events::SyscallEvent;
 use sp1_recursion_core::{
-    BaseAluEvent, BatchFRIEvent, CommitPublicValuesEvent, ExtAluEvent, FriFoldEvent,
-    Poseidon2Event, SelectEvent,
+    BaseAluEvent, BaseAluInstr, BatchFRIEvent, CommitPublicValuesEvent, CommitPublicValuesInstr,
+    ExtAluEvent, ExtAluInstr, FriFoldEvent, Poseidon2Event, Poseidon2SkinnyInstr, SelectEvent,
+    SelectInstr,
 };
 use sp1_stark::septic_curve::SepticCurve;
 
@@ -117,11 +118,23 @@ extern "C" {
         nb_events: u32,
         stream: CudaStreamHandle,
     );
+    pub fn recursion_base_alu_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const BaseAluInstr<BabyBear>,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
 
     pub fn recursion_ext_alu_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const ExtAluEvent<BabyBear>,
         nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+    pub fn recursion_ext_alu_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const ExtAluInstr<BabyBear>,
+        nb_instructions: u32,
         stream: CudaStreamHandle,
     );
 
@@ -152,11 +165,23 @@ extern "C" {
         nb_events: u32,
         stream: CudaStreamHandle,
     );
+    pub fn recursion_public_values_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const CommitPublicValuesInstr<BabyBear>,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
 
     pub fn recursion_select_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const SelectEvent<BabyBear>,
         nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+    pub fn recursion_select_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const SelectInstr<BabyBear>,
+        nb_instructions: u32,
         stream: CudaStreamHandle,
     );
 
@@ -166,11 +191,23 @@ extern "C" {
         nb_events: u32,
         stream: CudaStreamHandle,
     );
+    pub fn recursion_poseidon2_skinny_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const Poseidon2SkinnyInstr<BabyBear>,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
 
     pub fn recursion_poseidon2_wide_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const Poseidon2Event<BabyBear>,
         nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+    pub fn recursion_poseidon2_wide_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        instructions: *const Poseidon2SkinnyInstr<BabyBear>,
+        nb_instructions: u32,
         stream: CudaStreamHandle,
     );
 }

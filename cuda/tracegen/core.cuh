@@ -12,6 +12,7 @@
 #include "syscall.hpp"
 #include "moongate-core-sys-cbindgen.hpp"
 #include "recursion.cuh"
+#include "recursion_preprocessed.cuh"
 #include "sp1-core-machine-sys-cbindgen.hpp"
 #include "sp1-recursion-core-sys-cbindgen.hpp"
 #include "global.cuh"

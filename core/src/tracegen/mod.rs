@@ -12,6 +12,7 @@ use crate::{
 pub mod core;
 pub mod ffi;
 pub mod recursion;
+pub mod recursion_preprocessed;
 
 /// An AIR that can generate the trace on either the host or the device.
 pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
@@ -38,6 +39,28 @@ pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
 
     /// Get the height of the trace that would be generated on device.
     fn num_rows(&self, input: &Self::Record) -> Option<usize>;
+}
+
+/// An AIR that can generate the preprocessed trace on either the host or the device.
+pub trait DevicePreprocessedAir<F: PrimeField32>: MachineAir<F> {
+    /// Generate the preprocessed trace on the host.
+    ///
+    /// This function returns `None` if the preprocessed trace is designed to be generated on device.
+    fn generate_preprocessed_trace_host(
+        &self,
+        program: &Self::Program,
+    ) -> Option<RowMajorMatrix<F>> {
+        self.generate_preprocessed_trace(program)
+    }
+
+    /// Generate the preprocessed trace on the device.
+    ///
+    /// This function returns `None` if the preprocessed trace is designed to be generated on host.
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<F>>, CudaError>;
 }
 
 impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
@@ -144,6 +167,62 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::BatchFRI(chip) => chip.num_rows(input),
             RecursionAir::PublicValues(chip) => chip.num_rows(input),
             _ => None,
+        }
+    }
+}
+
+impl DevicePreprocessedAir<BabyBear> for RiscvAir<BabyBear> {
+    fn generate_preprocessed_trace_host(
+        &self,
+        program: &<sp1_core_machine::riscv::RiscvAir<p3_baby_bear::BabyBear> as MachineAir<
+            BabyBear,
+        >>::Program,
+    ) -> Option<RowMajorMatrix<BabyBear>> {
+        self.generate_preprocessed_trace(program)
+    }
+
+    fn generate_preprocessed_trace_device(
+        &self,
+        _program: &<sp1_core_machine::riscv::RiscvAir<p3_baby_bear::BabyBear> as MachineAir<
+            BabyBear,
+        >>::Program,
+        _stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        Ok(None)
+    }
+}
+
+impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, D> {
+    fn generate_preprocessed_trace_host(
+        &self,
+        program: &Self::Program,
+    ) -> Option<RowMajorMatrix<BabyBear>> {
+        match self {
+            RecursionAir::BaseAlu(_) => None,
+            RecursionAir::ExtAlu(_) => None,
+            RecursionAir::Poseidon2Skinny(_) => None,
+            RecursionAir::Poseidon2Wide(_) => None,
+            RecursionAir::Select(_) => None,
+            _ => self.generate_preprocessed_trace(program),
+        }
+    }
+
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        match self {
+            RecursionAir::BaseAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::ExtAlu(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::Poseidon2Skinny(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Poseidon2Wide(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::Select(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            _ => Ok(None),
         }
     }
 }
