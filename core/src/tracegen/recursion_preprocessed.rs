@@ -12,7 +12,6 @@ use sp1_recursion_core::{
         alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
         poseidon2_skinny::{Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
-        public_values::{PublicValuesChip, PUB_VALUES_LOG_HEIGHT},
         select::SelectChip,
     },
     runtime::Instruction,
@@ -94,45 +93,6 @@ impl DevicePreprocessedAir<BabyBear> for ExtAluChip {
         unsafe {
             trace.set_max_width();
             tracegen::ffi::recursion_ext_alu_generate_preprocessed_trace(
-                trace.view_mut(),
-                instrs.as_ptr(),
-                instrs.len() as u32,
-                stream.handle(),
-            );
-        }
-
-        Ok(Some(trace))
-    }
-}
-
-impl DevicePreprocessedAir<BabyBear> for PublicValuesChip {
-    /// Do not use. Designed to only take a single `CommitPublicValues` instruction.
-    fn generate_preprocessed_trace_device(
-        &self,
-        program: &Self::Program,
-        stream: &CudaStream,
-    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
-        let instrs = program
-            .instructions
-            .iter()
-            .filter_map(|instruction| match instruction {
-                Instruction::CommitPublicValues(x) => Some(**x),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let instrs = instrs.to_device_async(stream)?;
-
-        let nb_rows = instrs.len();
-        let padded_nb_rows = next_power_of_two(nb_rows, Some(PUB_VALUES_LOG_HEIGHT));
-        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
-            <PublicValuesChip as MachineAir<BabyBear>>::preprocessed_width(self),
-            padded_nb_rows,
-            stream,
-        )?;
-
-        unsafe {
-            trace.set_max_width();
-            tracegen::ffi::recursion_public_values_generate_preprocessed_trace(
                 trace.view_mut(),
                 instrs.as_ptr(),
                 instrs.len() as u32,
@@ -345,32 +305,6 @@ mod tests {
                         in2: Address(F::two()),
                     },
                 }),
-            ],
-            ..Default::default()
-        };
-        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
-        let device_trace = chip
-            .generate_preprocessed_trace_device(&program, &CudaStream::default())
-            .unwrap()
-            .unwrap();
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
-
-    #[test]
-    #[serial]
-    #[ignore]
-    fn test_public_values() {
-        let chip = PublicValuesChip;
-        let addr = 0u32;
-        let public_values_a: [u32; RECURSIVE_PROOF_NUM_PV_ELTS] =
-            array::from_fn(|i| i as u32 + addr);
-        let public_values: &RecursionPublicValues<u32> = public_values_a.as_slice().borrow();
-        let program = RecursionProgram {
-            instructions: vec![
-                instr::commit_public_values(public_values),
-                instr::commit_public_values(public_values),
-                instr::commit_public_values(public_values),
             ],
             ..Default::default()
         };
