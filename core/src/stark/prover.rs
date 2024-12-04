@@ -539,6 +539,84 @@ where
         )
     }
 
+    fn pk_from_vk(
+        &self,
+        program: &A::Program,
+        vk: &StarkVerifyingKey<SC>,
+    ) -> Self::DeviceProvingKey {
+        let generate_traces_copy_span =
+            tracing::debug_span!("generate preprocessed traces and copy to device").entered();
+
+        let mut named_preprocessed_data = self
+            .machine()
+            .chips()
+            .par_iter()
+            .map(|chip| {
+                let prep_trace = chip.generate_preprocessed_trace(program);
+                // Assert that the chip width data is correct.
+                let expected_width = prep_trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                assert_eq!(
+                    expected_width,
+                    chip.preprocessed_width(),
+                    "Incorrect number of preprocessed columns for chip {}",
+                    chip.name()
+                );
+
+                (chip.name(), chip.local_only(), prep_trace)
+            })
+            .filter(|(_, _, prep_trace)| prep_trace.is_some())
+            .map(|(name, local_only, prep_trace)| {
+                let prep_trace = prep_trace.unwrap();
+                let event = self.events.preprocessed.get(&name).unwrap().clone();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
+                let domain = natural_domain_for_degree(self.config(), prep_trace.height());
+                let dimensions = prep_trace.dimensions();
+                let (tx, rx) = oneshot::channel();
+                rayon::spawn(move || {
+                    let stream = stream;
+                    let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                    tx.send(trace).unwrap();
+                });
+                (name, domain, event, local_only, rx, dimensions)
+            })
+            .collect::<Vec<_>>();
+
+        named_preprocessed_data
+            .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
+
+        let (commitment_data, local_only): (Vec<_>, Vec<_>) = named_preprocessed_data
+            .into_iter()
+            .map(|(_, domain, event, local_only, rx, _)| {
+                let trace = rx.recv().unwrap();
+                ((domain, trace, event), local_only)
+            })
+            .collect();
+
+        generate_traces_copy_span.exit();
+
+        // Commit to the batch of traces.
+        let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
+        let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
+        self.main_stream.synchronize().unwrap();
+        commit_span.exit();
+
+        // Get the preprocessed traces
+        let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
+
+        let StarkVerifyingKey { pc_start, initial_global_cumulative_sum, chip_ordering, .. } = vk;
+
+        StarkProvingKeyDevice {
+            commit,
+            pc_start: *pc_start,
+            initial_global_cumulative_sum: initial_global_cumulative_sum.clone(),
+            traces,
+            data,
+            chip_ordering: chip_ordering.clone(),
+            local_only,
+            phantom: PhantomData,
+        }
+    }
+
     fn open(
         &self,
         pk: &Self::DeviceProvingKey,
