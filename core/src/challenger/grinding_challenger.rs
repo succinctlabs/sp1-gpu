@@ -78,6 +78,7 @@ impl DeviceGrindingChallenger for OuterChallenger {
     }
 }
 
+/// cbindgen:ignore
 #[allow(unused_attributes)]
 #[link_name = "duplex_challenger"]
 extern "C" {
