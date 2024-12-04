@@ -21,9 +21,9 @@ pub struct TwoAdicFriCommitter<SC: BabyBearFriConfig, C> {
 }
 
 impl<
-    SC: BabyBearFriConfig,
-    C: MmcsCommitterAsync<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
-> TwoAdicFriCommitter<SC, C>
+        SC: BabyBearFriConfig,
+        C: MmcsCommitterAsync<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>,
+    > TwoAdicFriCommitter<SC, C>
 {
     pub fn new(log_blowup: usize) -> Self
     where

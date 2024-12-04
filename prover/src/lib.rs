@@ -10,7 +10,7 @@ pub mod components;
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
-const DEFFERRED_SPLIT_LOG_RATIO: usize = 4;
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 5;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
@@ -63,9 +63,8 @@ mod tests {
     use moongate_core::utils::init_tracer;
 
     use serial_test::serial;
-    use sp1_core_machine::{
-        io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
-    };
+    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
+    use sp1_core_machine::{io::SP1Stdin, riscv::try_generate_dummy_proof};
     use sp1_prover::{
         tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
         SP1Prover,

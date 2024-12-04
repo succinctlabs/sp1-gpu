@@ -37,7 +37,7 @@ pub(super) mod ffi {
     #[link_name = "matrix_transpose"]
     #[allow(unused_attributes)]
     /// cbindgen:ignore
-extern "C" {
+    extern "C" {
         pub fn transpose_naive(
             output: *mut BabyBear,
             input: MatrixViewDevice<BabyBear>,
@@ -55,7 +55,7 @@ extern "C" {
     #[link_name = "matrix_strided"]
     #[allow(unused_attributes)]
     /// cbindgen:ignore
-extern "C" {
+    extern "C" {
         pub fn strided_matrix(
             output: MatrixViewMutDevice<BabyBear>,
             input: MatrixViewDevice<BabyBear>,
@@ -74,7 +74,7 @@ extern "C" {
     }
 
     /// cbindgen:ignore
-extern "C" {
+    extern "C" {
         pub fn reverse_bits_batch(
             output: *mut BabyBear,
             input: *const BabyBear,
