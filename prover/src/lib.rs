@@ -62,15 +62,15 @@ mod tests {
     use crate::{components::GpuProverComponents, gpu_prover_opts};
     use moongate_core::utils::init_tracer;
 
+    use p3_field::PrimeField32;
     use serial_test::serial;
-    use sp1_core_machine::{
-        io::SP1Stdin, riscv::tests::try_generate_dummy_proof, utils::tests::FIBONACCI_ELF,
-    };
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, CoreShape};
+    use sp1_core_machine::{io::SP1Stdin, riscv::RiscvAir};
     use sp1_prover::{
         tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
         SP1Prover,
     };
-    use sp1_stark::ProofShape;
+    use sp1_stark::{Dom, MachineProver, ProofShape, StarkGenericConfig};
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
@@ -232,6 +232,31 @@ mod tests {
         bench_elf(RETH_ELF, Test::Compress);
     }
 
+    fn try_generate_dummy_proof<SC: StarkGenericConfig, P: MachineProver<SC, RiscvAir<SC::Val>>>(
+        prover: &P,
+        shape: &CoreShape,
+    ) where
+        SC::Val: PrimeField32,
+        Dom<SC>: std::fmt::Debug,
+    {
+        let program = shape.dummy_program();
+        let record = shape.dummy_record();
+
+        // Try doing setup.
+        let (pk, _) = prover.setup(&program);
+
+        // Try to generate traces.
+        let main_traces = prover.generate_traces(&record);
+
+        // Try to commit the traces.
+        let main_data = prover.commit(&record, main_traces);
+
+        let mut challenger = prover.machine().config().challenger();
+
+        // Try to "open".
+        prover.open(&pk, main_data, &mut challenger).unwrap();
+    }
+
     #[test]
     #[serial]
     fn test_shapes() {
@@ -243,8 +268,9 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        for (i, shape) in shape_config.maximal_core_shapes().into_iter().enumerate() {
-            tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
+        let skip = 11;
+        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().skip(skip).enumerate() {
+            tracing::info!("shape {i} as offset {skip}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
     }
