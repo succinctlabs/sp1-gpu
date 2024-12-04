@@ -942,12 +942,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
-
-[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2371,16 +2365,6 @@ dependencies = [
  "futures-core",
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "gmp-mpfr-sys"
-version = "1.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0205cd82059bc63b63cf516d714352a30c44f2c74da9961dfda2617ae6b5918"
-dependencies = [
- "libc",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4956,18 +4940,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rug"
-version = "1.26.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ae2c1089ec0575193eb9222881310cc1ed8bce3646ef8b81b44b518595b79d"
-dependencies = [
- "az",
- "gmp-mpfr-sys",
- "libc",
- "libm",
-]
-
-[[package]]
 name = "ruint"
 version = "1.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5587,7 +5559,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5620,7 +5592,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5673,7 +5645,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5689,7 +5661,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5701,7 +5673,6 @@ dependencies = [
  "num",
  "p256",
  "p3-field",
- "rug",
  "serde",
  "snowbridge-amcl",
  "sp1-primitives",
@@ -5712,7 +5683,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5721,7 +5692,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5740,7 +5711,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "bincode",
  "hex",
@@ -5757,7 +5728,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5793,7 +5764,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5826,7 +5797,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5847,7 +5818,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5887,7 +5858,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5896,7 +5867,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5921,7 +5892,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -5962,7 +5933,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fv4-benchmark#02f0dfcf33edf4ace5ab70fcdff3f4ad4e794b4e"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fpk-from-vk#fb688330bd7d6378c2d7dced6376c336a37ac158"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
