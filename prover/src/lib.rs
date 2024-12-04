@@ -9,8 +9,9 @@ pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
-const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
-const DEFFERRED_SPLIT_LOG_RATIO: usize = 5;
+const SHARD_MEM_RATIO: f64 = (1 << 22) as f64 / (23.0 * 1e9);
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
+const MAX_DEFERRED_SPLIT_LOG: usize = 15;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
@@ -25,12 +26,14 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let shard_size = env::var("SHARD_SIZE")
         .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
     let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
-    opts.core_opts.shard_size = shard_size;
+    opts.core_opts.set_shard_size(shard_size);
+    opts.core_opts.global_threshold = 1 << 25;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
 
     // Set the deferred split threshold.
-    let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
+    let deferred_split_threshold_log =
+        std::cmp::min(shard_size_log - DEFFERRED_SPLIT_LOG_RATIO, MAX_DEFERRED_SPLIT_LOG);
     let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
     let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
         .map(|s| s.parse::<usize>().unwrap_or(default_deferred_split_threshold))
@@ -268,9 +271,8 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        let skip = 11;
-        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().skip(skip).enumerate() {
-            tracing::info!("shape {i} as offset {skip}: {}", ProofShape::from(shape.clone()));
+        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().enumerate() {
+            tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
     }

@@ -5799,6 +5799,7 @@ dependencies = [
  "p3-field",
  "p3-matrix",
  "p3-symmetric",
+ "rayon",
  "serde",
  "serde_json",
  "serial_test",
