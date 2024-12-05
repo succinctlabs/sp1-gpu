@@ -233,81 +233,44 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
-    use p3_baby_bear::BabyBear;
-    use p3_field::AbstractField;
-    use p3_matrix::dense::RowMajorMatrix;
-    use p3_symmetric::Permutation;
-    use rand::{rngs::StdRng, Rng, SeedableRng};
     use serial_test::serial;
-    use sp1_recursion_core::{
-        air::Block, chips::poseidon2_skinny::WIDTH, BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent,
-        BatchFRIExtSingleIo, BatchFRIExtVecIo, ExecutionRecord, ExtAluIo, FriFoldBaseIo,
-        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
-    };
-    use sp1_stark::{air::MachineAir, inner_perm};
-    use zkhash::ark_ff::UniformRand;
+    use sp1_recursion_core::{chips::test_fixtures, ExecutionRecord};
+    use sp1_stark::air::MachineAir;
 
     use super::*;
 
     #[test]
     #[serial]
     fn test_base_alu() {
-        type F = BabyBear;
-
-        let chip = BaseAluChip;
-        let shard = ExecutionRecord {
-            base_alu_events: vec![
-                BaseAluIo { out: F::one(), in1: F::one(), in2: F::one() },
-                BaseAluIo { out: F::one(), in1: F::zero(), in2: F::one() },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
-        let device_trace = chip
+        let shard = test_fixtures::shard();
+        let trace = BaseAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
+        let device_trace = BaseAluChip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_ext_alu() {
-        type F = BabyBear;
-
-        let chip = ExtAluChip;
-        let shard = ExecutionRecord {
-            ext_alu_events: vec![
-                ExtAluIo { out: F::one().into(), in1: F::one().into(), in2: F::one().into() },
-                ExtAluIo { out: F::one().into(), in1: F::zero().into(), in2: F::one().into() },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
-        let device_trace = chip
+        let shard = test_fixtures::shard();
+        let trace = ExtAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
+        let device_trace = ExtAluChip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_batch_fri() {
-        type F = BabyBear;
-
         let chip = BatchFRIChip::<2>;
-        let shard = ExecutionRecord {
-            batch_fri_events: vec![BatchFRIEvent {
-                ext_single: BatchFRIExtSingleIo { acc: Block::default() },
-                ext_vec: BatchFRIExtVecIo { alpha_pow: Block::default(), p_at_z: Block::default() },
-                base_vec: BatchFRIBaseVecIo { p_at_x: F::one() },
-            }],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
 
         let device_trace = chip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
@@ -319,180 +282,69 @@ mod tests {
     #[test]
     #[serial]
     fn test_fri_fold() {
-        type F = BabyBear;
-
-        let mut rng = StdRng::seed_from_u64(0xDEADBEEF);
-        let mut rng2 = StdRng::seed_from_u64(0xDEADBEEF);
-        let mut random_felt = move || -> F { F::from_canonical_u32(rng.gen_range(0..1 << 16)) };
-        let mut random_block = move || Block::from([random_felt(); 4]);
-
         let chip = FriFoldChip::<3>::default();
-        let shard = ExecutionRecord {
-            fri_fold_events: (0..17)
-                .map(|_| FriFoldEvent {
-                    base_single: FriFoldBaseIo {
-                        x: F::from_canonical_u32(rng2.gen_range(0..1 << 16)),
-                    },
-                    ext_single: FriFoldExtSingleIo { z: random_block(), alpha: random_block() },
-                    ext_vec: FriFoldExtVecIo {
-                        mat_opening: random_block(),
-                        ps_at_z: random_block(),
-                        alpha_pow_input: random_block(),
-                        ro_input: random_block(),
-                        alpha_pow_output: random_block(),
-                        ro_output: random_block(),
-                    },
-                })
-                .collect(),
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
         let device_trace = chip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_select() {
-        type F = BabyBear;
-
-        let chip = SelectChip;
-        let shard = ExecutionRecord {
-            select_events: vec![
-                SelectIo {
-                    bit: F::one(),
-                    out1: F::from_canonical_u32(5),
-                    out2: F::from_canonical_u32(3),
-                    in1: F::from_canonical_u32(3),
-                    in2: F::from_canonical_u32(5),
-                },
-                SelectIo {
-                    bit: F::zero(),
-                    out1: F::from_canonical_u32(5),
-                    out2: F::from_canonical_u32(3),
-                    in1: F::from_canonical_u32(5),
-                    in2: F::from_canonical_u32(3),
-                },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
-        let device_trace = chip
+        let shard = test_fixtures::shard();
+        let trace = SelectChip.generate_trace(&shard, &mut ExecutionRecord::default());
+        let device_trace = SelectChip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_poseidon2_skinny() {
-        type F = BabyBear;
-
         let chip = Poseidon2SkinnyChip::<9>::default();
-        let input_0 = [F::one(); WIDTH];
-        let permuter = inner_perm();
-        let output_0 = permuter.permute(input_0);
-        let mut rng = rand::thread_rng();
-
-        let input_1 = [F::rand(&mut rng); WIDTH];
-        let output_1 = permuter.permute(input_1);
-        let shard = ExecutionRecord {
-            poseidon2_events: vec![
-                Poseidon2Event { input: input_0, output: output_0 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-                Poseidon2Event { input: input_1, output: output_1 },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
         let device_trace = chip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_poseidon2_wide_deg_3() {
-        type F = BabyBear;
-
         let chip = Poseidon2WideChip::<3>;
-        let input_0 = [F::one(); WIDTH];
-        let permuter = inner_perm();
-        let output_0 = permuter.permute(input_0);
-        let mut rng = rand::thread_rng();
-
-        let input_1 = [F::rand(&mut rng); WIDTH];
-        let output_1 = permuter.permute(input_1);
-        let shard = ExecutionRecord {
-            poseidon2_events: vec![
-                Poseidon2Event { input: input_0, output: output_0 },
-                Poseidon2Event { input: input_1, output: output_1 },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
         let device_trace = chip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_poseidon2_wide_deg_9() {
-        type F = BabyBear;
-
         let chip = Poseidon2WideChip::<9>;
-        let input_0 = [F::one(); WIDTH];
-        let permuter = inner_perm();
-        let output_0 = permuter.permute(input_0);
-        let mut rng = rand::thread_rng();
-
-        let input_1 = [F::rand(&mut rng); WIDTH];
-        let output_1 = permuter.permute(input_1);
-        let shard = ExecutionRecord {
-            poseidon2_events: vec![
-                Poseidon2Event { input: input_0, output: output_0 },
-                Poseidon2Event { input: input_1, output: output_1 },
-            ],
-            ..Default::default()
-        };
-        let trace: RowMajorMatrix<F> = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
         let device_trace = chip
             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 }
