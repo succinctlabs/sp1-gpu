@@ -13,7 +13,7 @@ const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
 const MAX_DEFERRED_SPLIT_LOG: usize = 14;
 
-const MAX_SHARD_SIZE: usize = 1 << 22;
+const MAX_SHARD_SIZE: usize = 1 << 21;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -271,7 +271,7 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
+        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().enumerate() {
             tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
