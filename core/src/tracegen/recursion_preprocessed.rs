@@ -207,214 +207,75 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
 
 #[cfg(test)]
 mod tests {
-    use p3_baby_bear::BabyBear;
-    use p3_field::AbstractField;
     use serial_test::serial;
-    use sp1_recursion_core::runtime::{Instruction, RecursionProgram};
-    use sp1_recursion_core::{
-        chips::poseidon2_skinny::WIDTH, Address, BaseAluInstr, BaseAluIo, BaseAluOpcode,
-        ExtAluInstr, ExtAluIo, ExtAluOpcode, Poseidon2Instr, Poseidon2Io, SelectInstr, SelectIo,
-    };
+    use sp1_recursion_core::chips::test_fixtures;
 
     use super::*;
 
     #[test]
     #[serial]
     fn test_base_alu() {
-        type F = BabyBear;
-
-        let chip = BaseAluChip;
-        let program = RecursionProgram {
-            instructions: vec![
-                Instruction::BaseAlu(BaseAluInstr {
-                    opcode: BaseAluOpcode::AddF,
-                    mult: F::one(),
-                    addrs: BaseAluIo {
-                        out: Address(F::zero()),
-                        in1: Address(F::one()),
-                        in2: Address(F::two()),
-                    },
-                }),
-                Instruction::BaseAlu(BaseAluInstr {
-                    opcode: BaseAluOpcode::AddF,
-                    mult: F::one(),
-                    addrs: BaseAluIo {
-                        out: Address(F::zero()),
-                        in1: Address(F::one()),
-                        in2: Address(F::two()),
-                    },
-                }),
-            ],
-            ..Default::default()
-        };
-        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
-        let device_trace = chip
+        let program = test_fixtures::program();
+        let trace = BaseAluChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = BaseAluChip
             .generate_preprocessed_trace_device(&program, &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_ext_alu() {
-        type F = BabyBear;
-
-        let chip = ExtAluChip;
-        let program = RecursionProgram {
-            instructions: vec![
-                Instruction::ExtAlu(ExtAluInstr {
-                    opcode: ExtAluOpcode::AddE,
-                    mult: F::one(),
-                    addrs: ExtAluIo {
-                        out: Address(F::zero()),
-                        in1: Address(F::one()),
-                        in2: Address(F::two()),
-                    },
-                }),
-                Instruction::ExtAlu(ExtAluInstr {
-                    opcode: ExtAluOpcode::AddE,
-                    mult: F::one(),
-                    addrs: ExtAluIo {
-                        out: Address(F::zero()),
-                        in1: Address(F::one()),
-                        in2: Address(F::two()),
-                    },
-                }),
-            ],
-            ..Default::default()
-        };
-        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
-        let device_trace = chip
+        let program = test_fixtures::program();
+        let trace = ExtAluChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = ExtAluChip
             .generate_preprocessed_trace_device(&program, &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_select() {
-        type F = BabyBear;
-
-        let chip = SelectChip;
-        let program = RecursionProgram {
-            instructions: vec![
-                Instruction::Select(SelectInstr {
-                    addrs: SelectIo {
-                        bit: Address(F::zero()),
-                        out1: Address(F::one()),
-                        out2: Address(F::from_canonical_u32(2)),
-                        in1: Address(F::from_canonical_u32(3)),
-                        in2: Address(F::from_canonical_u32(4)),
-                    },
-                    mult1: F::one(),
-                    mult2: F::one(),
-                }),
-                Instruction::Select(SelectInstr {
-                    addrs: SelectIo {
-                        bit: Address(F::from_canonical_u32(5)),
-                        out1: Address(F::from_canonical_u32(6)),
-                        out2: Address(F::from_canonical_u32(7)),
-                        in1: Address(F::from_canonical_u32(8)),
-                        in2: Address(F::from_canonical_u32(9)),
-                    },
-                    mult1: F::one(),
-                    mult2: F::one(),
-                }),
-            ],
-            ..Default::default()
-        };
-        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
-        let device_trace = chip
+        let program = test_fixtures::program();
+        let trace = SelectChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = SelectChip
             .generate_preprocessed_trace_device(&program, &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_poseidon2_skinny() {
-        type F = BabyBear;
-
         let chip = Poseidon2SkinnyChip::<9>::default();
-        let program = RecursionProgram::<BabyBear> {
-            instructions: vec![
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-            ],
-            ..Default::default()
-        };
+        let program = test_fixtures::program();
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
         let device_trace = chip
             .generate_preprocessed_trace_device(&program, &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 
     #[test]
     #[serial]
     fn test_poseidon2_wide() {
-        type F = BabyBear;
-
         let chip = Poseidon2WideChip::<9>;
-        let program = RecursionProgram::<BabyBear> {
-            instructions: vec![
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-                Instruction::Poseidon2(Box::new(Poseidon2Instr {
-                    addrs: Poseidon2Io {
-                        input: [Address(F::one()); WIDTH],
-                        output: [Address(F::two()); WIDTH],
-                    },
-                    mults: [F::one(); WIDTH],
-                })),
-            ],
-            ..Default::default()
-        };
+        let program = test_fixtures::program();
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-
         let device_trace = chip
             .generate_preprocessed_trace_device(&program, &CudaStream::default())
             .unwrap()
             .unwrap();
+
         assert_eq!(trace, device_trace.to_host_naive());
     }
 }
