@@ -10,7 +10,7 @@ pub mod components;
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
-const DEFFERRED_SPLIT_LOG_RATIO: usize = 5;
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
@@ -31,6 +31,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 
     // Set the deferred split threshold.
     let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
+    println!("deferred_split_threshold_log: {}", deferred_split_threshold_log);
     let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
     let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
         .map(|s| s.parse::<usize>().unwrap_or(default_deferred_split_threshold))
