@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use p3_challenger::FieldChallenger;
+use p3_challenger::{FieldChallenger, GrindingChallenger};
 use p3_commit::{Mmcs, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
@@ -329,6 +329,7 @@ pub(super) mod merkle_tree_opening_prover {
                     stream.handle(),
                 );
             }
+            stream.synchronize().unwrap();
             let total_openings_host = total_openings_device.to_host();
             let total_proofs_host = total_proofs_device.to_host();
 
