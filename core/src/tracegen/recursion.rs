@@ -43,10 +43,6 @@ impl DeviceAir<BabyBear> for BaseAluChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <BaseAluChip as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl DeviceAir<BabyBear> for ExtAluChip {
@@ -76,10 +72,6 @@ impl DeviceAir<BabyBear> for ExtAluChip {
         }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <ExtAluChip as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
@@ -112,10 +104,6 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <BatchFRIChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
@@ -146,10 +134,6 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
         }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <FriFoldChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
@@ -182,10 +166,6 @@ impl DeviceAir<BabyBear> for SelectChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <SelectChip as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
@@ -217,10 +197,6 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <Poseidon2SkinnyChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
@@ -251,10 +227,6 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
         }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <Poseidon2WideChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 

@@ -1,13 +1,15 @@
-use p3_baby_bear::BabyBear;
-use p3_field::PrimeField32;
-use p3_matrix::dense::RowMajorMatrix;
-use sp1_core_machine::riscv::RiscvAir;
-use sp1_recursion_core::machine::RecursionAir;
-use sp1_stark::air::MachineAir;
-
 use crate::{
     cuda_runtime::stream::CudaStream, device::error::CudaError, matrix::ColMajorMatrixDevice,
 };
+use p3_baby_bear::BabyBear;
+use p3_field::PrimeField32;
+use p3_matrix::dense::RowMajorMatrix;
+use sp1_core_machine::{
+    alu::AddSubChip, global::GlobalChip, memory::MemoryGlobalChip, memory::MemoryLocalChip,
+    riscv::RiscvAir, syscall::chip::SyscallChip,
+};
+use sp1_recursion_core::machine::RecursionAir;
+use sp1_stark::air::MachineAir;
 
 pub mod core;
 pub mod ffi;
@@ -38,7 +40,9 @@ pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
     ) -> Result<Option<ColMajorMatrixDevice<F>>, CudaError>;
 
     /// Get the height of the trace that would be generated on device.
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize>;
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        self.num_rows(input)
+    }
 }
 
 /// An AIR that can generate the preprocessed trace on either the host or the device.
@@ -103,13 +107,27 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
 
     fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
         match self {
-            RiscvAir::Add(chip) => chip.num_rows_device(input),
-            RiscvAir::MemoryLocal(chip) => chip.num_rows_device(input),
-            RiscvAir::MemoryGlobalFinal(chip) => chip.num_rows_device(input),
-            RiscvAir::MemoryGlobalInit(chip) => chip.num_rows_device(input),
-            RiscvAir::SyscallCore(chip) => chip.num_rows_device(input),
-            RiscvAir::SyscallPrecompile(chip) => chip.num_rows_device(input),
-            RiscvAir::Global(chip) => chip.num_rows_device(input),
+            RiscvAir::Add(chip) => {
+                <AddSubChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::MemoryLocal(chip) => {
+                <MemoryLocalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::MemoryGlobalFinal(chip) => {
+                <MemoryGlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::MemoryGlobalInit(chip) => {
+                <MemoryGlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::SyscallCore(chip) => {
+                <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::SyscallPrecompile(chip) => {
+                <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::Global(chip) => {
+                <GlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
             _ => self.num_rows(input),
         }
     }
@@ -155,13 +173,13 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
 
     fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
         match self {
-            RecursionAir::BaseAlu(chip) => chip.num_rows_device(input),
-            RecursionAir::ExtAlu(chip) => chip.num_rows_device(input),
-            RecursionAir::Poseidon2Skinny(chip) => chip.num_rows_device(input),
-            RecursionAir::Poseidon2Wide(chip) => chip.num_rows_device(input),
-            RecursionAir::Select(chip) => chip.num_rows_device(input),
-            RecursionAir::FriFold(chip) => chip.num_rows_device(input),
-            RecursionAir::BatchFRI(chip) => chip.num_rows_device(input),
+            RecursionAir::BaseAlu(chip) => chip.num_rows(input),
+            RecursionAir::ExtAlu(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Skinny(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Wide(chip) => chip.num_rows(input),
+            RecursionAir::Select(chip) => chip.num_rows(input),
+            RecursionAir::FriFold(chip) => chip.num_rows(input),
+            RecursionAir::BatchFRI(chip) => chip.num_rows(input),
             _ => self.num_rows(input),
         }
     }

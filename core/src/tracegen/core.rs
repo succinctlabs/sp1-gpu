@@ -6,7 +6,7 @@ use sp1_core_machine::syscall::chip::SyscallShardKind;
 use sp1_core_machine::{
     alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
 };
-use sp1_stark::{air::MachineAir, septic_curve::SepticCurve};
+use sp1_stark::septic_curve::SepticCurve;
 
 use crate::device::DeviceBuffer;
 use crate::{
@@ -54,10 +54,6 @@ impl DeviceAir<BabyBear> for AddSubChip {
         }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <AddSubChip as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
@@ -118,10 +114,6 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
         // }
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <MemoryLocalChip as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
@@ -202,10 +194,6 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <MemoryGlobalChip as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl DeviceAir<BabyBear> for SyscallChip {
@@ -279,10 +267,6 @@ impl DeviceAir<BabyBear> for SyscallChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <SyscallChip as MachineAir<BabyBear>>::num_rows(self, input)
-    }
 }
 
 impl DeviceAir<BabyBear> for GlobalChip {
@@ -344,10 +328,6 @@ impl DeviceAir<BabyBear> for GlobalChip {
         });
 
         Ok(Some(trace))
-    }
-
-    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
-        <GlobalChip as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
