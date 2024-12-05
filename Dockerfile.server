@@ -15,6 +15,12 @@ RUN apt-get update && apt-get install -y \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# Install Succinct toolchain
+RUN curl -L https://sp1.succinct.xyz | bash && \
+    export PATH="$PATH:/root/.sp1/bin" && \
+    sp1up && \
+    cargo prove --version
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
@@ -27,7 +33,7 @@ RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh \
     && git config --global url."git@github.com:".insteadOf "https://github.com/"
 
 # Build the Rust project
-RUN --mount=type=ssh CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build -p moongate-server --release
+RUN --mount=type=ssh cargo build -p moongate-server --release
 
 # Runtime stage
 FROM nvidia/cuda:12.5.1-runtime-ubuntu22.04

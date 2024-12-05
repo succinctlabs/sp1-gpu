@@ -111,7 +111,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let events = &input.batch_fri_events;
-        let events = events.to_device_async(stream)?;
+        let events = events.clone().to_device_async(stream)?;
 
         let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
