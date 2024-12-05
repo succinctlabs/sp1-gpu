@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn test_add_sub_generate_trace() {
         let mut shard = ExecutionRecord::default();
-        shard.add_events = [AluEvent::new(0, 14, Opcode::ADD, 8, 6, 0)].repeat(100);
+        shard.add_events = [AluEvent::new(0, Opcode::ADD, 14, 8, 6)].repeat(100);
 
         let chip = AddSubChip;
         let trace: RowMajorMatrix<BabyBear> =
