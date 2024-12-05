@@ -10,6 +10,7 @@ use sp1_recursion_core::chips::{
     alu_base::BaseAluChip, alu_ext::ExtAluChip, batch_fri::BatchFRIChip, fri_fold::FriFoldChip,
     poseidon2_skinny::Poseidon2SkinnyChip, poseidon2_wide::Poseidon2WideChip, select::SelectChip,
 };
+use sp1_stark::air::MachineAir;
 
 use super::DeviceAir;
 
@@ -23,7 +24,7 @@ impl DeviceAir<BabyBear> for BaseAluChip {
         let events = &input.base_alu_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <BaseAluChip as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -42,6 +43,10 @@ impl DeviceAir<BabyBear> for BaseAluChip {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <BaseAluChip as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl DeviceAir<BabyBear> for ExtAluChip {
@@ -52,7 +57,7 @@ impl DeviceAir<BabyBear> for ExtAluChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let events = &input.ext_alu_events;
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <ExtAluChip as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -72,6 +77,10 @@ impl DeviceAir<BabyBear> for ExtAluChip {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <ExtAluChip as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
@@ -84,7 +93,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
         let events = &input.batch_fri_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <BatchFRIChip<DEGREE> as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -103,6 +112,10 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for BatchFRIChip<DEGREE> {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <BatchFRIChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
@@ -115,7 +128,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
         let events = &input.fri_fold_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <FriFoldChip<DEGREE> as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -134,6 +147,10 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for FriFoldChip<DEGREE> {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <FriFoldChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl DeviceAir<BabyBear> for SelectChip {
@@ -146,7 +163,7 @@ impl DeviceAir<BabyBear> for SelectChip {
         let events = &input.select_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <SelectChip as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -165,6 +182,10 @@ impl DeviceAir<BabyBear> for SelectChip {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <SelectChip as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
@@ -177,7 +198,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
         let events = &input.poseidon2_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <Poseidon2SkinnyChip<DEGREE> as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -196,6 +217,10 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2SkinnyChip<DEGREE> {
 
         Ok(Some(trace))
     }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <Poseidon2SkinnyChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
+    }
 }
 
 impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
@@ -208,7 +233,7 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
         let events = &input.poseidon2_events;
         let events = events.to_device_async(stream)?;
 
-        let nb_rows = self.num_rows_device(input).unwrap();
+        let nb_rows = self.num_rows(input).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <Poseidon2WideChip<DEGREE> as BaseAir<BabyBear>>::width(self),
             nb_rows,
@@ -226,6 +251,10 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
         }
 
         Ok(Some(trace))
+    }
+
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        <Poseidon2WideChip<DEGREE> as MachineAir<BabyBear>>::num_rows(self, input)
     }
 }
 
