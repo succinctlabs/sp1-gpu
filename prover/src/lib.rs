@@ -9,9 +9,10 @@ pub mod components;
 
 pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
-const SHARD_MEM_RATIO: f64 = (1 << 22) as f64 / (23.0 * 1e9);
-const DEFFERRED_SPLIT_LOG_RATIO: usize = 7;
+const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
+const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
 const MAX_DEFERRED_SPLIT_LOG: usize = 14;
+
 const MAX_SHARD_SIZE: usize = 1 << 22;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {

@@ -608,7 +608,7 @@ where
         StarkProvingKeyDevice {
             commit,
             pc_start: *pc_start,
-            initial_global_cumulative_sum: initial_global_cumulative_sum.clone(),
+            initial_global_cumulative_sum: *initial_global_cumulative_sum,
             traces,
             data,
             chip_ordering: chip_ordering.clone(),
