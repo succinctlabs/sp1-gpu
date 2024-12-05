@@ -16,6 +16,11 @@ pub mod recursion_preprocessed;
 
 /// An AIR that can generate the trace on either the host or the device.
 pub trait DeviceAir<F: PrimeField32>: MachineAir<F> {
+    /// Get the height of the trace that would be generated on device.
+    fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
+        self.num_rows(input)
+    }
+
     /// Generate the trace on the host.
     ///
     /// This function returns `None` if the trace  is designed to be generated on device.
@@ -113,7 +118,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(_) => None,
             RecursionAir::FriFold(_) => None,
             RecursionAir::BatchFRI(_) => None,
-            RecursionAir::PublicValues(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -134,7 +138,6 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
-            RecursionAir::PublicValues(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }

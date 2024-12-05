@@ -35,7 +35,7 @@ impl DeviceAir<BabyBear> for AddSubChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -57,14 +57,6 @@ impl DeviceAir<BabyBear> for AddSubChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let nb_rows = next_power_of_two(
-            input.add_events.len() + input.sub_events.len(),
-            input.fixed_log2_rows::<BabyBear, _>(self),
-        );
-        Some(nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for MemoryLocalChip {
@@ -82,7 +74,7 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -159,7 +151,7 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -204,17 +196,6 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = match self.kind {
-            MemoryChipType::Initialize => &input.global_memory_initialize_events,
-            MemoryChipType::Finalize => &input.global_memory_finalize_events,
-        };
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for SyscallChip {
@@ -244,7 +225,7 @@ impl DeviceAir<BabyBear> for SyscallChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -288,21 +269,6 @@ impl DeviceAir<BabyBear> for SyscallChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = match self.shard_kind() {
-            SyscallShardKind::Core => &input.syscall_events,
-            SyscallShardKind::Precompile => &input
-                .precompile_events
-                .all_events()
-                .map(|(event, _)| event.to_owned())
-                .collect::<Vec<_>>(),
-        };
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for GlobalChip {
@@ -320,7 +286,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -364,14 +330,6 @@ impl DeviceAir<BabyBear> for GlobalChip {
         });
 
         Ok(Some(trace))
-    }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.global_interaction_events;
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
     }
 }
 
