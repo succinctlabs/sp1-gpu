@@ -270,7 +270,7 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().enumerate() {
+        for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
             tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
