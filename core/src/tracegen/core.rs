@@ -1,10 +1,8 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
-use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
-use sp1_core_machine::utils::next_power_of_two;
 use sp1_core_machine::{
     alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
 };
@@ -35,7 +33,7 @@ impl DeviceAir<BabyBear> for AddSubChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -57,14 +55,6 @@ impl DeviceAir<BabyBear> for AddSubChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let nb_rows = next_power_of_two(
-            input.add_events.len() + input.sub_events.len(),
-            input.fixed_log2_rows::<BabyBear, _>(self),
-        );
-        Some(nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for MemoryLocalChip {
@@ -82,7 +72,7 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -125,14 +115,6 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let count = input.get_local_mem_events().count();
-        let nb_rows = (count + 3) / 4;
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for MemoryGlobalChip {
@@ -167,7 +149,7 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -212,17 +194,6 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = match self.kind {
-            MemoryChipType::Initialize => &input.global_memory_initialize_events,
-            MemoryChipType::Finalize => &input.global_memory_finalize_events,
-        };
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for SyscallChip {
@@ -252,7 +223,7 @@ impl DeviceAir<BabyBear> for SyscallChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -296,21 +267,6 @@ impl DeviceAir<BabyBear> for SyscallChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = match self.shard_kind() {
-            SyscallShardKind::Core => &input.syscall_events,
-            SyscallShardKind::Precompile => &input
-                .precompile_events
-                .all_events()
-                .map(|(event, _)| event.to_owned())
-                .collect::<Vec<_>>(),
-        };
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 impl DeviceAir<BabyBear> for GlobalChip {
@@ -328,7 +284,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
         let events = events.to_device_async(stream)?;
 
         // Get the number of rows.
-        let nb_rows = self.num_rows(input).unwrap();
+        let nb_rows = self.num_rows_device(input).unwrap();
 
         // Allocate the matrix.
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
@@ -373,14 +329,6 @@ impl DeviceAir<BabyBear> for GlobalChip {
 
         Ok(Some(trace))
     }
-
-    fn num_rows(&self, input: &Self::Record) -> Option<usize> {
-        let events = &input.global_interaction_events;
-        let nb_rows = events.len();
-        let size_log2 = input.fixed_log2_rows::<BabyBear, _>(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, size_log2);
-        Some(padded_nb_rows)
-    }
 }
 
 #[cfg(test)]
@@ -393,7 +341,7 @@ mod tests {
     use p3_field::AbstractField;
     use p3_matrix::dense::RowMajorMatrix;
     use p3_matrix::Matrix;
-    use sp1_core_executor::events::{GlobalInteractionEvent, SyscallEvent};
+    use sp1_core_executor::events::GlobalInteractionEvent;
     use sp1_core_executor::{
         events::AluEvent, events::MemoryInitializeFinalizeEvent, events::MemoryLocalEvent,
         ExecutionRecord, Opcode,
@@ -402,7 +350,6 @@ mod tests {
     use sp1_core_machine::global::GlobalChip;
     use sp1_core_machine::memory::{MemoryChipType, MemoryLocalChip};
     use sp1_core_machine::riscv::MemoryGlobalChip;
-    use sp1_core_machine::syscall::chip::SyscallChip;
     use sp1_stark::air::MachineAir;
     use sp1_stark::septic_curve::SepticCurve;
 
