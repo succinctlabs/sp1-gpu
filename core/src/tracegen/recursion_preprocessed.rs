@@ -230,14 +230,11 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_field::AbstractField;
     use serial_test::serial;
-    use sp1_recursion_core::runtime::{instruction as instr, Instruction, RecursionProgram};
+    use sp1_recursion_core::runtime::{Instruction, RecursionProgram};
     use sp1_recursion_core::{
-        air::{RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
-        chips::poseidon2_skinny::WIDTH,
-        Address, BaseAluInstr, BaseAluIo, BaseAluOpcode, ExtAluInstr, ExtAluIo, ExtAluOpcode,
-        Poseidon2Instr, Poseidon2Io, SelectInstr, SelectIo,
+        chips::poseidon2_skinny::WIDTH, Address, BaseAluInstr, BaseAluIo, BaseAluOpcode,
+        ExtAluInstr, ExtAluIo, ExtAluOpcode, Poseidon2Instr, Poseidon2Io, SelectInstr, SelectIo,
     };
-    use std::{array, borrow::Borrow};
 
     use super::*;
 

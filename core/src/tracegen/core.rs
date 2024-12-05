@@ -1,14 +1,12 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
-use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
-use sp1_core_machine::utils::next_power_of_two;
 use sp1_core_machine::{
     alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
 };
-use sp1_stark::{air::MachineAir, septic_curve::SepticCurve};
+use sp1_stark::septic_curve::SepticCurve;
 
 use crate::device::DeviceBuffer;
 use crate::{

@@ -6,17 +6,10 @@ use crate::{
 };
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
-use sp1_core_machine::utils::next_power_of_two;
 use sp1_recursion_core::chips::{
-    alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
-    alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
-    batch_fri::BatchFRIChip,
-    fri_fold::FriFoldChip,
-    poseidon2_skinny::{trace::OUTPUT_ROUND_IDX, Poseidon2SkinnyChip},
-    poseidon2_wide::Poseidon2WideChip,
-    select::SelectChip,
+    alu_base::BaseAluChip, alu_ext::ExtAluChip, batch_fri::BatchFRIChip, fri_fold::FriFoldChip,
+    poseidon2_skinny::Poseidon2SkinnyChip, poseidon2_wide::Poseidon2WideChip, select::SelectChip,
 };
-use sp1_stark::air::MachineAir;
 
 use super::DeviceAir;
 
@@ -246,14 +239,11 @@ mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use serial_test::serial;
     use sp1_recursion_core::{
-        air::{Block, RecursionPublicValues, RECURSIVE_PROOF_NUM_PV_ELTS},
-        chips::poseidon2_skinny::WIDTH,
-        BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent, BatchFRIExtSingleIo, BatchFRIExtVecIo,
-        ExecutionRecord, ExtAluIo, FriFoldBaseIo, FriFoldEvent, FriFoldExtSingleIo,
-        FriFoldExtVecIo, Poseidon2Event, SelectIo,
+        air::Block, chips::poseidon2_skinny::WIDTH, BaseAluIo, BatchFRIBaseVecIo, BatchFRIEvent,
+        BatchFRIExtSingleIo, BatchFRIExtVecIo, ExecutionRecord, ExtAluIo, FriFoldBaseIo,
+        FriFoldEvent, FriFoldExtSingleIo, FriFoldExtVecIo, Poseidon2Event, SelectIo,
     };
     use sp1_stark::{air::MachineAir, inner_perm};
-    use std::{array, borrow::Borrow};
     use zkhash::ark_ff::UniformRand;
 
     use super::*;
