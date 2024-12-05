@@ -5,11 +5,10 @@ use crate::{
     tracegen,
 };
 use p3_baby_bear::BabyBear;
-use sp1_core_machine::utils::next_power_of_two;
 use sp1_recursion_core::{
     chips::{
-        alu_base::{BaseAluChip, NUM_BASE_ALU_ENTRIES_PER_ROW},
-        alu_ext::{ExtAluChip, NUM_EXT_ALU_ENTRIES_PER_ROW},
+        alu_base::BaseAluChip,
+        alu_ext::ExtAluChip,
         poseidon2_skinny::{Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
         select::SelectChip,
@@ -36,12 +35,7 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let nb_rows = instrs.len().div_ceil(NUM_BASE_ALU_ENTRIES_PER_ROW);
-        let fixed_log2_rows = program.fixed_log2_rows(self);
-        let padded_nb_rows = match fixed_log2_rows {
-            Some(log2_rows) => 1 << log2_rows,
-            None => next_power_of_two(nb_rows, None),
-        };
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs.len()).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <BaseAluChip as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
@@ -78,12 +72,7 @@ impl DevicePreprocessedAir<BabyBear> for ExtAluChip {
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let nb_rows = instrs.len().div_ceil(NUM_EXT_ALU_ENTRIES_PER_ROW);
-        let fixed_log2_rows = program.fixed_log2_rows(self);
-        let padded_nb_rows = match fixed_log2_rows {
-            Some(log2_rows) => 1 << log2_rows,
-            None => next_power_of_two(nb_rows, None),
-        };
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs.len()).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <ExtAluChip as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
@@ -120,12 +109,7 @@ impl DevicePreprocessedAir<BabyBear> for SelectChip {
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let nb_rows = instrs.len();
-        let fixed_log2_rows = program.fixed_log2_rows(self);
-        let padded_nb_rows = match fixed_log2_rows {
-            Some(log2_rows) => 1 << log2_rows,
-            None => next_power_of_two(nb_rows, None),
-        };
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs.len()).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <SelectChip as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
@@ -162,9 +146,8 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2SkinnyChi
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let nb_rows = instrs.len() * (NUM_EXTERNAL_ROUNDS + 3);
-        let fixed_log2_rows = program.fixed_log2_rows(self);
-        let padded_nb_rows = next_power_of_two(nb_rows, fixed_log2_rows);
+        let padded_nb_rows =
+            self.preprocessed_num_rows(program, instrs.len() * (NUM_EXTERNAL_ROUNDS + 3)).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <Poseidon2SkinnyChip<DEGREE> as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
@@ -201,10 +184,7 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
             .collect::<Vec<_>>();
         let instrs = instrs.to_device_async(stream)?;
 
-        let padded_nb_rows = match program.fixed_log2_rows(self) {
-            Some(log2_rows) => 1 << log2_rows,
-            None => next_power_of_two(instrs.len(), None),
-        };
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs.len()).unwrap();
         let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
             <Poseidon2WideChip<DEGREE> as MachineAir<BabyBear>>::preprocessed_width(self),
             padded_nb_rows,
