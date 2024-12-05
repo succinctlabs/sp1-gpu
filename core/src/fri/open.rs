@@ -329,6 +329,7 @@ pub(super) mod merkle_tree_opening_prover {
                     stream.handle(),
                 );
             }
+            stream.synchronize().unwrap();
             let total_openings_host = total_openings_device.to_host();
             let total_proofs_host = total_proofs_device.to_host();
 
