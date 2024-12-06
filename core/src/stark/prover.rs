@@ -346,7 +346,7 @@ where
             .into_iter()
             .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
             .chain(chips.into_iter().filter_map(|chip| {
-                Some(TraceGenerationJob::Device(chip, chip.air.num_rows(shard)?))
+                Some(TraceGenerationJob::Device(chip, chip.air.num_rows_device(shard)?))
             }))
             .collect();
 
