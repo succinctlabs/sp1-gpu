@@ -18,6 +18,7 @@ clap = { version = "4.5.9", features = ["derive", "env"] }
 
 
 [dev-dependencies]
+p3-field = { workspace = true }
 sp1-prover = { workspace = true, features = ["export-tests"] }
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true, features = ["programs"] }

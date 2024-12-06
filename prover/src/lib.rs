@@ -11,7 +11,9 @@ pub type SP1GpuProver = SP1Prover<GpuProverComponents>;
 
 const SHARD_MEM_RATIO: f64 = (1 << 21) as f64 / (23.0 * 1e9);
 const DEFFERRED_SPLIT_LOG_RATIO: usize = 6;
-const MAX_SHARD_SIZE: usize = 1 << 22;
+const MAX_DEFERRED_SPLIT_LOG: usize = 14;
+
+const MAX_SHARD_SIZE: usize = 1 << 21;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
     let mut opts = SP1ProverOpts::default();
@@ -25,13 +27,13 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let shard_size = env::var("SHARD_SIZE")
         .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
     let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
-    opts.core_opts.shard_size = shard_size;
+    opts.core_opts.set_shard_size(shard_size);
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
 
     // Set the deferred split threshold.
-    let deferred_split_threshold_log = shard_size_log - DEFFERRED_SPLIT_LOG_RATIO;
-    println!("deferred_split_threshold_log: {}", deferred_split_threshold_log);
+    let deferred_split_threshold_log =
+        std::cmp::min(shard_size_log - DEFFERRED_SPLIT_LOG_RATIO, MAX_DEFERRED_SPLIT_LOG);
     let default_deferred_split_threshold = 1 << deferred_split_threshold_log;
     let deferred_split_threshold = env::var("SPLIT_THRESHOLD")
         .map(|s| s.parse::<usize>().unwrap_or(default_deferred_split_threshold))
@@ -39,8 +41,8 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     tracing::info!("Deffered split threshold set to {}", deferred_split_threshold);
     opts.core_opts.split_opts = SplitOpts::new(deferred_split_threshold);
 
-    opts.core_opts.records_and_traces_channel_capacity = 4;
-    opts.core_opts.trace_gen_workers = 6;
+    opts.core_opts.records_and_traces_channel_capacity = 2;
+    opts.core_opts.trace_gen_workers = 4;
 
     opts.recursion_opts.shard_batch_size = 1;
 
@@ -63,14 +65,15 @@ mod tests {
     use crate::{components::GpuProverComponents, gpu_prover_opts};
     use moongate_core::utils::init_tracer;
 
+    use p3_field::PrimeField32;
     use serial_test::serial;
-    use sp1_core_executor::programs::tests::FIBONACCI_ELF;
-    use sp1_core_machine::{io::SP1Stdin, riscv::try_generate_dummy_proof};
+    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, CoreShape};
+    use sp1_core_machine::{io::SP1Stdin, riscv::RiscvAir};
     use sp1_prover::{
         tests::{bench_e2e_prover, test_e2e_prover, test_e2e_with_deferred_proofs_prover, Test},
         SP1Prover,
     };
-    use sp1_stark::ProofShape;
+    use sp1_stark::{Dom, MachineProver, ProofShape, StarkGenericConfig};
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
@@ -232,6 +235,31 @@ mod tests {
         bench_elf(RETH_ELF, Test::Compress);
     }
 
+    fn try_generate_dummy_proof<SC: StarkGenericConfig, P: MachineProver<SC, RiscvAir<SC::Val>>>(
+        prover: &P,
+        shape: &CoreShape,
+    ) where
+        SC::Val: PrimeField32,
+        Dom<SC>: std::fmt::Debug,
+    {
+        let program = shape.dummy_program();
+        let record = shape.dummy_record();
+
+        // Try doing setup.
+        let (pk, _) = prover.setup(&program);
+
+        // Try to generate traces.
+        let main_traces = prover.generate_traces(&record);
+
+        // Try to commit the traces.
+        let main_data = prover.commit(&record, main_traces);
+
+        let mut challenger = prover.machine().config().challenger();
+
+        // Try to "open".
+        prover.open(&pk, main_data, &mut challenger).unwrap();
+    }
+
     #[test]
     #[serial]
     fn test_shapes() {
@@ -243,7 +271,7 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        for (i, shape) in shape_config.maximal_core_shapes().into_iter().enumerate() {
+        for (i, shape) in shape_config.maximal_core_shapes(22).into_iter().enumerate() {
             tracing::info!("shape {i}: {}", ProofShape::from(shape.clone()));
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }

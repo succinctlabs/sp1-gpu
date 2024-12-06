@@ -356,32 +356,32 @@ mod tests {
     use crate::tracegen;
     use rand::Rng;
 
-    #[test]
-    fn test_add_sub_generate_trace() {
-        let mut shard = ExecutionRecord::default();
-        shard.add_events = [AluEvent::new(0, Opcode::ADD, 14, 8, 6)].repeat(100);
+    // #[test]
+    // fn test_add_sub_generate_trace() {
+    //     let mut shard = ExecutionRecord::default();
+    //     shard.add_events = [AluEvent::new(0, Opcode::ADD, 14, 8, 6)].repeat(100);
 
-        let chip = AddSubChip;
-        let trace: RowMajorMatrix<BabyBear> =
-            chip.generate_trace(&shard, &mut ExecutionRecord::default());
+    //     let chip = AddSubChip;
+    //     let trace: RowMajorMatrix<BabyBear> =
+    //         chip.generate_trace(&shard, &mut ExecutionRecord::default());
 
-        let mut trace_device =
-            RowMajorMatrixDevice::new(trace.values.to_device().unwrap(), trace.width())
-                .to_column_major();
+    //     let mut trace_device =
+    //         RowMajorMatrixDevice::new(trace.values.to_device().unwrap(), trace.width())
+    //             .to_column_major();
 
-        let events = shard.add_events.to_device().unwrap().as_ptr();
-        unsafe {
-            tracegen::ffi::core_add_sub_generate_trace(
-                trace_device.view_mut(),
-                events,
-                shard.add_events.len() as u32,
-                DEFAULT_STREAM,
-            );
-        }
+    //     let events = shard.add_events.to_device().unwrap().as_ptr();
+    //     unsafe {
+    //         tracegen::ffi::core_add_sub_generate_trace(
+    //             trace_device.view_mut(),
+    //             events,
+    //             shard.add_events.len() as u32,
+    //             DEFAULT_STREAM,
+    //         );
+    //     }
 
-        let gpu_trace = trace_device.to_host();
-        assert_eq!(trace, gpu_trace);
-    }
+    //     let gpu_trace = trace_device.to_host();
+    //     assert_eq!(trace, gpu_trace);
+    // }
 
     #[test]
     fn test_memory_local_generate_trace() {

@@ -14,9 +14,12 @@ aws s3 cp s3://sp1-testing-suite/$s3_path/program.bin program.bin
 aws s3 cp s3://sp1-testing-suite/$s3_path/stdin.bin stdin.bin
 
 # Set environment variables
-export RUST_LOG=debug
-export FIX_CORE_SHAPES=true
+export RUST_LOG=info
+export FIX_CORE_SHAPES=false
 export FIX_RECURSION_SHAPES=true
 
 # Run moongate-perf
-RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage
+RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx
+
+# Remove the downloaded files
+rm program.bin stdin.bin 
