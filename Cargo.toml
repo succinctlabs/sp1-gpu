@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-core-machine = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-prover = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-recursion-core = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-cuda = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-stark = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
-sp1-eval = { git = "ssh://git@github.com/succinctlabs/sp1-wip.git", branch = "tamir/big-shapes" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "min/eclogup-tracegen" }
 
 # p3
 # p3-air = "0.1.4-succinct"
