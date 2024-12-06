@@ -79,8 +79,8 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryLocal(_) => None,
             RiscvAir::MemoryGlobalFinal(_) => None,
             RiscvAir::MemoryGlobalInit(_) => None,
-            RiscvAir::SyscallCore(_) => None,
-            RiscvAir::SyscallPrecompile(_) => None,
+            // RiscvAir::SyscallCore(_) => None,
+            // RiscvAir::SyscallPrecompile(_) => None,
             RiscvAir::Global(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
@@ -98,8 +98,8 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryLocal(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::MemoryGlobalFinal(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::MemoryGlobalInit(chip) => chip.generate_trace_device(input, output, stream),
-            RiscvAir::SyscallCore(chip) => chip.generate_trace_device(input, output, stream),
-            RiscvAir::SyscallPrecompile(chip) => chip.generate_trace_device(input, output, stream),
+            // RiscvAir::SyscallCore(chip) => chip.generate_trace_device(input, output, stream),
+            // RiscvAir::SyscallPrecompile(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::Global(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
@@ -119,12 +119,12 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryGlobalInit(chip) => {
                 <MemoryGlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
             }
-            RiscvAir::SyscallCore(chip) => {
-                <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
-            }
-            RiscvAir::SyscallPrecompile(chip) => {
-                <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
-            }
+            // RiscvAir::SyscallCore(chip) => {
+            //     <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            // }
+            // RiscvAir::SyscallPrecompile(chip) => {
+            //     <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            // }
             RiscvAir::Global(chip) => {
                 <GlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
             }
