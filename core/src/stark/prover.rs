@@ -450,16 +450,27 @@ where
             .chips()
             .par_iter()
             .map(|chip| {
+                let trace_span = tracing::info_span!("generate trace").entered();
+                let host_trace_span = tracing::info_span!("hosst trace").entered();
                 let prep_trace = chip.air.generate_preprocessed_trace_host(program);
+                host_trace_span.exit();
 
+                let name_span = tracing::info_span!("Chip name").entered();
                 let name = chip.name();
+                name_span.exit();
+                let get_span = tracing::info_span!!("get name").entered();
                 let stream = self.chip_streams.get(&name).unwrap().clone();
+                get_span.exit();
 
+                let device_trace_span = tracing::info_span!("device trace").entered();
                 let trace = match prep_trace {
                     Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
                     None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
                 };
+                device_trace_span.exit();
 
+                trace_span.exit();
+                let assertion_span = tracing::info_span!("assert").entered();
                 // Assert that the chip width data is correct.
                 let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
@@ -468,15 +479,19 @@ where
                     "Incorrect number of preprocessed columns for chip {}",
                     chip.name()
                 );
+                assertion_span.exit();
 
                 (chip.name(), chip.local_only(), trace)
             })
             .filter(|(_, _, trace)| trace.is_some())
             .map(|(name, local_only, trace)| {
                 let trace = trace.unwrap();
+                let postprocessing_span = tracing::info_span!("post processeing").entered();
                 let event = self.events.preprocessed.get(&name).unwrap().clone();
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 let dimensions = trace.dimensions();
+
+                postprocessing_span.exit();
 
                 (name, domain, event, local_only, trace, dimensions)
             })
