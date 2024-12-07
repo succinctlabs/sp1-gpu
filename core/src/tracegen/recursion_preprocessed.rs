@@ -26,7 +26,7 @@ impl DevicePreprocessedAir<BabyBear> for BaseAluChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let instrs = program
-            .instructions
+            .inner
             .iter()
             .filter_map(|instruction| match instruction {
                 Instruction::BaseAlu(x) => Some(*x),
@@ -63,7 +63,7 @@ impl DevicePreprocessedAir<BabyBear> for ExtAluChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let instrs = program
-            .instructions
+            .inner
             .iter() // Faster than using `rayon` for some reason. Maybe vectorization?
             .filter_map(|instruction| match instruction {
                 Instruction::ExtAlu(x) => Some(*x),
@@ -100,7 +100,7 @@ impl DevicePreprocessedAir<BabyBear> for SelectChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let instrs = program
-            .instructions
+            .inner
             .iter()
             .filter_map(|instruction| match instruction {
                 Instruction::Select(x) => Some(*x),
@@ -137,7 +137,7 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2SkinnyChi
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let instrs = program
-            .instructions
+            .inner
             .iter()
             .filter_map(|instruction| match instruction {
                 Instruction::Poseidon2(instr) => Some(**instr),
@@ -175,7 +175,7 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         let instrs = program
-            .instructions
+            .inner
             .iter() // Faster than using `rayon` for some reason. Maybe vectorization?
             .filter_map(|instruction| match instruction {
                 Instruction::Poseidon2(instr) => Some(**instr),
