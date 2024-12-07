@@ -293,9 +293,6 @@ impl DeviceAir<BabyBear> for GlobalChip {
             stream,
         )?;
 
-        tracing::debug!("nb events: {:?}", nb_events);
-        tracing::debug!("nb rows: {:?}", trace.height());
-
         // Generate the trace.
         tracing::debug_span!("global generate trace round 1").in_scope(|| unsafe {
             trace.set_max_width();
