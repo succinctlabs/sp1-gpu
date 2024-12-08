@@ -14,8 +14,8 @@ aws s3 cp s3://sp1-testing-suite/$s3_path/program.bin program.bin
 aws s3 cp s3://sp1-testing-suite/$s3_path/stdin.bin stdin.bin
 
 # Set environment variables
-export RUST_LOG=info
-export FIX_CORE_SHAPES=false
+export RUST_LOG=debug
+export FIX_CORE_SHAPES=true
 export FIX_RECURSION_SHAPES=true
 
 # Run moongate-perf
