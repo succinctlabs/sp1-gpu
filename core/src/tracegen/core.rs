@@ -92,27 +92,6 @@ impl DeviceAir<BabyBear> for MemoryLocalChip {
             );
         }
 
-        // let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
-        //     .to_device_async(stream)
-        //     .unwrap();
-
-        // unsafe {
-        //     tracegen::ffi::core_memory_local_generate_trace_round_2(
-        //         trace.view_mut(),
-        //         cumulative_sums.as_mut_ptr(),
-        //         stream.handle(),
-        //     );
-        // }
-
-        // unsafe {
-        //     tracegen::ffi::core_memory_local_generate_trace_round_3(
-        //         trace.view_mut(),
-        //         cumulative_sums.as_ptr(),
-        //         nb_events,
-        //         stream.handle(),
-        //     );
-        // }
-
         Ok(Some(trace))
     }
 }
@@ -171,27 +150,6 @@ impl DeviceAir<BabyBear> for MemoryGlobalChip {
             );
         }
 
-        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
-            .to_device_async(stream)
-            .unwrap();
-
-        unsafe {
-            tracegen::ffi::core_memory_global_generate_trace_round_2(
-                trace.view_mut(),
-                cumulative_sums.as_mut_ptr(),
-                stream.handle(),
-            );
-        }
-
-        unsafe {
-            tracegen::ffi::core_memory_global_generate_trace_round_3(
-                trace.view_mut(),
-                cumulative_sums.as_ptr(),
-                nb_events,
-                stream.handle(),
-            );
-        }
-
         Ok(Some(trace))
     }
 }
@@ -240,27 +198,6 @@ impl DeviceAir<BabyBear> for SyscallChip {
                 events.as_ptr(),
                 nb_events,
                 is_receive,
-                stream.handle(),
-            );
-        }
-
-        let mut cumulative_sums = vec![SepticCurve::<BabyBear>::default(); trace.height()]
-            .to_device_async(stream)
-            .unwrap();
-
-        unsafe {
-            tracegen::ffi::core_syscall_generate_trace_round_2(
-                trace.view_mut(),
-                cumulative_sums.as_mut_ptr(),
-                stream.handle(),
-            );
-        }
-
-        unsafe {
-            tracegen::ffi::core_syscall_generate_trace_round_3(
-                trace.view_mut(),
-                cumulative_sums.as_ptr(),
-                nb_events,
                 stream.handle(),
             );
         }

@@ -308,6 +308,7 @@ pub(super) mod merkle_tree_opening_prover {
                     total_openings_device.as_mut_ptr(),
                     stream.handle(),
                 );
+                stream.synchronize().unwrap();
                 total_proofs_device.set_len(total_log_max_heights * total_query_indices);
 
                 let field_id = match TypeId::of::<PW::Value>() {
