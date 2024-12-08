@@ -15,6 +15,12 @@ RUN apt-get update && apt-get install -y \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# Install Succinct toolchain
+RUN curl -L https://sp1.succinct.xyz | bash && \
+    export PATH="$PATH:/root/.sp1/bin" && \
+    sp1up && \
+    cargo prove --version
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
