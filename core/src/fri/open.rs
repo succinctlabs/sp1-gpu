@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use p3_challenger::{FieldChallenger, GrindingChallenger};
+use p3_challenger::FieldChallenger;
 use p3_commit::{Mmcs, TwoAdicMultiplicativeCoset};
 use p3_field::Field;
 use sp1_core_machine::utils::log2_strict_usize;
@@ -98,6 +98,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             true,
             main_stream,
         );
+        main_stream.synchronize().unwrap();
         let query_proofs = query_proofs_data
             .into_iter()
             .enumerate()
