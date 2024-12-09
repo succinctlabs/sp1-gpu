@@ -36,4 +36,5 @@ extern "C" {
         height: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
+
 }

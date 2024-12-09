@@ -5,7 +5,7 @@
 class bb31_extension_t {
    public:
     static constexpr size_t D = 4;
-    static constexpr bb31_t W = bb31_t {11};
+    static constexpr bb31_t W = bb31_t {3};
 
     bb31_t value[D];
 
@@ -124,7 +124,7 @@ class bb31_extension_t {
     }
 
     __device__ __forceinline__ bb31_extension_t frobenius() {
-        bb31_t z0 = bb31_t(1728404513);
+        bb31_t z0 = bb31_t(2113994754);
         bb31_t z = z0;
         bb31_extension_t result;
         for (size_t i = 0; i < D; i++) {
@@ -146,7 +146,7 @@ class bb31_extension_t {
         for (size_t i = 1; i < D; i++) {
             g += a.value[i] * b.value[4 - i];
         }
-        g *= bb31_t(11);
+        g *= bb31_t(3);
         g += a.value[0] * b.value[0];
         return f * g.reciprocal();
     }
