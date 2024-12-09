@@ -5,6 +5,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 pub mod baby_bear;
+pub mod binary_field;
 pub mod challenger;
 pub mod cuda_runtime;
 pub mod device;
