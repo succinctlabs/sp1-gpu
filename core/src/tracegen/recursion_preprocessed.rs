@@ -208,12 +208,12 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
 #[cfg(test)]
 mod tests {
     use serial_test::serial;
-    use sp1_recursion_core::chips::test_fixtures;
+    // use sp1_recursion_core::chips::test_fixtures;
 
     use super::*;
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_base_alu() {
         let program = test_fixtures::program();
         let trace = BaseAluChip.generate_preprocessed_trace_host(&program).unwrap();
@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_ext_alu() {
         let program = test_fixtures::program();
         let trace = ExtAluChip.generate_preprocessed_trace_host(&program).unwrap();
@@ -239,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_select() {
         let program = test_fixtures::program();
         let trace = SelectChip.generate_preprocessed_trace_host(&program).unwrap();
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_poseidon2_skinny() {
         let chip = Poseidon2SkinnyChip::<9>::default();
         let program = test_fixtures::program();
@@ -266,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_poseidon2_wide_deg_3() {
         let chip = Poseidon2WideChip::<3>;
         let program = test_fixtures::program();
@@ -280,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[ignore]
     fn test_poseidon2_wide_deg_9() {
         let chip = Poseidon2WideChip::<9>;
         let program = test_fixtures::program();

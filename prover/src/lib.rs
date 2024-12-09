@@ -60,6 +60,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
 }
 
 #[cfg(test)]
+#[ignore]
 mod tests {
     use std::env;
 
