@@ -19,7 +19,7 @@ __global__ void mulKernel(T *out, T a, T b) {
 
 
 template<typename T, int NUM_ITERATIONS>
-void run_benchmark(T a, T b) {
+void run_benchmark(void (*opKernel)(T *out, T a, T b), T a, T b) {
         // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 8192;  // Adjust to fully load your GPU
@@ -36,14 +36,14 @@ void run_benchmark(T a, T b) {
     cudaEventCreate(&stop);
 
     // Warm-up launch (optional) to remove first-time overheads
-    mulKernel<uint32_t, NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a, b);
+    opKernel<<<numBlocks, threadsPerBlock>>>(d_out, a, b);
     cudaDeviceSynchronize();
 
     // Start timing
     cudaEventRecord(start);
 
     // Actual benchmark kernel launch
-    mulKernel<uint32_t, NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a, b);
+    opKernel<<<numBlocks, threadsPerBlock>>>(d_out, a, b);
 
     // Stop timing
     cudaEventRecord(stop);
@@ -75,6 +75,6 @@ int main() {
 
     uint32_t a = 2;
     uint32_t b = 1;
-    run_benchmark<uint32_t, 1000000>(a, b);
+    run_benchmark<uint32_t, 1000000>(mulKernel<uint32_t, 1000000>, a, b);
     return 0;
 }
