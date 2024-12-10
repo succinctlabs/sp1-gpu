@@ -9,9 +9,9 @@ namespace constants {
     constexpr const int DIGEST_WIDTH = 8;
     constexpr const int RATE = 8;
     constexpr const int WIDTH = 16;
-    constexpr const int ROUNDS_P = 13;
+    constexpr const int ROUNDS_P = 20;
     constexpr const int ROUNDS_F = 8;
-    constexpr const int D = 7;
+    constexpr const int D = 3;
 
     __constant__ constexpr const bb31_t INTERNAL_ROUND_CONSTANTS[ROUNDS_P] = {
         bb31_t(1196780786),
@@ -26,7 +26,14 @@ namespace constants {
         bb31_t(1548195514),
         bb31_t(104929687),
         bb31_t(178643863),
-        bb31_t(1619872446)
+        bb31_t(1619872446),
+        bb31_t(4042581186),
+        bb31_t(3634515733),
+        bb31_t(1032701597),
+        bb31_t(2364839308),
+        bb31_t(3840286918),
+        bb31_t(888378655),
+        bb31_t(2520191583),
     };
 
     __constant__ constexpr const bb31_t
@@ -76,27 +83,27 @@ namespace constants {
             bb31_t(1376516190), bb31_t(1775891321)
     };
 #if 1
-    __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
-        bb31_t(125829121),  
-        bb31_t(943718400),  
-        bb31_t(1887436800),
-        bb31_t(1761607679),
-        bb31_t(1509949437),
-        bb31_t(1006632953),
-        bb31_t(2013265906),
-        bb31_t(2013265891),
-        bb31_t(2013265861),
-        bb31_t(2013265801),
-        bb31_t(2013265681),
-        bb31_t(2013265441),
-        bb31_t(2013264961),
-        bb31_t(2013264001),
-        bb31_t(2013262081),
-        bb31_t(2013250561)
-    };
+__constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
+    bb31_t(2130706431),
+    bb31_t(1),
+    bb31_t(2),
+    bb31_t(4),
+    bb31_t(8),
+    bb31_t(16),
+    bb31_t(32),
+    bb31_t(64),
+    bb31_t(128),
+    bb31_t(256),
+    bb31_t(512),
+    bb31_t(1024),
+    bb31_t(2048),
+    bb31_t(4096),
+    bb31_t(8192),
+    bb31_t(32768)
+};
 #else
     __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
-        bb31_t(2013265919),
+        bb31_t(2130706431),
         bb31_t(1),
         bb31_t(2),
         bb31_t(4),
