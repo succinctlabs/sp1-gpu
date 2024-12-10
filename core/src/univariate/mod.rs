@@ -32,7 +32,7 @@ impl ColMajorMatrixDevice<BabyBear> {
         let evaluation_point = evaluation_point * shift.inverse();
         let vanishing_poly_eval = evaluation_point.exp_power_of_2(log_height)
             - BinomialExtensionField::<BabyBear, 4>::one();
-        unsafe {
+        let result = unsafe {
             ffi::univariate_eval_babybear(
                 results.as_mut_ptr(),
                 self.values.as_ptr(),
@@ -45,7 +45,9 @@ impl ColMajorMatrixDevice<BabyBear> {
                 self.stream().handle(),
             )
             .to_result()
-        }
+        };
+        self.stream().synchronize().unwrap();
+        result
     }
 }
 
