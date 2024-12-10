@@ -3975,7 +3975,6 @@ dependencies = [
 [[package]]
 name = "p3-air"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -3984,7 +3983,6 @@ dependencies = [
 [[package]]
 name = "p3-baby-bear"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "num-bigint 0.4.6",
  "p3-field",
@@ -3998,7 +3996,6 @@ dependencies = [
 [[package]]
 name = "p3-bn254-fr"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "ff 0.13.0",
  "num-bigint 0.4.6",
@@ -4012,7 +4009,6 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "p3-field",
  "p3-maybe-rayon",
@@ -4025,7 +4021,6 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4038,7 +4033,6 @@ dependencies = [
 [[package]]
 name = "p3-dft"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4050,7 +4044,6 @@ dependencies = [
 [[package]]
 name = "p3-field"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "num-bigint 0.4.6",
@@ -4063,7 +4056,6 @@ dependencies = [
 [[package]]
 name = "p3-fri"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4081,7 +4073,6 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4091,7 +4082,6 @@ dependencies = [
 [[package]]
 name = "p3-keccak-air"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "p3-air",
  "p3-field",
@@ -4104,7 +4094,6 @@ dependencies = [
 [[package]]
 name = "p3-matrix"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4118,7 +4107,6 @@ dependencies = [
 [[package]]
 name = "p3-maybe-rayon"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "rayon",
 ]
@@ -4126,7 +4114,6 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-dft",
@@ -4140,7 +4127,6 @@ dependencies = [
 [[package]]
 name = "p3-merkle-tree"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-commit",
@@ -4156,7 +4142,6 @@ dependencies = [
 [[package]]
 name = "p3-poseidon2"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "gcd",
  "p3-field",
@@ -4169,7 +4154,6 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4179,7 +4163,6 @@ dependencies = [
 [[package]]
 name = "p3-uni-stark"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "itertools 0.12.1",
  "p3-air",
@@ -4197,7 +4180,6 @@ dependencies = [
 [[package]]
 name = "p3-util"
 version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3?branch=sp1-v4#bba88386261c3eaceb7f922b99bea56c1d6c6c58"
 dependencies = [
  "serde",
 ]
@@ -5605,7 +5587,6 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5617,7 +5598,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5634,6 +5614,7 @@ dependencies = [
  "p3-baby-bear",
  "p3-field",
  "p3-maybe-rayon",
+ "p3-util",
  "rand 0.8.5",
  "rrs-succinct",
  "serde",
@@ -5654,7 +5635,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5710,7 +5690,6 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5726,7 +5705,6 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5748,7 +5726,6 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5757,7 +5734,6 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5776,7 +5752,6 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "bincode",
  "hex",
@@ -5793,7 +5768,6 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5832,7 +5806,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5865,7 +5838,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5886,7 +5858,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5927,7 +5898,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5936,7 +5906,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5961,7 +5930,6 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -6003,7 +5971,6 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6341,7 +6308,6 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c07273d7f66b79324ff0109d03deca49f8d6cce0"
 dependencies = [
  "sp1-build",
 ]

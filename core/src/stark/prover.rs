@@ -958,6 +958,7 @@ where
                         batched_openings.set_max_len();
                         batched_openings.set(0).unwrap();
                     }
+                    challenger.observe_slice(&batched_openings.as_base_slice());
                     (log_height, batched_openings)
                 })
                 .collect::<BTreeMap<_, _>>();
