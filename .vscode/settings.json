@@ -46,8 +46,7 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "unordered_map": "cpp",
-        "unordered_set": "cpp"
+        "atomic": "cpp"
     },
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/core/**/include",

@@ -262,6 +262,7 @@ where
             stream.synchronize().unwrap();
             traces.push(trace);
         }
+        self.main_stream.synchronize().unwrap();
 
         StarkProvingKeyDevice {
             commit: pk.commit.clone(),
@@ -415,9 +416,10 @@ where
             });
 
         // Synchronize the chip streams.
-        for (_, stream) in self.chip_streams.iter() {
+        for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
+        self.main_stream.synchronize().unwrap();
 
         // Commit to the traces.
         let domains_and_traces = domains
@@ -429,6 +431,11 @@ where
             .collect::<Vec<_>>();
         let (commit, data) = tracing::debug_span!("commit")
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
+
+        for stream in self.chip_streams.values() {
+            stream.synchronize().unwrap();
+        }
+        self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
@@ -598,6 +605,10 @@ where
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
+        for stream in self.chip_streams.values() {
+            stream.synchronize().unwrap();
+        }
+
         commit_span.exit();
 
         // Get the preprocessed traces
@@ -698,29 +709,6 @@ where
                     total_width,
                     height,
                 );
-
-                // let pk_host = self.pk_to_host(pk);
-                // let preprocessed_trace =
-                //     pk_host.chip_ordering.get(&chip.name()).map(|index| &pk_host.traces[*index]);
-                // let permutation_trace = &permutation_traces[i].to_host();
-                // let permutation_trace_extension = RowMajorMatrix::new(
-                //     permutation_trace
-                //         .values
-                //         .chunks(4)
-                //         .map(|x| SC::Challenge::from_base_slice(x))
-                //         .collect(),
-                //     permutation_trace.width() / 4,
-                // );
-                // sp1_stark::debug_constraints::<SC, A>(
-                //     chip,
-                //     preprocessed_trace,
-                //     &traces[i].to_host(),
-                //     &permutation_trace_extension,
-                //     &local_permutation_challenges,
-                //     &public_values,
-                //     &cumulative_sums[i].0,
-                //     &cumulative_sums[i].1,
-                // );
             }
 
             // Commit to the permutation traces.
@@ -968,6 +956,7 @@ where
                 .collect::<BTreeMap<_, _>>();
 
             let event = &self.events.batching_buffer_initialization;
+            self.main_stream.synchronize().unwrap();
             self.main_stream.record(event).unwrap();
             for stream in shard_chip_stream.iter() {
                 stream.wait_event(event).unwrap();
@@ -1085,6 +1074,7 @@ where
                 let event = self.events.update_openings.get(name).unwrap();
                 stream.record(event).unwrap();
                 self.main_stream.wait_event(event).unwrap();
+                stream.synchronize().unwrap();
             }
 
             // generate a fri proof.
@@ -1124,6 +1114,7 @@ where
                 false,
                 &self.main_stream,
             );
+            self.main_stream.synchronize().unwrap();
 
             let opening_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
 
@@ -1202,6 +1193,9 @@ where
         let cleanup_span = tracing::debug_span!("cleanup").entered();
 
         self.main_stream.synchronize().unwrap();
+        for stream in self.chip_streams.values() {
+            stream.synchronize().unwrap();
+        }
         cleanup_span.exit();
 
         proof
@@ -1281,6 +1275,8 @@ where
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
+
+    // fn setup_core()
 }
 
 // #[cfg(test)]
