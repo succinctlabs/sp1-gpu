@@ -467,6 +467,8 @@ where
                     None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
                 };
 
+                stream.synchronize().unwrap();
+
                 // Assert that the chip width data is correct.
                 let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
                 assert_eq!(
@@ -502,11 +504,15 @@ where
 
         generate_traces_copy_span.exit();
 
+        for stream in self.chip_streams.values() {
+            stream.synchronize().unwrap();
+        }
+
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
         self.main_stream.synchronize().unwrap();
-        for (_, stream) in self.chip_streams.iter() {
+        for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
 
@@ -582,6 +588,7 @@ where
                 rayon::spawn(move || {
                     let stream = stream;
                     let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
+                    stream.synchronize().unwrap();
                     tx.send(trace).unwrap();
                 });
                 (name, domain, event, local_only, rx, dimensions)
