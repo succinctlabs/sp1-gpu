@@ -6,7 +6,7 @@ use p3_field::PrimeField32;
 use p3_matrix::dense::RowMajorMatrix;
 use sp1_core_machine::{
     alu::AddSubChip, global::GlobalChip, memory::MemoryGlobalChip, memory::MemoryLocalChip,
-    riscv::RiscvAir, syscall::chip::SyscallChip,
+    riscv::RiscvAir,
 };
 use sp1_recursion_core::machine::RecursionAir;
 use sp1_stark::air::MachineAir;
