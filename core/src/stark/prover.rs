@@ -6,9 +6,10 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::{AbstractExtensionField, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use sp1_stark::air::BinomialExtension;
 use sp1_stark::septic_digest::SepticDigest;
 use sp1_stark::MachineChip;
 use sp1_stark::{
@@ -958,7 +959,14 @@ where
                         batched_openings.set_max_len();
                         batched_openings.set(0).unwrap();
                     }
-                    challenger.observe_slice(&batched_openings.as_base_slice());
+                    let host_openings = batched_openings
+                        .to_host()
+                        .into_iter()
+                        .flat_map(|c: BinomialExtensionField<BabyBear, 4>| {
+                            c.as_base_slice().to_vec()
+                        })
+                        .collect::<Vec<BabyBear>>();
+                    challenger.observe_slice(&host_openings);
                     (log_height, batched_openings)
                 })
                 .collect::<BTreeMap<_, _>>();
