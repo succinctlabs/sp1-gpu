@@ -3,12 +3,13 @@
 
 // This kernel performs a specified number of uint32_t multiplications per thread.
 // Each iteration does: x = a * x, which can be considered 1 operation.
-__global__ void mulKernel(uint32_t *out, uint32_t a, int iterations) {
+template<int NUM_ITERATIONS>
+__global__ void mulKernel(uint32_t *out, uint32_t a) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     uint32_t x = 1;
 
-    // Unroll loops or use pragma unroll for more ops per iteration
-    for (int i = 0; i < iterations; i++) {
+    #pragma unroll
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
         x = a * x; // 1 operation per iteration (1 mul)
     }
 
@@ -17,15 +18,12 @@ __global__ void mulKernel(uint32_t *out, uint32_t a, int iterations) {
 }
 
 
+template<int NUM_ITERATIONS>
 void run_benchmark() {
         // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 8192;  // Adjust to fully load your GPU
     int totalThreads = threadsPerBlock * numBlocks;
-
-    // Number of iterations per thread
-    // Increase this number to get a longer runtime and more stable measurements
-    int iterations = 1000000;
 
     // Host and device pointers
     uint32_t *d_out;
@@ -40,14 +38,14 @@ void run_benchmark() {
     cudaEventCreate(&stop);
 
     // Warm-up launch (optional) to remove first-time overheads
-    mulKernel<<<numBlocks, threadsPerBlock>>>(d_out, a, iterations);
+    mulKernel<NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a);
     cudaDeviceSynchronize();
 
     // Start timing
     cudaEventRecord(start);
 
     // Actual benchmark kernel launch
-    mulKernel<<<numBlocks, threadsPerBlock>>>(d_out, a, iterations);
+    mulKernel<NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a);
 
     // Stop timing
     cudaEventRecord(stop);
@@ -57,7 +55,7 @@ void run_benchmark() {
     cudaEventElapsedTime(&milliseconds, start, stop);
 
     // Compute operations
-    double opsPerThread = (double)iterations; // 1 operation per iteration
+    double opsPerThread = (double)NUM_ITERATIONS; // 1 operation per iteration
     double totalOps = opsPerThread * (double)totalThreads;
     double seconds = milliseconds / 1000.0;
 
@@ -76,6 +74,8 @@ void run_benchmark() {
 }
 
 int main() {
-    run_benchmark();
+
+
+    run_benchmark<1000000>();
     return 0;
 }
