@@ -3,10 +3,10 @@
 
 // This kernel performs a specified number of uint32_t multiplications per thread.
 // Each iteration does: x = a * x, which can be considered 1 operation.
-template<int NUM_ITERATIONS>
-__global__ void mulKernel(uint32_t *out, uint32_t a) {
+template<typename T, int NUM_ITERATIONS>
+__global__ void mulKernel(T *out, T a, T b) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t x = 1;
+    T x = b;
 
     #pragma unroll
     for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -18,19 +18,17 @@ __global__ void mulKernel(uint32_t *out, uint32_t a) {
 }
 
 
-template<int NUM_ITERATIONS>
-void run_benchmark() {
+template<typename T, int NUM_ITERATIONS>
+void run_benchmark(T a, T b) {
         // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 8192;  // Adjust to fully load your GPU
     int totalThreads = threadsPerBlock * numBlocks;
 
     // Host and device pointers
-    uint32_t *d_out;
-    cudaMalloc((void**)&d_out, totalThreads * sizeof(uint32_t));
-    cudaMemset(d_out, 0, totalThreads * sizeof(uint32_t));
-
-    uint32_t a = 2;
+    T *d_out;
+    cudaMalloc((void**)&d_out, totalThreads * sizeof(T));
+    cudaMemset(d_out, 0, totalThreads * sizeof(T));
 
     // Use CUDA events for timing
     cudaEvent_t start, stop;
@@ -38,14 +36,14 @@ void run_benchmark() {
     cudaEventCreate(&stop);
 
     // Warm-up launch (optional) to remove first-time overheads
-    mulKernel<NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a);
+    mulKernel<uint32_t, NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a, b);
     cudaDeviceSynchronize();
 
     // Start timing
     cudaEventRecord(start);
 
     // Actual benchmark kernel launch
-    mulKernel<NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a);
+    mulKernel<uint32_t, NUM_ITERATIONS><<<numBlocks, threadsPerBlock>>>(d_out, a, b);
 
     // Stop timing
     cudaEventRecord(stop);
@@ -75,7 +73,8 @@ void run_benchmark() {
 
 int main() {
 
-
-    run_benchmark<1000000>();
+    uint32_t a = 2;
+    uint32_t b = 1;
+    run_benchmark<uint32_t, 1000000>(a, b);
     return 0;
 }
