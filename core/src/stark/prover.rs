@@ -903,23 +903,12 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
-                let host_local_openings = local_open
-                    .to_host()
-                    .into_iter()
-                    .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
-                    .collect::<Vec<BabyBear>>();
-                challenger.observe_slice(&host_local_openings);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    let open =
+                    let next_open =
                         self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
-                    let host_next_openings = open
-                        .to_host()
-                        .into_iter()
-                        .flat_map(|c| c.as_base_slice().to_vec())
-                        .collect::<Vec<BabyBear>>();
-                    challenger.observe_slice(&host_next_openings);
-
-                    Some(open)
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
@@ -932,22 +921,12 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
-                let host_local_openings = local_open
-                    .to_host()
-                    .into_iter()
-                    .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
-                    .collect::<Vec<BabyBear>>();
-                challenger.observe_slice(&host_local_openings);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    let open =
+                    let next_open =
                         self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
-                    let host_next_openings = open
-                        .to_host()
-                        .into_iter()
-                        .flat_map(|c| c.as_base_slice().to_vec())
-                        .collect::<Vec<BabyBear>>();
-                    challenger.observe_slice(&host_next_openings);
-                    Some(open)
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
@@ -958,20 +937,10 @@ where
             // Openings for permutation traces.
             for (domain, trace, _) in perm_domains_and_traces {
                 let local_open = self.opening_prover.eval(domain, &trace, zeta);
-                let host_local_openings = local_open
-                    .to_host()
-                    .into_iter()
-                    .flat_map(|c| c.as_base_slice().to_vec())
-                    .collect::<Vec<BabyBear>>();
-                challenger.observe_slice(&host_local_openings);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open =
                     self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
-                let host_next_openings = next_open
-                    .to_host()
-                    .into_iter()
-                    .flat_map(|c| c.as_base_slice().to_vec())
-                    .collect::<Vec<BabyBear>>();
-                challenger.observe_slice(&host_next_openings);
+                observe_device_buffer::<SC>(challenger, &next_open);
                 input_heights.insert(domain.log_n);
                 perm_openings.push((domain.log_n, local_open, next_open));
             }
@@ -979,12 +948,7 @@ where
             let mut quot_openings = vec![];
             for (domain, trace, _) in quotient_domains_and_chunks.into_iter() {
                 let open = self.opening_prover.eval(domain, &trace, zeta);
-                let host_openings = open
-                    .to_host()
-                    .into_iter()
-                    .flat_map(|c| c.as_base_slice().to_vec())
-                    .collect::<Vec<BabyBear>>();
-                challenger.observe_slice(&host_openings);
+                observe_device_buffer::<SC>(challenger, &open);
                 input_heights.insert(domain.log_n);
                 quot_openings.push((domain.log_n, open));
             }
@@ -1008,7 +972,7 @@ where
                     }
                     (log_height, batched_openings)
                 })
-                .collect::<BTreeMap<usize, DeviceBuffer<_>>>();
+                .collect::<BTreeMap<_, _>>();
 
             let event = &self.events.batching_buffer_initialization;
             self.main_stream.synchronize().unwrap();
@@ -1332,6 +1296,18 @@ where
     }
 
     // fn setup_core()
+}
+
+fn observe_device_buffer<SC: BabyBearFriConfig>(
+    challenger: &mut SC::Challenger,
+    buffer: &DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
+) {
+    let host_buffer = buffer
+        .to_host()
+        .into_iter()
+        .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
+        .collect::<Vec<BabyBear>>();
+    challenger.observe_slice(&host_buffer);
 }
 
 // #[cfg(test)]
