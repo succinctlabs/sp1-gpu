@@ -959,17 +959,9 @@ where
                         batched_openings.set_max_len();
                         batched_openings.set(0).unwrap();
                     }
-                    let host_openings = batched_openings
-                        .to_host()
-                        .into_iter()
-                        .flat_map(|c: BinomialExtensionField<BabyBear, 4>| {
-                            c.as_base_slice().to_vec()
-                        })
-                        .collect::<Vec<BabyBear>>();
-                    challenger.observe_slice(&host_openings);
                     (log_height, batched_openings)
                 })
-                .collect::<BTreeMap<_, _>>();
+                .collect::<BTreeMap<usize, DeviceBuffer<_>>>();
 
             let event = &self.events.batching_buffer_initialization;
             self.main_stream.synchronize().unwrap();
@@ -977,6 +969,15 @@ where
             for stream in shard_chip_stream.iter() {
                 stream.wait_event(event).unwrap();
             }
+
+            batched_openings.iter().for_each(|(_, buffer)| {
+                let host_openings = buffer
+                    .to_host()
+                    .into_iter()
+                    .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
+                    .collect::<Vec<BabyBear>>();
+                challenger.observe_slice(&host_openings);
+            });
 
             // Batch the FRI data.
 
