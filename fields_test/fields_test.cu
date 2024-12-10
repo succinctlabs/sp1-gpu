@@ -16,8 +16,9 @@ __global__ void mulKernel(uint32_t *out, uint32_t a, int iterations) {
     out[idx] = x;
 }
 
-int main() {
-    // GPU parameters
+
+void run_benchmark() {
+        // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 8192;  // Adjust to fully load your GPU
     int totalThreads = threadsPerBlock * numBlocks;
@@ -72,5 +73,9 @@ int main() {
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
+}
+
+int main() {
+    run_benchmark();
     return 0;
 }
