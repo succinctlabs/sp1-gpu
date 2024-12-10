@@ -976,6 +976,7 @@ where
                     .into_iter()
                     .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
                     .collect::<Vec<BabyBear>>();
+                println!("Host openings: {:?}", host_openings);
                 challenger.observe_slice(&host_openings);
             });
 
