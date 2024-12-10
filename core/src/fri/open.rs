@@ -473,8 +473,9 @@ where
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
         let stream = temp.stream().clone();
         let (commit, prover_data) = committer.mmcs_commit(vec![temp], &stream);
-        challenger.observe(commit.clone());
+        stream.synchronize().unwrap();
 
+        challenger.observe(commit.clone());
         let beta: SC::Challenge = challenger.sample();
 
         let injected_input = input.remove(&log_folded_height);

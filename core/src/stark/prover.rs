@@ -679,6 +679,7 @@ where
 
             // Observe the main commitment.
             challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
+            self.main_stream.synchronize().unwrap();
             challenger.observe(main_commit.clone());
 
             setup_span.exit();
@@ -734,6 +735,7 @@ where
                 .collect::<Vec<_>>();
             let (permutation_commit, mut perm_prover_data) =
                 self.committer.commit(&perm_domains_and_traces, &self.main_stream);
+            self.main_stream.synchronize().unwrap();
             permutation_span.exit();
 
             // Observe the permutation commitment.
@@ -883,6 +885,7 @@ where
                 .collect::<Vec<_>>();
             let (quotient_commit, quotient_prover_data) =
                 self.committer.commit(&quotient_domains_and_chunks, &self.main_stream);
+            self.main_stream.synchronize().unwrap();
             quotient_span.exit();
             // Observe the quotient commitment.
             challenger.observe(quotient_commit.clone());
