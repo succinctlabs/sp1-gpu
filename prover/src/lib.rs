@@ -17,7 +17,7 @@ const MAX_DEFERRED_SPLIT_LOG: usize = 14;
 const MAX_SHARD_SIZE: usize = 1 << 21;
 
 pub fn gpu_prover_opts() -> SP1ProverOpts {
-    let mut opts = SP1ProverOpts::default();
+    let mut opts = SP1ProverOpts::cpu();
 
     // Core options
     let (_, total) = cuda_mem_get_info().unwrap();
@@ -28,7 +28,7 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     let shard_size = env::var("SHARD_SIZE")
         .map_or_else(|_| default_shard_size, |s| s.parse::<usize>().unwrap_or(default_shard_size));
     let shard_size = std::cmp::min(shard_size, MAX_SHARD_SIZE);
-    opts.core_opts.set_shard_size(shard_size);
+    opts.core_opts.shard_size = shard_size;
     tracing::info!("Shard size set to {}", shard_size);
     opts.core_opts.shard_batch_size = 1;
 
