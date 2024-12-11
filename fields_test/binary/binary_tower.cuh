@@ -251,7 +251,7 @@ public:
 };
 
 template <>
-class FanPaarTowerField<0> : FanPaarTowerFieldBase<0> {
+class FanPaarTowerField<0> : public FanPaarTowerFieldBase<0> {
 public:
 	static inline __host__ __device__ uint32_t multiply(uint32_t a, uint32_t b) { return a & b & 1; }
 
@@ -271,44 +271,44 @@ class f2_t {
 	uint32_t val;
 
     
-	static __host__ __device__ f2_t from_inner(const uint32_t a) { 
+	static __host__ __device__ __forceinline__ f2_t from_inner(const uint32_t a) { 
 		f2_t ret;
 		ret.val = a;
 		return ret;
 	}
 
-   __host__ __device__ bool is_valid(uint32_t a) { return FanPaarTowerField<HEIGHT>::is_valid(a); }
+   __host__ __device__ __forceinline__ bool is_valid(uint32_t a) { return FanPaarTowerField<HEIGHT>::is_valid(a); }
 
-   static constexpr __host__ __device__ uint32_t N_BITS() { return HEIGHTTOBIT(HEIGHT); }
+   static constexpr __host__ __device__ __forceinline__ uint32_t N_BITS() { return HEIGHTTOBIT(HEIGHT); }
 
-	__host__ __device__ f2_t operator+(const f2_t& other) const {
+	__host__ __device__ __forceinline__ f2_t operator+(const f2_t& other) const {
 		f2_t result;
 		result.val = FanPaarTowerField<HEIGHT>::add(this->val, other.val);
 		return result;
 	}
 
-	__host__ __device__ f2_t operator*(const f2_t& other) const {
+	__host__ __device__ __forceinline__ f2_t operator*(const f2_t& other) const {
 		f2_t result;
 		result.val = FanPaarTowerField<HEIGHT>::multiply(this->val, other.val);
 		return result;
 	}
 
-	__host__ __device__ f2_t& operator+=(const f2_t& other) {
+	__host__ __device__ __forceinline__ f2_t& operator+=(const f2_t& other) {
 		this->val = FanPaarTowerField<HEIGHT>::add(this->val, other.val);
 		return *this;
 	}
 
-	__host__ __device__ f2_t& operator*=(const f2_t& other) {
+	__host__ __device__ __forceinline__ f2_t& operator*=(const f2_t& other) {
 		this->val = FanPaarTowerField<HEIGHT>::multiply(this->val, other.val);
 		return *this;
 	}
 
-	__host__ __device__ f2_t operator-() const {
+	__host__ __device__ __forceinline__ f2_t operator-() const {
 		// In this field, negation is the same as the value itself
 		return *this;
 	}
 
-	__host__ __device__ f2_t inverse() const {
+	__host__ __device__ __forceinline__ f2_t inverse() const {
 		f2_t result;
 		result.val = FanPaarTowerField<HEIGHT>::inverse(this->val);
 		return result;

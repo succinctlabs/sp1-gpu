@@ -13,6 +13,7 @@ __global__ void mulKernel(E *out, T a, E b) {
     #pragma unroll
     for (int i = 0; i < NUM_ITERATIONS; i++) {
         x = a * x; // 1 operation per iteration (1 mul)
+      asm volatile("");
     }
 
     // Write out the final value to ensure the compiler doesn't optimize away the computation
@@ -27,6 +28,25 @@ __global__ void addKernel(E *out, T a, E b) {
     #pragma unroll
     for (int i = 0; i < NUM_ITERATIONS; i++) {
         x = a + x; // 1 operation per iteration (1 add)
+        asm volatile("");
+    }
+
+    // Write out the final value to ensure the compiler doesn't optimize away the computation
+    out[idx] = x;
+}
+
+// __uint128_t mask = -(__uint128_t)val;
+template<int NUM_ITERATIONS>
+__global__ void binaryBaseExtMultiplication(__uint128_t *out, uint32_t a, __uint128_t b) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    __uint128_t x = b;
+
+    #pragma unroll 
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+
+        __uint128_t mask = -(__uint128_t)a;
+        x = x & mask; // 1 operation per iteration (1 add)
+        asm volatile("");
     }
 
     // Write out the final value to ensure the compiler doesn't optimize away the computation
@@ -149,6 +169,7 @@ int main() {
     run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
     std::cout << "----------------------------------------" << std::endl;
 
+
     std::cout << "Testing f2_t<5> additions..." << std::endl;
     f2_t<5> a_fp25_add = f2_t<5>::from_inner(rand());
     f2_t<5> b_fp25_add = f2_t<5>::from_inner(rand());
@@ -159,6 +180,20 @@ int main() {
     f2_t<5> a_fp25_mul = f2_t<5>::from_inner(rand());
     f2_t<5> b_fp25_mul = f2_t<5>::from_inner(rand());
     run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(mulKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_mul, b_fp25_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+
+    std::cout << "Testing f2_t<0> multiplications..." << std::endl;
+    f2_t<0> a_fp20_mul = f2_t<0>::from_inner(rand());
+    f2_t<0> b_fp20_mul = f2_t<0>::from_inner(rand());
+    run_benchmark<f2_t<0>, f2_t<0>, NUM_ITERATIONS>(mulKernel<f2_t<0>, f2_t<0>, NUM_ITERATIONS>, a_fp20_mul, b_fp20_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+
+    std::cout << "Testing binary base-extension multiplications..." << std::endl;
+    uint32_t a_binary_mul = rand();
+    __uint128_t b_binary_mul = rand();
+    run_benchmark<__uint128_t, uint32_t, NUM_ITERATIONS>(binaryBaseExtMultiplication<NUM_ITERATIONS>, a_binary_mul, b_binary_mul);
     std::cout << "----------------------------------------" << std::endl;
 
     return 0;
