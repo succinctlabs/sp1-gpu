@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include "bb31_t.cuh"
 #include "bb31_extension_t.cuh"
+#include "binary/binary_tower.cuh"
 // This kernel performs a specified number of uint32_t multiplications per thread.
 // Each iteration does: x = a * x, which can be considered 1 operation.
 template< typename E, typename T, int NUM_ITERATIONS>
@@ -147,6 +148,8 @@ int main() {
     bb31_extension_t b_bb31_base_mul = bb31_extension_t(values4);
     run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
     std::cout << "----------------------------------------" << std::endl;
+
+    f2_t a = f2::from_inner(1);
 
     return 0;
 }
