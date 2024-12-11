@@ -1,12 +1,13 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include "bb31_t.cuh"
+#include "bb31_extension_t.cuh"
 // This kernel performs a specified number of uint32_t multiplications per thread.
 // Each iteration does: x = a * x, which can be considered 1 operation.
-template<typename T, int NUM_ITERATIONS>
-__global__ void mulKernel(T *out, T a, T b) {
+template< typename E, typename T, int NUM_ITERATIONS>
+__global__ void mulKernel(E *out, T a, E b) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    T x = b;
+    E x = b;
 
     #pragma unroll
     for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -17,10 +18,10 @@ __global__ void mulKernel(T *out, T a, T b) {
     out[idx] = x;
 }
 
-template<typename T, int NUM_ITERATIONS>
-__global__ void addKernel(T *out, T a, T b) {
+template<typename E, typename T, int NUM_ITERATIONS>
+__global__ void addKernel(E *out, T a, E b) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    T x = b;
+    E x = b;
 
     #pragma unroll
     for (int i = 0; i < NUM_ITERATIONS; i++) {
@@ -32,16 +33,16 @@ __global__ void addKernel(T *out, T a, T b) {
 }
 
 
-template<typename T, int NUM_ITERATIONS>
-void run_benchmark(void (*opKernel)(T *out, T a, T b), T a, T b) {
+template<typename E, typename T, int NUM_ITERATIONS>
+void run_benchmark(void (*opKernel)(E *out, T a, E b), T a, E b) {
         // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 8192;  // Adjust to fully load your GPU
     int totalThreads = threadsPerBlock * numBlocks;
 
     // Host and device pointers
-    T *d_out;
-    cudaMalloc((void**)&d_out, totalThreads * sizeof(T));
+    E *d_out;
+    cudaMalloc((void**)&d_out, totalThreads * sizeof(E));
     // cudaMemset(d_out, 0, totalThreads * sizeof(T));
 
     // Use CUDA events for timing
@@ -93,35 +94,58 @@ int main() {
     std::cout << "Testing floating point multiplications..." << std::endl;
     float a_fp32 = 2;
     float b_fp32 = 1;
-    run_benchmark<float, NUM_ITERATIONS>(mulKernel<float, NUM_ITERATIONS>, a_fp32, b_fp32);
+    run_benchmark<float, float, NUM_ITERATIONS>(mulKernel<float, float, NUM_ITERATIONS>, a_fp32, b_fp32);
     std::cout << "----------------------------------------" << std::endl;
 
     std::cout << "Testing integer additions..." << std::endl;
     uint32_t a_uint32_add = rand();
     uint32_t b_uint32_add = rand();
-    run_benchmark<uint32_t, NUM_ITERATIONS>(addKernel<uint32_t, NUM_ITERATIONS>, a_uint32_add, b_uint32_add);
+    run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(addKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_add, b_uint32_add);
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Testing integer multiplications..." << std::endl;
     uint32_t a_uint32_mul = rand();
     uint32_t b_uint32_mul = rand();
-    run_benchmark<uint32_t, NUM_ITERATIONS>(mulKernel<uint32_t, NUM_ITERATIONS>, a_uint32_mul, b_uint32_mul);
+    run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(mulKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_mul, b_uint32_mul);
     std::cout << "----------------------------------------" << std::endl;
     std::cout << "Testing 64-bit integer multiplications..." << std::endl;
     uint64_t a_uint64 = rand();
     uint64_t b_uint64 = rand();
-    run_benchmark<uint64_t, NUM_ITERATIONS>(mulKernel<uint64_t, NUM_ITERATIONS>, a_uint64, b_uint64);
+    run_benchmark<uint64_t, uint64_t, NUM_ITERATIONS>(mulKernel<uint64_t, uint64_t, NUM_ITERATIONS>, a_uint64, b_uint64);
     std::cout << "----------------------------------------" << std::endl;
     
     std::cout << "Testing BB31 additions..." << std::endl;
     bb31_t a_bb31_add = bb31_t((int)rand());
     bb31_t b_bb31_add = bb31_t((int)rand());
-    run_benchmark<bb31_t, NUM_ITERATIONS>(addKernel<bb31_t, NUM_ITERATIONS>, a_bb31_add, b_bb31_add);
+    run_benchmark<bb31_t, bb31_t, NUM_ITERATIONS>(addKernel<bb31_t, bb31_t, NUM_ITERATIONS>, a_bb31_add, b_bb31_add);
     std::cout << "----------------------------------------" << std::endl;
 
     std::cout << "Testing BB31 multiplications..." << std::endl;
     bb31_t a_bb31_mul = bb31_t((int)rand());
     bb31_t b_bb31_mul = bb31_t((int)rand());
-    run_benchmark<bb31_t, NUM_ITERATIONS>(mulKernel<bb31_t, NUM_ITERATIONS>, a_bb31_mul, b_bb31_mul);
+    run_benchmark<bb31_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_t, bb31_t, NUM_ITERATIONS>, a_bb31_mul, b_bb31_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing BB31 extension additions..." << std::endl;
+    bb31_t values[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t a_bb31_extension_add = bb31_extension_t(values);
+    bb31_t values2[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t b_bb31_extension_add = bb31_extension_t(values2);
+    run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(addKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_add, b_bb31_extension_add);
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing BB31 extension multiplications..." << std::endl;
+    bb31_t values3[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t a_bb31_extension_mul = bb31_extension_t(values3);
+    bb31_t values4[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t b_bb31_extension_mul = bb31_extension_t(values4);
+    run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_mul, b_bb31_extension_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+
+    std::cout << "Testing BB31 base-extension multiplications..." << std::endl;
+    bb31_t a_bb31_base_mul = bb31_t((int)rand());
+    bb31_extension_t b_bb31_base_mul = bb31_extension_t(values4);
+    run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
     std::cout << "----------------------------------------" << std::endl;
 
     return 0;
