@@ -239,12 +239,7 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
-        let skip_indices = vec![34, 145, 156, 159];
-
         for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
-            if i < skip_indices.last().unwrap() {
-                continue;
-            }
             println!("finished shape: id={}, shape={:?}", i, shape);
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
