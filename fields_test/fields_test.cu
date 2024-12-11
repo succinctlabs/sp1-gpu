@@ -149,7 +149,17 @@ int main() {
     run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
     std::cout << "----------------------------------------" << std::endl;
 
-    f2_t a = f2::from_inner(1);
+    std::cout << "Testing f2_t<5> additions..." << std::endl;
+    f2_t<5> a_fp25_add = f2_t<5>::from_inner(rand());
+    f2_t<5> b_fp25_add = f2_t<5>::from_inner(rand());
+    run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(addKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_add, b_fp25_add);
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing f2_t<5> multiplications..." << std::endl;
+    f2_t<5> a_fp25_mul = f2_t<5>::from_inner(rand());
+    f2_t<5> b_fp25_mul = f2_t<5>::from_inner(rand());
+    run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(mulKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_mul, b_fp25_mul);
+    std::cout << "----------------------------------------" << std::endl;
 
     return 0;
 }

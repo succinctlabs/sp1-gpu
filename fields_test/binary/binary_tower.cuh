@@ -13,15 +13,6 @@
 #define CONST_MOD const
 #endif
 
-class f2_t {
-  public:
-	uint8_t val;
-
-static constexpr __host__ __device__ f2_t from_inner(uint8_t a) { return f2_t(a); }
-   static constexpr __host__ __device__ f2_t one() { return f2_t(1); }
-   static constexpr __host__ __device__ f2_t zero() { return f2_t(0); }
-}
-
 
 template <size_t HEIGHT>
 class FanPaarTowerField;
@@ -269,6 +260,60 @@ public:
 	static inline __host__ __device__ uint32_t inverse(uint32_t a) { return a & 1; }
 
 	static inline __host__ __device__ uint32_t multiply_alpha(uint32_t a) { return a & 1; }
+};
+
+
+
+template <size_t HEIGHT>
+class f2_t {
+	static_assert(HEIGHT <= 5, "Height cannnot be larger than 5");
+  public:
+	uint32_t val;
+
+    
+	static __host__ __device__ f2_t from_inner(const uint32_t a) { 
+		f2_t ret;
+		ret.val = a;
+		return ret;
+	}
+
+   __host__ __device__ bool is_valid(uint32_t a) { return FanPaarTowerField<HEIGHT>::is_valid(a); }
+
+   static constexpr __host__ __device__ uint32_t N_BITS() { return HEIGHTTOBIT(HEIGHT); }
+
+	__host__ __device__ f2_t operator+(const f2_t& other) const {
+		f2_t result;
+		result.val = FanPaarTowerField<HEIGHT>::add(this->val, other.val);
+		return result;
+	}
+
+	__host__ __device__ f2_t operator*(const f2_t& other) const {
+		f2_t result;
+		result.val = FanPaarTowerField<HEIGHT>::multiply(this->val, other.val);
+		return result;
+	}
+
+	__host__ __device__ f2_t& operator+=(const f2_t& other) {
+		this->val = FanPaarTowerField<HEIGHT>::add(this->val, other.val);
+		return *this;
+	}
+
+	__host__ __device__ f2_t& operator*=(const f2_t& other) {
+		this->val = FanPaarTowerField<HEIGHT>::multiply(this->val, other.val);
+		return *this;
+	}
+
+	__host__ __device__ f2_t operator-() const {
+		// In this field, negation is the same as the value itself
+		return *this;
+	}
+
+	__host__ __device__ f2_t inverse() const {
+		f2_t result;
+		result.val = FanPaarTowerField<HEIGHT>::inverse(this->val);
+		return result;
+	}
+
 };
 
 #undef BITMASK
