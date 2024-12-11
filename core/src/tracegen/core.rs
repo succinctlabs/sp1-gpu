@@ -547,6 +547,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
 //             .map(|_| GlobalInteractionEvent {
 //                 message: [rng.gen_range(0..10000); 7],
 //                 is_receive: false,
+//                 kind: 1,
 //             })
 //             .collect::<Vec<_>>();
 

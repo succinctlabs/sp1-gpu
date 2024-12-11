@@ -164,6 +164,7 @@ __global__ void core_global_generate_trace_decompress_kernel(
                 cols.message[k] = bb31_t::from_canonical_u32(events[i].message[k]);
             }
             cols.is_receive = bb31_t::from_bool(events[i].is_receive);
+            cols.kind = bb31_t::from_canonical_u8(events[i].kind);
             cols.is_send = bb31_t::one() - bb31_t::from_bool(events[i].is_receive);
             cols.is_real = bb31_t::one();
 
