@@ -438,9 +438,9 @@ where
         self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
-            traces: Box::new(traces),
+            traces: tracing::debug_span!("box traces").in_scope(|| Box::new(traces)),
             main_commit: commit,
-            main_data: Box::new(data),
+            main_data: tracing::debug_span!("box data").in_scope(|| Box::new(data)),
             chip_ordering,
             public_values: Box::new(
                 tracing::debug_span!("compute public values").in_scope(|| shard.public_values()),
