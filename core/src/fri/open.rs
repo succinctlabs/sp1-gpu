@@ -84,7 +84,8 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
             .in_scope(|| commit_phase(committer, input, log_max_height, challenger));
 
         let pow_witness = tracing::debug_span!("pow witness")
-            .in_scope(|| challenger.grind_device(config.proof_of_work_bits));
+            .in_scope(|| challenger.grind_device(config.proof_of_work_bits, main_stream));
+        main_stream.synchronize().unwrap();
 
         let query_indices: Vec<usize> =
             (0..config.num_queries).map(|_| challenger.sample_bits(log_max_height)).collect();
@@ -157,6 +158,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
         let log_height = polynomial_batch.height().ilog2() as usize;
         let domain_generator = BabyBear::two_adic_generator(log_height);
         let width = polynomial_batch.width();
+        reduced_openings.stream().synchronize().unwrap();
         unsafe {
             opening_gpu::batch_fri_update(
                 reduced_openings.as_mut_ptr(),
@@ -172,6 +174,7 @@ impl<SC: BabyBearFriConfig> FriOpeningProver<SC> {
                 polynomial_batch.stream().handle(),
             );
         }
+        polynomial_batch.stream().synchronize().unwrap();
         *batching_challenge_offset *= batching_challenge.exp_u64(width as u64);
     }
 }
@@ -470,8 +473,9 @@ where
         let temp = core::mem::replace(&mut leaves, ColMajorMatrixDevice::null());
         let stream = temp.stream().clone();
         let (commit, prover_data) = committer.mmcs_commit(vec![temp], &stream);
-        challenger.observe(commit.clone());
+        stream.synchronize().unwrap();
 
+        challenger.observe(commit.clone());
         let beta: SC::Challenge = challenger.sample();
 
         let injected_input = input.remove(&log_folded_height);

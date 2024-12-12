@@ -5,7 +5,7 @@ use sp1_recursion_core::stark::OuterChallenger;
 use sp1_stark::InnerChallenger;
 
 use crate::{
-    cuda_runtime::stream::CudaStreamHandle,
+    cuda_runtime::stream::{CudaStream, CudaStreamHandle},
     device::memory::{ToDevice, ToHost},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
@@ -15,17 +15,17 @@ use crate::{
 /// Useful for finding a proof-of-work witness on machines with not that many cores.
 pub trait DeviceGrindingChallenger: GrindingChallenger {
     /// Grinds on device.
-    fn grind_device(&mut self, bits: usize) -> Self::Witness;
+    fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness;
 }
 
 impl DeviceGrindingChallenger for InnerChallenger {
-    fn grind_device(&mut self, bits: usize) -> Self::Witness {
+    fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness {
         // Initialize the result and move it to the device.
         let result = vec![BabyBear::zero()];
-        let mut result_d = result.to_device().unwrap();
+        let mut result_d = result.to_device_async(stream).unwrap();
 
         // Move the challenger state to device.
-        let mut sponge_d = self.sponge_state.to_device().unwrap();
+        let mut sponge_d = self.sponge_state.to_device_async(stream).unwrap();
         let input_array: [BabyBear; RATE] = std::array::from_fn(|i| {
             if i < self.input_buffer.len() {
                 self.input_buffer[i]
@@ -33,7 +33,7 @@ impl DeviceGrindingChallenger for InnerChallenger {
                 BabyBear::zero()
             }
         });
-        let input_d = input_array.to_device().unwrap();
+        let input_d = input_array.to_device_async(stream).unwrap();
         let output_array: [BabyBear; WIDTH] = std::array::from_fn(|i| {
             if i < self.output_buffer.len() {
                 self.output_buffer[i]
@@ -41,7 +41,7 @@ impl DeviceGrindingChallenger for InnerChallenger {
                 BabyBear::zero()
             }
         });
-        let output_d = output_array.to_device().unwrap();
+        let output_d = output_array.to_device_async(stream).unwrap();
 
         // Grind on device.
         unsafe {
@@ -73,7 +73,7 @@ impl DeviceGrindingChallenger for InnerChallenger {
 
 /// The implementation for the OuterChallenger is identical to its underlying host implementation.
 impl DeviceGrindingChallenger for OuterChallenger {
-    fn grind_device(&mut self, bits: usize) -> Self::Witness {
+    fn grind_device(&mut self, bits: usize, _stream: &CudaStream) -> Self::Witness {
         self.grind(bits)
     }
 }
@@ -103,12 +103,16 @@ mod tests {
     use p3_field::AbstractField;
     use sp1_stark::{inner_perm, InnerChallenger};
 
-    use crate::challenger::grinding_challenger::DeviceGrindingChallenger;
+    use crate::{
+        challenger::grinding_challenger::DeviceGrindingChallenger, cuda_runtime::stream::CudaStream,
+    };
 
     #[test]
     fn test_grinding() {
         (1..20).for_each(|bits| {
             let mut challenger = InnerChallenger::new(inner_perm());
+
+            let stream = CudaStream::default();
 
             // Observe 7 elements to make the input buffer almost full and trigger duplexing on
             // device.
@@ -127,12 +131,12 @@ mod tests {
             // Clone the original challenger because after grinding on device the internal state
             // of `challenger` will change.
             let mut original_challenger = challenger.clone();
-            let result = challenger.grind_device(bits);
+            let result = challenger.grind_device(bits, &stream);
 
             assert!(original_challenger.check_witness(bits, result));
 
             let mut original_challenger_2 = challenger_2.clone();
-            let result_2 = challenger_2.grind_device(bits);
+            let result_2 = challenger_2.grind_device(bits, &stream);
 
             assert!(original_challenger_2.check_witness(bits, result_2));
 

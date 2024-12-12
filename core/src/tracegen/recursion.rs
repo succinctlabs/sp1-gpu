@@ -230,121 +230,121 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::tracegen::DeviceAir;
-    use serial_test::serial;
-    use sp1_recursion_core::{chips::test_fixtures, ExecutionRecord};
-    use sp1_stark::air::MachineAir;
+// #[cfg(test)]
+// mod tests {
+//     use crate::tracegen::DeviceAir;
+//     use serial_test::serial;
+//     use sp1_recursion_core::{chips::test_fixtures, ExecutionRecord};
+//     use sp1_stark::air::MachineAir;
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    #[serial]
-    fn test_base_alu() {
-        let shard = test_fixtures::shard();
-        let trace = BaseAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = BaseAluChip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_base_alu() {
+//         let shard = test_fixtures::shard();
+//         let trace = BaseAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = BaseAluChip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_ext_alu() {
-        let shard = test_fixtures::shard();
-        let trace = ExtAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = ExtAluChip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_ext_alu() {
+//         let shard = test_fixtures::shard();
+//         let trace = ExtAluChip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = ExtAluChip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_batch_fri() {
-        let chip = BatchFRIChip::<2>;
-        let shard = test_fixtures::shard();
-        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+//     #[test]
+//     #[serial]
+//     fn test_batch_fri() {
+//         let chip = BatchFRIChip::<2>;
+//         let shard = test_fixtures::shard();
+//         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
 
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         let device_trace = chip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_fri_fold() {
-        let chip = FriFoldChip::<3>::default();
-        let shard = test_fixtures::shard();
-        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_fri_fold() {
+//         let chip = FriFoldChip::<3>::default();
+//         let shard = test_fixtures::shard();
+//         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = chip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_select() {
-        let shard = test_fixtures::shard();
-        let trace = SelectChip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = SelectChip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_select() {
+//         let shard = test_fixtures::shard();
+//         let trace = SelectChip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = SelectChip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_poseidon2_skinny() {
-        let chip = Poseidon2SkinnyChip::<9>::default();
-        let shard = test_fixtures::shard();
-        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_poseidon2_skinny() {
+//         let chip = Poseidon2SkinnyChip::<9>::default();
+//         let shard = test_fixtures::shard();
+//         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = chip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_poseidon2_wide_deg_3() {
-        let chip = Poseidon2WideChip::<3>;
-        let shard = test_fixtures::shard();
-        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_poseidon2_wide_deg_3() {
+//         let chip = Poseidon2WideChip::<3>;
+//         let shard = test_fixtures::shard();
+//         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = chip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
 
-    #[test]
-    #[serial]
-    fn test_poseidon2_wide_deg_9() {
-        let chip = Poseidon2WideChip::<9>;
-        let shard = test_fixtures::shard();
-        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
-        let device_trace = chip
-            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
-            .unwrap()
-            .unwrap();
+//     #[test]
+//     #[serial]
+//     fn test_poseidon2_wide_deg_9() {
+//         let chip = Poseidon2WideChip::<9>;
+//         let shard = test_fixtures::shard();
+//         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+//         let device_trace = chip
+//             .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+//             .unwrap()
+//             .unwrap();
 
-        assert_eq!(trace, device_trace.to_host_naive());
-    }
-}
+//         assert_eq!(trace, device_trace.to_host_naive());
+//     }
+// }

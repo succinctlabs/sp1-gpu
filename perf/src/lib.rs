@@ -69,6 +69,10 @@ pub fn make_measurement<C: SP1ProverComponents>(
 
     let deferred_proofs = stdin.proofs.iter().map(|(proof, _)| proof.clone()).collect::<Vec<_>>();
     tracing::info!("compress");
+
+    let core_proof_bytes = bincode::serialize(&core_proof).unwrap();
+    std::fs::write("core_proof.bin", &core_proof_bytes).unwrap();
+
     let time = std::time::Instant::now();
     let compressed_proof = prover.compress(&vk, core_proof, deferred_proofs, opts).unwrap();
     let compress_time = time.elapsed();
