@@ -897,7 +897,7 @@ dependencies = [
  "serde_urlencoded",
  "sync_wrapper 1.0.2",
  "tokio",
- "tower 0.5.1",
+ "tower 0.5.2",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -1139,9 +1139,9 @@ dependencies = [
 
 [[package]]
 name = "bstr"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a68f1f47cdf0ec8ee4b941b2eee2a80cb796db73118c0dd09ac63fbe405be22"
+checksum = "786a307d683a5bf92e6fd5fd69a7eb613751668d1d8d67d802846dfe367c62c8"
 dependencies = [
  "memchr",
  "serde",
@@ -2750,7 +2750,7 @@ dependencies = [
  "http 1.2.0",
  "hyper 1.5.1",
  "hyper-util",
- "rustls 0.23.19",
+ "rustls 0.23.20",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
@@ -4623,7 +4623,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash 2.1.0",
- "rustls 0.23.19",
+ "rustls 0.23.20",
  "socket2",
  "thiserror 2.0.6",
  "tokio",
@@ -4641,7 +4641,7 @@ dependencies = [
  "rand 0.8.5",
  "ring 0.17.8",
  "rustc-hash 2.1.0",
- "rustls 0.23.19",
+ "rustls 0.23.20",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.6",
@@ -4791,9 +4791,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b6dfecf2c74bce2466cabf93f6664d6998a69eb21e39f4207930065b27b771f"
+checksum = "03a862b389f93e68874fbf580b9de08dd02facb9a788ebadaf4a3fd33cf58834"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -4881,7 +4881,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.19",
+ "rustls 0.23.20",
  "rustls-pemfile",
  "rustls-pki-types",
  "serde",
@@ -5088,9 +5088,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.19"
+version = "0.23.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "934b404430bb06b3fae2cba809eb45a1ab1aecd64491213d7c3301b88393f8d1"
+checksum = "5065c3f250cbd332cd894be57c40fa52387247659b14a2d6041d121547903b1b"
 dependencies = [
  "once_cell",
  "ring 0.17.8",
@@ -5605,7 +5605,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5617,7 +5617,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5655,7 +5655,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5711,7 +5711,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5727,7 +5727,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5749,7 +5749,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5758,7 +5758,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5777,7 +5777,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "bincode",
  "hex",
@@ -5794,7 +5794,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5834,7 +5834,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5867,7 +5867,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5888,7 +5888,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5929,7 +5929,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5938,7 +5938,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5963,7 +5963,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -6005,7 +6005,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6343,7 +6343,7 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#c160712cc9ff98f62339ff2262a41a3d1524ce28"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#57eb65a884ed8334c8d0a26310889fc704408722"
 dependencies = [
  "sp1-build",
 ]
@@ -6567,7 +6567,7 @@ version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f6d0975eaace0cf0fcadee4e4aaa5da15b5c079146f2cffb67c113be122bf37"
 dependencies = [
- "rustls 0.23.19",
+ "rustls 0.23.20",
  "tokio",
 ]
 
@@ -6689,14 +6689,14 @@ dependencies = [
 
 [[package]]
 name = "tower"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2873938d487c3cfb9aed7546dc9f2711d867c9f90c46b889989a2cb84eba6b4f"
+checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
 dependencies = [
  "futures-core",
  "futures-util",
  "pin-project-lite",
- "sync_wrapper 0.1.2",
+ "sync_wrapper 1.0.2",
  "tokio",
  "tower-layer",
  "tower-service",
@@ -6891,7 +6891,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
- "tower 0.5.1",
+ "tower 0.5.2",
  "url",
 ]
 
