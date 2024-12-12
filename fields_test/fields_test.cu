@@ -72,14 +72,14 @@ __global__ void binaryMultiplicationBitSliced(uint32_t *out, uint32_t *a, uint32
         y[i] = a[i];
     }
 
-    #pragma unroll 
+    #pragma unroll 1 
     for (int i = 0; i < NUM_ITERATIONS; i++) {
-        BitsliceUtils<WIDTH>::bitslice_transpose(y);
-	    BitsliceUtils<WIDTH>::bitslice_transpose(x);
+        // BitsliceUtils<WIDTH>::bitslice_transpose(y);
+	    // BitsliceUtils<WIDTH>::bitslice_transpose(x);
 
         multiply_unrolled<POWER_HEIGHT>(y, x, x);
 
-        BitsliceUtils<WIDTH>::bitslice_untranspose(x);
+        // BitsliceUtils<WIDTH>::bitslice_untranspose(x);
 
         asm volatile("");
     }
@@ -146,8 +146,7 @@ void run_benchmark(void (*opKernel)(E *out, T a, E b), T a, E b) {
 
 template<int NUM_ITERATIONS, int POWER_HEIGHT, int NUM_WORDS>
 void run_benchmark_binary_bitsliced() {
-    static_assert(NUM_WORDS < (1 << POWER_HEIGHT));
-    static_assert(POWER_HEIGHT == 5 || POWER_HEIGHT == 7);
+    static_assert(NUM_WORDS <= (1 << POWER_HEIGHT));
     const int NUM_ELEMENTS =  NUM_WORDS;
         // GPU parameters
     int threadsPerBlock = 256;
@@ -228,34 +227,34 @@ int main() {
 
     const int NUM_ITERATIONS = 1000000;
 
-    // // Get a baseiine by testing the number of FLOP multiplications
-    // std::cout << "Testing floating point multiplications..." << std::endl;
-    // float a_fp32 = 2;
-    // float b_fp32 = 1;
-    // run_benchmark<float, float, NUM_ITERATIONS>(mulKernel<float, float, NUM_ITERATIONS>, a_fp32, b_fp32);
-    // std::cout << "----------------------------------------" << std::endl;
+    // Get a baseiine by testing the number of FLOP multiplications
+    std::cout << "Testing floating point multiplications..." << std::endl;
+    float a_fp32 = 2;
+    float b_fp32 = 1;
+    run_benchmark<float, float, NUM_ITERATIONS>(mulKernel<float, float, NUM_ITERATIONS>, a_fp32, b_fp32);
+    std::cout << "----------------------------------------" << std::endl;
 
-    // std::cout << "Testing integer additions..." << std::endl;
-    // uint32_t a_uint32_add = rand();
-    // uint32_t b_uint32_add = rand();
-    // run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(addKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_add, b_uint32_add);
-    // std::cout << "----------------------------------------" << std::endl;
-    // std::cout << "Testing integer multiplications..." << std::endl;
-    // uint32_t a_uint32_mul = rand();
-    // uint32_t b_uint32_mul = rand();
-    // run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(mulKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_mul, b_uint32_mul);
-    // std::cout << "----------------------------------------" << std::endl;
-    // std::cout << "Testing 64-bit integer multiplications..." << std::endl;
-    // uint64_t a_uint64 = rand();
-    // uint64_t b_uint64 = rand();
-    // run_benchmark<uint64_t, uint64_t, NUM_ITERATIONS>(mulKernel<uint64_t, uint64_t, NUM_ITERATIONS>, a_uint64, b_uint64);
-    // std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing integer additions..." << std::endl;
+    uint32_t a_uint32_add = rand();
+    uint32_t b_uint32_add = rand();
+    run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(addKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_add, b_uint32_add);
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing integer multiplications..." << std::endl;
+    uint32_t a_uint32_mul = rand();
+    uint32_t b_uint32_mul = rand();
+    run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(mulKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_mul, b_uint32_mul);
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing 64-bit integer multiplications..." << std::endl;
+    uint64_t a_uint64 = rand();
+    uint64_t b_uint64 = rand();
+    run_benchmark<uint64_t, uint64_t, NUM_ITERATIONS>(mulKernel<uint64_t, uint64_t, NUM_ITERATIONS>, a_uint64, b_uint64);
+    std::cout << "----------------------------------------" << std::endl;
     
-    // std::cout << "Testing BB31 additions..." << std::endl;
-    // bb31_t a_bb31_add = bb31_t((int)rand());
-    // bb31_t b_bb31_add = bb31_t((int)rand());
-    // run_benchmark<bb31_t, bb31_t, NUM_ITERATIONS>(addKernel<bb31_t, bb31_t, NUM_ITERATIONS>, a_bb31_add, b_bb31_add);
-    // std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing BB31 additions..." << std::endl;
+    bb31_t a_bb31_add = bb31_t((int)rand());
+    bb31_t b_bb31_add = bb31_t((int)rand());
+    run_benchmark<bb31_t, bb31_t, NUM_ITERATIONS>(addKernel<bb31_t, bb31_t, NUM_ITERATIONS>, a_bb31_add, b_bb31_add);
+    std::cout << "----------------------------------------" << std::endl;
 
     std::cout << "Testing BB31 multiplications..." << std::endl;
     bb31_t a_bb31_mul = bb31_t((int)rand());
@@ -263,28 +262,28 @@ int main() {
     run_benchmark<bb31_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_t, bb31_t, NUM_ITERATIONS>, a_bb31_mul, b_bb31_mul);
     std::cout << "----------------------------------------" << std::endl;
 
-    // std::cout << "Testing BB31 extension additions..." << std::endl;
-    // bb31_t values[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
-    // bb31_extension_t a_bb31_extension_add = bb31_extension_t(values);
-    // bb31_t values2[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
-    // bb31_extension_t b_bb31_extension_add = bb31_extension_t(values2);
-    // run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(addKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_add, b_bb31_extension_add);
-    // std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing BB31 extension additions..." << std::endl;
+    bb31_t values[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t a_bb31_extension_add = bb31_extension_t(values);
+    bb31_t values2[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t b_bb31_extension_add = bb31_extension_t(values2);
+    run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(addKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_add, b_bb31_extension_add);
+    std::cout << "----------------------------------------" << std::endl;
 
-    // std::cout << "Testing BB31 extension multiplications..." << std::endl;
-    // bb31_t values3[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
-    // bb31_extension_t a_bb31_extension_mul = bb31_extension_t(values3);
-    // bb31_t values4[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
-    // bb31_extension_t b_bb31_extension_mul = bb31_extension_t(values4);
-    // run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_mul, b_bb31_extension_mul);
-    // std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing BB31 extension multiplications..." << std::endl;
+    bb31_t values3[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t a_bb31_extension_mul = bb31_extension_t(values3);
+    bb31_t values4[4] = {bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand()), bb31_t((int)rand())};
+    bb31_extension_t b_bb31_extension_mul = bb31_extension_t(values4);
+    run_benchmark<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_extension_t, NUM_ITERATIONS>, a_bb31_extension_mul, b_bb31_extension_mul);
+    std::cout << "----------------------------------------" << std::endl;
 
 
-    // std::cout << "Testing BB31 base-extension multiplications..." << std::endl;
-    // bb31_t a_bb31_base_mul = bb31_t((int)rand());
-    // bb31_extension_t b_bb31_base_mul = bb31_extension_t(values4);
-    // run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
-    // std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Testing BB31 base-extension multiplications..." << std::endl;
+    bb31_t a_bb31_base_mul = bb31_t((int)rand());
+    bb31_extension_t b_bb31_base_mul = bb31_extension_t(values4);
+    run_benchmark<bb31_extension_t, bb31_t, NUM_ITERATIONS>(mulKernel<bb31_extension_t, bb31_t, NUM_ITERATIONS>, a_bb31_base_mul, b_bb31_base_mul);
+    std::cout << "----------------------------------------" << std::endl;
 
 
     std::cout << "Testing f2_t<5> additions..." << std::endl;
@@ -293,33 +292,33 @@ int main() {
     run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(addKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_add, b_fp25_add);
     std::cout << "----------------------------------------" << std::endl;
 
-    // std::cout << "Testing f2_t<5> multiplications..." << std::endl;
-    // f2_t<5> a_fp25_mul = f2_t<5>::from_inner(rand());
-    // f2_t<5> b_fp25_mul = f2_t<5>::from_inner(rand());
-    // run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(mulKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_mul, b_fp25_mul);
-    // std::cout << "----------------------------------------" << std::endl;
-
-
-    // std::cout << "Testing f2_t<0> multiplications..." << std::endl;
-    // f2_t<0> a_fp20_mul = f2_t<0>::from_inner(rand());
-    // f2_t<0> b_fp20_mul = f2_t<0>::from_inner(rand());
-    // run_benchmark<f2_t<0>, f2_t<0>, NUM_ITERATIONS>(mulKernel<f2_t<0>, f2_t<0>, NUM_ITERATIONS>, a_fp20_mul, b_fp20_mul);
-    // std::cout << "----------------------------------------" << std::endl;
-
-
-    // std::cout << "Testing binary base-extension multiplications..." << std::endl;
-    // uint32_t a_binary_mul = rand();
-    // __uint128_t b_binary_mul = rand();
-    // run_benchmark<__uint128_t, uint32_t, NUM_ITERATIONS>(binaryBaseExtMultiplication<NUM_ITERATIONS>, a_binary_mul, b_binary_mul);
-    // std::cout << "----------------------------------------" << std::endl;
-
-    std::cout << "Testing binary bitsliced multiplications for 32-bit fields..." << std::endl;
-    run_benchmark_binary_bitsliced<NUM_ITERATIONS, 5, 4>();
+    std::cout << "Testing f2_t<5> multiplications..." << std::endl;
+    f2_t<5> a_fp25_mul = f2_t<5>::from_inner(rand());
+    f2_t<5> b_fp25_mul = f2_t<5>::from_inner(rand());
+    run_benchmark<f2_t<5>, f2_t<5>, NUM_ITERATIONS>(mulKernel<f2_t<5>, f2_t<5>, NUM_ITERATIONS>, a_fp25_mul, b_fp25_mul);
     std::cout << "----------------------------------------" << std::endl;
 
-    // std::cout << "Testing binary bitsliced multiplications for 128-bit fields..." << std::endl;
-    // run_benchmark_binary_bitsliced<NUM_ITERATIONS, 7, 16>();
-    // std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing f2_t<0> multiplications..." << std::endl;
+    f2_t<0> a_fp20_mul = f2_t<0>::from_inner(rand());
+    f2_t<0> b_fp20_mul = f2_t<0>::from_inner(rand());
+    run_benchmark<f2_t<0>, f2_t<0>, NUM_ITERATIONS>(mulKernel<f2_t<0>, f2_t<0>, NUM_ITERATIONS>, a_fp20_mul, b_fp20_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+
+    std::cout << "Testing binary base-extension multiplications..." << std::endl;
+    uint32_t a_binary_mul = rand();
+    __uint128_t b_binary_mul = rand();
+    run_benchmark<__uint128_t, uint32_t, NUM_ITERATIONS>(binaryBaseExtMultiplication<NUM_ITERATIONS>, a_binary_mul, b_binary_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing binary bitsliced multiplications for 32-bit fields..." << std::endl;
+    run_benchmark_binary_bitsliced<NUM_ITERATIONS, 5, 6>();
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing binary bitsliced multiplications for 128-bit fields..." << std::endl;
+    run_benchmark_binary_bitsliced<NUM_ITERATIONS, 7, 16>();
+    std::cout << "----------------------------------------" << std::endl;
 
     return 0;
 }
