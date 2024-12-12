@@ -355,7 +355,8 @@ where
         trace_jobs.sort_by_key(|job| (Reverse(job.height()), job.name()));
 
         // Get the chip ordering.
-        let chip_ordering = trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect();
+        let chip_ordering =
+            Box::new(trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect());
 
         // Get the domains.
         let config = self.machine.config();
@@ -439,7 +440,7 @@ where
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces: tracing::debug_span!("box traces").in_scope(|| Box::new(traces)),
-            main_commit: commit,
+            main_commit: Box::new(commit),
             main_data: tracing::debug_span!("box data").in_scope(|| Box::new(data)),
             chip_ordering,
             public_values: Box::new(
@@ -681,7 +682,7 @@ where
             // Observe the main commitment.
             challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
             self.main_stream.synchronize().unwrap();
-            challenger.observe(main_commit.clone());
+            challenger.observe(*main_commit.clone());
 
             setup_span.exit();
 
@@ -1193,10 +1194,14 @@ where
             compute_evaluations_span.exit();
 
             Ok(ShardProof::<SC> {
-                commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
+                commitment: ShardCommitment {
+                    main_commit: *main_commit,
+                    permutation_commit,
+                    quotient_commit,
+                },
                 opened_values: ShardOpenedValues { chips: opened_values },
                 opening_proof,
-                chip_ordering,
+                chip_ordering: *chip_ordering,
                 public_values: *public_values,
             })
         };
