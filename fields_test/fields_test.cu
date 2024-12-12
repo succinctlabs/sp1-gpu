@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include "bb31_t.cuh"
+#include "m31.cuh"
 #include "bb31_extension_t.cuh"
 #include "binary/binary_tower.cuh"
 #include "../binius-gpu-main/src/ulvt/finite_fields/circuit_generator/unrolled/binary_tower_unrolled.cuh"
@@ -239,11 +240,20 @@ int main() {
     uint32_t b_uint32_add = rand();
     run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(addKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_add, b_uint32_add);
     std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing signed integer multiplications..." << std::endl;
+    int32_t a_int32_mul = rand();
+    int32_t b_int32_mul = rand();
+    run_benchmark<int32_t, int32_t, NUM_ITERATIONS>(mulKernel<int32_t, int32_t, NUM_ITERATIONS>, a_int32_mul, b_int32_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
+
     std::cout << "Testing integer multiplications..." << std::endl;
     uint32_t a_uint32_mul = rand();
     uint32_t b_uint32_mul = rand();
     run_benchmark<uint32_t, uint32_t, NUM_ITERATIONS>(mulKernel<uint32_t, uint32_t, NUM_ITERATIONS>, a_uint32_mul, b_uint32_mul);
     std::cout << "----------------------------------------" << std::endl;
+
     std::cout << "Testing 64-bit integer multiplications..." << std::endl;
     uint64_t a_uint64 = rand();
     uint64_t b_uint64 = rand();
