@@ -438,12 +438,13 @@ where
         self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
-            traces,
+            traces: Box::new(traces),
             main_commit: commit,
-            main_data: data,
+            main_data: Box::new(data),
             chip_ordering,
-            public_values: tracing::debug_span!("compute public values")
-                .in_scope(|| shard.public_values()),
+            public_values: Box::new(
+                tracing::debug_span!("compute public values").in_scope(|| shard.public_values()),
+            ),
         })
     }
 
@@ -1196,7 +1197,7 @@ where
                 opened_values: ShardOpenedValues { chips: opened_values },
                 opening_proof,
                 chip_ordering,
-                public_values,
+                public_values: *public_values,
             })
         };
 
