@@ -239,7 +239,11 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
+        // let blacklist = [33, 144, 155, 158, 195];
         for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
+            // if i <= *blacklist.last().unwrap() {
+            //     continue;
+            // }
             println!("finished shape: id={}, shape={:?}", i, shape);
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }

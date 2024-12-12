@@ -24,6 +24,13 @@ use twirp::{
     internal, Router,
 };
 
+#[cfg(not(target_env = "msvc"))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 struct MoongateProverServer {
     prover: Arc<Mutex<Option<SP1Prover<GpuProverComponents>>>>,
     pk: Arc<Mutex<Option<DeviceProvingKey<GpuProverComponents>>>>,
