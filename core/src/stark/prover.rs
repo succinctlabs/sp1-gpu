@@ -342,21 +342,24 @@ where
         // Get the chips that need to be used for this shard.
         let chips = self.shard_chips(shard).collect::<Vec<_>>();
 
+        let arena = bumpalo::Bump::new();
+
         // Create the trace jobs.
-        let mut trace_jobs: Vec<TraceGenerationJob<'_, SC, A>> = named_traces
-            .into_iter()
-            .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
-            .chain(chips.into_iter().filter_map(|chip| {
-                Some(TraceGenerationJob::Device(chip, chip.air.num_rows_device(shard)?))
-            }))
-            .collect();
+        let trace_jobs: &mut Vec<TraceGenerationJob<'_, SC, A>> = arena.alloc(
+            named_traces
+                .into_iter()
+                .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
+                .chain(chips.into_iter().filter_map(|chip| {
+                    Some(TraceGenerationJob::Device(chip, chip.air.num_rows_device(shard)?))
+                }))
+                .collect(),
+        );
 
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
         trace_jobs.sort_by_key(|job| (Reverse(job.height()), job.name()));
 
         // Get the chip ordering.
-        let chip_ordering =
-            Box::new(trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect());
+        let chip_ordering = trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect();
 
         // Get the domains.
         let config = self.machine.config();
@@ -368,20 +371,24 @@ where
         let span = tracing::Span::current();
         let _span = span.enter();
 
-        let chip_streams = trace_jobs
-            .iter()
-            .map(|job| self.chip_streams.get(&job.name()).unwrap())
-            .collect::<Vec<_>>();
-        let events = trace_jobs
-            .iter()
-            .map(|job| {
-                self.events
-                    .global_main
-                    .get(&job.name())
-                    .unwrap_or_else(|| self.events.local_main.get(&job.name()).unwrap())
-                    .clone()
-            })
-            .collect::<Vec<_>>();
+        let chip_streams = arena.alloc(
+            trace_jobs
+                .iter()
+                .map(|job| self.chip_streams.get(&job.name()).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        let events = arena.alloc(
+            trace_jobs
+                .iter()
+                .map(|job| {
+                    self.events
+                        .global_main
+                        .get(&job.name())
+                        .unwrap_or_else(|| self.events.local_main.get(&job.name()).unwrap())
+                        .clone()
+                })
+                .collect::<Vec<_>>(),
+        );
 
         let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
             .in_scope(|| {
@@ -428,7 +435,7 @@ where
             .copied()
             .zip(traces.iter())
             .zip(events)
-            .map(|((domain, trace), event)| (domain, trace, event))
+            .map(|((domain, trace), event)| (domain, trace, event.clone()))
             .collect::<Vec<_>>();
         let (commit, data) = tracing::debug_span!("commit")
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
@@ -439,13 +446,12 @@ where
         self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
-            traces: tracing::debug_span!("box traces").in_scope(|| Box::new(traces)),
-            main_commit: Box::new(commit),
-            main_data: tracing::debug_span!("box data").in_scope(|| Box::new(data)),
+            traces,
+            main_commit: commit,
+            main_data: data,
             chip_ordering,
-            public_values: Box::new(
-                tracing::debug_span!("compute public values").in_scope(|| shard.public_values()),
-            ),
+            public_values: tracing::debug_span!("compute public values")
+                .in_scope(|| shard.public_values()),
         })
     }
 
@@ -682,7 +688,7 @@ where
             // Observe the main commitment.
             challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
             self.main_stream.synchronize().unwrap();
-            challenger.observe(*main_commit.clone());
+            challenger.observe(main_commit.clone());
 
             setup_span.exit();
 
@@ -1194,15 +1200,11 @@ where
             compute_evaluations_span.exit();
 
             Ok(ShardProof::<SC> {
-                commitment: ShardCommitment {
-                    main_commit: *main_commit,
-                    permutation_commit,
-                    quotient_commit,
-                },
+                commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
                 opened_values: ShardOpenedValues { chips: opened_values },
                 opening_proof,
-                chip_ordering: *chip_ordering,
-                public_values: *public_values,
+                chip_ordering,
+                public_values,
             })
         };
 
