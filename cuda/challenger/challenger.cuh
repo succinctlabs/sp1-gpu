@@ -197,7 +197,7 @@ __global__ void grind(
 extern "C" namespace grinding_challenger_gpu {
     using namespace duplex_challenger;
 
-    extern "C" void grind_baby_bear(
+    extern "C" RustCudaError grind_baby_bear(
         bb31_t * input_buffer,
         bb31_t * sponge_state,
         bb31_t * output_buffer,
@@ -211,8 +211,8 @@ extern "C" namespace grinding_challenger_gpu {
     ) {
         // Allocate an atomic flag to signal when a solution is found.
         int* d_found_flag;
-        cudaMallocAsync(&d_found_flag, sizeof(int), stream);
-        cudaMemsetAsync(d_found_flag, 0, sizeof(int), stream);
+        CUDA_OK(cudaMallocAsync(&d_found_flag, sizeof(int), stream));
+        CUDA_OK(cudaMemsetAsync(d_found_flag, 0, sizeof(int), stream));
 
         duplex_challenger::grind<<<1, nThreadsPerBlock, 0, stream>>>(
             out,
@@ -225,6 +225,6 @@ extern "C" namespace grinding_challenger_gpu {
             bits,
             n
         );
-        cudaFreeAsync(d_found_flag, stream);
+        CUDA_OK(cudaFreeAsync(d_found_flag, stream));
     }
 }  // namespace grinding_challenger_gpu

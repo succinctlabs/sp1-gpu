@@ -6,7 +6,10 @@ use sp1_stark::InnerChallenger;
 
 use crate::{
     cuda_runtime::stream::{CudaStream, CudaStreamHandle},
-    device::memory::{ToDevice, ToHost},
+    device::{
+        error::CudaRustError,
+        memory::{ToDevice, ToHost},
+    },
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::{RATE, WIDTH},
 };
 
@@ -57,7 +60,9 @@ impl DeviceGrindingChallenger for InnerChallenger {
                 result_d.as_mut_ptr(),
                 512,
                 input_d.stream().handle(),
-            );
+            )
+            .to_result()
+            .unwrap();
         }
 
         let result = result_d.to_host();
@@ -93,7 +98,7 @@ extern "C" {
         out: *mut BabyBear,
         nThreadsPerBlock: usize,
         stream: CudaStreamHandle,
-    );
+    ) -> CudaRustError;
 }
 
 #[cfg(test)]
