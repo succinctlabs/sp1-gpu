@@ -413,18 +413,20 @@ __global__ void recursion_mem_const_generate_preprocessed_trace_kernel(
         size_t start =
             (i % sp1_recursion_core_sys::NUM_CONST_MEM_ENTRIES_PER_ROW)
             * COLUMNS;
-        for (size_t j = 0; j < sp1_recursion_core_sys::D; ++j) {
+        size_t cursor = 0;
+        for (; cursor < sp1_recursion_core_sys::D; ++cursor) {
             trace.values
                 [(i / sp1_recursion_core_sys::NUM_CONST_MEM_ENTRIES_PER_ROW)
-                 + (j + start) * trace.height] = block._0[j];
+                 + (cursor + start) * trace.height] = block._0[cursor];
         }
 
-        const T* arr = reinterpret_cast<T*>(&cols);
-        for (size_t j = sp1_recursion_core_sys::D; j < COLUMNS; ++j) {
-            trace.values
-                [(i / sp1_recursion_core_sys::NUM_CONST_MEM_ENTRIES_PER_ROW)
-                 + (j + start) * trace.height] = arr[j];
-        }
+        trace.values
+            [(i / sp1_recursion_core_sys::NUM_CONST_MEM_ENTRIES_PER_ROW)
+             + (cursor + start) * trace.height] = cols.addr;
+        ++cursor;
+        trace.values
+            [(i / sp1_recursion_core_sys::NUM_CONST_MEM_ENTRIES_PER_ROW)
+             + (cursor + start) * trace.height] = cols.mult;
     }
 }
 

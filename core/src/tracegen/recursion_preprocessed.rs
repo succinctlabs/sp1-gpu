@@ -414,4 +414,17 @@ mod tests {
 
         assert_eq!(trace, device_trace.to_host_naive());
     }
+
+    #[test]
+    #[serial]
+    fn test_mem_const() {
+        let chip = MemoryConstChip::<BabyBear>::default();
+        let program = test_fixtures::program();
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 }
