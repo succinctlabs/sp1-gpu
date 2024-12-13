@@ -3440,7 +3440,6 @@ dependencies = [
  "hashbrown 0.14.5",
  "ignore",
  "itertools 0.13.0",
- "jemallocator",
  "lazy_static",
  "oneshot",
  "p3-air",
