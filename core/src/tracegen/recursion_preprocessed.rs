@@ -9,11 +9,14 @@ use sp1_recursion_core::{
     chips::{
         alu_base::BaseAluChip,
         alu_ext::ExtAluChip,
+        mem::MemoryVarChip,
         poseidon2_skinny::{Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
         select::SelectChip,
     },
+    instruction::{HintAddCurveInstr, HintBitsInstr, HintExt2FeltsInstr, HintInstr},
     runtime::Instruction,
+    Address,
 };
 use sp1_stark::air::MachineAir;
 
@@ -202,6 +205,60 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
         }
 
         Ok(Some(trace))
+    }
+}
+
+impl DevicePreprocessedAir<BabyBear> for MemoryVarChip<BabyBear> {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let (addresses, multipliers): (Vec<Address<BabyBear>>, Vec<BabyBear>) = program
+            .inner
+            .iter()
+            .flat_map(|instruction| match instruction {
+                Instruction::Hint(HintInstr { output_addrs_mults })
+                | Instruction::HintBits(HintBitsInstr { output_addrs_mults, input_addr: _ }) => {
+                    output_addrs_mults.iter().collect()
+                }
+                Instruction::HintExt2Felts(HintExt2FeltsInstr {
+                    output_addrs_mults,
+                    input_addr: _,
+                }) => output_addrs_mults.iter().collect(),
+                Instruction::HintAddCurve(instr) => {
+                    let HintAddCurveInstr { output_x_addrs_mults, output_y_addrs_mults, .. } =
+                        instr.as_ref();
+                    output_x_addrs_mults.iter().chain(output_y_addrs_mults.iter()).collect()
+                }
+                _ => vec![],
+            })
+            .map(|(addr, mult)| (addr, mult))
+            .unzip();
+
+        let instrs_len = addresses.len();
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs_len).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <MemoryVarChip<BabyBear> as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        let addresses = addresses.to_device_async(stream)?;
+        let multipliers = multipliers.to_device_async(stream)?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_mem_variable_generate_preprocessed_trace(
+                trace.view_mut(),
+                addresses.as_ptr(),
+                multipliers.as_ptr(),
+                instrs_len as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(None)
     }
 }
 
