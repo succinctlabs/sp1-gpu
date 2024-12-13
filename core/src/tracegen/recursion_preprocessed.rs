@@ -6,17 +6,18 @@ use crate::{
 };
 use p3_baby_bear::BabyBear;
 use sp1_recursion_core::{
+    air::Block,
     chips::{
         alu_base::BaseAluChip,
         alu_ext::ExtAluChip,
-        mem::MemoryVarChip,
+        mem::{MemoryAccessCols, MemoryAccessColsChips, MemoryConstChip, MemoryVarChip},
         poseidon2_skinny::{Poseidon2SkinnyChip, NUM_EXTERNAL_ROUNDS},
         poseidon2_wide::Poseidon2WideChip,
         select::SelectChip,
     },
     instruction::{HintAddCurveInstr, HintBitsInstr, HintExt2FeltsInstr, HintInstr},
     runtime::Instruction,
-    Address,
+    Address, MemAccessKind, MemInstr,
 };
 use sp1_stark::air::MachineAir;
 
@@ -253,6 +254,56 @@ impl DevicePreprocessedAir<BabyBear> for MemoryVarChip<BabyBear> {
                 trace.view_mut(),
                 addresses.as_ptr(),
                 multipliers.as_ptr(),
+                instrs_len as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
+impl DevicePreprocessedAir<BabyBear> for MemoryConstChip<BabyBear> {
+    fn generate_preprocessed_trace_device(
+        &self,
+        program: &Self::Program,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let (blocks, access_cols): (Vec<Block<BabyBear>>, Vec<MemoryAccessColsChips<BabyBear>>) =
+            program
+                .inner
+                .iter()
+                .filter_map(|instruction| match instruction {
+                    Instruction::Mem(MemInstr { addrs, vals, mult, kind }) => {
+                        let mult = mult.to_owned();
+                        let mult = match kind {
+                            MemAccessKind::Read => -mult,
+                            MemAccessKind::Write => mult,
+                        };
+
+                        Some((vals.inner, MemoryAccessCols { addr: addrs.inner, mult }))
+                    }
+                    _ => None,
+                })
+                .unzip();
+
+        let instrs_len = blocks.len();
+        let padded_nb_rows = self.preprocessed_num_rows(program, instrs_len).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <MemoryConstChip<BabyBear> as MachineAir<BabyBear>>::preprocessed_width(self),
+            padded_nb_rows,
+            stream,
+        )?;
+
+        let blocks = blocks.to_device_async(stream)?;
+        let access_cols = access_cols.to_device_async(stream)?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_mem_const_generate_preprocessed_trace(
+                trace.view_mut(),
+                blocks.as_ptr(),
+                access_cols.as_ptr(),
                 instrs_len as u32,
                 stream.handle(),
             );

@@ -6,11 +6,10 @@ use sp1_core_executor::events::GlobalInteractionEvent;
 use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_executor::events::SyscallEvent;
-use sp1_recursion_core::Address;
 use sp1_recursion_core::{
-    BaseAluEvent, BaseAluInstr, BatchFRIEvent, CommitPublicValuesEvent, CommitPublicValuesInstr,
-    ExtAluEvent, ExtAluInstr, FriFoldEvent, Poseidon2Event, Poseidon2SkinnyInstr, SelectEvent,
-    SelectInstr,
+    air::Block, chips::mem::MemoryAccessColsChips, Address, BaseAluEvent, BaseAluInstr,
+    BatchFRIEvent, CommitPublicValuesEvent, CommitPublicValuesInstr, ExtAluEvent, ExtAluInstr,
+    FriFoldEvent, Poseidon2Event, Poseidon2SkinnyInstr, SelectEvent, SelectInstr,
 };
 use sp1_stark::septic_curve::SepticCurve;
 
@@ -216,6 +215,14 @@ extern "C" {
         trace: MatrixViewMutDevice<BabyBear>,
         addrs: *const Address<BabyBear>,
         mults: *const BabyBear,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn recursion_mem_const_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        blocks: *const Block<BabyBear>,
+        access_cols: *const MemoryAccessColsChips<BabyBear>,
         nb_instructions: u32,
         stream: CudaStreamHandle,
     );
