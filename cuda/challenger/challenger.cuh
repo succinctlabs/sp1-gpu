@@ -211,8 +211,8 @@ extern "C" namespace grinding_challenger_gpu {
     ) {
         // Allocate an atomic flag to signal when a solution is found.
         int* d_found_flag;
-        cudaMalloc(&d_found_flag, sizeof(int));
-        cudaMemset(d_found_flag, 0, sizeof(int));
+        cudaMallocAsync(&d_found_flag, sizeof(int), stream);
+        cudaMemsetAsync(d_found_flag, 0, sizeof(int), stream);
 
         duplex_challenger::grind<<<1, nThreadsPerBlock, 0, stream>>>(
             out,
@@ -225,5 +225,6 @@ extern "C" namespace grinding_challenger_gpu {
             bits,
             n
         );
+        cudaFreeAsync(d_found_flag, stream);
     }
 }  // namespace grinding_challenger_gpu
