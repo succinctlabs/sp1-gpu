@@ -154,6 +154,29 @@ __global__ void grind(
     size_t original_input_buffer_size = input_buffer_size;
     size_t original_output_buffer_size = output_buffer_size;
 
+    // Declare shared memory for staging
+    __shared__ bb31_t s_input_buffer[RATE];
+    __shared__ bb31_t s_output_buffer[WIDTH];
+    __shared__ bb31_t s_sponge_state[WIDTH];
+    
+    // One thread (e.g., threadIdx.x == 0) per block copies the data from global to shared once
+    if (threadIdx.x == 0) {
+        for (size_t j = 0; j < original_input_buffer_size; j++) {
+            s_input_buffer[j] = input_buffer[j];
+        }
+        for (size_t j = 0; j < original_output_buffer_size; j++) {
+            s_output_buffer[j] = output_buffer[j];
+        }
+        for (size_t j = 0; j < WIDTH; j++) {
+            s_sponge_state[j] = sponge_state[j];
+        }
+    }
+
+    // Ensure all threads see the shared memory initialized
+    __syncthreads();
+
+
+    // Local copies for each thread in each iteration.
     bb31_t sponge_state_clone[WIDTH];
     bb31_t input_buffer_clone[RATE];
     bb31_t output_buffer_clone[WIDTH];
@@ -164,13 +187,13 @@ __global__ void grind(
         input_buffer_size = original_input_buffer_size;
         output_buffer_size = original_output_buffer_size;
         for (size_t j = 0; j < input_buffer_size; j++) {
-            input_buffer_clone[j] = input_buffer[j];
+            input_buffer_clone[j] = s_input_buffer[j];
         }
         for (size_t j = 0; j < output_buffer_size; j++) {
-            output_buffer_clone[j] = output_buffer[j];
+            output_buffer_clone[j] = s_output_buffer[j];
         }
         for (size_t j = 0; j < WIDTH; j++) {
-            sponge_state_clone[j] = sponge_state[j];
+            sponge_state_clone[j] = s_sponge_state[j];
         }
 
         bb31_t witness = bb31_t((int)i);
@@ -188,6 +211,8 @@ __global__ void grind(
 
             // Set the flag to 1 so that other threads can stop.
             atomicExch(found_flag, 1);
+            // Ensure that the flag is set before the return statement, so other threads can see it.
+            __threadfence();
             return;
         }
     }
