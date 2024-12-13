@@ -205,91 +205,91 @@ impl<const DEGREE: usize> DevicePreprocessedAir<BabyBear> for Poseidon2WideChip<
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use serial_test::serial;
-//     use sp1_recursion_core::chips::test_fixtures;
+#[cfg(test)]
+mod tests {
+    use serial_test::serial;
+    use sp1_recursion_core::chips::test_fixtures;
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     #[serial]
-//     fn test_base_alu() {
-//         let program = test_fixtures::program();
-//         let trace = BaseAluChip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = BaseAluChip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_base_alu() {
+        let program = test_fixtures::program();
+        let trace = BaseAluChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = BaseAluChip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 
-//     #[test]
-//     #[serial]
-//     fn test_ext_alu() {
-//         let program = test_fixtures::program();
-//         let trace = ExtAluChip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = ExtAluChip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_ext_alu() {
+        let program = test_fixtures::program();
+        let trace = ExtAluChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = ExtAluChip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 
-//     #[test]
-//     #[serial]
-//     fn test_select() {
-//         let program = test_fixtures::program();
-//         let trace = SelectChip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = SelectChip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_select() {
+        let program = test_fixtures::program();
+        let trace = SelectChip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = SelectChip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 
-//     #[test]
-//     #[serial]
-//     fn test_poseidon2_skinny() {
-//         let chip = Poseidon2SkinnyChip::<9>::default();
-//         let program = test_fixtures::program();
-//         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = chip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_poseidon2_skinny() {
+        let chip = Poseidon2SkinnyChip::<9>::default();
+        let program = test_fixtures::program();
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 
-//     #[test]
-//     #[serial]
-//     fn test_poseidon2_wide_deg_3() {
-//         let chip = Poseidon2WideChip::<3>;
-//         let program = test_fixtures::program();
-//         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = chip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_poseidon2_wide_deg_3() {
+        let chip = Poseidon2WideChip::<3>;
+        let program = test_fixtures::program();
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
 
-//     #[test]
-//     #[serial]
-//     fn test_poseidon2_wide_deg_9() {
-//         let chip = Poseidon2WideChip::<9>;
-//         let program = test_fixtures::program();
-//         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
-//         let device_trace = chip
-//             .generate_preprocessed_trace_device(&program, &CudaStream::default())
-//             .unwrap()
-//             .unwrap();
+    #[test]
+    #[serial]
+    fn test_poseidon2_wide_deg_9() {
+        let chip = Poseidon2WideChip::<9>;
+        let program = test_fixtures::program();
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
 
-//         assert_eq!(trace, device_trace.to_host_naive());
-//     }
-// }
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+}

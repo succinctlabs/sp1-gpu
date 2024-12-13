@@ -19,7 +19,7 @@ itertools = "0.13.0"
 sp1-core-executor = { workspace = true, features = ["programs"] }
 sp1-core-machine = { workspace = true, features = ["sys"] }
 sp1-stark = { workspace = true }
-sp1-recursion-core = { workspace = true, features = ["sys"] }
+sp1-recursion-core = { workspace = true, features = ["sys", "program_validation"] }
 p3-air = { workspace = true }
 air = { path = "../air" }
 p3-challenger = { workspace = true }
