@@ -6,6 +6,7 @@ use sp1_core_executor::events::GlobalInteractionEvent;
 use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;
 use sp1_core_executor::events::SyscallEvent;
+use sp1_recursion_core::Address;
 use sp1_recursion_core::{
     BaseAluEvent, BaseAluInstr, BatchFRIEvent, CommitPublicValuesEvent, CommitPublicValuesInstr,
     ExtAluEvent, ExtAluInstr, FriFoldEvent, Poseidon2Event, Poseidon2SkinnyInstr, SelectEvent,
@@ -207,6 +208,14 @@ extern "C" {
     pub fn recursion_poseidon2_wide_generate_preprocessed_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         instructions: *const Poseidon2SkinnyInstr<BabyBear>,
+        nb_instructions: u32,
+        stream: CudaStreamHandle,
+    );
+
+    pub fn recursion_mem_variable_generate_preprocessed_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        addrs: *const Address<BabyBear>,
+        mults: *const BabyBear,
         nb_instructions: u32,
         stream: CudaStreamHandle,
     );

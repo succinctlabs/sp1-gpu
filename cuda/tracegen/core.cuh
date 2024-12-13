@@ -7,6 +7,7 @@
 #include "../utils/runtime.cuh"
 #include "add_sub.hpp"
 #include "alu_base.hpp"
+#include "mem_variable.hpp"
 #include "memory_local.hpp"
 #include "memory_global.hpp"
 #include "syscall.hpp"

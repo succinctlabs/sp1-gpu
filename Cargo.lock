@@ -942,6 +942,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2303,6 +2309,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d758ba1b47b00caf47f24925c0074ecb20d6dfcffe7f6d53395c0465674841a"
 
 [[package]]
+name = "gen_ops"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "304de19db7028420975a296ab0fcbbc8e69438c4ed254a1e41e2a7f37d5f0e0a"
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2405,6 +2417,16 @@ dependencies = [
  "futures-core",
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "gmp-mpfr-sys"
+version = "1.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0205cd82059bc63b63cf516d714352a30c44f2c74da9961dfda2617ae6b5918"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4790,6 +4812,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "range-set-blaze"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8421b5d459262eabbe49048d362897ff3e3830b44eac6cfe341d6acb2f0f13d2"
+dependencies = [
+ "gen_ops",
+ "itertools 0.12.1",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5006,6 +5040,18 @@ dependencies = [
  "downcast-rs",
  "num_enum",
  "paste",
+]
+
+[[package]]
+name = "rug"
+version = "1.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97ae2c1089ec0575193eb9222881310cc1ed8bce3646ef8b81b44b518595b79d"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "libm",
 ]
 
 [[package]]
@@ -5610,6 +5656,9 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "snowbridge-amcl"
@@ -5634,7 +5683,6 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5646,7 +5694,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5684,7 +5731,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5740,7 +5786,6 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5756,7 +5801,6 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5768,6 +5812,7 @@ dependencies = [
  "num",
  "p256",
  "p3-field",
+ "rug",
  "serde",
  "snowbridge-amcl",
  "sp1-primitives",
@@ -5778,7 +5823,6 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5787,7 +5831,6 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5806,7 +5849,6 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "bincode",
  "hex",
@@ -5823,7 +5865,6 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5863,7 +5904,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5896,7 +5936,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5917,7 +5956,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5943,7 +5981,9 @@ dependencies = [
  "p3-util",
  "pathdiff",
  "rand 0.8.5",
+ "range-set-blaze",
  "serde",
+ "smallvec",
  "sp1-core-machine",
  "sp1-derive",
  "sp1-primitives",
@@ -5958,7 +5998,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5967,7 +6006,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5992,7 +6030,6 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "alloy-signer",
  "alloy-signer-local",
@@ -6034,7 +6071,6 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6372,7 +6408,6 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#d7eaf538b4b6373bc430e01a8e30f95068750b71"
 dependencies = [
  "sp1-build",
 ]
