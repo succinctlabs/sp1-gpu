@@ -74,7 +74,7 @@ __global__ void binaryMultiplicationBitSliced(uint32_t *out, uint32_t *a, uint32
     }
 
     #pragma unroll 1 
-    for (int i = 0; i < NUM_ITERATIONS; i++) {
+    for (int i = 0; i < NUM_ITERATIONS / NUM_WORDS; i++) {
         // BitsliceUtils<WIDTH>::bitslice_transpose(y);
 	    // BitsliceUtils<WIDTH>::bitslice_transpose(x);
 
@@ -148,8 +148,7 @@ void run_benchmark(void (*opKernel)(E *out, T a, E b), T a, E b) {
 template<int NUM_ITERATIONS, int POWER_HEIGHT, int NUM_WORDS>
 void run_benchmark_binary_bitsliced() {
     static_assert(NUM_WORDS <= (1 << POWER_HEIGHT));
-    const int NUM_ELEMENTS =  NUM_WORDS;
-        // GPU parameters
+    // GPU parameters
     int threadsPerBlock = 256;
     int numBlocks = 4;  // Adjust to fully load your GPU
     int totalThreads = threadsPerBlock * numBlocks;
@@ -202,7 +201,7 @@ void run_benchmark_binary_bitsliced() {
     cudaEventElapsedTime(&milliseconds, start, stop);
 
     // Compute operations
-    double opsPerThread = (double)NUM_ITERATIONS * (double)NUM_ELEMENTS; 
+    double opsPerThread = (double)NUM_ITERATIONS; 
     double totalOps = opsPerThread * (double)totalThreads;
     double seconds = milliseconds / 1000.0;
 
@@ -226,7 +225,7 @@ void run_benchmark_binary_bitsliced() {
 
 int main() {
 
-    const int NUM_ITERATIONS = 1000000;
+    const int NUM_ITERATIONS = 1048576;
 
     // Get a baseiine by testing the number of FLOP multiplications
     std::cout << "Testing floating point multiplications..." << std::endl;
@@ -322,8 +321,20 @@ int main() {
     run_benchmark<__uint128_t, uint32_t, NUM_ITERATIONS>(binaryBaseExtMultiplication<NUM_ITERATIONS>, a_binary_mul, b_binary_mul);
     std::cout << "----------------------------------------" << std::endl;
 
+    std::cout << "Testing m31 additions..." << std::endl;
+    m31_t a_m31_add = m31_t((int)rand());
+    m31_t b_m31_add = m31_t((int)rand());
+    run_benchmark<m31_t, m31_t, NUM_ITERATIONS>(addKernel<m31_t, m31_t, NUM_ITERATIONS>, a_m31_add, b_m31_add);
+    std::cout << "----------------------------------------" << std::endl;
+
+    std::cout << "Testing m31 multiplications..." << std::endl;
+    m31_t a_m31_mul = m31_t((int)rand());
+    m31_t b_m31_mul = m31_t((int)rand());
+    run_benchmark<m31_t, m31_t, NUM_ITERATIONS>(mulKernel<m31_t, m31_t, NUM_ITERATIONS>, a_m31_mul, b_m31_mul);
+    std::cout << "----------------------------------------" << std::endl;
+
     std::cout << "Testing binary bitsliced multiplications for 32-bit fields..." << std::endl;
-    run_benchmark_binary_bitsliced<NUM_ITERATIONS, 5, 6>();
+    run_benchmark_binary_bitsliced<NUM_ITERATIONS, 5, 32>();
     std::cout << "----------------------------------------" << std::endl;
 
     std::cout << "Testing binary bitsliced multiplications for 128-bit fields..." << std::endl;

@@ -40,9 +40,9 @@ public:
     // this is used in constant declaration, e.g. as m31_t{11}
     inline constexpr m31_t(int a) : val(a % MOD) {}
 
-    inline operator uint32_t() const        { return mul_by_1(); }
-    inline void store(uint32_t *p) const    { *p = mul_by_1();   }
-    inline m31_t& operator=(uint32_t b)    { val = b; to(); return *this; }
+    inline operator uint32_t() const        { return val; }
+    inline void store(uint32_t *p) const    { *p = val;   }
+    inline m31_t& operator=(uint32_t b)    { val = b;  return *this; }
 
     inline m31_t exp_power_of_two(size_t log_power) {
         m31_t ret = *this;
@@ -55,9 +55,8 @@ public:
     inline m31_t& operator+=(const m31_t b)
     {
         val += b.val;
-        val ^= (val) & (1 << 31);
-        final_sub(val);
-
+        uint32_t overflow = val >> 31;
+        val = (val & 0x7fffffff) + overflow;
         return *this;
     }
     friend inline m31_t operator+(m31_t a, const m31_t b)
@@ -65,10 +64,11 @@ public:
 
     inline m31_t& operator<<=(uint32_t l)
     {
-        while (l--) {
-            val <<= 1;
-            final_sub(val);
-        }
+        // TODO: Implement this.
+        // while (l--) {
+        //     val <<= 1;
+        //     final_sub(val);
+        // }
 
         return *this;
     }
@@ -77,10 +77,11 @@ public:
 
     inline m31_t& operator>>=(uint32_t r)
     {
-        while (r--) {
-            val += val&1 ? MOD : 0;
-            val >>= 1;
-        }
+        // TODO: Implement this.
+        // while (r--) {
+        //     val += val&1 ? MOD : 0;
+        //     val >>= 1;
+        // }
 
         return *this;
     }
@@ -89,12 +90,13 @@ public:
 
     inline m31_t& operator-=(const m31_t b)
     {
-        asm("{");
-        asm(".reg.pred %brw;");
-        asm("setp.lt.u32 %brw, %0, %1;" :: "r"(val), "r"(b.val));
-        asm("sub.u32 %0, %0, %1;"       : "+r"(val) : "r"(b.val));
-        asm("@%brw add.u32 %0, %0, %1;" : "+r"(val) : "r"(MOD));
-        asm("}");
+        // TODO: Implement this.
+        // asm("{");
+        // asm(".reg.pred %brw;");
+        // asm("setp.lt.u32 %brw, %0, %1;" :: "r"(val), "r"(b.val));
+        // asm("sub.u32 %0, %0, %1;"       : "+r"(val) : "r"(b.val));
+        // asm("@%brw add.u32 %0, %0, %1;" : "+r"(val) : "r"(MOD));
+        // asm("}");
 
         return *this;
     }
@@ -103,13 +105,7 @@ public:
 
     inline m31_t cneg(bool flag)
     {
-        asm("{");
-        asm(".reg.pred %flag;");
-        asm("setp.ne.u32 %flag, %0, 0;" :: "r"(val));
-        asm("@%flag setp.ne.u32 %flag, %0, 0;" :: "r"((int)flag));
-        asm("@%flag sub.u32 %0, %1, %0;" : "+r"(val) : "r"(MOD));
-        asm("}");
-
+        val = MOD - val;
         return *this;
     }
     static inline m31_t cneg(m31_t a, bool flag)
@@ -127,11 +123,12 @@ public:
     {
         m31_t ret;
 
-        asm("{");
-        asm(".reg.pred %set_z;");
-        asm("setp.ne.s32 %set_z, %0, 0;" : : "r"(set_z));
-        asm("selp.u32 %0, 0, %1, %set_z;" : "=r"(ret.val) : "r"(a.val));
-        asm("}");
+        // TODO: Implement this.
+        // asm("{");
+        // asm(".reg.pred %set_z;");
+        // asm("setp.ne.s32 %set_z, %0, 0;" : : "r"(set_z));
+        // asm("selp.u32 %0, 0, %1, %set_z;" : "=r"(ret.val) : "r"(a.val));
+        // asm("}");
 
         return ret;
     }
@@ -140,52 +137,29 @@ public:
     {
         m31_t ret;
 
-        asm("{");
-        asm(".reg.pred %sel_a;");
-        asm("setp.ne.s32 %sel_a, %0, 0;" :: "r"(sel_a));
-        asm("selp.u32 %0, %1, %2, %sel_a;" : "=r"(ret.val) : "r"(a.val), "r"(b.val));
-        asm("}");
+        // TODO: Implement this.
+        // asm("{");
+        // asm(".reg.pred %sel_a;");
+        // asm("setp.ne.s32 %sel_a, %0, 0;" :: "r"(sel_a));
+        // asm("selp.u32 %0, %1, %2, %sel_a;" : "=r"(ret.val) : "r"(a.val), "r"(b.val));
+        // asm("}");
 
         return ret;
     }
 
 private:
-    static inline void final_sub(uint32_t& val)
-    {
-        asm("{");
-        asm(".reg.pred %p;");
-        asm("setp.ge.u32 %p, %0, %1;" :: "r"(val), "r"(MOD));
-        asm("@%p sub.u32 %0, %0, %1;" : "+r"(val) : "r"(MOD));
-        asm("}");
-    }
-
     inline m31_t& mul(const m31_t b)
     {
-        uint32_t tmp[2], red;
+        uint64_t product = (uint64_t)val * (uint64_t)b.val;
 
-        asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
-            : "=r"(tmp[0]), "=r"(tmp[1])
-            : "r"(val), "r"(b.val));
-        asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(tmp[0]), "r"(M));
-        asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %4;"
-            : "+r"(tmp[0]), "=r"(val)
-            : "r"(red), "r"(MOD), "r"(tmp[1]));
+        uint32_t product_lo = product & 0x7fffffff;
+        uint32_t product_hi = product >> 31;
 
-        final_sub(val);
+        val = product_lo + product_hi;
 
         return *this;
     }
 
-    inline uint32_t mul_by_1() const
-    {
-        uint32_t tmp[2], red;
-
-        asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(val), "r"(M));
-        asm("mad.lo.cc.u32 %0, %2, %3, %4; madc.hi.u32 %1, %2, %3, 0;"
-            : "=r"(tmp[0]), "=r"(tmp[1])
-            : "r"(red), "r"(MOD), "r"(val));
-        return tmp[1];
-    }
 
 public:
     friend inline m31_t operator*(m31_t a, const m31_t b)
@@ -245,37 +219,38 @@ public:
     inline m31_t& sqr()
     {   return mul(*this);   }
 
-    inline void to()   { mul(RR); }
-    inline void from() { val = mul_by_1(); }
 
     template<size_t T>
     static inline m31_t dot_product(const m31_t a[T], const m31_t b[T])
     {
-        uint32_t acc[2];
-        size_t i = 1;
+        // TODO: Implement this.
+        // uint32_t acc[2];
+        // size_t i = 1;
 
-        asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
-            : "=r"(acc[0]), "=r"(acc[1]) : "r"(*a[0]), "r"(*b[0]));
-        if ((T&1) == 0) {
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[i]));
-            i++;
-        }
-        for (; i < T; i += 2) {
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[i]));
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i+1]), "r"(*b[i+1]));
-            final_sub(acc[1]);
-        }
+        // asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+        //     : "=r"(acc[0]), "=r"(acc[1]) : "r"(*a[0]), "r"(*b[0]));
+        // if ((T&1) == 0) {
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[i]));
+        //     i++;
+        // }
+        // for (; i < T; i += 2) {
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[i]));
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i+1]), "r"(*b[i+1]));
+        //     final_sub(acc[1]);
+        // }
 
-        uint32_t red;
-        asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(acc[0]), "r"(M));
-        asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-            : "+r"(acc[0]), "+r"(acc[1]) : "r"(red), "r"(MOD));
-        final_sub(acc[1]);
+        // uint32_t red;
+        // asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(acc[0]), "r"(M));
+        // asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //     : "+r"(acc[0]), "+r"(acc[1]) : "r"(red), "r"(MOD));
+        // final_sub(acc[1]);
 
-        return acc[1];
+        // return acc[1];
+
+        return a[1];
     }
 
     template<size_t T>
@@ -283,59 +258,61 @@ public:
                                      const m31_t a[T-1], const m31_t *b,
                                      size_t stride_b = 1)
     {
-        uint32_t acc[2];
-        size_t i = 0;
+        // TODO: Implement this.
+        // uint32_t acc[2];
+        // size_t i = 0;
 
-        asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
-            : "=r"(acc[0]), "=r"(acc[1]) : "r"(*a0), "r"(*b0));
-        if ((T&1) == 0) {
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[0]));
-            i++, b += stride_b;
-        }
-        for (; i < T-1; i += 2) {
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[0]));
-            b += stride_b;
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-                : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i+1]), "r"(*b[0]));
-            b += stride_b;
-            final_sub(acc[1]);
-        }
+        // asm("mul.lo.u32 %0, %2, %3; mul.hi.u32 %1, %2, %3;"
+        //     : "=r"(acc[0]), "=r"(acc[1]) : "r"(*a0), "r"(*b0));
+        // if ((T&1) == 0) {
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[0]));
+        //     i++, b += stride_b;
+        // }
+        // for (; i < T-1; i += 2) {
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i]), "r"(*b[0]));
+        //     b += stride_b;
+        //     asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //         : "+r"(acc[0]), "+r"(acc[1]) : "r"(*a[i+1]), "r"(*b[0]));
+        //     b += stride_b;
+        //     final_sub(acc[1]);
+        // }
 
-        uint32_t red;
-        asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(acc[0]), "r"(M));
-        asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
-            : "+r"(acc[0]), "+r"(acc[1]) : "r"(red), "r"(MOD));
-        final_sub(acc[1]);
+        // uint32_t red;
+        // asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(acc[0]), "r"(M));
+        // asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %1;"
+        //     : "+r"(acc[0]), "+r"(acc[1]) : "r"(red), "r"(MOD));
+        // final_sub(acc[1]);
 
-        return acc[1];
+        return a0;
     }
 
 private:
     static inline m31_t sqr_n(m31_t s, uint32_t n)
     {
-#if 0
-        #pragma unroll 2
-        while (n--)
-            s.sqr();
-#else   // +20% [for reciprocal()]
-        #pragma unroll 2
-        while (n--) {
-            uint32_t tmp[2], red;
+        // TODO: Implement this.
+// #if 0
+//         #pragma unroll 2
+//         while (n--)
+//             s.sqr();
+// #else   // +20% [for reciprocal()]
+//         #pragma unroll 2
+//         while (n--) {
+//             uint32_t tmp[2], red;
 
-            asm("mul.lo.u32 %0, %2, %2; mul.hi.u32 %1, %2, %2;"
-                : "=r"(tmp[0]), "=r"(tmp[1])
-                : "r"(s.val));
-            asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(tmp[0]), "r"(M));
-            asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %4;"
-                : "+r"(tmp[0]), "=r"(s.val)
-                : "r"(red), "r"(MOD), "r"(tmp[1]));
+//             asm("mul.lo.u32 %0, %2, %2; mul.hi.u32 %1, %2, %2;"
+//                 : "=r"(tmp[0]), "=r"(tmp[1])
+//                 : "r"(s.val));
+//             asm("mul.lo.u32 %0, %1, %2;" : "=r"(red) : "r"(tmp[0]), "r"(M));
+//             asm("mad.lo.cc.u32 %0, %2, %3, %0; madc.hi.u32 %1, %2, %3, %4;"
+//                 : "+r"(tmp[0]), "=r"(s.val)
+//                 : "r"(red), "r"(MOD), "r"(tmp[1]));
 
-            if (n&1)
-                final_sub(s.val);
-        }
-#endif
+//             if (n&1)
+//                 final_sub(s.val);
+//         }
+// #endif
         return s;
     }
 
@@ -452,9 +429,7 @@ public:
         return *this;
     }
     inline operator uint32_t() const
-    {   return ((val*M)*(uint64_t)MOD + val) >> 32;  }
-    inline void to()    { val = ((uint64_t)val<<32) % MOD;  }
-    inline void from()  { val = *this; }
+    {   return val;  }
 
     inline m31_t reciprocal() const { return *this; }
 // #  if defined(_GLIBCXX_IOSTREAM) || defined(_IOSTREAM_) // non-standard
