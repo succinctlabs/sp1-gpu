@@ -8,7 +8,8 @@ use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
 use sp1_recursion_core::chips::{
     alu_base::BaseAluChip, alu_ext::ExtAluChip, batch_fri::BatchFRIChip, fri_fold::FriFoldChip,
-    poseidon2_skinny::Poseidon2SkinnyChip, poseidon2_wide::Poseidon2WideChip, select::SelectChip,
+    mem::MemoryVarChip, poseidon2_skinny::Poseidon2SkinnyChip, poseidon2_wide::Poseidon2WideChip,
+    select::SelectChip,
 };
 use sp1_stark::air::MachineAir;
 
@@ -230,6 +231,37 @@ impl<const DEGREE: usize> DeviceAir<BabyBear> for Poseidon2WideChip<DEGREE> {
     }
 }
 
+impl DeviceAir<BabyBear> for MemoryVarChip<BabyBear> {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        let events = &input.mem_var_events;
+        let events = events.to_device_async(stream)?;
+
+        let nb_rows = self.num_rows(input).unwrap();
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <MemoryVarChip<BabyBear> as BaseAir<BabyBear>>::width(self),
+            nb_rows,
+            stream,
+        )?;
+
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::recursion_mem_variable_generate_trace(
+                trace.view_mut(),
+                events.as_ptr(),
+                events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tracegen::DeviceAir;
@@ -338,6 +370,20 @@ mod tests {
     #[serial]
     fn test_poseidon2_wide_deg_9() {
         let chip = Poseidon2WideChip::<9>;
+        let shard = test_fixtures::shard();
+        let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
+        let device_trace = chip
+            .generate_trace_device(&shard, &mut ExecutionRecord::default(), &CudaStream::default())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_mem_variable() {
+        let chip = MemoryVarChip::<BabyBear>::default();
         let shard = test_fixtures::shard();
         let trace = chip.generate_trace(&shard, &mut ExecutionRecord::default());
         let device_trace = chip
