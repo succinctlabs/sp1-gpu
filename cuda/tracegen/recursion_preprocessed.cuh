@@ -351,8 +351,12 @@ __global__ void recursion_mem_variable_generate_preprocessed_trace_kernel(
         );
 
         const T* arr = reinterpret_cast<T*>(&cols);
+        size_t start =
+            (i % sp1_recursion_core_sys::NUM_VAR_MEM_ENTRIES_PER_ROW) * COLUMNS;
         for (size_t j = 0; j < COLUMNS; ++j) {
-            trace.values[i + j * trace.height] = arr[j];
+            trace.values
+                [(i / sp1_recursion_core_sys::NUM_VAR_MEM_ENTRIES_PER_ROW)
+                 + (j + start) * trace.height] = arr[j];
         }
     }
 }

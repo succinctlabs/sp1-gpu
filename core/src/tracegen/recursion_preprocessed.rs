@@ -258,7 +258,7 @@ impl DevicePreprocessedAir<BabyBear> for MemoryVarChip<BabyBear> {
             );
         }
 
-        Ok(None)
+        Ok(Some(trace))
     }
 }
 
@@ -340,6 +340,20 @@ mod tests {
     #[serial]
     fn test_poseidon2_wide_deg_9() {
         let chip = Poseidon2WideChip::<9>;
+        let program = test_fixtures::program();
+        let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
+        let device_trace = chip
+            .generate_preprocessed_trace_device(&program, &CudaStream::default())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(trace, device_trace.to_host_naive());
+    }
+
+    #[test]
+    #[serial]
+    fn test_mem_variable() {
+        let chip = MemoryVarChip::<BabyBear>::default();
         let program = test_fixtures::program();
         let trace = chip.generate_preprocessed_trace_host(&program).unwrap();
         let device_trace = chip
