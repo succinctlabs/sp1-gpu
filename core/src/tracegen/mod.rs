@@ -147,6 +147,7 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(_) => None,
             RecursionAir::FriFold(_) => None,
             RecursionAir::BatchFRI(_) => None,
+            RecursionAir::MemoryVar(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -167,6 +168,7 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
             RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::MemoryVar(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
@@ -180,6 +182,7 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
             RecursionAir::Select(chip) => chip.num_rows(input),
             RecursionAir::FriFold(chip) => chip.num_rows(input),
             RecursionAir::BatchFRI(chip) => chip.num_rows(input),
+            RecursionAir::MemoryVar(chip) => chip.num_rows(input),
             _ => self.num_rows(input),
         }
     }
@@ -217,6 +220,8 @@ impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, 
             RecursionAir::Poseidon2Skinny(_) => None,
             RecursionAir::Poseidon2Wide(_) => None,
             RecursionAir::Select(_) => None,
+            RecursionAir::MemoryConst(_) => None,
+            RecursionAir::MemoryVar(_) => None,
             _ => self.generate_preprocessed_trace(program),
         }
     }
@@ -236,6 +241,12 @@ impl<const D: usize> DevicePreprocessedAir<BabyBear> for RecursionAir<BabyBear, 
                 chip.generate_preprocessed_trace_device(program, stream)
             }
             RecursionAir::Select(chip) => chip.generate_preprocessed_trace_device(program, stream),
+            RecursionAir::MemoryConst(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
+            RecursionAir::MemoryVar(chip) => {
+                chip.generate_preprocessed_trace_device(program, stream)
+            }
             _ => Ok(None),
         }
     }
