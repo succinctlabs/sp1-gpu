@@ -386,7 +386,7 @@ where
             .in_scope(|| {
                 let span = tracing::Span::current();
                 trace_jobs
-                    .par_iter()
+                    .iter()
                     .zip(chip_streams)
                     .map(|(job, stream)| {
                         let _span = span.enter();
@@ -455,7 +455,7 @@ where
         let mut named_preprocessed_data = self
             .machine()
             .chips()
-            .par_iter()
+            .iter()
             .map(|chip| {
                 let prep_trace = chip.air.generate_preprocessed_trace_host(program);
 
