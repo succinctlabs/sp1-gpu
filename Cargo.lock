@@ -5917,6 +5917,7 @@ dependencies = [
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.1"
 dependencies = [
+ "backtrace",
  "itertools 0.13.0",
  "p3-baby-bear",
  "p3-bn254-fr",
@@ -5939,7 +5940,6 @@ dependencies = [
  "backtrace",
  "cbindgen",
  "cc",
- "cfg-if",
  "ff 0.13.0",
  "glob",
  "hashbrown 0.14.5",
