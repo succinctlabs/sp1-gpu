@@ -175,7 +175,7 @@ where
     };
     let public_values =
         (0..PROOF_MAX_NUM_PVS as u32).map(SymbolicVarF::public_value).collect::<Vec<_>>();
-    let perm_challenges = (0..4).map(SymbolicVarEF::permutation_challenge).collect::<Vec<_>>();
+    let perm_challenges = (0..2).map(SymbolicVarEF::permutation_challenge).collect::<Vec<_>>();
 
     let mut folder = SymbolicProverFolder {
         preprocessed: preprocessed.view(),

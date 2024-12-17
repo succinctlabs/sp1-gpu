@@ -766,6 +766,7 @@ where
             let permutation_challenges_device =
                 permutation_challenges.to_device_async(&self.main_stream).unwrap();
             let public_values_device = public_values.to_device_async(&self.main_stream).unwrap();
+            self.main_stream.synchronize().unwrap();
 
             let mut quotient_values = vec![];
 

@@ -1,5 +1,7 @@
 [package]
 name = "moongate-perf"
+authors = ["Your Name <your.email@example.com>"]
+about = "perf test moongate"
 version = "0.1.0"
 edition = "2021"
 
