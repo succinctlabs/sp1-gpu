@@ -140,13 +140,13 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
         output: &mut Self::Record,
     ) -> Option<RowMajorMatrix<BabyBear>> {
         match self {
-            // RecursionAir::BaseAlu(_) => None,
-            // RecursionAir::ExtAlu(_) => None,
-            // RecursionAir::Poseidon2Skinny(_) => None,
-            // RecursionAir::Poseidon2Wide(_) => None,
-            // RecursionAir::Select(_) => None,
-            // RecursionAir::FriFold(_) => None,
-            // RecursionAir::BatchFRI(_) => None,
+            RecursionAir::BaseAlu(_) => None,
+            RecursionAir::ExtAlu(_) => None,
+            RecursionAir::Poseidon2Skinny(_) => None,
+            RecursionAir::Poseidon2Wide(_) => None,
+            RecursionAir::Select(_) => None,
+            RecursionAir::FriFold(_) => None,
+            RecursionAir::BatchFRI(_) => None,
             _ => Some(self.generate_trace(input, output)),
         }
     }
@@ -158,28 +158,28 @@ impl<const D: usize> DeviceAir<BabyBear> for RecursionAir<BabyBear, D> {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         match self {
-            // RecursionAir::BaseAlu(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::ExtAlu(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::Poseidon2Skinny(chip) => {
-            //     chip.generate_trace_device(input, output, stream)
-            // }
-            // RecursionAir::Poseidon2Wide(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
-            // RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::BaseAlu(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::ExtAlu(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::Poseidon2Skinny(chip) => {
+                chip.generate_trace_device(input, output, stream)
+            }
+            RecursionAir::Poseidon2Wide(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::Select(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::FriFold(chip) => chip.generate_trace_device(input, output, stream),
+            RecursionAir::BatchFRI(chip) => chip.generate_trace_device(input, output, stream),
             _ => Ok(None),
         }
     }
 
     fn num_rows_device(&self, input: &Self::Record) -> Option<usize> {
         match self {
-            // RecursionAir::BaseAlu(chip) => chip.num_rows(input),
-            // RecursionAir::ExtAlu(chip) => chip.num_rows(input),
-            // RecursionAir::Poseidon2Skinny(chip) => chip.num_rows(input),
-            // RecursionAir::Poseidon2Wide(chip) => chip.num_rows(input),
-            // RecursionAir::Select(chip) => chip.num_rows(input),
-            // RecursionAir::FriFold(chip) => chip.num_rows(input),
-            // RecursionAir::BatchFRI(chip) => chip.num_rows(input),
+            RecursionAir::BaseAlu(chip) => chip.num_rows(input),
+            RecursionAir::ExtAlu(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Skinny(chip) => chip.num_rows(input),
+            RecursionAir::Poseidon2Wide(chip) => chip.num_rows(input),
+            RecursionAir::Select(chip) => chip.num_rows(input),
+            RecursionAir::FriFold(chip) => chip.num_rows(input),
+            RecursionAir::BatchFRI(chip) => chip.num_rows(input),
             _ => self.num_rows(input),
         }
     }
