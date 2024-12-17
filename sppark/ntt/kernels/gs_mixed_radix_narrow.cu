@@ -10,7 +10,7 @@ void _GS_NTT(const unsigned int radix, const unsigned int lg_domain_size,
              const fr_t* d_radix6_twiddles, const fr_t* d_radixX_twiddles,
              bool is_intt, const fr_t d_domain_size_inverse)
 {
-#if (__CUDACC_VER_MAJOR__-0) >= 11
+#if (__CUDACC_VER_MAJOR__-0) >= 11 || defined(__clang__)
     __builtin_assume(lg_domain_size <= MAX_LG_DOMAIN_SIZE);
     __builtin_assume(radix <= 10);
     __builtin_assume(iterations <= radix);
@@ -80,7 +80,7 @@ void _GS_NTT(const unsigned int radix, const unsigned int lg_domain_size,
         #pragma unroll
         for (int z = 0; z < z_count; z++) {
             fr_t t = xchg[threadIdx.x ^ laneMask][z];
-            r[0][z] = fr_t::csel(t, r[0][z], !pos);
+            r[0][z] = fr_t::csel(r[0][z], t, pos);
             r[1][z] = fr_t::csel(t, r[1][z], pos);
         }
     }
@@ -104,7 +104,7 @@ void _GS_NTT(const unsigned int radix, const unsigned int lg_domain_size,
 
             t.shfl_bfly(laneMask);
 
-            r[0][z] = fr_t::csel(t, r[0][z], !pos);
+            r[0][z] = fr_t::csel(r[0][z], t, pos);
             r[1][z] = fr_t::csel(t, r[1][z], pos);
         }
     }

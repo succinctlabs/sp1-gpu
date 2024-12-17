@@ -515,6 +515,7 @@ where
         for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
+        self.main_stream.synchronize().unwrap();
 
         commit_span.exit();
 
