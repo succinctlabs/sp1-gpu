@@ -220,16 +220,13 @@ where
         unsafe { crate::cuda_runtime::ffi::cuda_setup_mem_pool() };
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
-        let chip_streams = machine
-            .chips()
-            .iter()
-            .map(|chip| (chip.name(), CudaStream::create().unwrap()))
-            .collect();
+        let chip_streams =
+            machine.chips().iter().map(|chip| (chip.name(), CudaStream::default())).collect();
         let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<_>>();
         let events = StarkEvents::new(&machine).unwrap();
         Self {
             machine,
-            main_stream: CudaStream::create().unwrap(),
+            main_stream: CudaStream::default(),
             committer: TwoAdicFriCommitter::new(log_blowup),
             permutation_trace_generator: PermutationTraceGenerator::default(),
             opening_prover: FriOpeningProver::new(domain_normalizers),
