@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Check if both arguments are provided
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <s3_path> <core|compress|shrink|wrap>"
