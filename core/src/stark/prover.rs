@@ -765,7 +765,6 @@ where
                 let global_cumulative_sum = cumulative_sums[i].1;
 
                 let stream = self.chip_streams.get(&chip.name()).unwrap();
-                stream.wait_event(&self.events.quotient_common_data_to_device)?;
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -791,6 +790,7 @@ where
                     let perm_eval = &mut perm_prover_data.matrices_mut()[i];
                     perm_eval.bit_reverse_rows().unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     let quotient_values = self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -838,6 +838,7 @@ where
                         )
                         .unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
