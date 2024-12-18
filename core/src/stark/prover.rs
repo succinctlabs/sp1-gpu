@@ -68,6 +68,8 @@ pub struct StarkEvents {
     local_main: BTreeMap<String, CudaEvent>,
     permutation: BTreeMap<String, CudaEvent>,
     quotient: BTreeMap<String, CudaEvent>,
+    preprocessed_trace_to_device: BTreeMap<String, CudaEvent>,
+    pk_to_device: CudaEvent,
     quotient_common_data_to_device: CudaEvent,
     batching_buffer_initialization: CudaEvent,
     update_openings: BTreeMap<String, CudaEvent>,
@@ -84,6 +86,7 @@ impl StarkEvents {
         let mut quotient = BTreeMap::new();
         let batching_buffer_initialization = CudaEvent::new()?;
         let mut update_openings = BTreeMap::new();
+        let mut preprocessed_trace_to_device = BTreeMap::new();
 
         for chip in machine.chips() {
             if chip.preprocessed_width() > 0 {
@@ -100,6 +103,7 @@ impl StarkEvents {
             permutation.insert(chip.name(), CudaEvent::new()?);
             quotient.insert(chip.name(), CudaEvent::new()?);
             update_openings.insert(chip.name(), CudaEvent::new()?);
+            preprocessed_trace_to_device.insert(chip.name(), CudaEvent::new()?);
         }
 
         Ok(Self {
@@ -110,6 +114,8 @@ impl StarkEvents {
             quotient,
             batching_buffer_initialization,
             update_openings,
+            preprocessed_trace_to_device,
+            pk_to_device: CudaEvent::new()?,
             quotient_common_data_to_device: CudaEvent::new()?,
         })
     }
@@ -248,23 +254,25 @@ where
     fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
         let chip_ordering = pk.chip_ordering.clone();
         let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
-        self.main_stream.synchronize().unwrap();
+        self.main_stream.record(&self.events.pk_to_device).unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
 
         for i in 0..chip_ordering.len() {
             let name =
                 chip_ordering.iter().find(|(_, idx)| **idx == i).map(|(name, _)| name).unwrap();
             let stream = self.chip_streams.get(name).unwrap();
+            stream.wait_event(&self.events.pk_to_device).unwrap();
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
             unsafe {
                 lde.values.set_stream(stream.clone());
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
-            stream.synchronize().unwrap();
+            let event = self.events.preprocessed_trace_to_device.get(name).unwrap();
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
             traces.push(trace);
         }
-        self.main_stream.synchronize().unwrap();
 
         StarkProvingKeyDevice {
             commit: pk.commit.clone(),
@@ -419,12 +427,6 @@ where
                     .collect()
             });
 
-        // Synchronize the chip streams.
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
-
         // Commit to the traces.
         let domains_and_traces = domains
             .iter()
@@ -435,11 +437,6 @@ where
             .collect::<Vec<_>>();
         let (commit, data) = tracing::debug_span!("commit")
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
-
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
@@ -470,8 +467,6 @@ where
                     Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
                     None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
                 };
-
-                stream.synchronize().unwrap();
 
                 // Assert that the chip width data is correct.
                 let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
@@ -508,18 +503,9 @@ where
 
         generate_traces_copy_span.exit();
 
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
 
         commit_span.exit();
 
@@ -593,7 +579,6 @@ where
                 rayon::spawn(move || {
                     let stream = stream;
                     let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
-                    stream.synchronize().unwrap();
                     tx.send(trace).unwrap();
                 });
                 (name, domain, event, local_only, rx, dimensions)
@@ -616,10 +601,6 @@ where
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
 
         commit_span.exit();
 
