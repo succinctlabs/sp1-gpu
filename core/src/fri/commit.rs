@@ -149,10 +149,6 @@ impl<
             }
         });
 
-        for lde in lde_evaluations.iter() {
-            lde.stream().synchronize().unwrap();
-        }
-
         // Commit the LDE evaluations.
         tracing::debug_span!("commit mmcs").in_scope(|| self.mmcs_commit(lde_evaluations, stream))
     }

@@ -64,7 +64,6 @@ impl DeviceGrindingChallenger for InnerChallenger {
             .to_result()
             .unwrap();
         }
-        stream.synchronize().unwrap();
 
         let result = result_d.to_host();
 

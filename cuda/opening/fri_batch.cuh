@@ -11,7 +11,7 @@ namespace fri_batch {
 
 template<typename F>
 __device__ __forceinline__ void atomicAdd(F* dst, F val) {
-    cuda::atomic_ref<F, cuda::thread_scope_system> atomic_ref(*dst);
+    cuda::atomic_ref<F, cuda::thread_scope_device> atomic_ref(*dst);
     F old_val = atomic_ref.load(cuda::memory_order_relaxed);
     F desired;
 
@@ -57,7 +57,7 @@ __global__ void batchFriKernel(
     }
     accumulator *= inverseDenom;
     // Add the results to the reduced openings.
-    reducedOpenings[i] += accumulator;
+    atomicAdd(&reducedOpenings[i], accumulator);
 }
 
 extern "C" void batchFri(

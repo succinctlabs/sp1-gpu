@@ -68,6 +68,9 @@ pub struct StarkEvents {
     local_main: BTreeMap<String, CudaEvent>,
     permutation: BTreeMap<String, CudaEvent>,
     quotient: BTreeMap<String, CudaEvent>,
+    preprocessed_trace_to_device: BTreeMap<String, CudaEvent>,
+    pk_to_device: CudaEvent,
+    quotient_common_data_to_device: CudaEvent,
     batching_buffer_initialization: CudaEvent,
     update_openings: BTreeMap<String, CudaEvent>,
 }
@@ -83,6 +86,7 @@ impl StarkEvents {
         let mut quotient = BTreeMap::new();
         let batching_buffer_initialization = CudaEvent::new()?;
         let mut update_openings = BTreeMap::new();
+        let mut preprocessed_trace_to_device = BTreeMap::new();
 
         for chip in machine.chips() {
             if chip.preprocessed_width() > 0 {
@@ -99,6 +103,7 @@ impl StarkEvents {
             permutation.insert(chip.name(), CudaEvent::new()?);
             quotient.insert(chip.name(), CudaEvent::new()?);
             update_openings.insert(chip.name(), CudaEvent::new()?);
+            preprocessed_trace_to_device.insert(chip.name(), CudaEvent::new()?);
         }
 
         Ok(Self {
@@ -109,6 +114,9 @@ impl StarkEvents {
             quotient,
             batching_buffer_initialization,
             update_openings,
+            preprocessed_trace_to_device,
+            pk_to_device: CudaEvent::new()?,
+            quotient_common_data_to_device: CudaEvent::new()?,
         })
     }
 }
@@ -246,23 +254,25 @@ where
     fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
         let chip_ordering = pk.chip_ordering.clone();
         let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
-        self.main_stream.synchronize().unwrap();
+        self.main_stream.record(&self.events.pk_to_device).unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
 
         for i in 0..chip_ordering.len() {
             let name =
                 chip_ordering.iter().find(|(_, idx)| **idx == i).map(|(name, _)| name).unwrap();
             let stream = self.chip_streams.get(name).unwrap();
+            stream.wait_event(&self.events.pk_to_device).unwrap();
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
             unsafe {
                 lde.values.set_stream(stream.clone());
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
-            stream.synchronize().unwrap();
+            let event = self.events.preprocessed_trace_to_device.get(name).unwrap();
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
             traces.push(trace);
         }
-        self.main_stream.synchronize().unwrap();
 
         StarkProvingKeyDevice {
             commit: pk.commit.clone(),
@@ -324,6 +334,7 @@ where
             SC: BabyBearFriConfig,
             A: MachineAir<Val<SC>>,
         {
+            #[inline]
             fn name(&self) -> String {
                 match self {
                     TraceGenerationJob::Host(name, _) => name.clone(),
@@ -331,6 +342,7 @@ where
                 }
             }
 
+            #[inline]
             fn height(&self) -> usize {
                 match self {
                     TraceGenerationJob::Host(_, mat) => mat.height(),
@@ -415,12 +427,6 @@ where
                     .collect()
             });
 
-        // Synchronize the chip streams.
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
-
         // Commit to the traces.
         let domains_and_traces = domains
             .iter()
@@ -431,11 +437,6 @@ where
             .collect::<Vec<_>>();
         let (commit, data) = tracing::debug_span!("commit")
             .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
-
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
 
         tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
@@ -466,8 +467,6 @@ where
                     Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
                     None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
                 };
-
-                stream.synchronize().unwrap();
 
                 // Assert that the chip width data is correct.
                 let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
@@ -504,18 +503,9 @@ where
 
         generate_traces_copy_span.exit();
 
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
-        self.main_stream.synchronize().unwrap();
 
         commit_span.exit();
 
@@ -589,7 +579,6 @@ where
                 rayon::spawn(move || {
                     let stream = stream;
                     let trace = prep_trace.to_device_async(&stream).unwrap().to_column_major();
-                    stream.synchronize().unwrap();
                     tx.send(trace).unwrap();
                 });
                 (name, domain, event, local_only, rx, dimensions)
@@ -612,10 +601,6 @@ where
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
-        for stream in self.chip_streams.values() {
-            stream.synchronize().unwrap();
-        }
 
         commit_span.exit();
 
@@ -680,7 +665,6 @@ where
 
             // Observe the main commitment.
             challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
-            self.main_stream.synchronize().unwrap();
             challenger.observe(main_commit.clone());
 
             setup_span.exit();
@@ -736,7 +720,6 @@ where
                 .collect::<Vec<_>>();
             let (permutation_commit, mut perm_prover_data) =
                 self.committer.commit(&perm_domains_and_traces, &self.main_stream);
-            self.main_stream.synchronize().unwrap();
             permutation_span.exit();
 
             // Observe the permutation commitment.
@@ -767,7 +750,7 @@ where
             let permutation_challenges_device =
                 permutation_challenges.to_device_async(&self.main_stream).unwrap();
             let public_values_device = public_values.to_device_async(&self.main_stream).unwrap();
-            self.main_stream.synchronize().unwrap();
+            self.main_stream.record(&self.events.quotient_common_data_to_device)?;
 
             let mut quotient_values = vec![];
 
@@ -780,6 +763,8 @@ where
 
                 let local_cumulative_sum = cumulative_sums[i].0;
                 let global_cumulative_sum = cumulative_sums[i].1;
+
+                let stream = self.chip_streams.get(&chip.name()).unwrap();
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -805,6 +790,7 @@ where
                     let perm_eval = &mut perm_prover_data.matrices_mut()[i];
                     perm_eval.bit_reverse_rows().unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     let quotient_values = self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -852,6 +838,7 @@ where
                         )
                         .unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -887,7 +874,6 @@ where
                 .collect::<Vec<_>>();
             let (quotient_commit, quotient_prover_data) =
                 self.committer.commit(&quotient_domains_and_chunks, &self.main_stream);
-            self.main_stream.synchronize().unwrap();
             quotient_span.exit();
             // Observe the quotient commitment.
             challenger.observe(quotient_commit.clone());
@@ -968,7 +954,6 @@ where
                 .collect::<BTreeMap<_, _>>();
 
             let event = &self.events.batching_buffer_initialization;
-            self.main_stream.synchronize().unwrap();
             self.main_stream.record(event).unwrap();
             for stream in shard_chip_stream.iter() {
                 stream.wait_event(event).unwrap();
@@ -1086,7 +1071,6 @@ where
                 let event = self.events.update_openings.get(name).unwrap();
                 stream.record(event).unwrap();
                 self.main_stream.wait_event(event).unwrap();
-                stream.synchronize().unwrap();
             }
 
             // generate a fri proof.
@@ -1126,7 +1110,6 @@ where
                 false,
                 &self.main_stream,
             );
-            self.main_stream.synchronize().unwrap();
 
             let opening_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
 
@@ -1287,86 +1270,4 @@ where
             })
             .collect::<Result<Vec<_>, CudaError>>()
     }
-
-    // fn setup_core()
 }
-
-// #[cfg(test)]
-// pub mod tests {
-
-//     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
-//     use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
-//     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
-//     use sp1_stark::StarkGenericConfig;
-
-//     use crate::{
-//         merkle_tree::FieldMerkleTreeDeviceCommitter,
-//         poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
-//         utils::init_tracer,
-//     };
-
-//     use super::*;
-
-//     pub fn execute_core(program: Program) -> ExecutionRecord {
-//         let opts = SP1CoreOpts::default();
-//         let mut runtime = Executor::new(program, opts);
-//         runtime.run().unwrap();
-//         runtime.record
-//     }
-
-//     #[test]
-//     fn test_fibonacci_poseidon_2_baby_bear_prove() {
-//         let program = Program::from(FIBONACCI_ELF).unwrap();
-
-//         init_tracer();
-//         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-//             program,
-//         )
-//         .unwrap();
-//     }
-
-//     #[test]
-//     fn test_fibonacci_poseidon2_bn254_prove() {
-//         use sp1_core_executor::SP1Context;
-//         use sp1_core_machine::io::SP1Stdin;
-
-//         let program = Program::from(FIBONACCI_ELF).unwrap();
-
-//         type SC = BabyBearPoseidon2Outer;
-
-//         type P = StarkGpuProver<
-//             SC,
-//             FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
-//             RiscvAir<BabyBear>,
-//         >;
-
-//         init_tracer();
-
-//         let config = BabyBearPoseidon2Outer::new();
-
-//         // Execute the program.
-//         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-//             let mut runtime = Executor::new(program, SP1CoreOpts::default());
-//             runtime.run().unwrap();
-//             runtime
-//         });
-
-//         let machine = RiscvAir::machine(config);
-//         let prover = P::new(machine);
-//         let inputs = SP1Stdin::new();
-//         let (pk, vk) = prover.setup(runtime.program.as_ref());
-//         let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
-//             &prover,
-//             &pk,
-//             Program::clone(&runtime.program),
-//             &inputs,
-//             SP1CoreOpts::default(),
-//             SP1Context::default(),
-//             None,
-//         )
-//         .unwrap();
-
-//         let mut challenger = prover.config().challenger();
-//         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
-//     }
-// }
