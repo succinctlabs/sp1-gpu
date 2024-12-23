@@ -26,7 +26,8 @@ impl DeviceAir<BabyBear> for AddSubChip {
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // Get the events for the chip.
-        let events = input.add_sub_events.clone();
+        let events =
+            input.add_events.iter().chain(input.sub_events.iter()).copied().collect::<Vec<_>>();
 
         // Copy the events to device.
         let events = events.to_device_async(stream)?;
