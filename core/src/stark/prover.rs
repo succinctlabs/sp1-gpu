@@ -6,7 +6,7 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::{AbstractExtensionField, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::septic_digest::SepticDigest;
@@ -764,8 +764,6 @@ where
                 let local_cumulative_sum = cumulative_sums[i].0;
                 let global_cumulative_sum = cumulative_sums[i].1;
 
-                let stream = self.chip_streams.get(&chip.name()).unwrap();
-
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
                 let use_lde = chip.log_quotient_degree() == self.committer.log_blowup;
@@ -893,8 +891,12 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+                    let next_open =
+                        self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
@@ -907,8 +909,12 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+                    let next_open =
+                        self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
@@ -919,8 +925,10 @@ where
             // Openings for permutation traces.
             for (domain, trace, _) in perm_domains_and_traces {
                 let local_open = self.opening_prover.eval(domain, &trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open =
                     self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+                observe_device_buffer::<SC>(challenger, &next_open);
                 input_heights.insert(domain.log_n);
                 perm_openings.push((domain.log_n, local_open, next_open));
             }
@@ -928,6 +936,7 @@ where
             let mut quot_openings = vec![];
             for (domain, trace, _) in quotient_domains_and_chunks.into_iter() {
                 let open = self.opening_prover.eval(domain, &trace, zeta);
+                observe_device_buffer::<SC>(challenger, &open);
                 input_heights.insert(domain.log_n);
                 quot_openings.push((domain.log_n, open));
             }
@@ -1271,3 +1280,95 @@ where
             .collect::<Result<Vec<_>, CudaError>>()
     }
 }
+
+fn observe_device_buffer<SC: BabyBearFriConfig>(
+    challenger: &mut SC::Challenger,
+    buffer: &DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
+) {
+    let host_buffer = buffer
+        .to_host()
+        .into_iter()
+        .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
+        .collect::<Vec<BabyBear>>();
+    challenger.observe_slice(&host_buffer);
+}
+
+// #[cfg(test)]
+// pub mod tests {
+
+//     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
+//     use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
+//     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
+//     use sp1_stark::StarkGenericConfig;
+
+//     use crate::{
+//         merkle_tree::FieldMerkleTreeDeviceCommitter,
+//         poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+//         utils::init_tracer,
+//     };
+
+//     use super::*;
+
+//     pub fn execute_core(program: Program) -> ExecutionRecord {
+//         let opts = SP1CoreOpts::default();
+//         let mut runtime = Executor::new(program, opts);
+//         runtime.run().unwrap();
+//         runtime.record
+//     }
+
+//     #[test]
+//     fn test_fibonacci_poseidon_2_baby_bear_prove() {
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
+
+//         init_tracer();
+//         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+//             program,
+//         )
+//         .unwrap();
+//     }
+
+//     #[test]
+//     fn test_fibonacci_poseidon2_bn254_prove() {
+//         use sp1_core_executor::SP1Context;
+//         use sp1_core_machine::io::SP1Stdin;
+
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
+
+//         type SC = BabyBearPoseidon2Outer;
+
+//         type P = StarkGpuProver<
+//             SC,
+//             FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+//             RiscvAir<BabyBear>,
+//         >;
+
+//         init_tracer();
+
+//         let config = BabyBearPoseidon2Outer::new();
+
+//         // Execute the program.
+//         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+//             let mut runtime = Executor::new(program, SP1CoreOpts::default());
+//             runtime.run().unwrap();
+//             runtime
+//         });
+
+//         let machine = RiscvAir::machine(config);
+//         let prover = P::new(machine);
+//         let inputs = SP1Stdin::new();
+//         let (pk, vk) = prover.setup(runtime.program.as_ref());
+//         let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
+//             &prover,
+//             &pk,
+//             Program::clone(&runtime.program),
+//             &inputs,
+//             SP1CoreOpts::default(),
+//             SP1Context::default(),
+//             None,
+//         )
+//         .unwrap();
+
+//         let mut challenger = prover.config().challenger();
+//         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
+//     }
+// }

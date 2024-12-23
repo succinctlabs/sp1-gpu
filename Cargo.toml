@@ -98,4 +98,3 @@ p3-uni-stark =  { path = "../Plonky3/uni-stark" }
 # p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
 # p3-maybe-rayon = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
 # p3-bn254-fr = { git = "https://github.com/Plonky3/Plonky3", branch = "sp1-v4" }
-# 
