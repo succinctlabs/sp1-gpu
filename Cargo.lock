@@ -942,6 +942,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
+name = "backoff"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
+dependencies = [
+ "futures-core",
+ "getrandom 0.2.15",
+ "instant",
+ "pin-project-lite",
+ "rand 0.8.5",
+ "tokio",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1437,6 +1457,16 @@ name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91e195e091a93c46f7102ec7818a2aa394e1e1771c3ab4825963fa03e45afb8f"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
+name = "core-foundation"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b55271e5c8c478ad3f38ad24ef34923091e0548492a266d19b3c0b4d82574c63"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -2408,6 +2438,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gmp-mpfr-sys"
+version = "1.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0205cd82059bc63b63cf516d714352a30c44f2c74da9961dfda2617ae6b5918"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "group"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2774,6 +2814,19 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-io-timeout",
+]
+
+[[package]]
+name = "hyper-timeout"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b90d566bffbce6a75bd8b09a05aa8c2cb1fabb6cb348f8840c9e4c90a0d83b0"
+dependencies = [
+ "hyper 1.5.1",
+ "hyper-util",
+ "pin-project-lite",
+ "tokio",
+ "tower-service",
 ]
 
 [[package]]
@@ -3563,7 +3616,7 @@ dependencies = [
  "openssl-probe",
  "openssl-sys",
  "schannel",
- "security-framework",
+ "security-framework 2.11.1",
  "security-framework-sys",
  "tempfile",
 ]
@@ -3896,7 +3949,7 @@ dependencies = [
  "prost 0.12.6",
  "thiserror 1.0.69",
  "tokio",
- "tonic",
+ "tonic 0.11.0",
 ]
 
 [[package]]
@@ -3908,7 +3961,7 @@ dependencies = [
  "opentelemetry 0.23.0",
  "opentelemetry_sdk 0.23.0",
  "prost 0.12.6",
- "tonic",
+ "tonic 0.11.0",
 ]
 
 [[package]]
@@ -5009,6 +5062,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rug"
+version = "1.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97ae2c1089ec0575193eb9222881310cc1ed8bce3646ef8b81b44b518595b79d"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "libm",
+]
+
+[[package]]
 name = "ruint"
 version = "1.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5121,12 +5186,25 @@ version = "0.23.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5065c3f250cbd332cd894be57c40fa52387247659b14a2d6041d121547903b1b"
 dependencies = [
+ "log",
  "once_cell",
  "ring 0.17.8",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fcff2dd52b58a8d98a70243663a0d234c4e2b79235637849d15913394a247d3"
+dependencies = [
+ "openssl-probe",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework 3.1.0",
 ]
 
 [[package]]
@@ -5276,7 +5354,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "897b2245f0b511c87893af39b033e5ca9cce68824c4d7e7630b5a1d339658d02"
 dependencies = [
  "bitflags 2.6.0",
- "core-foundation",
+ "core-foundation 0.9.4",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81d3f8c9bfcc3cbb6b0179eb57042d75b1582bdc65c3cb95f3fa999509c03cbc"
+dependencies = [
+ "bitflags 2.6.0",
+ "core-foundation 0.10.0",
  "core-foundation-sys",
  "libc",
  "security-framework-sys",
@@ -5284,9 +5375,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.12.1"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa39c7303dc58b5543c94d22c1766b0d31f2ee58306363ea622b10bbc075eaa2"
+checksum = "1863fd3768cd83c56a7f60faa4dc0d403f1b6df0a38c3c25f44b7894e45370d5"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -5633,8 +5724,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5645,9 +5735,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
+ "alloy-primitives",
  "bincode",
  "bytemuck",
  "clap",
@@ -5657,6 +5747,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
+ "lazy_static",
  "log",
  "nohash-hasher",
  "num",
@@ -5668,24 +5759,27 @@ dependencies = [
  "rrs-succinct",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "sp1-curves",
  "sp1-primitives",
  "sp1-stark",
  "strum",
  "strum_macros",
  "subenum",
+ "superstruct",
  "test-artifacts",
  "thiserror 1.0.69",
  "tiny-keccak",
  "tracing",
+ "tracing-forest",
+ "tracing-subscriber",
  "typenum",
  "vec_map",
 ]
 
 [[package]]
 name = "sp1-core-machine"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5740,8 +5834,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5756,8 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "cfg-if",
  "curve25519-dalek",
@@ -5769,6 +5861,7 @@ dependencies = [
  "num",
  "p256",
  "p3-field",
+ "rug",
  "serde",
  "snowbridge-amcl",
  "sp1-primitives",
@@ -5778,8 +5871,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5787,8 +5879,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5806,8 +5897,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "bincode",
  "hex",
@@ -5823,8 +5913,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5863,8 +5952,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5896,8 +5984,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "itertools 0.13.0",
  "p3-baby-bear",
@@ -5916,8 +6003,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5958,8 +6044,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5967,8 +6052,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5992,14 +6076,15 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
+ "alloy-primitives",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types",
  "anyhow",
  "async-trait",
+ "backoff",
  "bincode",
  "cfg-if",
  "dirs",
@@ -6016,9 +6101,11 @@ dependencies = [
  "reqwest",
  "reqwest-middleware",
  "serde",
+ "serde_json",
  "sp1-build",
  "sp1-core-executor",
  "sp1-core-machine",
+ "sp1-cuda",
  "sp1-primitives",
  "sp1-prover",
  "sp1-stark",
@@ -6027,6 +6114,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tonic 0.12.3",
  "tracing",
  "twirp-rs",
  "vergen",
@@ -6034,8 +6122,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6220,6 +6307,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "superstruct"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf0f31f730ad9e579364950e10d6172b4a9bd04b447edf5988b066a860cc340e"
+dependencies = [
+ "darling",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "smallvec",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "surf"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6338,7 +6439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c879d448e9d986b661742763247d3693ed13609438cf3d006f51f5368a5ba6b"
 dependencies = [
  "bitflags 2.6.0",
- "core-foundation",
+ "core-foundation 0.9.4",
  "system-configuration-sys",
 ]
 
@@ -6384,8 +6485,7 @@ dependencies = [
 
 [[package]]
 name = "test-artifacts"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=min%2Feclogup-tracegen#34dfc4ce810d8937ee919a0f03480681bd4d3101"
+version = "4.0.0-rc.3"
 dependencies = [
  "sp1-build",
 ]
@@ -6697,11 +6797,44 @@ dependencies = [
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.31",
- "hyper-timeout",
+ "hyper-timeout 0.4.1",
  "percent-encoding",
  "pin-project",
  "prost 0.12.6",
  "tokio",
+ "tokio-stream",
+ "tower 0.4.13",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tonic"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877c5b330756d856ffcc4553ab34a5684481ade925ecc54bcd1bf02b1d0d4d52"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "axum 0.7.9",
+ "base64 0.22.1",
+ "bytes 1.9.0",
+ "h2 0.4.7",
+ "http 1.2.0",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.5.1",
+ "hyper-timeout 0.5.2",
+ "hyper-util",
+ "percent-encoding",
+ "pin-project",
+ "prost 0.13.4",
+ "rustls-native-certs",
+ "rustls-pemfile",
+ "socket2",
+ "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tower 0.4.13",
  "tower-layer",
