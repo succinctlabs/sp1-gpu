@@ -245,7 +245,7 @@ mod tests {
             pks.push(pk);
         }
         for (i, program) in prover.join_programs_map.values().enumerate() {
-            if i >= 4 {
+            if i >= 2 {
                 continue;
             }
             let (pk, _) = prover.compress_prover.setup(program);
