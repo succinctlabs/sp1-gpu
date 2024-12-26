@@ -239,6 +239,20 @@ mod tests {
 
         let shape_config = prover.core_shape_config.as_ref().unwrap();
 
+        let mut pks = vec![];
+        for program in prover.join_programs_map.values() {
+            let (pk, _) = prover.compress_prover.setup(program);
+            pks.push(pk);
+        }
+        for (i, program) in prover.join_programs_map.values().enumerate() {
+            if i >= 2 {
+                continue;
+            }
+            let (pk, _) = prover.compress_prover.setup(program);
+            pks.push(pk);
+        }
+        println!("pks={:?}", pks.len());
+
         // let blacklist = [33, 144, 155, 158, 195];
         for (i, shape) in shape_config.maximal_core_shapes(21).into_iter().enumerate() {
             // if i <= *blacklist.last().unwrap() {
