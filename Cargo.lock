@@ -1932,6 +1932,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
+name = "downloader"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ac1e888d6830712d565b2f3a974be3200be9296bc1b03db8251a4cbf18a4a34"
+dependencies = [
+ "digest 0.10.7",
+ "futures",
+ "rand 0.8.5",
+ "reqwest",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4069,8 +4083,8 @@ dependencies = [
 
 [[package]]
 name = "p3-air"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4078,8 +4092,8 @@ dependencies = [
 
 [[package]]
 name = "p3-baby-bear"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "num-bigint 0.4.6",
  "p3-field",
@@ -4092,8 +4106,8 @@ dependencies = [
 
 [[package]]
 name = "p3-bn254-fr"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "ff 0.13.0",
  "num-bigint 0.4.6",
@@ -4106,8 +4120,8 @@ dependencies = [
 
 [[package]]
 name = "p3-challenger"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "p3-field",
  "p3-maybe-rayon",
@@ -4119,8 +4133,8 @@ dependencies = [
 
 [[package]]
 name = "p3-commit"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4132,8 +4146,8 @@ dependencies = [
 
 [[package]]
 name = "p3-dft"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4144,8 +4158,8 @@ dependencies = [
 
 [[package]]
 name = "p3-field"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "num-bigint 0.4.6",
@@ -4157,8 +4171,8 @@ dependencies = [
 
 [[package]]
 name = "p3-fri"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-challenger",
@@ -4175,8 +4189,8 @@ dependencies = [
 
 [[package]]
 name = "p3-interpolation"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4185,8 +4199,8 @@ dependencies = [
 
 [[package]]
 name = "p3-keccak-air"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "p3-air",
  "p3-field",
@@ -4198,8 +4212,8 @@ dependencies = [
 
 [[package]]
 name = "p3-matrix"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4212,16 +4226,16 @@ dependencies = [
 
 [[package]]
 name = "p3-maybe-rayon"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "p3-mds"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-dft",
@@ -4234,8 +4248,8 @@ dependencies = [
 
 [[package]]
 name = "p3-merkle-tree"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-commit",
@@ -4250,8 +4264,8 @@ dependencies = [
 
 [[package]]
 name = "p3-poseidon2"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "gcd",
  "p3-field",
@@ -4263,8 +4277,8 @@ dependencies = [
 
 [[package]]
 name = "p3-symmetric"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-field",
@@ -4273,8 +4287,8 @@ dependencies = [
 
 [[package]]
 name = "p3-uni-stark"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "itertools 0.12.1",
  "p3-air",
@@ -4291,8 +4305,8 @@ dependencies = [
 
 [[package]]
 name = "p3-util"
-version = "0.1.6-succinct"
-source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#863ca6a34ec2cab767f8c806a603eb8c6711fcb3"
+version = "0.2.0-succinct"
+source = "git+https://github.com/succinctlabs/plonky3-private?branch=sp1-v4#4931038c845df5d6255a574f90af202645f091d1"
 dependencies = [
  "serde",
 ]
@@ -5729,7 +5743,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5741,7 +5755,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5780,7 +5794,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5836,7 +5850,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5852,7 +5866,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -5873,7 +5887,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5882,7 +5896,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5901,7 +5915,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "bincode",
  "hex",
@@ -5918,13 +5932,15 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "anyhow",
  "bincode",
  "clap",
  "dirs",
+ "downloader",
  "eyre",
+ "hex",
  "itertools 0.13.0",
  "lru",
  "num-bigint 0.4.6",
@@ -5940,6 +5956,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "sha2 0.10.8",
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-primitives",
@@ -5958,7 +5975,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5991,7 +6008,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6012,7 +6029,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6054,7 +6071,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6063,7 +6080,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6088,7 +6105,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6135,7 +6152,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6485,7 +6502,7 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a3e9a49d68267dcc501ad3136f9be94de9d52c8e"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#a87712c8a7f8e0b248a6b6a3d6e3f644d6e91130"
 dependencies = [
  "sp1-build",
 ]
