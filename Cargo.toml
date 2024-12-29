@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "chris/dec-28-split" }
 
 # p3
 # p3-air = "0.1.6-succinct"
@@ -50,7 +50,7 @@ sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
 # p3-bn254-fr = "0.1.6-succinct"
 # p3-interpolation = "0.1.6-succinct"
 
-# for local development
+# for local chris/dec-28-splitelopment
 # sp1-core-executor = { path = "../sp1/crates/core/executor", features = [
 #     "bigint-rug",
 # ] }
