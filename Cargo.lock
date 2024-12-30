@@ -132,8 +132,8 @@ dependencies = [
  "p3-air",
  "p3-baby-bear",
  "p3-field",
- "sp1-core-machine",
- "sp1-stark",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
 ]
 
 [[package]]
@@ -3454,10 +3454,10 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-recursion-core",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "thiserror",
  "tracing",
  "tracing-subscriber",
@@ -3471,7 +3471,7 @@ dependencies = [
  "anyhow",
  "moongate-prover",
  "sp1-eval",
- "sp1-prover",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tokio",
 ]
 
@@ -3490,10 +3490,10 @@ dependencies = [
  "opentelemetry-stdout",
  "opentelemetry_sdk 0.23.0",
  "prettytable",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-prover",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "tokio",
  "tracing",
  "tracing-opentelemetry",
@@ -3509,10 +3509,10 @@ dependencies = [
  "moongate-core",
  "p3-baby-bear",
  "serial_test",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-prover",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "sysinfo 0.31.4",
  "tracing",
 ]
@@ -3529,9 +3529,9 @@ dependencies = [
  "moongate-core",
  "moongate-prover",
  "serde_json",
- "sp1-core-executor",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "sp1-cuda",
- "sp1-prover",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tokio",
  "tower-http",
  "tracing",
@@ -5829,9 +5829,42 @@ dependencies = [
  "rand 0.8.5",
  "rrs-succinct",
  "serde",
- "sp1-curves",
- "sp1-primitives",
- "sp1-stark",
+ "sp1-curves 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "tiny-keccak",
+ "tracing",
+ "typenum",
+ "vec_map",
+]
+
+[[package]]
+name = "sp1-core-executor"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "elf",
+ "enum-map",
+ "eyre",
+ "hashbrown 0.14.5",
+ "hex",
+ "itertools 0.13.0",
+ "log",
+ "nohash-hasher",
+ "num",
+ "p3-field",
+ "p3-maybe-rayon",
+ "rand 0.8.5",
+ "rrs-succinct",
+ "serde",
+ "sp1-curves 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "strum",
  "strum_macros",
  "thiserror",
@@ -5871,11 +5904,59 @@ dependencies = [
  "serde",
  "size",
  "snowbridge-amcl",
- "sp1-core-executor",
- "sp1-curves",
- "sp1-derive",
- "sp1-primitives",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-curves 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "static_assertions",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracing-forest",
+ "tracing-subscriber",
+ "typenum",
+ "vec_map",
+ "web-time",
+]
+
+[[package]]
+name = "sp1-core-machine"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "bincode",
+ "cfg-if",
+ "elliptic-curve",
+ "generic-array 1.1.0",
+ "hashbrown 0.14.5",
+ "hex",
+ "itertools 0.13.0",
+ "k256",
+ "log",
+ "num",
+ "num_cpus",
+ "p3-air",
+ "p3-baby-bear",
+ "p3-blake3",
+ "p3-challenger",
+ "p3-field",
+ "p3-keccak-air",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-uni-stark",
+ "p3-util",
+ "rand 0.8.5",
+ "serde",
+ "size",
+ "snowbridge-amcl",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-curves 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "static_assertions",
  "strum",
  "strum_macros",
@@ -5892,14 +5973,14 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "3.4.0"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
 dependencies = [
  "bincode",
  "ctrlc",
  "prost 0.13.3",
  "serde",
- "sp1-core-machine",
- "sp1-prover",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tokio",
  "tracing",
  "twirp-rs",
@@ -5920,8 +6001,28 @@ dependencies = [
  "p3-field",
  "serde",
  "snowbridge-amcl",
- "sp1-primitives",
- "sp1-stark",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "typenum",
+]
+
+[[package]]
+name = "sp1-curves"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "cfg-if",
+ "dashu",
+ "elliptic-curve",
+ "generic-array 1.1.0",
+ "itertools 0.13.0",
+ "k256",
+ "num",
+ "p3-field",
+ "serde",
+ "snowbridge-amcl",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "typenum",
 ]
 
@@ -5929,6 +6030,15 @@ dependencies = [
 name = "sp1-derive"
 version = "3.4.0"
 source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "sp1-derive"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5948,9 +6058,9 @@ dependencies = [
  "serde",
  "serde_json",
  "slack-rust-rs",
- "sp1-prover",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "sp1-sdk",
- "sp1-stark",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "time 0.3.36",
  "tokio",
 ]
@@ -5959,6 +6069,23 @@ dependencies = [
 name = "sp1-primitives"
 version = "3.4.0"
 source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "bincode",
+ "hex",
+ "lazy_static",
+ "num-bigint 0.4.6",
+ "p3-baby-bear",
+ "p3-field",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "serde",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "sp1-primitives"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
 dependencies = [
  "bincode",
  "hex",
@@ -5998,14 +6125,55 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-primitives",
- "sp1-recursion-circuit",
- "sp1-recursion-compiler",
- "sp1-recursion-core",
- "sp1-recursion-gnark-ffi",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-circuit 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-gnark-ffi 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "subtle-encoding",
+ "tempfile",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "sp1-prover"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap",
+ "dirs",
+ "eyre",
+ "itertools 0.13.0",
+ "lazy_static",
+ "lru",
+ "num-bigint 0.4.6",
+ "p3-baby-bear",
+ "p3-bn254-fr",
+ "p3-challenger",
+ "p3-commit",
+ "p3-field",
+ "p3-matrix",
+ "p3-symmetric",
+ "rayon",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-circuit 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-gnark-ffi 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "subtle-encoding",
  "tempfile",
  "thiserror",
@@ -6035,14 +6203,47 @@ dependencies = [
  "rand 0.8.5",
  "rayon",
  "serde",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-derive",
- "sp1-primitives",
- "sp1-recursion-compiler",
- "sp1-recursion-core",
- "sp1-recursion-gnark-ffi",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-gnark-ffi 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "tracing",
+]
+
+[[package]]
+name = "sp1-recursion-circuit"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "hashbrown 0.14.5",
+ "itertools 0.13.0",
+ "num-traits",
+ "p3-air",
+ "p3-baby-bear",
+ "p3-bn254-fr",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-fri",
+ "p3-matrix",
+ "p3-symmetric",
+ "p3-util",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-gnark-ffi 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tracing",
 ]
 
@@ -6058,11 +6259,32 @@ dependencies = [
  "p3-field",
  "p3-symmetric",
  "serde",
- "sp1-core-machine",
- "sp1-primitives",
- "sp1-recursion-core",
- "sp1-recursion-derive",
- "sp1-stark",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-derive 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "tracing",
+ "vec_map",
+]
+
+[[package]]
+name = "sp1-recursion-compiler"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "backtrace",
+ "itertools 0.13.0",
+ "p3-baby-bear",
+ "p3-bn254-fr",
+ "p3-field",
+ "p3-symmetric",
+ "serde",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-core 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-derive 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tracing",
  "vec_map",
 ]
@@ -6091,10 +6313,45 @@ dependencies = [
  "p3-symmetric",
  "p3-util",
  "serde",
- "sp1-core-machine",
- "sp1-derive",
- "sp1-primitives",
- "sp1-stark",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "static_assertions",
+ "thiserror",
+ "tracing",
+ "vec_map",
+ "zkhash",
+]
+
+[[package]]
+name = "sp1-recursion-core"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "backtrace",
+ "ff 0.13.0",
+ "hashbrown 0.14.5",
+ "itertools 0.13.0",
+ "p3-air",
+ "p3-baby-bear",
+ "p3-bn254-fr",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-fri",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-merkle-tree",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "p3-util",
+ "serde",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "static_assertions",
  "thiserror",
  "tracing",
@@ -6106,6 +6363,15 @@ dependencies = [
 name = "sp1-recursion-derive"
 version = "3.4.0"
 source = "git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "sp1-recursion-derive"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6130,9 +6396,34 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "sp1-core-machine",
- "sp1-recursion-compiler",
- "sp1-stark",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "tempfile",
+]
+
+[[package]]
+name = "sp1-recursion-gnark-ffi"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bindgen",
+ "cc",
+ "cfg-if",
+ "hex",
+ "log",
+ "num-bigint 0.4.6",
+ "p3-baby-bear",
+ "p3-field",
+ "p3-symmetric",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-recursion-compiler 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "tempfile",
 ]
 
@@ -6161,11 +6452,11 @@ dependencies = [
  "reqwest 0.12.8",
  "reqwest-middleware",
  "serde",
- "sp1-core-executor",
- "sp1-core-machine",
- "sp1-primitives",
- "sp1-prover",
- "sp1-stark",
+ "sp1-core-executor 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-core-machine 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-prover 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-stark 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
  "strum",
  "strum_macros",
  "tempfile",
@@ -6202,8 +6493,43 @@ dependencies = [
  "p3-util",
  "rayon-scan",
  "serde",
- "sp1-derive",
- "sp1-primitives",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1.git?branch=chris/dec-28-test)",
+ "strum",
+ "strum_macros",
+ "sysinfo 0.30.13",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "sp1-stark"
+version = "3.4.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test#7ebdc95486ec485566a021a40b0452cd4025a5ec"
+dependencies = [
+ "arrayref",
+ "getrandom 0.2.15",
+ "hashbrown 0.14.5",
+ "itertools 0.13.0",
+ "num-traits",
+ "p3-air",
+ "p3-baby-bear",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-fri",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-merkle-tree",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "p3-uni-stark",
+ "p3-util",
+ "rayon-scan",
+ "serde",
+ "sp1-derive 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
+ "sp1-primitives 3.4.0 (git+https://github.com/succinctlabs/sp1-wip.git?branch=chris/dec-28-test)",
  "strum",
  "strum_macros",
  "sysinfo 0.30.13",
