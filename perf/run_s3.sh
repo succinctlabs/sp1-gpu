@@ -20,6 +20,7 @@ export RUST_LOG=debug
 export FIX_CORE_SHAPES=true
 export FIX_RECURSION_SHAPES=true
 export SHARD_BATCH_SIZE=1
+export SP1_ALLOW_DEPRECATED_HOOKS=true
 # export SHARD_SIZE=131072
 
 # Run moongate-perf
