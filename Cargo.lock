@@ -992,6 +992,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "az"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
+
+[[package]]
 name = "backoff"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2466,6 +2472,16 @@ dependencies = [
  "futures-core",
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "gmp-mpfr-sys"
+version = "1.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0205cd82059bc63b63cf516d714352a30c44f2c74da9961dfda2617ae6b5918"
+dependencies = [
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5113,6 +5129,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rug"
+version = "1.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97ae2c1089ec0575193eb9222881310cc1ed8bce3646ef8b81b44b518595b79d"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "libm",
+]
+
+[[package]]
 name = "ruint"
 version = "1.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5769,7 +5797,6 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5781,9 +5808,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
- "alloy-primitives",
  "bincode",
  "bytemuck",
  "clap",
@@ -5793,7 +5818,6 @@ dependencies = [
  "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
- "lazy_static",
  "log",
  "nohash-hasher",
  "num",
@@ -5805,20 +5829,16 @@ dependencies = [
  "rrs-succinct",
  "serde",
  "serde_json",
- "sha2 0.10.8",
  "sp1-curves",
  "sp1-primitives",
  "sp1-stark",
  "strum",
  "strum_macros",
  "subenum",
- "superstruct",
  "test-artifacts",
  "thiserror 1.0.69",
  "tiny-keccak",
  "tracing",
- "tracing-forest",
- "tracing-subscriber",
  "typenum",
  "vec_map",
 ]
@@ -5826,7 +5846,6 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5882,7 +5901,6 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5898,7 +5916,6 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -5909,6 +5926,7 @@ dependencies = [
  "num",
  "p256",
  "p3-field",
+ "rug",
  "serde",
  "snowbridge-amcl",
  "sp1-primitives",
@@ -5919,7 +5937,6 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5928,7 +5945,6 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5947,7 +5963,6 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "bincode",
  "hex",
@@ -5964,7 +5979,6 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6007,7 +6021,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6040,7 +6053,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6061,7 +6073,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6103,7 +6114,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6112,7 +6122,6 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6137,7 +6146,6 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6184,7 +6192,6 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6369,20 +6376,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
-name = "superstruct"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf0f31f730ad9e579364950e10d6172b4a9bd04b447edf5988b066a860cc340e"
-dependencies = [
- "darling",
- "itertools 0.10.5",
- "proc-macro2",
- "quote",
- "smallvec",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "surf"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6549,7 +6542,6 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.3"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=yuwen/split-executor#6e4a797c1f975a982411f814955d2579830d5a58"
 dependencies = [
  "sp1-build",
 ]

@@ -21,7 +21,6 @@ export FIX_CORE_SHAPES=true
 export FIX_RECURSION_SHAPES=true
 export SHARD_BATCH_SIZE=1
 export SP1_ALLOW_DEPRECATED_HOOKS=true
-# export SHARD_SIZE=131072
 
 # Run moongate-perf
 RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx

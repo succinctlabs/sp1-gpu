@@ -251,5 +251,6 @@ extern "C" namespace grinding_challenger_gpu {
             n
         );
         CUDA_OK(cudaFreeAsync(d_found_flag, stream));
+        return CUDA_SUCCESS_MOON;
     }
 }  // namespace grinding_challenger_gpu
