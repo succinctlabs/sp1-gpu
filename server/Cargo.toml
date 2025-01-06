@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sp1-prover = { workspace = true }
-sp1-core-executor = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true }
 sp1-cuda = { workspace = true }
 moongate-core = { path = "../core" }
 moongate-prover = { path = "../prover" }
@@ -26,4 +26,4 @@ jemallocator = "0.3.2"
 
 [dev-dependencies]
 sp1-prover = { workspace = true, features = ["export-tests"] }
-sp1-core-executor = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true }

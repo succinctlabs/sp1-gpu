@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 sp1-prover = { workspace = true }
 sp1-core-executor = { workspace = true }
-sp1-core-machine = { workspace = true, features = ["programs"] }
+sp1-core-machine = { workspace = true }
 sp1-stark = { workspace = true }
 tracing = "0.1.40"
 
@@ -21,12 +21,12 @@ clap = { version = "4.5.9", features = ["derive", "env"] }
 p3-field = { workspace = true }
 sp1-prover = { workspace = true, features = ["export-tests"] }
 sp1-core-executor = { workspace = true }
-sp1-core-machine = { workspace = true, features = ["programs"] }
+sp1-core-machine = { workspace = true }
 p3-baby-bear = { workspace = true }
 sp1-stark = { workspace = true }
 serial_test = "3.1.1"
 
-[features]
+[features]      
 default = []
 debug = ["sp1-core-machine/debug"]
 
