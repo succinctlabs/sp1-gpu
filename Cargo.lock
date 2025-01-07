@@ -5796,7 +5796,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5807,8 +5807,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
+ "alloy-primitives",
  "bincode",
  "bytemuck",
  "clap",
@@ -5818,6 +5819,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
+ "lazy_static",
  "log",
  "nohash-hasher",
  "num",
@@ -5829,13 +5831,13 @@ dependencies = [
  "rrs-succinct",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "sp1-curves",
  "sp1-primitives",
  "sp1-stark",
  "strum",
  "strum_macros",
  "subenum",
- "test-artifacts",
  "thiserror 1.0.69",
  "tiny-keccak",
  "tracing",
@@ -5845,7 +5847,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5900,7 +5902,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5915,7 +5917,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -5936,7 +5938,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5944,7 +5946,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5962,7 +5964,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "bincode",
  "hex",
@@ -5978,7 +5980,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6011,7 +6013,6 @@ dependencies = [
  "sp1-recursion-core",
  "sp1-recursion-gnark-ffi",
  "sp1-stark",
- "test-artifacts",
  "thiserror 1.0.69",
  "tracing",
  "tracing-appender",
@@ -6020,7 +6021,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6052,7 +6053,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6072,7 +6073,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6113,7 +6114,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6121,7 +6122,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6145,7 +6146,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6191,7 +6192,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "4.0.0-rc.3"
+version = "4.0.0-rc.8"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6537,13 +6538,6 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
-]
-
-[[package]]
-name = "test-artifacts"
-version = "4.0.0-rc.3"
-dependencies = [
- "sp1-build",
 ]
 
 [[package]]

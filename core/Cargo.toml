@@ -16,7 +16,7 @@ p3-merkle-tree = { workspace = true }
 p3-matrix = { workspace = true }
 p3-commit = { workspace = true }
 itertools = "0.13.0"
-sp1-core-executor = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true, features = ["sys"] }
 sp1-stark = { workspace = true }
 sp1-recursion-core = { workspace = true, features = ["sys"] }
@@ -49,5 +49,5 @@ ignore = "0.4.23"
 rand = "0.8.5"
 p3-fri = { workspace = true }
 p3-uni-stark = { workspace = true }
-sp1-core-executor = { workspace = true, features = ["programs"] }
+sp1-core-executor = { workspace = true}
 serial_test = "3.1.1"
