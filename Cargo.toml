@@ -19,7 +19,7 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev", features = [ "bigint-rug" ] } 
 sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
 sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
 sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
