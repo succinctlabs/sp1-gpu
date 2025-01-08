@@ -449,9 +449,10 @@ mod tests {
     use p3_uni_stark::SymbolicAirBuilder;
     use rand::{thread_rng, Rng};
 
-    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
+    use sp1_core_executor::Program;
     use sp1_core_machine::{memory::MemoryLocalChip, riscv::ByteChip};
     use sp1_stark::InteractionBuilder;
+    use test_artifacts::FIBONACCI_ELF;
 
     type F = BabyBear;
     const D: usize = 4;

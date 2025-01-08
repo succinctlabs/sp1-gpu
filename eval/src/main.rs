@@ -1,5 +1,5 @@
 use anyhow::Result;
-use moongate_prover::{gpu_prover_opts, components::GpuProverComponents};
+use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use sp1_eval::evaluate_performance;
 
 #[tokio::main]
