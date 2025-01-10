@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic", features = ["bigint-rug"] }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/executor-const-generic" }
 
 # p3
 p3-interpolation = "=0.2.0-succinct"
