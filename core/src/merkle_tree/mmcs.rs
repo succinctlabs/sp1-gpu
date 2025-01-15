@@ -2,7 +2,7 @@ use p3_baby_bear::BabyBear;
 use p3_commit::Mmcs;
 use p3_field::{PackedField, PackedValue};
 use p3_matrix::dense::RowMajorMatrix;
-use p3_merkle_tree::{FieldMerkleTree, FieldMerkleTreeMmcs};
+use p3_merkle_tree::{MerkleTree, MerkleTreeMmcs};
 use p3_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -46,7 +46,7 @@ pub struct FieldMerkleTreeDeviceCommitter<H> {
 }
 
 impl<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>
-    MmcsCommitterAsync<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
+    MmcsCommitterAsync<BabyBear, MerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
     for FieldMerkleTreeDeviceCommitter<Hasher>
 where
     Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
@@ -100,7 +100,7 @@ impl<F: Copy, D: Copy, M: DeviceMatrix<F>> MmcsProverData<M> for FieldMerkleTree
 }
 
 impl<F: Copy, W, const DIGEST_ELEMS: usize> MmcsProverData<RowMajorMatrix<F>>
-    for FieldMerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>
+    for MerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>
 {
     #[inline]
     fn matrices(&self) -> &[RowMajorMatrix<F>] {

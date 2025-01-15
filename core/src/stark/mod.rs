@@ -19,7 +19,7 @@ pub use utils::*;
 use p3_challenger::{CanObserve, CanSample, FieldChallenger};
 use p3_commit::{ExtensionMmcs, Mmcs};
 use p3_dft::Radix2DitParallel;
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 use p3_fri::{FriConfig, TwoAdicFriPcs};
 use p3_matrix::dense::RowMajorMatrix;
 use sp1_recursion_core::stark::{
@@ -49,7 +49,7 @@ pub trait BabyBearFriConfig:
     Challenger = Self::FriChallenger,
     Pcs = TwoAdicFriPcs<
         BabyBear,
-        Radix2DitParallel,
+        Radix2DitParallel<Val>,
         Self::ValMmcs,
         ExtensionMmcs<BabyBear, EF, Self::ValMmcs>,
     >,
@@ -71,7 +71,7 @@ impl BabyBearFriConfig for BabyBearPoseidon2 {
     type FriChallenger = <Self as StarkGenericConfig>::Challenger;
 
     fn zero_commitment() -> Com<BabyBearPoseidon2> {
-        DigestHash::from([Val::zero(); DIGEST_SIZE])
+        DigestHash::from([Val::ZERO; DIGEST_SIZE])
     }
 }
 
@@ -81,6 +81,6 @@ impl BabyBearFriConfig for BabyBearPoseidon2Outer {
     type FriChallenger = <Self as StarkGenericConfig>::Challenger;
 
     fn zero_commitment() -> Com<BabyBearPoseidon2Outer> {
-        OuterDigestHash::from([Bn254Fr::zero(); OUTER_DIGEST_SIZE])
+        OuterDigestHash::from([Bn254Fr::ZERO; OUTER_DIGEST_SIZE])
     }
 }

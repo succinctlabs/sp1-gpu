@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
-use p3_field::{AbstractField, Field};
+use p3_field::{Field, FieldAlgebra};
 use sp1_stark::Com;
 
 use crate::{
@@ -112,9 +112,9 @@ impl<
         // Domain assertions for the current usage. The code is supposed to work regardless but we
         // keep them here for now since other usages are untested.
         debug_assert!(src_domain.shift.is_one());
-        debug_assert_eq!(dst_domain.shift, BabyBear::generator());
+        debug_assert_eq!(dst_domain.shift, BabyBear::GENERATOR);
 
-        let shift = dst_domain.shift * BabyBear::generator().inverse() * src_domain.shift.inverse();
+        let shift = dst_domain.shift * BabyBear::GENERATOR.inverse() * src_domain.shift.inverse();
         let log_blowup = dst_domain.log_n - src_domain.log_n;
         unsafe {
             let mut lde_mat = matrix.embed_as_blowup(log_blowup)?;
@@ -163,7 +163,7 @@ mod tests {
     use p3_matrix::dense::RowMajorMatrix;
     use rand::thread_rng;
 
-    use p3_field::AbstractField;
+    use p3_field::FieldAlgebra;
     use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, StarkGenericConfig};
 
     use crate::merkle_tree::Poseidon2BabyBearCommitter;
@@ -188,7 +188,7 @@ mod tests {
 
                 let domain = TwoAdicMultiplicativeCoset::<BabyBear> {
                     log_n: *log_degree,
-                    shift: BabyBear::one(),
+                    shift: BabyBear::ONE,
                 };
 
                 (domain, trace)

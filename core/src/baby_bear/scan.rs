@@ -36,7 +36,7 @@ impl CudaScan for EF {
 
 #[cfg(test)]
 mod tests {
-    use p3_field::AbstractField;
+    use p3_field::FieldAlgebra;
     use rand::{thread_rng, Rng};
 
     use crate::device::memory::{ToDevice, ToHost};
@@ -59,7 +59,7 @@ mod tests {
 
             for (i, (exp, res)) in a_h
                 .into_iter()
-                .scan(F::zero(), |acc, x| {
+                .scan(F::ZERO, |acc, x| {
                     *acc += x;
                     Some(*acc)
                 })
@@ -89,7 +89,7 @@ mod tests {
 
             for (i, (exp, res)) in a_h
                 .into_iter()
-                .scan(EF::zero(), |acc, x| {
+                .scan(EF::ZERO, |acc, x| {
                     *acc += x;
                     Some(*acc)
                 })

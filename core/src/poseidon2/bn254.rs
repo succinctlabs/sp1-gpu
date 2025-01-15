@@ -6,7 +6,7 @@ use crate::{
 };
 use p3_baby_bear::BabyBear;
 use p3_bn254_fr::Bn254Fr;
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 
 pub struct DeviceHasherBn254 {
     internal_rounds_constats_device: DeviceBuffer<Bn254Fr>,
@@ -239,6 +239,6 @@ pub fn poseidon2_bn254_3_constants() -> (Vec<Bn254Fr>, Vec<[Bn254Fr; WIDTH]>, Ve
     let internal_round_constants =
         round_constants.drain(internal_start..internal_end).map(|vec| vec[0]).collect::<Vec<_>>();
     let external_round_constants = round_constants;
-    let diffusion_matrix_m1 = [Bn254Fr::one(), Bn254Fr::one(), Bn254Fr::two()].to_vec();
+    let diffusion_matrix_m1 = [Bn254Fr::ONE, Bn254Fr::ONE, Bn254Fr::TWO].to_vec();
     (internal_round_constants, external_round_constants, diffusion_matrix_m1)
 }

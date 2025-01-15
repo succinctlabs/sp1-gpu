@@ -133,7 +133,7 @@ mod tests {
         },
         matrix::ColMajorMatrixDevice,
     };
-    use p3_field::{AbstractField, Field, PrimeField32, TwoAdicField};
+    use p3_field::{Field, FieldAlgebra, PrimeField32, TwoAdicField};
 
     #[test]
     fn make_roots() {
@@ -148,9 +148,9 @@ mod tests {
             (((x as u64) << MONTY_BITS) % P as u64) as u32
         }
 
-        assert_eq!(0xfffffbe, to_monty(BabyBear::generator().as_canonical_u32()));
+        assert_eq!(0xfffffbe, to_monty(BabyBear::GENERATOR.as_canonical_u32()));
 
-        assert_eq!(0x17bdef7c, to_monty(BabyBear::generator().inverse().as_canonical_u32()));
+        assert_eq!(0x17bdef7c, to_monty(BabyBear::GENERATOR.inverse().as_canonical_u32()));
 
         for i in 0..28 {
             println!(
@@ -182,7 +182,7 @@ mod tests {
         let batch_size = 100;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees {
             let d = 1 << log_d;
@@ -220,7 +220,7 @@ mod tests {
         let log_degrees = 10..20;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees {
             let d = 1 << log_d;
@@ -240,7 +240,7 @@ mod tests {
             let cpu_time = time.elapsed();
             println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
 
-            let mut values_back = vec![BabyBear::zero(); d];
+            let mut values_back = vec![BabyBear::ZERO; d];
             stream.synchronize().unwrap();
             d_values.copy_to_host(&mut values_back);
 
@@ -257,7 +257,7 @@ mod tests {
         let log_degrees = 10..20;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees {
             let d = 1 << log_d;
@@ -277,7 +277,7 @@ mod tests {
             println!("Cpu idft time log degree {}: {:?}", log_d, cpu_time);
 
             stream.synchronize().unwrap();
-            let mut values_back = vec![BabyBear::zero(); d];
+            let mut values_back = vec![BabyBear::ZERO; d];
             d_values.copy_to_host(&mut values_back);
 
             for (val, exp) in values_back.into_iter().zip(expected_value) {
@@ -294,7 +294,7 @@ mod tests {
         let log_blowup = 2;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees.clone() {
             let d = 1 << log_d;
@@ -306,23 +306,23 @@ mod tests {
 
             let values = (0..d).map(|_| rng.gen()).collect::<Vec<BabyBear>>();
 
-            d_values.extend_from_host_slice(&vec![BabyBear::zero(); ext_d - d]);
+            d_values.extend_from_host_slice(&vec![BabyBear::ZERO; ext_d - d]);
             d_values.extend_from_host_slice(&values);
 
             let time = Instant::now();
             unsafe {
-                dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::one(), &stream)
+                dft.coset_lde_device(&mut d_values[..], log_d, log_blowup, BabyBear::ONE, &stream)
             }
             .unwrap();
             let gpu_time = time.elapsed();
             println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
 
             let time = Instant::now();
-            let expected_value = p3_dft.coset_lde(values, log_blowup, BabyBear::generator());
+            let expected_value = p3_dft.coset_lde(values, log_blowup, BabyBear::GENERATOR);
             let cpu_time = time.elapsed();
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
 
-            let mut values_back = vec![BabyBear::zero(); ext_d];
+            let mut values_back = vec![BabyBear::ZERO; ext_d];
             d_values[0..ext_d].copy_into_host(&mut values_back, &stream);
             stream.synchronize().unwrap();
 
@@ -341,7 +341,7 @@ mod tests {
         let batch_size = 100;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees.clone() {
             let d = 1 << log_d;
@@ -368,7 +368,7 @@ mod tests {
             let mat_h_clone = mat_h.clone();
             let time = Instant::now();
             let expected_value = p3_dft
-                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::generator() * shift)
+                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::GENERATOR * shift)
                 .to_row_major_matrix();
             let cpu_time = time.elapsed();
             println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
@@ -390,7 +390,7 @@ mod tests {
         let batch_size = 100;
 
         let dft = DeviceDft::new();
-        let p3_dft = Radix2DitParallel;
+        let p3_dft = Radix2DitParallel::<BabyBear>::default();
 
         for log_d in log_degrees.clone() {
             let d = 1 << log_d;
@@ -404,7 +404,7 @@ mod tests {
                 dft.coset_lde_batch_device(
                     mat_d.view_mut(),
                     log_blowup,
-                    BabyBear::one(),
+                    BabyBear::ONE,
                     true,
                     mat_d.stream(),
                 )
@@ -416,7 +416,7 @@ mod tests {
             let mat_h_clone = mat_h.clone();
             let time = Instant::now();
             let expected_value = p3_dft
-                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::generator())
+                .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::GENERATOR)
                 .bit_reverse_rows()
                 .to_row_major_matrix();
             let cpu_time = time.elapsed();
