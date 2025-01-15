@@ -27,38 +27,6 @@ impl SymbolicExprEF {
     pub const RESERVED_TWO: Self = Self(u32::MAX - 3);
     pub const RESERVED_NEG_ONE: Self = Self(u32::MAX - 4);
 
-    // fn materialize(self) -> Self {
-    //     if self.0 == Self::RESERVED_ZERO.0 {
-    //         let output = SymbolicExprEF::alloc();
-    //         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-    //         code.push(Instruction32::e_assign_c(output, EF::ZERO));
-    //         drop(code);
-    //         return output;
-    //     }
-    //     if self.0 == Self::RESERVED_ONE.0 {
-    //         let output = SymbolicExprEF::alloc();
-    //         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-    //         code.push(Instruction32::e_assign_c(output, EF::ONE));
-    //         drop(code);
-    //         return output;
-    //     }
-    //     if self.0 == Self::RESERVED_TWO.0 {
-    //         let output = SymbolicExprEF::alloc();
-    //         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-    //         code.push(Instruction32::e_assign_c(output, EF::TWO));
-    //         drop(code);
-    //         return output;
-    //     }
-    //     if self.0 == Self::RESERVED_NEG_ONE.0 {
-    //         let output = SymbolicExprEF::alloc();
-    //         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-    //         code.push(Instruction32::e_assign_c(output, EF::NEG_ONE));
-    //         drop(code);
-    //         return output;
-    //     }
-    //     self.clone()
-    // }
-
     // #[instrument(skip_all, level = "trace", name = "Alloc for SymbolicExprEF")]
     pub fn alloc() -> Self {
         let mut tmp = CUDA_P3_EVAL_EXPR_EF_CTR.lock().unwrap();
