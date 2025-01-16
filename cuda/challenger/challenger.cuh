@@ -34,8 +34,8 @@ __device__ void duplexing(
 
 
     // Copy the output buffer to the sponge state.
-    *output_buffer_size = WIDTH;
-    for (size_t i = 0; i < WIDTH; i++) {
+    *output_buffer_size = RATE;
+    for (size_t i = 0; i < RATE; i++) {
         sponge_state[i] = output_buffer[i];
     }
 }
