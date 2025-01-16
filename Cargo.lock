@@ -4158,7 +4158,7 @@ dependencies = [
 [[package]]
 name = "p3-air"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4167,7 +4167,7 @@ dependencies = [
 [[package]]
 name = "p3-baby-bear"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-mds",
@@ -4181,7 +4181,7 @@ dependencies = [
 [[package]]
 name = "p3-bn254-fr"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "ff 0.13.0",
  "halo2curves",
@@ -4196,7 +4196,7 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-maybe-rayon",
@@ -4209,7 +4209,7 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-challenger",
@@ -4222,7 +4222,7 @@ dependencies = [
 [[package]]
 name = "p3-dft"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4236,7 +4236,7 @@ dependencies = [
 [[package]]
 name = "p3-field"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "p3-fri"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-challenger",
@@ -4271,7 +4271,7 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4281,7 +4281,7 @@ dependencies = [
 [[package]]
 name = "p3-keccak-air"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-air",
  "p3-field",
@@ -4294,7 +4294,7 @@ dependencies = [
 [[package]]
 name = "p3-matrix"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4309,7 +4309,7 @@ dependencies = [
 [[package]]
 name = "p3-maybe-rayon"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "rayon",
 ]
@@ -4317,7 +4317,7 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-dft",
@@ -4331,7 +4331,7 @@ dependencies = [
 [[package]]
 name = "p3-merkle-tree"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-commit",
@@ -4348,7 +4348,7 @@ dependencies = [
 [[package]]
 name = "p3-monty-31"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
@@ -4369,7 +4369,7 @@ dependencies = [
 [[package]]
 name = "p3-poseidon2"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "gcd",
  "p3-field",
@@ -4382,7 +4382,7 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4392,7 +4392,7 @@ dependencies = [
 [[package]]
 name = "p3-uni-stark"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -4410,7 +4410,7 @@ dependencies = [
 [[package]]
 name = "p3-util"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#778aa0ac31e6e88f56a39417d3650f6aa5c78afd"
+source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "serde",
 ]
