@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{PolynomialSpace, TwoAdicMultiplicativeCoset};
-use p3_field::{Field, FieldAlgebra};
+use p3_field::Field;
 use sp1_stark::Com;
 
 use crate::{

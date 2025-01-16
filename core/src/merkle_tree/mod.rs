@@ -367,7 +367,6 @@ mod tests {
         use p3_baby_bear::BabyBear;
         use p3_bn254_fr::{Bn254Fr, Poseidon2Bn254};
         use p3_merkle_tree::MerkleTree;
-        use p3_poseidon2::{ExternalLayerConstants, Poseidon2};
         use p3_symmetric::MultiField32PaddingFreeSponge;
 
         pub type OuterVal = BabyBear;

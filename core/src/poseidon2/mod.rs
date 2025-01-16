@@ -13,7 +13,7 @@ pub mod tests {
             poseidon2::{
                 baby_bear::{
                     poseidon2_baby_bear_16_kernels::{
-                        DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+                        DIGEST_WIDTH, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
                     },
                     DeviceHasherBabyBear,
                 },
@@ -22,7 +22,7 @@ pub mod tests {
         };
         use p3_baby_bear::{BabyBear, Poseidon2BabyBear};
         use p3_field::{FieldAlgebra, PrimeField32};
-        use p3_poseidon2::{ExternalLayerConstants, Poseidon2};
+        use p3_poseidon2::ExternalLayerConstants;
         use p3_symmetric::{
             CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
         };
@@ -267,13 +267,13 @@ pub mod tests {
             },
             poseidon2::bn254::{
                 poseidon2_bn254_3_constants,
-                poseidon2_bn254_3_kernels::{DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH},
+                poseidon2_bn254_3_kernels::{DIGEST_WIDTH, RATE, ROUNDS_F, WIDTH},
                 DeviceHasherBn254,
             },
         };
         use p3_bn254_fr::{Bn254Fr, Poseidon2Bn254};
         use p3_field::FieldAlgebra;
-        use p3_poseidon2::{ExternalLayerConstants, Poseidon2};
+        use p3_poseidon2::ExternalLayerConstants;
         use p3_symmetric::{
             CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
         };

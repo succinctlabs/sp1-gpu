@@ -4,9 +4,7 @@ use std::{
 };
 
 use crate::{
-    instruction::{ef_constant, Instruction32},
-    symbolic_expr_f::SymbolicExprF,
-    symbolic_var_ef::SymbolicVarEF,
+    instruction::Instruction32, symbolic_expr_f::SymbolicExprF, symbolic_var_ef::SymbolicVarEF,
     CUDA_P3_EVAL_CODE, CUDA_P3_EVAL_EXPR_EF_CTR, EF,
 };
 // use once_cell::sync::Lazy;
@@ -485,7 +483,7 @@ impl FieldExtensionAlgebra<SymbolicExprF> for SymbolicExprEF {
         todo!()
     }
 
-    fn from_base_iter<I: IntoIterator<Item = SymbolicExprF>>(iter: I) -> Self {
+    fn from_base_iter<I: IntoIterator<Item = SymbolicExprF>>(_: I) -> Self {
         todo!()
     }
 }
