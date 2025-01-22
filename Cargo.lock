@@ -272,7 +272,7 @@ dependencies = [
  "derive_more",
  "foldhash",
  "hashbrown 0.15.2",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itoa",
  "k256",
  "keccak-asm",
@@ -288,9 +288,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f542548a609dca89fcd72b3b9f355928cf844d4363c5eed9c5273a3dd225e097"
+checksum = "3d6c1d995bff8d011f7cd6c81820d51825e6e06d6db73914c1630ecf544d83d6"
 dependencies = [
  "alloy-rlp-derive",
  "arrayvec",
@@ -299,9 +299,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp-derive"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a833d97bf8a5f0f878daf2c8451fff7de7f9de38baa5a45d936ec718d81255a"
+checksum = "a40e1ef334153322fd878d07e86af7a529bcb86b2439525920a88eba87bcf943"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -403,7 +403,7 @@ dependencies = [
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
@@ -1297,7 +1297,7 @@ checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
 dependencies = [
  "camino",
  "cargo-platform",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -1311,7 +1311,7 @@ checksum = "3fce8dd7fcfcbf3a0a87d8f515194b49d6135acab73e18bd380d1d93bb1a15eb"
 dependencies = [
  "clap",
  "heck 0.4.1",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "log",
  "proc-macro2",
  "quote",
@@ -1324,9 +1324,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.9"
+version = "1.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8293772165d9345bdaaa39b45b2109591e63fe5e6fbc23c6ff930a048aa310b"
+checksum = "13208fcbb66eaeffe09b99fffbe1af420f00a7b35aa99ad683dfc1aa76145229"
 dependencies = [
  "jobserver",
  "libc",
@@ -1388,9 +1388,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.26"
+version = "4.5.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8eb5e908ef3a6efbe1ed62520fb7287959888c88485abe072543190ecc66783"
+checksum = "769b0145982b4b48713e01ec42d61614425f27b7058bda7180a3a41f30104796"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1398,9 +1398,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.26"
+version = "4.5.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b01801b5fc6a0a232407abc821660c9c6d25a1cafc0d4f85f29fb8d9afc121"
+checksum = "1b26884eb4b57140e4d2d93652abfa49498b938b3c9179f9fc487b0acc3edad7"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1579,9 +1579,9 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crunchy"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
+checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "crypto-bigint"
@@ -2519,7 +2519,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "slab",
  "tokio",
  "tokio-util",
@@ -2538,7 +2538,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http 1.2.0",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "slab",
  "tokio",
  "tokio-util",
@@ -3161,9 +3161,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.7.0"
+version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62f822373a4fe84d4bb149bf54e584a7f4abec90e072ed49cda0edea5b95471f"
+checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
@@ -3200,19 +3200,19 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.10.1"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddc24109865250148c2e0f3d25d4f0f479571723792d3802153c60922a4fb708"
+checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.13"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "261f68e344040fbd0edea105bef17c66edf46f984ddb1115b775ce31be948f4b"
+checksum = "e19b23d53f35ce9f56aebc7d1bb4e6ac1e9c0db7ac85c8d1760c04379edced37"
 dependencies = [
  "hermit-abi 0.4.0",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4000,7 +4000,7 @@ checksum = "1e32339a5dc40459130b3bd269e9892439f55b33e772d2a9d402a789baaf4e8a"
 dependencies = [
  "futures-core",
  "futures-sink",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "js-sys",
  "once_cell",
  "pin-project-lite",
@@ -4158,7 +4158,7 @@ dependencies = [
 [[package]]
 name = "p3-air"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4167,7 +4167,7 @@ dependencies = [
 [[package]]
 name = "p3-baby-bear"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-mds",
@@ -4181,7 +4181,7 @@ dependencies = [
 [[package]]
 name = "p3-bn254-fr"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "ff 0.13.0",
  "halo2curves",
@@ -4196,7 +4196,7 @@ dependencies = [
 [[package]]
 name = "p3-challenger"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-maybe-rayon",
@@ -4209,7 +4209,7 @@ dependencies = [
 [[package]]
 name = "p3-commit"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-challenger",
@@ -4222,7 +4222,7 @@ dependencies = [
 [[package]]
 name = "p3-dft"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4236,7 +4236,7 @@ dependencies = [
 [[package]]
 name = "p3-field"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "p3-fri"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-challenger",
@@ -4271,7 +4271,7 @@ dependencies = [
 [[package]]
 name = "p3-interpolation"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-field",
  "p3-matrix",
@@ -4281,7 +4281,7 @@ dependencies = [
 [[package]]
 name = "p3-keccak-air"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "p3-air",
  "p3-field",
@@ -4294,7 +4294,7 @@ dependencies = [
 [[package]]
 name = "p3-matrix"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4309,7 +4309,7 @@ dependencies = [
 [[package]]
 name = "p3-maybe-rayon"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "rayon",
 ]
@@ -4317,7 +4317,7 @@ dependencies = [
 [[package]]
 name = "p3-mds"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-dft",
@@ -4331,7 +4331,7 @@ dependencies = [
 [[package]]
 name = "p3-merkle-tree"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-commit",
@@ -4348,7 +4348,7 @@ dependencies = [
 [[package]]
 name = "p3-monty-31"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "num-bigint 0.4.6",
@@ -4369,7 +4369,7 @@ dependencies = [
 [[package]]
 name = "p3-poseidon2"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "gcd",
  "p3-field",
@@ -4382,7 +4382,7 @@ dependencies = [
 [[package]]
 name = "p3-symmetric"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-field",
@@ -4392,7 +4392,7 @@ dependencies = [
 [[package]]
 name = "p3-uni-stark"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -4410,7 +4410,7 @@ dependencies = [
 [[package]]
 name = "p3-util"
 version = "0.3.0"
-source = "git+https://github.com/succinctlabs/plonky3-private.git?branch=umadayal%2Fp3-0.3.0#902c78435d253f32a48b6789fcd981aca5fff3a7"
+source = "git+https://github.com/Plonky3/Plonky3.git?branch=sp1-v5#902c78435d253f32a48b6789fcd981aca5fff3a7"
 dependencies = [
  "serde",
 ]
@@ -5296,14 +5296,14 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
- "semver 1.0.24",
+ "semver 1.0.25",
 ]
 
 [[package]]
 name = "rustix"
-version = "0.38.43"
+version = "0.38.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a78891ee6bf2340288408954ac787aa063d8e8817e9f53abb37c695c6d834ef6"
+checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
 dependencies = [
  "bitflags 2.8.0",
  "errno",
@@ -5548,9 +5548,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.24"
+version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cb6eb87a131f756572d7fb904f6e7b68633f09cca868c5df1c4b8d1a694bbba"
+checksum = "f79dfe2d285b0488816f30e700a7438c5a73d816b5b7d3ac72fbc48b0d185e03"
 dependencies = [
  "serde",
 ]
@@ -5601,9 +5601,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "930cfb6e6abf99298aaad7d29abbef7a9999a9a8806a40088f55f0dcec03146b"
 dependencies = [
  "itoa",
  "memchr",
@@ -5882,7 +5882,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5894,7 +5894,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5932,7 +5932,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5989,7 +5989,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6005,7 +6005,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6027,7 +6027,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6036,7 +6036,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6055,7 +6055,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "bincode",
  "hex",
@@ -6072,7 +6072,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6114,7 +6114,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6147,7 +6147,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6168,7 +6168,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6211,7 +6211,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6220,7 +6220,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6245,7 +6245,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6292,7 +6292,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6652,7 +6652,7 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#749817d3dca403c9153b64abab50323b19ec0ef4"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
 dependencies = [
  "sp1-build",
 ]
@@ -6931,7 +6931,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "toml_datetime",
  "winnow 0.5.40",
 ]
@@ -6942,7 +6942,7 @@ version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -7383,9 +7383,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "valuable"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
+checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "value-bag"

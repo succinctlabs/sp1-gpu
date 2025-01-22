@@ -19,7 +19,9 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "umadayal/upgrade-p3", features = [ "bigint-rug" ] } 
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "umadayal/upgrade-p3", features = [
+    "bigint-rug",
+] }
 sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "umadayal/upgrade-p3" }
 sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "umadayal/upgrade-p3" }
 sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "umadayal/upgrade-p3" }
@@ -52,27 +54,27 @@ test-artifacts = { git = "https://github.com/succinctlabs/sp1-wip", branch = "um
 # p3-bn254-fr = "=0.2.0-succinct"
 
 
-p3-interpolation = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-air = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-field = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-commit = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-matrix = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-baby-bear = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-util = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-challenger = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-dft = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-fri = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-goldilocks = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-keccak = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-keccak-air = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-blake3 = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-mds = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-merkle-tree = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-poseidon2 = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-symmetric = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-uni-stark = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-maybe-rayon = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
-p3-bn254-fr = { git = "https://github.com/succinctlabs/plonky3-private.git", branch = "umadayal/p3-0.3.0" }
+p3-interpolation = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-air = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-baby-bear = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-util = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-dft = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-fri = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-keccak-air = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-blake3 = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-mds = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-maybe-rayon = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
+p3-bn254-fr = { git = "https://github.com/Plonky3/Plonky3.git", branch = "sp1-v5" }
 
 # for local development
 # p3-interpolation = { path = "../plonky3-private/interpolation" }
@@ -96,7 +98,6 @@ p3-bn254-fr = { git = "https://github.com/succinctlabs/plonky3-private.git", bra
 # p3-uni-stark = { path = "../plonky3-private/uni-stark" }
 # p3-maybe-rayon = { path = "../plonky3-private/maybe-rayon" }
 # p3-bn254-fr = { path = "../plonky3-private/bn254-fr" }
-
 
 
 # for local development
