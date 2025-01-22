@@ -5882,7 +5882,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5894,7 +5894,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5932,7 +5932,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5989,7 +5989,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6005,7 +6005,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6027,7 +6027,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6036,7 +6036,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6055,7 +6055,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "bincode",
  "hex",
@@ -6072,7 +6072,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6114,7 +6114,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6147,7 +6147,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6168,7 +6168,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6211,7 +6211,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6220,7 +6220,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6245,7 +6245,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6292,7 +6292,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6652,7 +6652,7 @@ dependencies = [
 [[package]]
 name = "test-artifacts"
 version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#d0eb341a0584db10c45d9237d1d111cc775ad5e9"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fupgrade-p3#1484500d1a63917d8749aad10b9cbd9fbf031429"
 dependencies = [
  "sp1-build",
 ]
