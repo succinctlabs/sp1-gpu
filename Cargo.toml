@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { version = "4.0.0" }
-sp1-core-machine = { version = "4.0.0" }
-sp1-prover = { version = "4.0.0" }
-sp1-recursion-core = { version = "4.0.0" }
-sp1-cuda = { version = "4.0.0" }
-sp1-stark = { version = "4.0.0" }
-sp1-eval = { version = "4.0.0" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1", branch = "chris/deferred-checkpoint-opts" }
 
 # p3
 p3-interpolation = "=0.2.0-succinct"
