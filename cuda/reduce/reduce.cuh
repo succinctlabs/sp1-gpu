@@ -2,29 +2,31 @@
 
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
-#include <cuda/atomic>
-#include "../fields/bb31_t.cuh"
-#include "../fields/bb31_extension_t.cuh"
-#include "../utils/exception.cuh"
-
 #include <stdio.h>
+
+#include <cuda/atomic>
+
+#include "../fields/bb31_extension_t.cuh"
+#include "../fields/bb31_t.cuh"
+#include "../utils/exception.cuh"
 
 namespace cg = cooperative_groups;
 
-
-template <typename Ty>
-  struct AddOpFinalReduce {
+template<typename Ty>
+struct AddOpFinalReduce {
     template<typename TyGroup>
-    __device__ __forceinline__ static void final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val);
+    __device__ __forceinline__ static void
+    final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val);
 };
 
-template <typename Ty>
- struct AddOp {
+template<typename Ty>
+struct AddOp {
     __device__ __forceinline__ Ty initial() const {
         return Ty::zero();
     }
 
-    __device__ __forceinline__ Ty operator()(const Ty arg1, const Ty arg2) const {
+    __device__ __forceinline__ Ty
+    operator()(const Ty arg1, const Ty arg2) const {
         return arg1 + arg2;
     }
 
@@ -38,44 +40,53 @@ template <typename Ty>
     }
 
     template<typename TyGroup>
-    __device__ __forceinline__ void final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val) {
-       return AddOpFinalReduce<Ty>::final_block_reduction_async(group, dst, val); 
+    __device__ __forceinline__ void
+    final_block_reduction_async(const TyGroup& group, Ty* dst, Ty val) {
+        return AddOpFinalReduce<Ty>::final_block_reduction_async(
+            group,
+            dst,
+            val
+        );
     }
- };
+};
 
-
-
-template <>
-  struct AddOpFinalReduce<bb31_t> {
+template<>
+struct AddOpFinalReduce<bb31_t> {
     template<typename TyGroup>
-    __device__ __forceinline__ static void final_block_reduction_async(
-        const TyGroup& group, 
-        bb31_t* dst, 
-        bb31_t val) {
+    __device__ __forceinline__ static void
+    final_block_reduction_async(const TyGroup& group, bb31_t* dst, bb31_t val) {
         cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(dst[0]);
         // reduce thread sums across the tile, add the result to the atomic
         return cg::reduce_update_async(group, atomic, val, cg::plus<bb31_t>());
     }
-  };
+};
 
-
-template <>
-  struct AddOpFinalReduce<bb31_extension_t> {
+template<>
+struct AddOpFinalReduce<bb31_extension_t> {
     template<typename TyGroup>
     __device__ __forceinline__ static void final_block_reduction_async(
-        const TyGroup& group, 
-        bb31_extension_t* dst, 
-        bb31_extension_t val) {
-        // Split the extension into a slice of base field elements and make a separate atomic update.
-        #pragma unroll
-        for(int j = 0 ; j < bb31_extension_t::D; j++) {
-            cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(dst[0].value[j]);
-            cg::reduce_update_async(group, atomic, val.value[j], cg::plus<bb31_t>());
+        const TyGroup& group,
+        bb31_extension_t* dst,
+        bb31_extension_t val
+    ) {
+// Split the extension into a slice of base field elements and make a separate atomic update.
+#pragma unroll
+        for (int j = 0; j < bb31_extension_t::D; j++) {
+            cuda::atomic_ref<bb31_t, cuda::thread_scope_block> atomic(
+                dst[0].value[j]
+            );
+            cg::reduce_update_async(
+                group,
+                atomic,
+                val.value[j],
+                cg::plus<bb31_t>()
+            );
         }
     }
 };
 
-template<typename F, typename TyOp, typename TyBlock, typename TyTile> __device__ F partialBlockReduce(
+template<typename F, typename TyOp, typename TyBlock, typename TyTile>
+__device__ F partialBlockReduce(
     const TyBlock& block,
     const TyTile& tile,
     F val,
@@ -92,9 +103,13 @@ template<typename F, typename TyOp, typename TyBlock, typename TyTile> __device_
     block.sync();  // Synchronize after warp-level reduction
 
     // Perform tree-based reduction on shared memory
-    for (int stride = (block.size() / tile.size()) / 2; stride > 0; stride /= 2) {
+    for (int stride = (block.size() / tile.size()) / 2; stride > 0;
+         stride /= 2) {
         if (block.thread_rank() < stride) {
-            op.evalAssign(shared[block.thread_rank()], shared[block.thread_rank() + stride]);
+            op.evalAssign(
+                shared[block.thread_rank()],
+                shared[block.thread_rank() + stride]
+            );
         }
         block.sync();  // Synchronize after each step
     }
@@ -102,12 +117,14 @@ template<typename F, typename TyOp, typename TyBlock, typename TyTile> __device_
     return shared[0];
 }
 
-template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
-    F* A, 
-    F* partial, 
+template<typename F, typename TyOp>
+__global__ void partialBlockReduceKernel(
+    F* A,
+    F* partial,
     size_t width,
     size_t height,
-    TyOp&& op) {
+    TyOp&& op
+) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
@@ -119,7 +136,8 @@ template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
     }
 
     // Stride loop to accumulate partial sum
-    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height;
+         i += blockDim.x * gridDim.x) {
         op.evalAssign(thread_val, A[batchIdx * height + i]);
     }
 
@@ -136,13 +154,9 @@ template<typename F, typename TyOp> __global__ void partialBlockReduceKernel(
     }
 }
 
-
-template<typename F, typename TyOp> __global__ void blockReduce(
-    F* A, 
-    F* result, 
-    size_t width,
-    size_t height,
-    TyOp&& op) {
+template<typename F, typename TyOp>
+__global__ void
+blockReduce(F* A, F* result, size_t width, size_t height, TyOp&& op) {
     auto block = cg::this_thread_block();
     auto tile = cg::tiled_partition<32>(block);
 
@@ -153,55 +167,75 @@ template<typename F, typename TyOp> __global__ void blockReduce(
 
     F thread_val = op.initial();
 
-    for(size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height; i += blockDim.x * gridDim.x) {
+    for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < height;
+         i += blockDim.x * gridDim.x) {
         op.evalAssign(thread_val, A[batchIdx * height + i]);
     }
 
-    op.final_block_reduction_async(tile, &result[batchIdx], thread_val); 
+    op.final_block_reduction_async(tile, &result[batchIdx], thread_val);
     block.sync();
 }
 
-
-template<typename F> RustCudaError vectorSum(
-    F* in, 
-    F* result,
-    size_t width, 
-    size_t height,
-    cudaStream_t stream) {
+template<typename F>
+RustCudaError
+vectorSum(F* in, F* result, size_t width, size_t height, cudaStream_t stream) {
     dim3 blockDim(512, 1, 1);
-    size_t numReduceBlocks = (((height - 1)/blockDim.x + 1) - 1) / 8 + 1;
+    size_t numReduceBlocks = (((height - 1) / blockDim.x + 1) - 1) / 8 + 1;
     dim3 gridDim(numReduceBlocks, width, 1);
 
-    // Allocate the partial sums and set them to zero. 
-    F * partial_sums;
-    CUDA_OK(cudaMallocAsync(&partial_sums, sizeof(F) * gridDim.x * width, stream));
+    // Allocate the partial sums and set them to zero.
+    F* partial_sums;
+    CUDA_OK(
+        cudaMallocAsync(&partial_sums, sizeof(F) * gridDim.x * width, stream)
+    );
 
     size_t numTiles = blockDim.x / 32;
 
     AddOp<F> op;
 
-    partialBlockReduceKernel<<<gridDim, blockDim, numTiles * blockDim.y * sizeof(F), stream>>>(in, partial_sums, width, height, op);
-    
+    partialBlockReduceKernel<<<
+        gridDim,
+        blockDim,
+        numTiles * blockDim.y * sizeof(F),
+        stream>>>(in, partial_sums, width, height, op);
+
     size_t new_height = gridDim.x;
-    gridDim.x = (((new_height - 1)/blockDim.x + 1) - 1) / 32 + 1;
+    gridDim.x = (((new_height - 1) / blockDim.x + 1) - 1) / 32 + 1;
 
     // Initialize the result value.
     //
     // *Warning*: this assumes the zero of `F` is just given by the zero byte pattern.
     CUDA_OK(cudaMemsetAsync(result, 0, sizeof(F) * width, stream));
     // Compute the final results from the partial evaluations.
-    blockReduce<<<gridDim, blockDim, 0, stream>>>(partial_sums, result, width, new_height, op);
+    blockReduce<<<gridDim, blockDim, 0, stream>>>(
+        partial_sums,
+        result,
+        width,
+        new_height,
+        op
+    );
     // Free the memory used for partial sums.
     CUDA_OK(cudaFreeAsync(partial_sums, stream));
 
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" RustCudaError vectorSumBabyBear(bb31_t* in, bb31_t* result, size_t width, size_t height, cudaStream_t stream) {
+extern "C" RustCudaError vectorSumBabyBear(
+    bb31_t* in,
+    bb31_t* result,
+    size_t width,
+    size_t height,
+    cudaStream_t stream
+) {
     return vectorSum(in, result, width, height, stream);
 }
 
-extern "C" RustCudaError vectorSumBabyBearExtension(bb31_extension_t* in, bb31_extension_t* result, size_t width, size_t height, cudaStream_t stream) {
+extern "C" RustCudaError vectorSumBabyBearExtension(
+    bb31_extension_t* in,
+    bb31_extension_t* result,
+    size_t width,
+    size_t height,
+    cudaStream_t stream
+) {
     return vectorSum(in, result, width, height, stream);
 }
-

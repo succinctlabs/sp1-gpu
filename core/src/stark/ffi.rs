@@ -8,16 +8,15 @@ use crate::{
 
 use super::DeviceInteractionsView;
 
+/// cbindgen:ignore
 extern "C" {
     pub fn populate_permutation_rows_flattened(
         interactions: DeviceInteractionsView<BabyBear>,
         permutation: MatrixViewMutDevice<BabyBear>,
         preprocessed: MatrixViewDevice<BabyBear>,
         main: MatrixViewDevice<BabyBear>,
-        global_alpha: BinomialExtensionField<BabyBear, 4>,
-        global_beta: BinomialExtensionField<BabyBear, 4>,
-        local_alpha: BinomialExtensionField<BabyBear, 4>,
-        local_beta: BinomialExtensionField<BabyBear, 4>,
+        alpha: BinomialExtensionField<BabyBear, 4>,
+        beta: BinomialExtensionField<BabyBear, 4>,
         batch_size: usize,
         num_blocks: usize,
         num_threads_per_block: usize,
@@ -34,9 +33,11 @@ pub(super) mod quotient_gpu {
     use air::instruction::Instruction16;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
+    use sp1_stark::septic_digest::SepticDigest;
 
     #[link_name = "quotient_gpu"]
     #[allow(unused_attributes)]
+    /// cbindgen:ignore
     extern "C" {
         #[link_name = "computeValues"]
         #[allow(unused)]
@@ -46,7 +47,8 @@ pub(super) mod quotient_gpu {
             eval_f_constants: *const BabyBear,
             eval_ef_constants: *const BinomialExtensionField<BabyBear, 4>,
             memory_size: usize,
-            cumulative_sums: *const BinomialExtensionField<BabyBear, 4>,
+            local_cumulative_sum: BinomialExtensionField<BabyBear, 4>,
+            global_cumulative_sum: SepticDigest<BabyBear>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             preprocessed_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,

@@ -2,6 +2,7 @@ use std::ffi::c_void;
 
 use crate::device::error::CudaRustError;
 
+/// cbindgen:ignore
 extern "C" {
     pub(crate) static CUDA_SUCCESS_MOON: CudaRustError;
 

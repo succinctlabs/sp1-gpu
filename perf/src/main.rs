@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use moongate_core::utils::init_tracer;
 use moongate_perf::programs::{KEYSPACE_BATCHER_ELF, KEYSPACE_ELF};
 use sp1_core_machine::io::SP1Stdin;
@@ -14,6 +16,13 @@ use moongate_perf::{
 };
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
+
+#[cfg(not(target_env = "msvc"))]
+use jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -105,6 +114,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     write_measurements_to_csv(&measurements, "measurements.csv")?;
+
+    sleep(Duration::from_secs(2));
 
     Ok(())
 }

@@ -28,6 +28,10 @@ Build the server image:
 sudo docker build -f Dockerfile.server -t moongate-server .
 ```
 
+```
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.server -t jtguibas/sp1-gpu:v4.0.0-rc1 --ssh default=${SSH_AGENT_AUTH_SOCK} .
+```
+
 Run the server:
 ```
 sudo docker run -e "RUST_LOG=debug" -p 3000:3000 --rm --runtime=nvidia --gpus all moongate-server

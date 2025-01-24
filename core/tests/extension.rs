@@ -1,3 +1,5 @@
+#![allow(unused_doc_comments)]
+
 use itertools::izip;
 use moongate_core::device::{
     memory::{ToDevice, ToHost},
@@ -11,6 +13,7 @@ const D: usize = 4;
 type F = BabyBear;
 type EF = BinomialExtensionField<F, D>;
 
+/// cbindgen:ignore
 extern "C" {
     pub fn test_bb31_extension(
         a: *const EF,

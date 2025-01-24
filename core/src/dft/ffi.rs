@@ -2,6 +2,7 @@ use p3_baby_bear::BabyBear;
 
 use crate::{cuda_runtime::stream::CudaStreamHandle, device::error::CudaRustError};
 
+/// cbindgen:ignore
 extern "C" {
     pub(crate) fn sppark_init(stream: CudaStreamHandle) -> CudaRustError;
 

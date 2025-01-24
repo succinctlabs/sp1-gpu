@@ -4,38 +4,43 @@
 
 #include <cuda.h>
 #include <nvtx3/nvToolsExt.h>
+
 #include "exception.cuh"
 
-
 // Create an nvtx domain.
+
 extern "C" nvtxDomainHandle_t nvtxDomainCreateARust(char* name) {
     return nvtxDomainCreateA(name);
 }
 
 // Destroy an nvtx domain.
+
 extern "C" void nvtxDomainDestroyARust(nvtxDomainHandle_t domain) {
     nvtxDomainDestroy(domain);
 }
 
 // Create a global nvtx range.
+
 extern "C" uint64_t nvtx_range_start(char* message) {
-   return nvtxRangeStart(message);
+    return nvtxRangeStart(message);
 }
 
 // Destroy a global nvtx range.
+
 extern "C" void nvtx_range_end(uint64_t id) {
-   nvtxRangeEnd(id);
+    nvtxRangeEnd(id);
 }
 
-// Sync device 
+// Sync device
+
 extern "C" rustCudaError_t cuda_device_synchronize() {
     CUDA_OK(cudaDeviceSynchronize());
-    return CUDA_SUCCESS_MOON; 
-} 
+    return CUDA_SUCCESS_MOON;
+}
 
 // Cuda events.
 
-extern "C" rustCudaError_t cuda_event_create(cudaEvent_t *event) {
+extern "C" rustCudaError_t cuda_event_create(cudaEvent_t* event) {
     CUDA_OK(cudaEventCreate(event));
     return CUDA_SUCCESS_MOON;
 }
@@ -45,7 +50,8 @@ extern "C" rustCudaError_t cuda_event_destroy(cudaEvent_t event) {
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_event_record(cudaEvent_t event, cudaStream_t stream) {
+extern "C" rustCudaError_t
+cuda_event_record(cudaEvent_t event, cudaStream_t stream) {
     CUDA_OK(cudaEventRecord(event, stream));
     return CUDA_SUCCESS_MOON;
 }
@@ -55,17 +61,17 @@ extern "C" rustCudaError_t cuda_event_synchronize(cudaEvent_t event) {
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_event_elapsed_time(float *ms, cudaEvent_t start, cudaEvent_t end) {
+extern "C" rustCudaError_t
+cuda_event_elapsed_time(float* ms, cudaEvent_t start, cudaEvent_t end) {
     CUDA_OK(cudaEventElapsedTime(ms, start, end));
     return CUDA_SUCCESS_MOON;
 }
-
 
 // Cuda streams.
 
 extern "C" const cudaStream_t DEFAULT_STREAM = cudaStreamDefault;
 
-extern "C" rustCudaError_t cuda_stream_create(cudaStream_t *stream) {
+extern "C" rustCudaError_t cuda_stream_create(cudaStream_t* stream) {
     CUDA_OK(cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking));
     return CUDA_SUCCESS_MOON;
 }
@@ -80,50 +86,84 @@ extern "C" rustCudaError_t cuda_stream_synchronize(cudaStream_t stream) {
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event) {
+extern "C" rustCudaError_t
+cuda_stream_wait_event(cudaStream_t stream, cudaEvent_t event) {
     CUDA_OK(cudaStreamWaitEvent(stream, event));
     return CUDA_SUCCESS_MOON;
 }
 
 // Async memory operations.
 
-extern "C" rustCudaError_t cuda_malloc_async(void **devPtr, size_t size, cudaStream_t stream) {
+extern "C" rustCudaError_t
+cuda_malloc_async(void** devPtr, size_t size, cudaStream_t stream) {
     CUDA_OK(cudaMallocAsync(devPtr, size, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_free_async(void *devPtr, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_free_async(void* devPtr, cudaStream_t stream) {
     CUDA_OK(cudaFreeAsync(devPtr, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_set_async(void *dst, uint8_t value, size_t count, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_mem_set_async(
+    void* dst,
+    uint8_t value,
+    size_t count,
+    cudaStream_t stream
+) {
     CUDA_OK(cudaMemsetAsync(dst, value, count, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_set(void *dst, uint8_t value, size_t count) {
+extern "C" rustCudaError_t
+cuda_mem_set(void* dst, uint8_t value, size_t count) {
     CUDA_OK(cudaMemset(dst, value, count));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_device_to_device_async(void *dst, const void *src, size_t count, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_mem_copy_device_to_device_async(
+    void* dst,
+    const void* src,
+    size_t count,
+    cudaStream_t stream
+) {
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyDeviceToDevice, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_host_to_device_async(void *dst, const void *src, size_t count, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_mem_copy_host_to_device_async(
+    void* dst,
+    const void* src,
+    size_t count,
+    cudaStream_t stream
+) {
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyHostToDevice, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_device_to_host_async(void *dst, const void *src, size_t count, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_mem_copy_device_to_host_async(
+    void* dst,
+    const void* src,
+    size_t count,
+    cudaStream_t stream
+) {
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyDeviceToHost, stream));
     return CUDA_SUCCESS_MOON;
 }
 
-extern "C" rustCudaError_t cuda_mem_copy_host_to_host_async(void *dst, const void *src, size_t count, cudaStream_t stream) {
+extern "C" rustCudaError_t cuda_mem_copy_host_to_host_async(
+    void* dst,
+    const void* src,
+    size_t count,
+    cudaStream_t stream
+) {
     CUDA_OK(cudaMemcpyAsync(dst, src, count, cudaMemcpyHostToHost, stream));
     return CUDA_SUCCESS_MOON;
 }
 
+extern "C" rustCudaError_t cuda_setup_mem_pool(cudaStream_t stream) {
+    cudaMemPool_t mempool;
+    CUDA_OK(cudaDeviceGetDefaultMemPool(&mempool, 0));
+    uint64_t threshold = UINT64_MAX;
+    CUDA_OK(cudaMemPoolSetAttribute(mempool, cudaMemPoolAttrReleaseThreshold, &threshold));
+}

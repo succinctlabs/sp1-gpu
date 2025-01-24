@@ -139,13 +139,18 @@ impl<
         M: Borrow<C::Matrix>,
     {
         // Encode all the matrices and register the events.
-        let lde_evaluations = self.encode_batch(evaluations, true).unwrap();
+        let lde_evaluations = tracing::debug_span!("encode batch")
+            .in_scope(|| self.encode_batch(evaluations, true).unwrap());
+
         // Get the committer stream to wait for encodings to be done.
-        for (_, _, event) in evaluations.iter() {
-            stream.wait_event(event).unwrap();
-        }
+        tracing::debug_span!("wait for encodings").in_scope(|| {
+            for (_, _, event) in evaluations.iter() {
+                stream.wait_event(event).unwrap();
+            }
+        });
+
         // Commit the LDE evaluations.
-        self.mmcs_commit(lde_evaluations, stream)
+        tracing::debug_span!("commit mmcs").in_scope(|| self.mmcs_commit(lde_evaluations, stream))
     }
 }
 

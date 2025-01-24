@@ -34,7 +34,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let context = SP1Context::default();
 
     tracing::info!("Setup elf");
-    let (pk, vk) = prover.setup(elf);
+    let (_pk_host, pk_device, program, vk) = prover.setup(elf);
 
     tracing::info!("prove core");
     let time = std::time::Instant::now();
@@ -44,7 +44,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
     } else if name == "KeyspaceBatcher" {
         stdin = bincode::deserialize(KEYSPACE_BATCHER_STDIN).unwrap();
     }
-    let core_proof = prover.prove_core(&pk, &stdin, opts, context).unwrap();
+    let core_proof = prover.prove_core(&pk_device, program, &stdin, opts, context).unwrap();
     let core_time = time.elapsed();
 
     let cycles = core_proof.cycles as usize;
@@ -69,6 +69,10 @@ pub fn make_measurement<C: SP1ProverComponents>(
 
     let deferred_proofs = stdin.proofs.iter().map(|(proof, _)| proof.clone()).collect::<Vec<_>>();
     tracing::info!("compress");
+
+    let core_proof_bytes = bincode::serialize(&core_proof).unwrap();
+    std::fs::write("core_proof.bin", &core_proof_bytes).unwrap();
+
     let time = std::time::Instant::now();
     let compressed_proof = prover.compress(&vk, core_proof, deferred_proofs, opts).unwrap();
     let compress_time = time.elapsed();

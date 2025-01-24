@@ -6,6 +6,7 @@ use crate::device::error::CudaRustError;
 
 use super::{event::CudaEventHandle, stream::CudaStreamHandle};
 
+/// cbindgen:ignore
 extern "C" {
     pub(crate) static DEFAULT_STREAM: CudaStreamHandle;
 
@@ -73,5 +74,5 @@ extern "C" {
         count: usize,
         stream: CudaStreamHandle,
     ) -> CudaRustError;
-
+    pub(crate) fn cuda_setup_mem_pool() -> CudaRustError;
 }

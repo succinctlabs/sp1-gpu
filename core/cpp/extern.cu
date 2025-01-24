@@ -11,3 +11,6 @@
 #include "../../cuda/opening/fri_batch.cuh"
 #include "../../cuda/univariate/eval.cuh"
 #include "../../cuda/reduce/reduce.cuh"
+#include "../../cuda/tracegen/core.cuh"
+#include "../../cuda/challenger/challenger.cuh"
+#include "../../cuda/tracegen/global.cuh"

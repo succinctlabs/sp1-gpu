@@ -6,9 +6,11 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::{AbstractExtensionField, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use sp1_stark::septic_digest::SepticDigest;
+use sp1_stark::MachineChip;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
@@ -22,7 +24,6 @@ use tracing::info;
 
 use p3_field::AbstractField;
 use std::{
-    array,
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet},
     marker::PhantomData,
@@ -40,6 +41,7 @@ use crate::{
     merkle_tree::{FieldMerkleTreeGpu, MmcsProverData},
     poseidon2::baby_bear::poseidon2_baby_bear_16_kernels::DIGEST_WIDTH,
     stark::{DeviceQuotientValues, DeviceQuotientValuesGenerator},
+    tracegen::{DeviceAir, DevicePreprocessedAir},
     univariate::subgroup_normalizer,
     utils::ChipStatistics,
 };
@@ -66,6 +68,9 @@ pub struct StarkEvents {
     local_main: BTreeMap<String, CudaEvent>,
     permutation: BTreeMap<String, CudaEvent>,
     quotient: BTreeMap<String, CudaEvent>,
+    preprocessed_trace_to_device: BTreeMap<String, CudaEvent>,
+    pk_to_device: CudaEvent,
+    quotient_common_data_to_device: CudaEvent,
     batching_buffer_initialization: CudaEvent,
     update_openings: BTreeMap<String, CudaEvent>,
 }
@@ -81,6 +86,7 @@ impl StarkEvents {
         let mut quotient = BTreeMap::new();
         let batching_buffer_initialization = CudaEvent::new()?;
         let mut update_openings = BTreeMap::new();
+        let mut preprocessed_trace_to_device = BTreeMap::new();
 
         for chip in machine.chips() {
             if chip.preprocessed_width() > 0 {
@@ -97,6 +103,7 @@ impl StarkEvents {
             permutation.insert(chip.name(), CudaEvent::new()?);
             quotient.insert(chip.name(), CudaEvent::new()?);
             update_openings.insert(chip.name(), CudaEvent::new()?);
+            preprocessed_trace_to_device.insert(chip.name(), CudaEvent::new()?);
         }
 
         Ok(Self {
@@ -107,6 +114,9 @@ impl StarkEvents {
             quotient,
             batching_buffer_initialization,
             update_openings,
+            preprocessed_trace_to_device,
+            pk_to_device: CudaEvent::new()?,
+            quotient_common_data_to_device: CudaEvent::new()?,
         })
     }
 }
@@ -125,6 +135,8 @@ where
     pub commit: Com<SC>,
     /// The start pc of the program.
     pub pc_start: Val<SC>,
+    /// The initial global cumulative sum.
+    pub initial_global_cumulative_sum: SepticDigest<Val<SC>>,
     /// The preprocessed traces.
     pub traces: Vec<ColMajorMatrixDevice<Val<SC>>>,
     /// The pcs data for the preprocessed traces.
@@ -160,13 +172,17 @@ where
         self.pc_start
     }
 
+    fn initial_global_cumulative_sum(&self) -> SepticDigest<Val<SC>> {
+        self.initial_global_cumulative_sum
+    }
+
     fn observe_into(&self, challenger: &mut sp1_stark::Challenger<SC>) {
         challenger.observe(self.commit.clone());
         challenger.observe(self.pc_start);
+        challenger.observe_slice(&self.initial_global_cumulative_sum.0.x.0);
+        challenger.observe_slice(&self.initial_global_cumulative_sum.0.y.0);
         let zero = Val::<SC>::zero();
-        for _ in 0..7 {
-            challenger.observe(zero);
-        }
+        challenger.observe(zero);
     }
 }
 
@@ -184,7 +200,10 @@ where
     SC: BabyBearFriConfig,
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>
         + for<'a> Air<air::SymbolicProverFolder<'a>>
-        + MachineAir<BabyBear>,
+        + MachineAir<BabyBear>
+        + DeviceAir<BabyBear>
+        + DevicePreprocessedAir<BabyBear>,
+    // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
         + 'static
@@ -206,6 +225,7 @@ where
     type Error = CudaError;
 
     fn new(machine: StarkMachine<SC, A>) -> Self {
+        unsafe { crate::cuda_runtime::ffi::cuda_setup_mem_pool() };
         let log_blowup = machine.config().pcs().fri_config().log_blowup;
         let quotient_generator = DeviceQuotientValuesGenerator::new(&machine);
         let chip_streams = machine
@@ -234,26 +254,30 @@ where
     fn pk_to_device(&self, pk: &sp1_stark::StarkProvingKey<SC>) -> Self::DeviceProvingKey {
         let chip_ordering = pk.chip_ordering.clone();
         let mut data = pk.data.to_device_async(&self.main_stream).unwrap();
-        self.main_stream.synchronize().unwrap();
+        self.main_stream.record(&self.events.pk_to_device).unwrap();
         let mut traces = Vec::with_capacity(chip_ordering.len());
 
         for i in 0..chip_ordering.len() {
             let name =
                 chip_ordering.iter().find(|(_, idx)| **idx == i).map(|(name, _)| name).unwrap();
             let stream = self.chip_streams.get(name).unwrap();
+            stream.wait_event(&self.events.pk_to_device).unwrap();
             // Update lde stream.
             let lde = &mut data.matrices_mut()[i];
             unsafe {
                 lde.values.set_stream(stream.clone());
             }
             let trace = pk.traces[i].to_device_async(stream).unwrap().to_column_major();
-            stream.synchronize().unwrap();
+            let event = self.events.preprocessed_trace_to_device.get(name).unwrap();
+            stream.record(event).unwrap();
+            self.main_stream.wait_event(event).unwrap();
             traces.push(trace);
         }
 
         StarkProvingKeyDevice {
             commit: pk.commit.clone(),
             pc_start: pk.pc_start,
+            initial_global_cumulative_sum: pk.initial_global_cumulative_sum,
             traces,
             data,
             chip_ordering,
@@ -266,6 +290,7 @@ where
         sp1_stark::StarkProvingKey {
             commit: pk.commit.clone(),
             pc_start: pk.pc_start,
+            initial_global_cumulative_sum: pk.initial_global_cumulative_sum,
             data: pk.data.to_host(),
             traces: pk.traces.iter().map(|t| t.to_host()).collect(),
             chip_ordering: pk.chip_ordering.clone(),
@@ -273,21 +298,14 @@ where
         }
     }
 
-    fn generate_traces(
-        &self,
-        record: &A::Record,
-        interaction_scope: InteractionScope,
-    ) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
-        let chips = self
-            .shard_chips(record)
-            .filter(|chip| chip.commit_scope() == interaction_scope)
-            .collect::<Vec<_>>();
+    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+        let chips = self.shard_chips(record).collect::<Vec<_>>();
 
         chips
             .par_iter()
-            .map(|chip| {
-                let trace = chip.generate_trace(record, &mut A::Record::default());
-                (chip.name(), trace)
+            .filter_map(|chip| {
+                let trace = chip.air.generate_trace_host(record, &mut A::Record::default())?;
+                Some((chip.name(), trace))
             })
             .collect::<Vec<_>>()
     }
@@ -295,77 +313,241 @@ where
     fn commit(
         &self,
         shard: &A::Record,
-        mut named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
+        named_traces: Vec<(String, RowMajorMatrix<Val<SC>>)>,
     ) -> ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData> {
+        /// A possibly finished trace generation job.
+        ///
+        /// Defined here because otherwise it would be several hundred lines away, and nobody
+        /// else needs to worry about it. It's merely a "this or that" type.
+        enum TraceGenerationJob<'b, SC, A>
+        where
+            SC: BabyBearFriConfig,
+        {
+            /// A finished trace generated on the host, along with its name.
+            Host(String, RowMajorMatrix<Val<SC>>),
+            /// A chip that needs trace generation on device, along with its height.
+            Device(&'b MachineChip<SC, A>, usize),
+        }
+
+        impl<'b, SC, A> TraceGenerationJob<'b, SC, A>
+        where
+            SC: BabyBearFriConfig,
+            A: MachineAir<Val<SC>>,
+        {
+            #[inline]
+            fn name(&self) -> String {
+                match self {
+                    TraceGenerationJob::Host(name, _) => name.clone(),
+                    TraceGenerationJob::Device(chip, _) => chip.name(),
+                }
+            }
+
+            #[inline]
+            fn height(&self) -> usize {
+                match self {
+                    TraceGenerationJob::Host(_, mat) => mat.height(),
+                    TraceGenerationJob::Device(_, height) => *height,
+                }
+            }
+        }
+
+        // Get the chips that need to be used for this shard.
+        let chips = self.shard_chips(shard).collect::<Vec<_>>();
+
+        // Create the trace jobs.
+        let mut trace_jobs: Vec<TraceGenerationJob<'_, SC, A>> = named_traces
+            .into_iter()
+            .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
+            .chain(chips.into_iter().filter_map(|chip| {
+                Some(TraceGenerationJob::Device(chip, chip.air.num_rows_device(shard)?))
+            }))
+            .collect();
+
         // Order the chips and traces by trace size (biggest first), and get the ordering map.
-        named_traces.sort_by_key(|(name, trace)| (Reverse(trace.height()), name.clone()));
+        trace_jobs.sort_by_key(|job| (Reverse(job.height()), job.name()));
 
         // Get the chip ordering.
-        let chip_ordering =
-            named_traces.iter().enumerate().map(|(i, (name, _))| (name.to_owned(), i)).collect();
+        let chip_ordering = trace_jobs.iter().enumerate().map(|(i, job)| (job.name(), i)).collect();
 
         // Get the domains.
         let config = self.machine.config();
-        let domains: Vec<_> = named_traces
+        let domains = trace_jobs
             .iter()
-            .map(|(_, trace)| natural_domain_for_degree(config, trace.height()))
-            .collect();
+            .map(|job| natural_domain_for_degree(config, job.height()))
+            .collect::<Vec<_>>();
 
         let span = tracing::Span::current();
         let _span = span.enter();
-        let span = tracing::Span::current();
-        let _span = span.enter();
 
-        let commit_span = tracing::debug_span!("copy traces to device and commit").entered();
-        let traces_rx_domains_events = named_traces
-            .into_iter()
-            .zip(domains)
-            .map(|((name, trace), domain)| {
-                let stream = self.chip_streams.get(&name).unwrap().clone();
-                let event = self
-                    .events
+        let chip_streams = trace_jobs
+            .iter()
+            .map(|job| self.chip_streams.get(&job.name()).unwrap())
+            .collect::<Vec<_>>();
+        let events = trace_jobs
+            .iter()
+            .map(|job| {
+                self.events
                     .global_main
-                    .get(&name)
-                    .unwrap_or_else(|| self.events.local_main.get(&name).unwrap())
-                    .clone();
-                let (tx, rx) = oneshot::channel();
-                rayon::spawn(move || {
-                    let stream = stream;
-                    let trace = trace.to_device_async(&stream).unwrap().to_column_major();
-                    tx.send(trace).unwrap();
-                });
-                (domain, rx, event)
+                    .get(&job.name())
+                    .unwrap_or_else(|| self.events.local_main.get(&job.name()).unwrap())
+                    .clone()
             })
             .collect::<Vec<_>>();
 
-        let trace_data = traces_rx_domains_events
-            .into_iter()
-            .map(|(domain, rx, event)| (domain, rx.recv().unwrap(), event))
+        let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
+            .in_scope(|| {
+                let span = tracing::Span::current();
+                trace_jobs
+                    .par_iter()
+                    .zip(chip_streams)
+                    .map(|(job, stream)| {
+                        let _span = span.enter();
+                        match job {
+                            TraceGenerationJob::Host(name, mat) => {
+                                tracing::debug_span!("copy host trace to device", chip = name)
+                                    .in_scope(|| {
+                                        mat.to_device_async(stream).unwrap().to_column_major()
+                                    })
+                            }
+                            TraceGenerationJob::Device(chip, _) => {
+                                tracing::debug_span!("generate trace on device", chip = chip.name())
+                                    .in_scope(|| {
+                                        chip.air
+                                            .generate_trace_device(
+                                                shard,
+                                                &mut A::Record::default(),
+                                                stream,
+                                            )
+                                            .unwrap()
+                                            .unwrap()
+                                    })
+                            }
+                        }
+                    })
+                    .collect()
+            });
+
+        // Commit to the traces.
+        let domains_and_traces = domains
+            .iter()
+            .copied()
+            .zip(traces.iter())
+            .zip(events)
+            .map(|((domain, trace), event)| (domain, trace, event))
             .collect::<Vec<_>>();
+        let (commit, data) = tracing::debug_span!("commit")
+            .in_scope(|| self.committer.commit(domains_and_traces.as_slice(), &self.main_stream));
 
-        let (commit, data) = self.committer.commit(&trace_data, &self.main_stream);
-
-        let traces = trace_data.into_iter().map(|(_, trace, _)| trace).collect();
-
-        commit_span.exit();
-
-        let main_data_span = tracing::debug_span!("construct main data").entered();
-        // Get public values and send the record to be dropped elsewhere.
-        let public_values = shard.public_values::<SC::Val>();
-        let main_data = ShardMainData {
+        tracing::debug_span!("construct main data").in_scope(|| ShardMainData {
             traces,
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values,
-        };
-        main_data_span.exit();
-
-        main_data
+            public_values: tracing::debug_span!("compute public values")
+                .in_scope(|| shard.public_values()),
+        })
     }
 
     /// Setup the preprocessed data into a proving and verifying key.
     fn setup(&self, program: &A::Program) -> (Self::DeviceProvingKey, StarkVerifyingKey<SC>) {
+        let generate_traces_copy_span =
+            tracing::debug_span!("generate preprocessed traces and copy to device").entered();
+
+        let mut named_preprocessed_data = self
+            .machine()
+            .chips()
+            .par_iter()
+            .map(|chip| {
+                let prep_trace = chip.air.generate_preprocessed_trace_host(program);
+
+                let name = chip.name();
+                let stream = self.chip_streams.get(&name).unwrap().clone();
+
+                let trace = match prep_trace {
+                    Some(trace) => Some(trace.to_device_async(&stream).unwrap().to_column_major()),
+                    None => chip.air.generate_preprocessed_trace_device(program, &stream).unwrap(),
+                };
+
+                // Assert that the chip width data is correct.
+                let expected_width = trace.as_ref().map(|t| t.width()).unwrap_or(0);
+                assert_eq!(
+                    expected_width,
+                    chip.preprocessed_width(),
+                    "Incorrect number of preprocessed columns for chip {}",
+                    chip.name()
+                );
+
+                (chip.name(), chip.local_only(), trace)
+            })
+            .filter(|(_, _, trace)| trace.is_some())
+            .map(|(name, local_only, trace)| {
+                let trace = trace.unwrap();
+                let event = self.events.preprocessed.get(&name).unwrap().clone();
+                let domain = natural_domain_for_degree(self.config(), trace.height());
+                let dimensions = trace.dimensions();
+
+                (name, domain, event, local_only, trace, dimensions)
+            })
+            .collect::<Vec<_>>();
+
+        named_preprocessed_data
+            .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
+
+        let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
+            named_preprocessed_data
+                .into_iter()
+                .map(|(name, domain, event, local_only, trace, dimensions)| {
+                    (((name, domain, dimensions), (domain, trace, event)), local_only)
+                })
+                .collect();
+
+        generate_traces_copy_span.exit();
+
+        // Commit to the batch of traces.
+        let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
+        let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
+
+        commit_span.exit();
+
+        // // Get the chip ordering.
+        let chip_ordering = chip_information
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _, _))| (name.to_owned(), i))
+            .collect::<HashMap<_, _>>();
+
+        // Get the preprocessed traces
+        let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
+
+        let pc_start = program.pc_start();
+        let initial_global_cumulative_sum = program.initial_global_cumulative_sum();
+
+        (
+            StarkProvingKeyDevice {
+                commit: commit.clone(),
+                pc_start,
+                initial_global_cumulative_sum,
+                traces,
+                data,
+                chip_ordering: chip_ordering.clone(),
+                local_only: local_only.clone(),
+                phantom: PhantomData,
+            },
+            StarkVerifyingKey {
+                commit,
+                pc_start,
+                initial_global_cumulative_sum,
+                chip_information,
+                chip_ordering,
+            },
+        )
+    }
+
+    fn pk_from_vk(
+        &self,
+        program: &A::Program,
+        vk: &StarkVerifyingKey<SC>,
+    ) -> Self::DeviceProvingKey {
         let generate_traces_copy_span =
             tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
@@ -406,56 +588,44 @@ where
         named_preprocessed_data
             .sort_by_key(|(name, domain, _, _, _, _)| (Reverse(domain.size()), name.clone()));
 
-        let ((chip_information, commitment_data), local_only): ((Vec<_>, Vec<_>), Vec<_>) =
-            named_preprocessed_data
-                .into_iter()
-                .map(|(name, domain, event, local_only, rx, dimensions)| {
-                    let trace = rx.recv().unwrap();
-                    (((name, domain, dimensions), (domain, trace, event)), local_only)
-                })
-                .collect();
+        let (commitment_data, local_only): (Vec<_>, Vec<_>) = named_preprocessed_data
+            .into_iter()
+            .map(|(_, domain, event, local_only, rx, _)| {
+                let trace = rx.recv().unwrap();
+                ((domain, trace, event), local_only)
+            })
+            .collect();
 
         generate_traces_copy_span.exit();
 
         // Commit to the batch of traces.
         let commit_span = tracing::debug_span!("commit to preprocessed traces").entered();
         let (commit, data) = self.committer.commit(&commitment_data, &self.main_stream);
-        self.main_stream.synchronize().unwrap();
-        commit_span.exit();
 
-        // // Get the chip ordering.
-        let chip_ordering = chip_information
-            .iter()
-            .enumerate()
-            .map(|(i, (name, _, _))| (name.to_owned(), i))
-            .collect::<HashMap<_, _>>();
+        commit_span.exit();
 
         // Get the preprocessed traces
         let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
-        let pc_start = program.pc_start();
+        let StarkVerifyingKey { pc_start, initial_global_cumulative_sum, chip_ordering, .. } = vk;
 
-        (
-            StarkProvingKeyDevice {
-                commit: commit.clone(),
-                pc_start,
-                traces,
-                data,
-                chip_ordering: chip_ordering.clone(),
-                local_only: local_only.clone(),
-                phantom: PhantomData,
-            },
-            StarkVerifyingKey { commit, pc_start, chip_information, chip_ordering },
-        )
+        StarkProvingKeyDevice {
+            commit,
+            pc_start: *pc_start,
+            initial_global_cumulative_sum: *initial_global_cumulative_sum,
+            traces,
+            data,
+            chip_ordering: chip_ordering.clone(),
+            local_only,
+            phantom: PhantomData,
+        }
     }
 
     fn open(
         &self,
         pk: &Self::DeviceProvingKey,
-        global_data: Option<ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>>,
-        local_data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
+        data: ShardMainData<SC, Self::DeviceMatrix, Self::DeviceProverData>,
         challenger: &mut SC::Challenger,
-        global_permutation_challenges: &[SC::Challenge],
     ) -> Result<ShardProof<SC>, Self::Error> {
         let proof = {
             let span = tracing::Span::current();
@@ -463,50 +633,17 @@ where
 
             let setup_span = tracing::debug_span!("process shard data").entered();
 
-            let (global_traces, global_main_commit, mut global_main_data, global_chip_ordering) =
-                if let Some(global_data) = global_data {
-                    let ShardMainData {
-                        traces: global_traces,
-                        main_commit: global_main_commit,
-                        main_data: global_main_data,
-                        chip_ordering: global_chip_ordering,
-                        public_values: _,
-                    } = global_data;
-                    (
-                        global_traces,
-                        global_main_commit,
-                        Some(global_main_data),
-                        global_chip_ordering,
-                    )
-                } else {
-                    (vec![], SC::zero_commitment(), None, HashMap::new())
-                };
+            let ShardMainData { traces, main_commit, mut main_data, chip_ordering, public_values } =
+                data;
 
-            let ShardMainData {
-                traces: local_traces,
-                main_commit: local_main_commit,
-                main_data: mut local_main_data,
-                chip_ordering: local_chip_ordering,
-                public_values: local_public_values,
-            } = local_data;
-
-            // Merge the chip ordering and traces from the global and local data.
-            let (all_chips_ordering, _, all_shard_data) = self.merge_shard_traces(
-                &global_traces,
-                &global_chip_ordering,
-                &local_traces,
-                &local_chip_ordering,
-            );
-            let all_traces = all_shard_data.iter().map(|data| data.trace).collect::<Vec<_>>();
-            let shard_chips =
-                self.machine.shard_chips_ordered(&all_chips_ordering).collect::<Vec<_>>();
+            let shard_chips = self.machine.shard_chips_ordered(&chip_ordering).collect::<Vec<_>>();
             let shard_chip_names = shard_chips.iter().map(|chip| chip.name()).collect::<Vec<_>>();
             let shard_chip_stream =
-                all_traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
+                traces.iter().map(|trace| trace.stream().clone()).collect::<Vec<_>>();
 
-            assert!(shard_chips.len() == all_traces.len());
+            assert!(shard_chips.len() == traces.len());
 
-            let domains = all_traces
+            let domains = traces
                 .iter()
                 .map(|trace| {
                     let config = self.machine.config();
@@ -514,17 +651,7 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            let global_local_only = shard_chips
-                .iter()
-                .filter(|chip| chip.commit_scope() == InteractionScope::Global)
-                .map(|chip| chip.local_only())
-                .collect::<Vec<_>>();
-
-            let local_local_only = shard_chips
-                .iter()
-                .filter(|chip| chip.commit_scope() == InteractionScope::Local)
-                .map(|chip| chip.local_only())
-                .collect::<Vec<_>>();
+            let local_only = shard_chips.iter().map(|chip| chip.local_only()).collect::<Vec<_>>();
 
             // Compute some statistics.
             let mut total_lde_size = 0;
@@ -537,18 +664,14 @@ where
             info!("Total LDE size: {:.4} GB", (total_lde_size as f64) * 1e-9);
 
             // Observe the main commitment.
-            challenger.observe(local_main_commit.clone());
+            challenger.observe_slice(&public_values[0..self.num_pv_elts()]);
+            challenger.observe(main_commit.clone());
 
             setup_span.exit();
 
             // Get the permutation challenges.
             let local_permutation_challenges =
                 (0..2).map(|_| challenger.sample_ext_element()).collect::<Vec<_>>();
-            let permutation_challenges = global_permutation_challenges
-                .iter()
-                .chain(local_permutation_challenges.iter())
-                .copied()
-                .collect::<Vec<_>>();
 
             // Generate permutation traces.
             let permutation_span =
@@ -556,8 +679,8 @@ where
             let permutation_traces_and_cumulative_sums = self.generate_permutation_traces(
                 pk,
                 &shard_chips,
-                &all_traces,
-                &permutation_challenges,
+                &traces,
+                &local_permutation_challenges,
             )?;
             let (permutation_traces, cumulative_sums): (Vec<_>, Vec<_>) =
                 permutation_traces_and_cumulative_sums.into_iter().unzip();
@@ -568,8 +691,8 @@ where
             );
 
             for (i, chip) in shard_chips.iter().enumerate() {
-                let width = all_traces[i].width();
-                let height = all_traces[i].height();
+                let width = traces[i].width();
+                let height = traces[i].height();
                 let permutation_width = permutation_traces[i].width();
                 let total_width = width + permutation_width;
                 info!(
@@ -602,10 +725,11 @@ where
             // Observe the permutation commitment.
             challenger.observe(permutation_commit.clone());
             for sums in cumulative_sums.iter() {
-                let global_sum = sums[0];
-                let local_sum = sums[1];
-                CanObserve::<BabyBear>::observe_slice(challenger, global_sum.as_base_slice());
+                let local_sum = sums.0;
+                let global_sum = sums.1;
                 CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
+                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.x.0);
+                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.y.0);
             }
 
             // Get a challenge for folding the constraints.
@@ -618,34 +742,27 @@ where
             let quotient_span =
                 tracing::debug_span!("generate and commit to quotient values").entered();
 
-            let permutation_challenges = global_permutation_challenges
-                .iter()
-                .chain(local_permutation_challenges.iter())
-                .copied()
-                .collect::<Vec<_>>();
+            let permutation_challenges = local_permutation_challenges.to_vec();
 
             // For each chip, get the quotient domains, evaluations on the quotient domain, and compute
             // the quotient values.
 
             let permutation_challenges_device =
                 permutation_challenges.to_device_async(&self.main_stream).unwrap();
-            let public_values_device =
-                local_public_values.to_device_async(&self.main_stream).unwrap();
+            let public_values_device = public_values.to_device_async(&self.main_stream).unwrap();
+            self.main_stream.record(&self.events.quotient_common_data_to_device)?;
 
             let mut quotient_values = vec![];
 
             for (i, chip) in shard_chips.iter().enumerate() {
                 let log_quotient_degree = chip.log_quotient_degree();
-                let trace = &all_traces[i];
                 let trace_domain = domains[i];
-
-                let stream = trace.stream();
 
                 let quotient_domain =
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
-                let cumulative_sums_device =
-                    cumulative_sums[i].as_slice().to_device_async(stream).unwrap();
+                let local_cumulative_sum = cumulative_sums[i].0;
+                let global_cumulative_sum = cumulative_sums[i].1;
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -665,21 +782,13 @@ where
                         .transpose()
                         .unwrap();
                     let prep_eval = prep_eval.unwrap_or_else(ColMajorMatrixDevice::null);
-
-                    let main_eval = match chip.commit_scope() {
-                        InteractionScope::Local => {
-                            &mut local_main_data.matrices_mut()[local_chip_ordering[&chip.name()]]
-                        }
-                        InteractionScope::Global => {
-                            &mut global_main_data.as_mut().unwrap().matrices_mut()
-                                [global_chip_ordering[&chip.name()]]
-                        }
-                    };
+                    let main_eval = &mut main_data.matrices_mut()[chip_ordering[&chip.name()]];
                     main_eval.bit_reverse_rows().unwrap();
 
                     let perm_eval = &mut perm_prover_data.matrices_mut()[i];
                     perm_eval.bit_reverse_rows().unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     let quotient_values = self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -688,7 +797,8 @@ where
                         main_eval,
                         perm_eval,
                         &public_values_device,
-                        &cumulative_sums_device,
+                        local_cumulative_sum,
+                        global_cumulative_sum,
                         folding_challenge,
                         &permutation_challenges_device,
                     );
@@ -715,7 +825,7 @@ where
 
                     let main_eval = self
                         .committer
-                        .get_evaluations_on_domain(trace_domain, quotient_domain, all_traces[i])
+                        .get_evaluations_on_domain(trace_domain, quotient_domain, &traces[i])
                         .unwrap();
                     let perm_eval = self
                         .committer
@@ -726,6 +836,7 @@ where
                         )
                         .unwrap();
 
+                    main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
                     self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -734,7 +845,8 @@ where
                         &main_eval,
                         &perm_eval,
                         &public_values_device,
-                        &cumulative_sums_device,
+                        local_cumulative_sum,
+                        global_cumulative_sum,
                         folding_challenge,
                         &permutation_challenges_device,
                     )
@@ -779,8 +891,12 @@ where
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+                    let next_open =
+                        self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
@@ -788,39 +904,31 @@ where
             }
 
             // Openings for global main traces (if any).
-            let mut main_global_openings = vec![];
-            for (trace, local_only) in global_traces.iter().zip(global_local_only.iter()) {
+            let mut main_openings = vec![];
+            for (trace, local_only) in traces.iter().zip(local_only.iter()) {
                 let domain = natural_domain_for_degree(self.config(), trace.height());
                 input_heights.insert(domain.log_n);
                 let local_open = self.opening_prover.eval(domain, trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
+                    let next_open =
+                        self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap());
+                    observe_device_buffer::<SC>(challenger, &next_open);
+                    Some(next_open)
                 } else {
                     None
                 };
-                main_global_openings.push((domain.log_n, local_open, next_open));
-            }
-
-            // Openings for local main traces.
-            let mut main_local_openings = vec![];
-            for (trace, local_only) in local_traces.iter().zip(local_local_only.iter()) {
-                let domain = natural_domain_for_degree(self.config(), trace.height());
-                input_heights.insert(domain.log_n);
-                let local_open = self.opening_prover.eval(domain, trace, zeta);
-                let next_open = if !local_only {
-                    Some(self.opening_prover.eval(domain, trace, domain.next_point(zeta).unwrap()))
-                } else {
-                    None
-                };
-                main_local_openings.push((domain.log_n, local_open, next_open));
+                main_openings.push((domain.log_n, local_open, next_open));
             }
 
             let mut perm_openings = vec![];
             // Openings for permutation traces.
             for (domain, trace, _) in perm_domains_and_traces {
                 let local_open = self.opening_prover.eval(domain, &trace, zeta);
+                observe_device_buffer::<SC>(challenger, &local_open);
                 let next_open =
                     self.opening_prover.eval(domain, &trace, domain.next_point(zeta).unwrap());
+                observe_device_buffer::<SC>(challenger, &next_open);
                 input_heights.insert(domain.log_n);
                 perm_openings.push((domain.log_n, local_open, next_open));
             }
@@ -828,6 +936,7 @@ where
             let mut quot_openings = vec![];
             for (domain, trace, _) in quotient_domains_and_chunks.into_iter() {
                 let open = self.opening_prover.eval(domain, &trace, zeta);
+                observe_device_buffer::<SC>(challenger, &open);
                 input_heights.insert(domain.log_n);
                 quot_openings.push((domain.log_n, open));
             }
@@ -896,39 +1005,9 @@ where
                 }
             }
 
-            // Batch the main global traces
-            if let Some(global_main_data) = global_main_data.as_ref() {
-                for (lde, (log_height, local_open, next_open)) in
-                    global_main_data.matrices().iter().zip_eq(main_global_openings.iter())
-                {
-                    let lde_log_height = log_height + log_blowup;
-                    self.opening_prover.batch_update(
-                        batched_openings.get_mut(&lde_log_height).unwrap(),
-                        lde,
-                        SC::Val::generator(),
-                        local_open,
-                        zeta,
-                        alpha,
-                        alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                    );
-                    if let Some(next_open) = next_open {
-                        let g = BabyBear::two_adic_generator(*log_height);
-                        self.opening_prover.batch_update(
-                            batched_openings.get_mut(&lde_log_height).unwrap(),
-                            lde,
-                            SC::Val::generator(),
-                            next_open,
-                            zeta * g,
-                            alpha,
-                            alpha_offsets.get_mut(&lde_log_height).unwrap(),
-                        );
-                    }
-                }
-            }
-
-            // Batch the main local traces.
+            // Batch the main traces.
             for (lde, (log_height, local_open, next_open)) in
-                local_main_data.matrices().iter().zip_eq(main_local_openings.iter())
+                main_data.matrices().iter().zip_eq(main_openings.iter())
             {
                 let lde_log_height = log_height + log_blowup;
                 self.opening_prover.batch_update(
@@ -1026,17 +1105,7 @@ where
                 &self.main_stream,
             );
 
-            let prover_data = if let Some(global_main_data) = global_main_data.as_ref() {
-                vec![
-                    &pk.data,
-                    global_main_data,
-                    &local_main_data,
-                    &perm_prover_data,
-                    &quotient_prover_data,
-                ]
-            } else {
-                vec![&pk.data, &local_main_data, &perm_prover_data, &quotient_prover_data]
-            };
+            let prover_data = vec![&pk.data, &main_data, &perm_prover_data, &quotient_prover_data];
             let log_global_max_height_iter =
                 prover_data.iter().flat_map(|data| data.matrices().iter().map(|mat| mat.height));
 
@@ -1058,11 +1127,7 @@ where
                 .into_iter()
                 .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
                 .collect::<Vec<_>>();
-            let main_global_openings = main_global_openings
-                .into_iter()
-                .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
-                .collect::<Vec<_>>();
-            let main_local_openings = main_local_openings
+            let main_openings = main_openings
                 .into_iter()
                 .map(|(_, local, next)| (local.to_host(), next.map(|buf| buf.to_host())))
                 .collect::<Vec<_>>();
@@ -1089,28 +1154,14 @@ where
                     })
                     .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
 
-                let global_order = global_chip_ordering.get(&chip.name());
-                let local_order = local_chip_ordering.get(&chip.name());
-                let main = match (global_order, local_order) {
-                    (Some(idx), None) => {
-                        let (local, next) = main_global_openings[*idx].clone();
-                        if let Some(next) = next {
-                            AirOpenedValues { local, next }
-                        } else {
-                            let width = local.len();
-                            AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
-                        }
+                let main = {
+                    let (local, next) = main_openings[i].clone();
+                    if let Some(next) = next {
+                        AirOpenedValues { local, next }
+                    } else {
+                        let width = local.len();
+                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
                     }
-                    (None, Some(idx)) => {
-                        let (local, next) = main_local_openings[*idx].clone();
-                        if let Some(next) = next {
-                            AirOpenedValues { local, next }
-                        } else {
-                            let width = local.len();
-                            AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
-                        }
-                    }
-                    _ => unreachable!(),
                 };
                 let (perm_local, perm_next) = perm_opens;
                 let permutation = AirOpenedValues { local: perm_local, next: perm_next };
@@ -1126,8 +1177,8 @@ where
                     main,
                     permutation,
                     quotient,
-                    global_cumulative_sum: cumulative_sums[i][0],
-                    local_cumulative_sum: cumulative_sums[i][1],
+                    local_cumulative_sum: cumulative_sums[i].0,
+                    global_cumulative_sum: cumulative_sums[i].1,
                     log_degree,
                 });
             }
@@ -1135,25 +1186,20 @@ where
             compute_evaluations_span.exit();
 
             Ok(ShardProof::<SC> {
-                commitment: ShardCommitment {
-                    global_main_commit,
-                    local_main_commit,
-                    permutation_commit,
-                    quotient_commit,
-                },
+                commitment: ShardCommitment { main_commit, permutation_commit, quotient_commit },
                 opened_values: ShardOpenedValues { chips: opened_values },
                 opening_proof,
-                chip_ordering: all_chips_ordering,
-                public_values: local_public_values,
+                chip_ordering,
+                public_values,
             })
         };
 
         let cleanup_span = tracing::debug_span!("cleanup").entered();
-        // Synchronize streams to release all resources.
+
+        self.main_stream.synchronize().unwrap();
         for stream in self.chip_streams.values() {
             stream.synchronize().unwrap();
         }
-        self.main_stream.synchronize().unwrap();
         cleanup_span.exit();
 
         proof
@@ -1171,73 +1217,22 @@ where
         opts: <A::Record as MachineRecord>::Config,
     ) -> Result<MachineProof<SC>, Self::Error>
     where
-        A: for<'a> Air<DebugConstraintBuilder<'a, Val<SC>, SC::Challenge>>,
+        A: for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     {
-        let contains_global_bus = self.machine().contains_global_bus();
-
         self.machine().generate_dependencies(&mut records, &opts, None);
 
         // Observe the preprocessed commitment.
-        challenger.observe(pk.commit.clone());
-        challenger.observe(pk.pc_start);
-        let zero = Val::<SC>::zero();
-        for _ in 0..7 {
-            challenger.observe(zero);
-        }
-
-        // Generate and commit the traces for each shard.
-        let global_data: Vec<_> = records
-            .iter()
-            .map(|record| {
-                if contains_global_bus {
-                    let global_named_traces =
-                        self.generate_traces(record, InteractionScope::Global);
-                    Some(self.commit(record, global_named_traces))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // Observe the challenges for each segment.
-        global_data.iter().zip_eq(records.iter()).for_each(|(global_data, record)| {
-            if contains_global_bus {
-                challenger.observe(
-                    global_data
-                        .as_ref()
-                        .expect("must have a global commitment")
-                        .main_commit
-                        .clone(),
-                );
-            }
-            challenger.observe_slice(&record.public_values::<SC::Val>()[0..self.num_pv_elts()]);
-        });
-
-        // Obtain the challenges used for the global permutation argument.
-        let global_permutation_challenges: [SC::Challenge; 2] = array::from_fn(|_| {
-            if contains_global_bus {
-                challenger.sample_ext_element()
-            } else {
-                SC::Challenge::zero()
-            }
-        });
+        pk.observe_into(challenger);
 
         let shard_proofs = records
             .iter()
-            .zip(global_data.into_iter())
-            .map(|(record, global_shard_data)| {
-                let traces = self.generate_traces(record, InteractionScope::Local);
-                let local_shard_data = self.commit(record, traces);
+            .map(|record| {
+                let traces = self.generate_traces(record);
+                let shard_data = self.commit(record, traces);
 
                 let span = tracing::Span::current();
                 let _span = span.enter();
-                self.open(
-                    pk,
-                    global_shard_data,
-                    local_shard_data,
-                    &mut challenger.clone(),
-                    &global_permutation_challenges,
-                )
+                self.open(pk, shard_data, &mut challenger.clone())
             })
             .collect::<Result<Vec<_>, CudaError>>()?;
 
@@ -1265,9 +1260,9 @@ where
         &self,
         pk: &StarkProvingKeyDevice<SC, C>,
         chips: &[&Chip<SC::Val, A>],
-        main_traces: &[&GpuMatrix<SC::Val>],
+        main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
-    ) -> Result<Vec<(GpuMatrix<SC::Val>, Vec<SC::Challenge>)>, CudaError> {
+    ) -> Result<Vec<(GpuMatrix<SC::Val>, (SC::Challenge, SepticDigest<Val<SC>>))>, CudaError> {
         chips
             .iter()
             .zip(main_traces.iter())
@@ -1286,82 +1281,94 @@ where
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-
-    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
-    use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
-    use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
-    use sp1_stark::StarkGenericConfig;
-
-    use crate::{
-        merkle_tree::FieldMerkleTreeDeviceCommitter,
-        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
-        utils::init_tracer,
-    };
-
-    use super::*;
-
-    pub fn execute_core(program: Program) -> ExecutionRecord {
-        let opts = SP1CoreOpts::default();
-        let mut runtime = Executor::new(program, opts);
-        runtime.run().unwrap();
-        runtime.record
-    }
-
-    #[test]
-    fn test_fibonacci_poseidon_2_baby_bear_prove() {
-        let program = Program::from(FIBONACCI_ELF).unwrap();
-
-        init_tracer();
-        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-            program,
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn test_fibonacci_poseidon2_bn254_prove() {
-        use sp1_core_executor::SP1Context;
-        use sp1_core_machine::io::SP1Stdin;
-
-        let program = Program::from(FIBONACCI_ELF).unwrap();
-
-        type SC = BabyBearPoseidon2Outer;
-
-        type P = StarkGpuProver<
-            SC,
-            FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
-            RiscvAir<BabyBear>,
-        >;
-
-        init_tracer();
-
-        let config = BabyBearPoseidon2Outer::new();
-
-        // Execute the program.
-        let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
-            let mut runtime = Executor::new(program, SP1CoreOpts::default());
-            runtime.run().unwrap();
-            runtime
-        });
-
-        let machine = RiscvAir::machine(config);
-        let prover = P::new(machine);
-        let inputs = SP1Stdin::new();
-        let (pk, vk) = prover.setup(runtime.program.as_ref());
-        let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
-            &prover,
-            &pk,
-            Program::clone(&runtime.program),
-            &inputs,
-            SP1CoreOpts::default(),
-            SP1Context::default(),
-            None,
-        )
-        .unwrap();
-
-        let mut challenger = prover.config().challenger();
-        prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
-    }
+fn observe_device_buffer<SC: BabyBearFriConfig>(
+    challenger: &mut SC::Challenger,
+    buffer: &DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
+) {
+    let host_buffer = buffer
+        .to_host()
+        .into_iter()
+        .flat_map(|c: BinomialExtensionField<BabyBear, 4>| c.as_base_slice().to_vec())
+        .collect::<Vec<BabyBear>>();
+    challenger.observe_slice(&host_buffer);
 }
+
+// #[cfg(test)]
+// pub mod tests {
+
+//     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
+//     use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
+//     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
+//     use sp1_stark::StarkGenericConfig;
+
+//     use crate::{
+//         merkle_tree::FieldMerkleTreeDeviceCommitter,
+//         poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+//         utils::init_tracer,
+//     };
+
+//     use super::*;
+
+//     pub fn execute_core(program: Program) -> ExecutionRecord {
+//         let opts = SP1CoreOpts::default();
+//         let mut runtime = Executor::new(program, opts);
+//         runtime.run().unwrap();
+//         runtime.record
+//     }
+
+//     #[test]
+//     fn test_fibonacci_poseidon_2_baby_bear_prove() {
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
+
+//         init_tracer();
+//         run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
+//             program,
+//         )
+//         .unwrap();
+//     }
+
+//     #[test]
+//     fn test_fibonacci_poseidon2_bn254_prove() {
+//         use sp1_core_executor::SP1Context;
+//         use sp1_core_machine::io::SP1Stdin;
+
+//         let program = Program::from(FIBONACCI_ELF).unwrap();
+
+//         type SC = BabyBearPoseidon2Outer;
+
+//         type P = StarkGpuProver<
+//             SC,
+//             FieldMerkleTreeDeviceCommitter<DeviceHasherBn254>,
+//             RiscvAir<BabyBear>,
+//         >;
+
+//         init_tracer();
+
+//         let config = BabyBearPoseidon2Outer::new();
+
+//         // Execute the program.
+//         let runtime = tracing::debug_span!("runtime.run(...)").in_scope(|| {
+//             let mut runtime = Executor::new(program, SP1CoreOpts::default());
+//             runtime.run().unwrap();
+//             runtime
+//         });
+
+//         let machine = RiscvAir::machine(config);
+//         let prover = P::new(machine);
+//         let inputs = SP1Stdin::new();
+//         let (pk, vk) = prover.setup(runtime.program.as_ref());
+//         let (proof, _, _) = sp1_core_machine::utils::prove_with_context(
+//             &prover,
+//             &pk,
+//             Program::clone(&runtime.program),
+//             &inputs,
+//             SP1CoreOpts::default(),
+//             SP1Context::default(),
+//             None,
+//         )
+//         .unwrap();
+
+//         let mut challenger = prover.config().challenger();
+//         prover.machine().verify(&vk, &proof, &mut challenger).unwrap();
+//     }
+// }
