@@ -1,5 +1,5 @@
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractField, Field, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, Field, FieldAlgebra, TwoAdicField};
 
 use crate::{
     device::{error::CudaError, DeviceBuffer},
@@ -10,11 +10,11 @@ pub(super) mod ffi;
 
 pub fn subgroup_normalizer<F: TwoAdicField>(log_order: usize) -> F {
     let domain_generator = F::two_adic_generator(log_order);
-    let mut domain_point = F::one();
-    let mut domain_normalizer = F::one();
+    let mut domain_point = F::ONE;
+    let mut domain_normalizer = F::ONE;
     for _ in 1..(1 << log_order) {
         domain_point *= domain_generator;
-        domain_normalizer *= F::one() - domain_point;
+        domain_normalizer *= F::ONE - domain_point;
     }
     domain_normalizer.inverse()
 }
@@ -31,7 +31,7 @@ impl ColMajorMatrixDevice<BabyBear> {
         let log_height = self.height.ilog2() as usize;
         let evaluation_point = evaluation_point * shift.inverse();
         let vanishing_poly_eval = evaluation_point.exp_power_of_2(log_height)
-            - BinomialExtensionField::<BabyBear, 4>::one();
+            - BinomialExtensionField::<BabyBear, 4>::ONE;
         let result = unsafe {
             ffi::univariate_eval_babybear(
                 results.as_mut_ptr(),
@@ -59,7 +59,7 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_challenger::CanObserve;
     use p3_commit::{Pcs, PolynomialSpace};
-    use p3_field::{extension::BinomialExtensionField, AbstractField};
+    use p3_field::{extension::BinomialExtensionField, Field, FieldAlgebra};
     use p3_matrix::dense::RowMajorMatrix;
     use rand::{thread_rng, Rng};
     use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, StarkGenericConfig};
@@ -107,7 +107,7 @@ mod tests {
         let point: EF = rng.gen();
         input_device.stream().synchronize().unwrap();
         let time = Instant::now();
-        input_device.eval(&mut results, domain_normalizer, F::one(), point).unwrap();
+        input_device.eval(&mut results, domain_normalizer, F::ONE, point).unwrap();
         input_device.stream().synchronize().unwrap();
         let elapsed = time.elapsed();
         println!("Device time: {:?}", elapsed);
@@ -150,7 +150,7 @@ mod tests {
                 input_device.stream().synchronize().unwrap();
                 let time = Instant::now();
                 input_device
-                    .eval(&mut results, domain_normalizer, BabyBear::generator(), point)
+                    .eval(&mut results, domain_normalizer, BabyBear::GENERATOR, point)
                     .unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();

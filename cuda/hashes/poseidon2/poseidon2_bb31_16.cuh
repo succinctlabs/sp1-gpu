@@ -77,41 +77,41 @@ namespace constants {
     };
 #if 1
     __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
-        bb31_t(125829121),  
-        bb31_t(943718400),  
-        bb31_t(1887436800),
-        bb31_t(1761607679),
-        bb31_t(1509949437),
-        bb31_t(1006632953),
+        bb31_t(2013265919),
+        bb31_t(1),
+        bb31_t(2),
+        bb31_t(1006632961),
+        bb31_t(3),
+        bb31_t(4),
+        bb31_t(1006632960),
+        bb31_t(2013265918),
+        bb31_t(2013265917),
+        bb31_t(2005401601),
+        bb31_t(1509949441),
+        bb31_t(1761607681),
         bb31_t(2013265906),
-        bb31_t(2013265891),
-        bb31_t(2013265861),
-        bb31_t(2013265801),
-        bb31_t(2013265681),
-        bb31_t(2013265441),
-        bb31_t(2013264961),
-        bb31_t(2013264001),
-        bb31_t(2013262081),
-        bb31_t(2013250561)
+        bb31_t(7864320),
+        bb31_t(125829120),
+        bb31_t(15)
     };
 #else
     __constant__ constexpr const bb31_t MAT_INTERNAL_DIAG_M1[WIDTH] = {
         bb31_t(2013265919),
         bb31_t(1),
         bb31_t(2),
+        bb31_t(1006632961),
+        bb31_t(3),
         bb31_t(4),
-        bb31_t(8),
-        bb31_t(16),
-        bb31_t(32),
-        bb31_t(64),
-        bb31_t(128),
-        bb31_t(256),
-        bb31_t(512),
-        bb31_t(1024),
-        bb31_t(2048),
-        bb31_t(4096),
-        bb31_t(8192),
-        bb31_t(32768)
+        bb31_t(1006632960),
+        bb31_t(2013265918),
+        bb31_t(2013265917),
+        bb31_t(2005401601),
+        bb31_t(1509949441),
+        bb31_t(1761607681),
+        bb31_t(2013265906),
+        bb31_t(7864320),
+        bb31_t(125829120),
+        bb31_t(15)
     };
 #endif
     __constant__ constexpr const bb31_t MONTY_INVERSE = bb31_t(943718400);
@@ -143,7 +143,7 @@ class BabyBear {
         for (int i = 0; i < WIDTH; i++) {
             sum64 += static_cast<uint64_t>(state[i].val);
         }
-        const F_t sum = bb31_t(static_cast<uint32_t>(sum64 % bb31_t::MOD)) * MONTY_INVERSE;
+        const F_t sum = bb31_t(static_cast<uint32_t>(sum64 % bb31_t::MOD));
         for (int i = 0; i < WIDTH; i++) {
             state[i] *= MAT_INTERNAL_DIAG_M1[i];
             state[i] += sum;

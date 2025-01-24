@@ -1,6 +1,6 @@
 use p3_baby_bear::BabyBear;
 use p3_challenger::GrindingChallenger;
-use p3_field::{AbstractField, PrimeField64};
+use p3_field::{FieldAlgebra, PrimeField64};
 use sp1_recursion_core::stark::OuterChallenger;
 use sp1_stark::InnerChallenger;
 
@@ -24,7 +24,7 @@ pub trait DeviceGrindingChallenger: GrindingChallenger {
 impl DeviceGrindingChallenger for InnerChallenger {
     fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness {
         // Initialize the result and move it to the device.
-        let result = vec![BabyBear::zero()];
+        let result = vec![BabyBear::ZERO];
         let mut result_d = result.to_device_async(stream).unwrap();
 
         // Move the challenger state to device.
@@ -33,7 +33,7 @@ impl DeviceGrindingChallenger for InnerChallenger {
             if i < self.input_buffer.len() {
                 self.input_buffer[i]
             } else {
-                BabyBear::zero()
+                BabyBear::ZERO
             }
         });
         let input_d = input_array.to_device_async(stream).unwrap();
@@ -41,7 +41,7 @@ impl DeviceGrindingChallenger for InnerChallenger {
             if i < self.output_buffer.len() {
                 self.output_buffer[i]
             } else {
-                BabyBear::zero()
+                BabyBear::ZERO
             }
         });
         let output_d = output_array.to_device_async(stream).unwrap();
@@ -105,7 +105,7 @@ extern "C" {
 mod tests {
     use p3_baby_bear::BabyBear;
     use p3_challenger::{CanObserve, CanSample, GrindingChallenger};
-    use p3_field::AbstractField;
+    use p3_field::FieldAlgebra;
     use sp1_stark::{inner_perm, InnerChallenger};
 
     use crate::{

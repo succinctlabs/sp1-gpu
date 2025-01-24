@@ -2,7 +2,7 @@ use std::{marker::PhantomData, ops::Mul};
 
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, Field};
+use p3_field::{extension::BinomialExtensionField, Field, FieldExtensionAlgebra};
 use sp1_stark::{
     air::{InteractionScope, MachineAir},
     septic_curve::SepticCurve,
@@ -398,10 +398,10 @@ impl<F: Field> From<PairCol> for PairColDevice<F> {
     fn from(value: PairCol) -> Self {
         match value {
             PairCol::Preprocessed(column_idx) => {
-                Self { column_idx, is_preprocessed: true, weight: F::one() }
+                Self { column_idx, is_preprocessed: true, weight: F::ONE }
             }
             PairCol::Main(column_idx) => {
-                Self { column_idx, is_preprocessed: false, weight: F::one() }
+                Self { column_idx, is_preprocessed: false, weight: F::ONE }
             }
         }
     }

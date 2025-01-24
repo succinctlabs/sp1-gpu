@@ -6,7 +6,7 @@ use moongate_core::device::{
     DeviceBuffer,
 };
 use p3_baby_bear::BabyBear;
-use p3_field::{extension::BinomialExtensionField, AbstractField};
+use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
 use rand::{thread_rng, Rng};
 
 const D: usize = 4;
@@ -37,10 +37,10 @@ fn test_device_extension() {
     let mut rng = thread_rng();
 
     let mut a_h = (0..n - 2).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
-    a_h.push(EF::zero());
-    a_h.push(EF::one());
+    a_h.push(EF::ZERO);
+    a_h.push(EF::ONE);
     let mut b_h = (0..n - 1).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
-    b_h.push(EF::one());
+    b_h.push(EF::ONE);
 
     let a = a_h.to_device().unwrap();
     let b = b_h.to_device().unwrap();

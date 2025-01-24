@@ -13,16 +13,16 @@ pub mod tests {
             poseidon2::{
                 baby_bear::{
                     poseidon2_baby_bear_16_kernels::{
-                        DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
+                        DIGEST_WIDTH, RATE, ROUNDS_F, ROUNDS_P, WIDTH,
                     },
                     DeviceHasherBabyBear,
                 },
                 constants::RC_16_30,
             },
         };
-        use p3_baby_bear::{BabyBear, DiffusionMatrixBabyBear};
-        use p3_field::{AbstractField, PrimeField32};
-        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_baby_bear::{BabyBear, Poseidon2BabyBear};
+        use p3_field::{FieldAlgebra, PrimeField32};
+        use p3_poseidon2::ExternalLayerConstants;
         use p3_symmetric::{
             CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
         };
@@ -40,42 +40,24 @@ pub mod tests {
             (external_round_constants[0..ROUNDS_F].to_vec(), internal_round_constants)
         }
 
-        pub fn poseidon2_baby_bear_16_perm(
-        ) -> Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>
-        {
+        pub fn poseidon2_baby_bear_16_perm() -> Poseidon2BabyBear<16> {
             let (external_round_constants, internal_round_constants) = round_constants();
-            Poseidon2::<
-                BabyBear,
-                Poseidon2ExternalMatrixGeneral,
-                DiffusionMatrixBabyBear,
-                WIDTH,
-                D_U64,
-            >::new(
-                ROUNDS_F,
-                external_round_constants,
-                Poseidon2ExternalMatrixGeneral,
-                ROUNDS_P,
-                internal_round_constants,
-                DiffusionMatrixBabyBear,
-            )
+            let initial_constants = external_round_constants[0..ROUNDS_F / 2].to_vec();
+            let terminal_constants = external_round_constants[ROUNDS_F / 2..ROUNDS_F].to_vec();
+            let external_layer_constants =
+                ExternalLayerConstants::<BabyBear, 16>::new(initial_constants, terminal_constants);
+
+            Poseidon2BabyBear::<16>::new(external_layer_constants, internal_round_constants)
         }
 
-        pub fn poseidon2_baby_bear_16_hasher() -> PaddingFreeSponge<
-            Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
-            WIDTH,
-            RATE,
-            DIGEST_WIDTH,
-        > {
+        pub fn poseidon2_baby_bear_16_hasher(
+        ) -> PaddingFreeSponge<Poseidon2BabyBear<16>, WIDTH, RATE, DIGEST_WIDTH> {
             let perm = poseidon2_baby_bear_16_perm();
             PaddingFreeSponge::new(perm)
         }
 
-        pub fn poseidon2_baby_bear_16_compressor() -> TruncatedPermutation<
-            Poseidon2<BabyBear, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBabyBear, 16, 7>,
-            2,
-            8,
-            16,
-        > {
+        pub fn poseidon2_baby_bear_16_compressor(
+        ) -> TruncatedPermutation<Poseidon2BabyBear<16>, 2, 8, 16> {
             let perm = poseidon2_baby_bear_16_perm();
             TruncatedPermutation::new(perm)
         }
@@ -183,7 +165,7 @@ pub mod tests {
             let left = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let right = (0..n).map(|_| [rng.gen::<BabyBear>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
+            output.resize(n, [BabyBear::ZERO; DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let left_device = left.to_device().unwrap();
@@ -195,7 +177,7 @@ pub mod tests {
             let mut gt: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let mut state = [BabyBear::zero(); WIDTH];
+                let mut state = [BabyBear::ZERO; WIDTH];
                 #[allow(clippy::manual_memcpy)]
                 for j in 0..DIGEST_WIDTH {
                     state[j] = left[i][j];
@@ -239,7 +221,7 @@ pub mod tests {
             let input =
                 (0..n).flat_map(|_| [rng.gen::<BabyBear>(); N_INPUT].to_vec()).collect::<Vec<_>>();
             let mut output: Vec<[BabyBear; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [BabyBear::zero(); DIGEST_WIDTH]);
+            output.resize(n, [BabyBear::ZERO; DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();
@@ -285,49 +267,35 @@ pub mod tests {
             },
             poseidon2::bn254::{
                 poseidon2_bn254_3_constants,
-                poseidon2_bn254_3_kernels::{DIGEST_WIDTH, D_U64, RATE, ROUNDS_F, ROUNDS_P, WIDTH},
+                poseidon2_bn254_3_kernels::{DIGEST_WIDTH, RATE, ROUNDS_F, WIDTH},
                 DeviceHasherBn254,
             },
         };
-        use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
-        use p3_field::AbstractField;
-        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_bn254_fr::{Bn254Fr, Poseidon2Bn254};
+        use p3_field::FieldAlgebra;
+        use p3_poseidon2::ExternalLayerConstants;
         use p3_symmetric::{
             CryptographicHasher, PaddingFreeSponge, Permutation, TruncatedPermutation,
         };
         use rand::{thread_rng, Rng};
 
-        pub fn poseidon2_bn254_3_perm(
-        ) -> Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>
-        {
+        pub fn poseidon2_bn254_3_perm() -> Poseidon2Bn254<3> {
             let (internal_round_constants, external_round_constants, _) =
                 poseidon2_bn254_3_constants();
-            Poseidon2::<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, WIDTH, D_U64>::new(
-                ROUNDS_F,
-                external_round_constants,
-                Poseidon2ExternalMatrixGeneral,
-                ROUNDS_P,
-                internal_round_constants,
-                DiffusionMatrixBN254,
-            )
+            let initial_constants = external_round_constants[0..ROUNDS_F / 2].to_vec();
+            let terminal_constants = external_round_constants[ROUNDS_F / 2..ROUNDS_F].to_vec();
+            let external_layer_constants =
+                ExternalLayerConstants::<Bn254Fr, 3>::new(initial_constants, terminal_constants);
+            Poseidon2Bn254::<3>::new(external_layer_constants, internal_round_constants)
         }
 
-        pub fn poseidon2_bn254_3_hasher() -> PaddingFreeSponge<
-            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
-            WIDTH,
-            RATE,
-            DIGEST_WIDTH,
-        > {
+        pub fn poseidon2_bn254_3_hasher(
+        ) -> PaddingFreeSponge<Poseidon2Bn254<3>, WIDTH, RATE, DIGEST_WIDTH> {
             let perm = poseidon2_bn254_3_perm();
             PaddingFreeSponge::new(perm)
         }
 
-        pub fn poseidon2_bn254_3_compressor() -> TruncatedPermutation<
-            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>,
-            2,
-            1,
-            3,
-        > {
+        pub fn poseidon2_bn254_3_compressor() -> TruncatedPermutation<Poseidon2Bn254<3>, 2, 1, 3> {
             let perm = poseidon2_bn254_3_perm();
             TruncatedPermutation::new(perm)
         }
@@ -392,7 +360,7 @@ pub mod tests {
             let left = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let right = (0..n).map(|_| [rng.gen::<Bn254Fr>(); DIGEST_WIDTH]).collect::<Vec<_>>();
             let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
+            output.resize(n, [Bn254Fr::ZERO; DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let left_device = left.to_device().unwrap();
@@ -404,7 +372,7 @@ pub mod tests {
             let mut gt: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for i in 0..n {
-                let mut state = [Bn254Fr::zero(); WIDTH];
+                let mut state = [Bn254Fr::ZERO; WIDTH];
                 #[allow(clippy::manual_memcpy)]
                 for j in 0..DIGEST_WIDTH {
                     state[j] = left[i][j];
@@ -448,7 +416,7 @@ pub mod tests {
             let input =
                 (0..n).flat_map(|_| [rng.gen::<Bn254Fr>(); N_INPUT].to_vec()).collect::<Vec<_>>();
             let mut output: Vec<[Bn254Fr; DIGEST_WIDTH]> = Vec::new();
-            output.resize(n, [Bn254Fr::zero(); DIGEST_WIDTH]);
+            output.resize(n, [Bn254Fr::ZERO; DIGEST_WIDTH]);
 
             // Copy the input data to the device.
             let input_device = input.to_device().unwrap();

@@ -6,7 +6,7 @@ use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Mmcs, PolynomialSpace};
-use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, TwoAdicField};
+use p3_field::{extension::BinomialExtensionField, Field, FieldExtensionAlgebra, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use sp1_stark::septic_digest::SepticDigest;
@@ -22,7 +22,7 @@ use sp1_stark::{
 use itertools::Itertools;
 use tracing::info;
 
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet},
@@ -181,7 +181,7 @@ where
         challenger.observe(self.pc_start);
         challenger.observe_slice(&self.initial_global_cumulative_sum.0.x.0);
         challenger.observe_slice(&self.initial_global_cumulative_sum.0.y.0);
-        let zero = Val::<SC>::zero();
+        let zero = Val::<SC>::ZERO;
         challenger.observe(zero);
     }
 }
@@ -976,7 +976,7 @@ where
             // Batch the preprocessed traces
             let mut alpha_offsets = batched_openings
                 .keys()
-                .map(|i| (*i, SC::Challenge::one()))
+                .map(|i| (*i, SC::Challenge::ONE))
                 .collect::<BTreeMap<_, _>>();
             for (lde, (log_height, local_open, next_open)) in
                 pk.data.matrices().iter().zip_eq(preprocessed_opens.iter())
@@ -985,7 +985,7 @@ where
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
-                    SC::Val::generator(),
+                    SC::Val::GENERATOR,
                     local_open,
                     zeta,
                     alpha,
@@ -996,7 +996,7 @@ where
                     self.opening_prover.batch_update(
                         batched_openings.get_mut(&lde_log_height).unwrap(),
                         lde,
-                        SC::Val::generator(),
+                        SC::Val::GENERATOR,
                         next_open,
                         zeta * g,
                         alpha,
@@ -1013,7 +1013,7 @@ where
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
-                    SC::Val::generator(),
+                    SC::Val::GENERATOR,
                     local_open,
                     zeta,
                     alpha,
@@ -1024,7 +1024,7 @@ where
                     self.opening_prover.batch_update(
                         batched_openings.get_mut(&lde_log_height).unwrap(),
                         lde,
-                        SC::Val::generator(),
+                        SC::Val::GENERATOR,
                         next_open,
                         zeta * g,
                         alpha,
@@ -1041,7 +1041,7 @@ where
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
-                    SC::Val::generator(),
+                    SC::Val::GENERATOR,
                     local_open,
                     zeta,
                     alpha,
@@ -1051,7 +1051,7 @@ where
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
-                    SC::Val::generator(),
+                    SC::Val::GENERATOR,
                     next_open,
                     zeta * g,
                     alpha,
@@ -1067,7 +1067,7 @@ where
                 self.opening_prover.batch_update(
                     batched_openings.get_mut(&lde_log_height).unwrap(),
                     lde,
-                    SC::Val::generator(),
+                    SC::Val::GENERATOR,
                     open,
                     zeta,
                     alpha,
@@ -1090,7 +1090,7 @@ where
                     let base_values = unsafe { values.flatten_to_base::<SC::Val>() };
                     let leaf_matrix = RowMajorMatrixDevice::new(
                         base_values,
-                        2 * <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                        2 * <SC::Challenge as FieldExtensionAlgebra<SC::Val>>::D,
                     )
                     .to_column_major();
                     (i, leaf_matrix)
@@ -1149,7 +1149,7 @@ where
                             AirOpenedValues { local, next }
                         } else {
                             let width = local.len();
-                            AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
+                            AirOpenedValues { local, next: vec![SC::Challenge::ZERO; width] }
                         }
                     })
                     .unwrap_or(AirOpenedValues { local: vec![], next: vec![] });
@@ -1160,7 +1160,7 @@ where
                         AirOpenedValues { local, next }
                     } else {
                         let width = local.len();
-                        AirOpenedValues { local, next: vec![SC::Challenge::zero(); width] }
+                        AirOpenedValues { local, next: vec![SC::Challenge::ZERO; width] }
                     }
                 };
                 let (perm_local, perm_next) = perm_opens;

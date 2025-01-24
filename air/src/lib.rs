@@ -18,6 +18,7 @@ use p3_air::{
 };
 use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
+use p3_field::FieldAlgebra;
 use p3_matrix::{dense::RowMajorMatrixView, stack::VerticalPair};
 use sp1_stark::septic_curve::SepticCurve;
 use sp1_stark::septic_extension::SepticExtension;
@@ -196,6 +197,26 @@ where
         is_last_row: SymbolicVarF::is_last_row(),
         is_transition: SymbolicVarF::is_transition(),
     };
+
+    // initialize the reserved constants to the right values
+    // initialize SymbolicExsprEF::RESERVED_ZERO to be 0
+    let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    code.extend([
+        Instruction32::e_assign_c(SymbolicExprEF::RESERVED_ZERO, EF::ZERO),
+        Instruction32::e_assign_c(SymbolicExprEF::RESERVED_ONE, EF::ONE),
+        Instruction32::e_assign_c(SymbolicExprEF::RESERVED_TWO, EF::TWO),
+        Instruction32::e_assign_c(SymbolicExprEF::RESERVED_NEG_ONE, EF::NEG_ONE),
+    ]);
+    drop(code);
+
+    let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    code.extend([
+        Instruction32::f_assign_c(SymbolicExprF::RESERVED_ZERO, F::ZERO),
+        Instruction32::f_assign_c(SymbolicExprF::RESERVED_ONE, F::ONE),
+        Instruction32::f_assign_c(SymbolicExprF::RESERVED_TWO, F::TWO),
+        Instruction32::f_assign_c(SymbolicExprF::RESERVED_NEG_ONE, F::NEG_ONE),
+    ]);
+    drop(code);
 
     chip.eval(&mut folder);
     let code = CUDA_P3_EVAL_CODE.lock().unwrap().to_vec();
