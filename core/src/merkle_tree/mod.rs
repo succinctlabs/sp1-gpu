@@ -11,8 +11,8 @@ use crate::{
 use itertools::Itertools;
 use p3_baby_bear::BabyBear;
 use p3_field::Field;
-use p3_matrix::dense::RowMajorMatrix;
-use p3_merkle_tree::FieldMerkleTree;
+use p3_matrix::dense::{DenseMatrix, RowMajorMatrix};
+use p3_merkle_tree::MerkleTree;
 use std::{cmp::Reverse, marker::PhantomData};
 
 mod hasher;
@@ -106,18 +106,18 @@ where
     W: Copy,
     M: Send + Sync + DeviceMatrix<F> + ToHost<HostType = RowMajorMatrix<F>>,
 {
-    type HostType = FieldMerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>;
+    type HostType = MerkleTree<F, W, RowMajorMatrix<F>, DIGEST_ELEMS>;
 
     fn to_host(&self) -> Self::HostType {
         let leaves = self.leaves.iter().map(|l| l.to_host()).collect::<Vec<_>>();
         let digest_layers = self.digest_layers.iter().map(|l| l.to_host()).collect::<Vec<_>>();
 
-        FieldMerkleTree::from_parts(leaves, digest_layers)
+        MerkleTree::<F, W, DenseMatrix<F>, DIGEST_ELEMS>::from_parts(leaves, digest_layers)
     }
 }
 
 impl<W, const DIGEST_ELEMS: usize> ToDevice
-    for FieldMerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
+    for MerkleTree<BabyBear, W, RowMajorMatrix<BabyBear>, DIGEST_ELEMS>
 where
     BabyBear: Field,
     W: Copy,
@@ -169,7 +169,11 @@ mod tests {
         };
 
         use p3_baby_bear::BabyBear;
-        use p3_merkle_tree::FieldMerkleTree;
+        use p3_field::Field;
+        use p3_matrix::dense::RowMajorMatrix;
+        use p3_merkle_tree::MerkleTree;
+        use p3_poseidon2::Poseidon2;
+        use p3_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 
         pub type BabyBearFieldMerkleTreeGpu<M> =
             FieldMerkleTreeGpu<BabyBear, [BabyBear; DIGEST_WIDTH], M>;
@@ -197,7 +201,13 @@ mod tests {
             }
 
             let tallest_matrices = vec![&matrix_host_1, &matrix_host_2];
-            let digests_host = p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+            let digests_host = p3_merkle_tree::first_digest_layer::<
+                <BabyBear as Field>::Packing,                           // P
+                <BabyBear as Field>::Packing,                           // PW
+                PaddingFreeSponge<Poseidon2<_, _, _, 16, 7>, 16, 8, 8>, // H
+                RowMajorMatrix<BabyBear>,                               // M
+                8,                                                      // DIGEST_ELEMS
+            >(&hasher, tallest_matrices);
 
             let digests_device = digests.to_host();
             for i in 0..n {
@@ -247,8 +257,13 @@ mod tests {
             }
 
             let tallest_matrices = vec![&matrix_host_1];
-            let first_layer_digests_host =
-                p3_merkle_tree::first_digest_layer(&hasher, tallest_matrices);
+            let first_layer_digests_host = p3_merkle_tree::first_digest_layer::<
+                <BabyBear as Field>::Packing,
+                <BabyBear as Field>::Packing,
+                PaddingFreeSponge<Poseidon2<_, _, _, 16, 7>, 16, 8, 8>,
+                RowMajorMatrix<BabyBear>,
+                8,
+            >(&hasher, tallest_matrices);
 
             let first_layer_digests_device = first_layer_digests.to_host();
             for i in 0..n {
@@ -256,12 +271,19 @@ mod tests {
             }
 
             let matrices_to_inject = vec![&matrix_host_2];
-            let next_digests_host = p3_merkle_tree::compress_and_inject(
-                &first_layer_digests_host,
-                matrices_to_inject,
-                &hasher,
-                &compressor,
-            );
+            let next_digests_host =
+                p3_merkle_tree::compress_and_inject::<
+                    <BabyBear as Field>::Packing,
+                    <BabyBear as Field>::Packing,
+                    PaddingFreeSponge<Poseidon2<_, _, _, 16, 7>, 16, 8, 8>,
+                    TruncatedPermutation<Poseidon2<_, _, _, 16, 7>, 2, 8, 16>,
+                    RowMajorMatrix<BabyBear>,
+                    8,
+                >(
+                    &first_layer_digests_host, matrices_to_inject, &hasher, &compressor
+                );
+
+            // &hasher, &compressor, &first_layer_digests_host, matrices_to_inject
 
             let next_digests_device = next_digests.to_host();
             for i in 0..n / 2 {
@@ -287,7 +309,12 @@ mod tests {
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
-            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let tree_host = MerkleTree::new::<
+                <BabyBear as Field>::Packing,
+                <BabyBear as Field>::Packing,
+                PaddingFreeSponge<Poseidon2<_, _, _, 16, 7>, 16, 8, 8>,
+                TruncatedPermutation<Poseidon2<_, _, _, 16, 7>, 2, 8, 16>,
+            >(&hasher, &compressor, tallest_matrices);
             let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
@@ -311,7 +338,12 @@ mod tests {
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
-            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let tree_host = MerkleTree::new::<
+                <BabyBear as Field>::Packing,
+                <BabyBear as Field>::Packing,
+                PaddingFreeSponge<Poseidon2<_, _, _, 16, 7>, 16, 8, 8>,
+                TruncatedPermutation<Poseidon2<_, _, _, 16, 7>, 2, 8, 16>,
+            >(&hasher, &compressor, tallest_matrices);
             let root_host: [BabyBear; DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
@@ -333,14 +365,12 @@ mod tests {
         };
 
         use p3_baby_bear::BabyBear;
-        use p3_bn254_fr::{Bn254Fr, DiffusionMatrixBN254};
-        use p3_merkle_tree::FieldMerkleTree;
-        use p3_poseidon2::{Poseidon2, Poseidon2ExternalMatrixGeneral};
+        use p3_bn254_fr::{Bn254Fr, Poseidon2Bn254};
+        use p3_merkle_tree::MerkleTree;
         use p3_symmetric::MultiField32PaddingFreeSponge;
 
         pub type OuterVal = BabyBear;
-        pub type OuterPerm =
-            Poseidon2<Bn254Fr, Poseidon2ExternalMatrixGeneral, DiffusionMatrixBN254, 3, 5>;
+        pub type OuterPerm = Poseidon2Bn254<3>;
         pub type OuterHash = MultiField32PaddingFreeSponge<OuterVal, Bn254Fr, OuterPerm, 3, 16, 1>;
 
         pub type Bn254FieldMerkleTreeGpu<M> =
@@ -462,7 +492,7 @@ mod tests {
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
-            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let tree_host = MerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);
@@ -487,7 +517,7 @@ mod tests {
             let root_device = tree_device.root();
 
             let tallest_matrices = vec![matrix_host_1];
-            let tree_host = FieldMerkleTree::new(&hasher, &compressor, tallest_matrices);
+            let tree_host = MerkleTree::new(&hasher, &compressor, tallest_matrices);
             let root_host: [Bn254Fr; DIGEST_WIDTH] = tree_host.root().into();
 
             assert_eq!(root_device, root_host);

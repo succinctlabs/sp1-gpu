@@ -46,7 +46,7 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "limits": "cpp"
+        "cmath": "cpp"
     },
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/core/**/include",

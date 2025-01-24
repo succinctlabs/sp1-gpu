@@ -73,7 +73,7 @@ mod tests {
 
     use itertools::Itertools;
     use p3_baby_bear::BabyBear;
-    use p3_field::{extension::BinomialExtensionField, AbstractField};
+    use p3_field::{extension::BinomialExtensionField, FieldAlgebra};
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use rand::{thread_rng, Rng};
 
@@ -99,7 +99,7 @@ mod tests {
 
             assert_eq!(input_device.len(), input_size);
 
-            let mut result = [BabyBear::zero()].to_device().unwrap();
+            let mut result = [BabyBear::ZERO].to_device().unwrap();
             assert_eq!(result.len(), 1);
 
             input_device.stream().synchronize().unwrap();
@@ -155,7 +155,7 @@ mod tests {
                 let sums_device = results.to_host();
 
                 let time = Instant::now();
-                let mut column_sums = vec![BabyBear::zero(); width];
+                let mut column_sums = vec![BabyBear::ZERO; width];
                 for row in input_host.rows() {
                     for (element, accum) in row.zip_eq(column_sums.iter_mut()) {
                         *accum += element;
@@ -210,7 +210,7 @@ mod tests {
                 let sums_device = results.to_host();
 
                 let time = Instant::now();
-                let mut column_sums = vec![EF::zero(); width];
+                let mut column_sums = vec![EF::ZERO; width];
                 for row in input_host.rows() {
                     for (element, accum) in row.zip_eq(column_sums.iter_mut()) {
                         *accum += element;
@@ -243,7 +243,7 @@ mod tests {
 
             assert_eq!(input_device.len(), input_size);
 
-            let mut result = [BinomialExtensionField::<BabyBear, 4>::zero()].to_device().unwrap();
+            let mut result = [BinomialExtensionField::<BabyBear, 4>::ZERO].to_device().unwrap();
             assert_eq!(result.len(), 1);
 
             input_device.stream().synchronize().unwrap();

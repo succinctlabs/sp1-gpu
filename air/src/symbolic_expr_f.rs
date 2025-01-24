@@ -8,7 +8,7 @@ use crate::{
     CUDA_P3_EVAL_EXPR_F_CTR, F,
 };
 
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 
 #[derive(Debug, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -19,6 +19,11 @@ impl SymbolicExprF {
     pub fn empty() -> Self {
         Self(u32::MAX)
     }
+
+    pub const RESERVED_ZERO: Self = Self(u32::MAX - 5);
+    pub const RESERVED_ONE: Self = Self(u32::MAX - 6);
+    pub const RESERVED_TWO: Self = Self(u32::MAX - 7);
+    pub const RESERVED_NEG_ONE: Self = Self(u32::MAX - 8);
 
     // #[instrument(skip_all, level = "trace", name = "Alloc for SymbolicExprF")]
     pub fn alloc() -> Self {
@@ -43,7 +48,7 @@ impl Default for SymbolicExprF {
     fn default() -> Self {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::zero()));
+        code.push(Instruction32::f_assign_c(output, F::ZERO));
         drop(code);
         output
     }
@@ -214,7 +219,7 @@ impl Neg for SymbolicExprF {
 impl Sum for SymbolicExprF {
     // #[instrument(skip_all, level = "trace", name = "Sum for SymbolicExprF")]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        let mut output = SymbolicExprF::zero();
+        let mut output = SymbolicExprF::ZERO;
         for item in iter {
             output = output + item;
         }
@@ -225,7 +230,7 @@ impl Sum for SymbolicExprF {
 impl Product for SymbolicExprF {
     // #[instrument(skip_all, level = "trace", name = "Product for SymbolicExprF")]
     fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
-        let mut output = SymbolicExprF::one();
+        let mut output = SymbolicExprF::ONE;
         for item in iter {
             output = output * item;
         }
@@ -246,44 +251,48 @@ impl Clone for SymbolicExprF {
     }
 }
 
-impl AbstractField for SymbolicExprF {
+impl FieldAlgebra for SymbolicExprF {
     type F = F;
 
-    // #[instrument(skip_all, level = "trace", name = "Zero for SymbolicExprF")]
-    fn zero() -> Self {
-        let output = SymbolicExprF::alloc();
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::zero()));
-        drop(code);
-        output
-    }
+    // // #[instrument(skip_all, level = "trace", name = "Zero for SymbolicExprF")]
+    // fn zero() -> Self {
+    //     let output = SymbolicExprF::alloc();
+    //     let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    //     code.push(Instruction32::f_assign_c(output, F::zero()));
+    //     drop(code);
+    //     output
+    // }
 
-    // #[instrument(skip_all, level = "trace", name = "One for SymbolicExprF")]
-    fn one() -> Self {
-        let output = SymbolicExprF::alloc();
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::one()));
-        drop(code);
-        output
-    }
+    // // #[instrument(skip_all, level = "trace", name = "One for SymbolicExprF")]
+    // fn one() -> Self {
+    //     let output = SymbolicExprF::alloc();
+    //     let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    //     code.push(Instruction32::f_assign_c(output, F::one()));
+    //     drop(code);
+    //     output
+    // }
 
-    // #[instrument(skip_all, level = "trace", name = "Two for SymbolicExprF")]
-    fn two() -> Self {
-        let output = SymbolicExprF::alloc();
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::two()));
-        drop(code);
-        output
-    }
+    // // #[instrument(skip_all, level = "trace", name = "Two for SymbolicExprF")]
+    // fn two() -> Self {
+    //     let output = SymbolicExprF::alloc();
+    //     let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    //     code.push(Instruction32::f_assign_c(output, F::two()));
+    //     drop(code);
+    //     output
+    // }
 
-    // #[instrument(skip_all, level = "trace", name = "NegOne for SymbolicExprF")]
-    fn neg_one() -> Self {
-        let output = SymbolicExprF::alloc();
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::neg_one()));
-        drop(code);
-        output
-    }
+    // // #[instrument(skip_all, level = "trace", name = "NegOne for SymbolicExprF")]
+    // fn neg_one() -> Self {
+    //     let output = SymbolicExprF::alloc();
+    //     let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
+    //     code.push(Instruction32::f_assign_c(output, F::neg_one()));
+    //     drop(code);
+    //     output
+    // }
+    const ZERO: Self = Self::RESERVED_ZERO;
+    const ONE: Self = Self::RESERVED_ONE;
+    const TWO: Self = Self::RESERVED_TWO;
+    const NEG_ONE: Self = Self::RESERVED_NEG_ONE;
 
     // #[instrument(skip_all, level = "trace", name = "From<F> for SymbolicExprF")]
     fn from_f(f: Self::F) -> Self {
@@ -362,15 +371,6 @@ impl AbstractField for SymbolicExprF {
         let output = SymbolicExprF::alloc();
         let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
         code.push(Instruction32::f_assign_c(output, F::from_wrapped_u64(n)));
-        drop(code);
-        output
-    }
-
-    // #[instrument(skip_all, level = "trace", name = "Generator for SymbolicExprF")]
-    fn generator() -> Self {
-        let output = SymbolicExprF::alloc();
-        let mut code = CUDA_P3_EVAL_CODE.lock().unwrap();
-        code.push(Instruction32::f_assign_c(output, F::generator()));
         drop(code);
         output
     }

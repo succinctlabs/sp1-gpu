@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use p3_baby_bear::BabyBear;
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 
 lazy_static! {
     // These constants are created by a RNG.

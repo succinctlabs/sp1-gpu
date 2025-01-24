@@ -8,7 +8,7 @@ use sp1_stark::Com;
 
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, CanSample, CanSampleBits};
-use p3_field::{AbstractExtensionField, AbstractField, TwoAdicField};
+use p3_field::{FieldAlgebra, FieldExtensionAlgebra, TwoAdicField};
 use p3_fri::{BatchOpening, CommitPhaseProofStep, FriProof, QueryProof};
 use sp1_stark::Challenger;
 
@@ -184,7 +184,7 @@ pub(super) mod merkle_tree_opening_prover {
     use p3_bn254_fr::Bn254Fr;
     use p3_field::{PackedField, PackedValue};
     use p3_fri::BatchOpening;
-    use p3_merkle_tree::FieldMerkleTreeMmcs;
+    use p3_merkle_tree::MerkleTreeMmcs;
     use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
     use p3_util::log2_ceil_usize;
 
@@ -202,7 +202,7 @@ pub(super) mod merkle_tree_opening_prover {
     }
 
     impl<Hasher, P, PW, H, C, const DIGEST_ELEMS: usize>
-        FriQueryProver<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
+        FriQueryProver<BabyBear, MerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>
         for FieldMerkleTreeDeviceCommitter<Hasher>
     where
         Hasher: FieldMerkleTreeHasher<BabyBear, Digest = [PW::Value; DIGEST_ELEMS]>,
@@ -224,8 +224,7 @@ pub(super) mod merkle_tree_opening_prover {
             log_global_max_height: usize,
             is_answering: bool,
             stream: &CudaStream,
-        ) -> Vec<Vec<BatchOpening<BabyBear, FieldMerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>>
-        {
+        ) -> Vec<Vec<BatchOpening<BabyBear, MerkleTreeMmcs<P, PW, H, C, DIGEST_ELEMS>>>> {
             // Function runs one kernel for all query indices and all matrices.
             //
             // 1. Collect relevant data and calculate offsets based on matrix.width.
@@ -385,7 +384,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
     .unwrap();
 
     let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
-    let one_half = SC::Val::two().inverse();
+    let one_half = SC::Val::TWO.inverse();
     let half_beta = beta * one_half;
 
     let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height(), stream);
@@ -402,7 +401,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
             input_view,
             output.view_mut(),
             powers.view(),
-            BabyBear::two().inverse(),
+            BabyBear::TWO.inverse(),
             input_leaves.is_some(),
             stream.handle(),
         );
@@ -418,7 +417,7 @@ pub fn shifted_powers<SC: BabyBearFriConfig>(
     stream: &CudaStream,
 ) -> ColMajorMatrixDevice<SC::Val> {
     let mut output = ColMajorMatrixDevice::with_capacity_in(
-        <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+        <SC::Challenge as FieldExtensionAlgebra<SC::Val>>::D,
         n,
         stream,
     )
@@ -482,10 +481,10 @@ where
     let leaves = leaves.to_host();
     assert_eq!(
         leaves.values.len(),
-        (1 << committer.log_blowup) * <SC::Challenge as AbstractExtensionField<SC::Val>>::D
+        (1 << committer.log_blowup) * <SC::Challenge as FieldExtensionAlgebra<SC::Val>>::D
     );
     let final_poly = SC::Challenge::from_base_slice(
-        &leaves.values[0..<SC::Challenge as AbstractExtensionField<SC::Val>>::D],
+        &leaves.values[0..<SC::Challenge as FieldExtensionAlgebra<SC::Val>>::D],
     );
     challenger.observe_ext_element(final_poly);
 

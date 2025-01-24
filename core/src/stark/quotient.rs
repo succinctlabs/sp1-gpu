@@ -3,7 +3,7 @@ use sp1_stark::{septic_digest::SepticDigest, StarkGenericConfig};
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
-use p3_field::{AbstractExtensionField, Field, TwoAdicField};
+use p3_field::{Field, FieldExtensionAlgebra, TwoAdicField};
 use sp1_stark::{
     air::MachineAir, quotient_values, Chip, Dom, PackedChallenge, PcsProverData,
     ProverConstraintFolder, StarkMachine,
@@ -12,7 +12,7 @@ use sp1_stark::{
 use p3_air::Air;
 use p3_commit::{Pcs, PolynomialSpace};
 
-use p3_field::AbstractField;
+use p3_field::FieldAlgebra;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 
 use std::{collections::HashMap, marker::PhantomData};
@@ -108,7 +108,7 @@ where
             <SC::Val as TwoAdicField>::two_adic_generator(quotient_domain.log_n);
         let quotient_flat = unsafe {
             let mut quotient_flat = ColMajorMatrixDevice::<SC::Val>::with_capacity_in(
-                <SC::Challenge as AbstractExtensionField<SC::Val>>::D,
+                <SC::Challenge as FieldExtensionAlgebra<SC::Val>>::D,
                 quotient_domain.size(),
                 stream,
             )
@@ -257,7 +257,7 @@ where
                 )
             })
             .unwrap_or_else(|| {
-                RowMajorMatrix::new_col(vec![SC::Val::zero(); quotient_domain.size()])
+                RowMajorMatrix::new_col(vec![SC::Val::ZERO; quotient_domain.size()])
             });
 
         let main_on_quotient_domain =
@@ -312,7 +312,7 @@ mod tests {
     use p3_baby_bear::BabyBear;
     use p3_commit::{Pcs, PolynomialSpace, TwoAdicMultiplicativeCoset};
     use p3_field::{
-        extension::BinomialExtensionField, AbstractExtensionField, AbstractField, TwoAdicField,
+        extension::BinomialExtensionField, FieldAlgebra, FieldExtensionAlgebra, TwoAdicField,
     };
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
     use sp1_core_executor::Program;
@@ -347,7 +347,7 @@ mod tests {
     type SC = BabyBearPoseidon2;
 
     fn natural_domain_for_degree(degree: usize) -> TwoAdicMultiplicativeCoset<BabyBear> {
-        TwoAdicMultiplicativeCoset { log_n: log2_strict_usize(degree), shift: F::one() }
+        TwoAdicMultiplicativeCoset { log_n: log2_strict_usize(degree), shift: F::ONE }
     }
 
     #[test]
@@ -378,7 +378,7 @@ mod tests {
             let main = RowMajorMatrix::<F>::rand(&mut rng, num_rows, chip.width());
 
             let permutation_challenges =
-                vec![EF::one(), EF::two(), EF::two() + EF::one(), EF::two() + EF::two()];
+                vec![EF::ONE, EF::TWO, EF::TWO + EF::ONE, EF::TWO + EF::TWO];
             let packed_permutation_challenges = permutation_challenges
                 .iter()
                 .map(|c| PackedChallenge::<SC>::from_f(*c))
@@ -428,7 +428,7 @@ mod tests {
                 >>::get_evaluations_on_domain(pcs, &prep_data, 0, quotient_domain)
                 .to_row_major_matrix()
             } else {
-                RowMajorMatrix::new_col(vec![BabyBear::zero(); quotient_domain.size() * 4])
+                RowMajorMatrix::new_col(vec![BabyBear::ZERO; quotient_domain.size() * 4])
             };
 
             let main_trace_on_quotient_domain =
@@ -445,8 +445,8 @@ mod tests {
                 >>::get_evaluations_on_domain(pcs, &perm_data, 0, quotient_domain)
                 .to_row_major_matrix();
 
-            let alpha = EF::from_base_slice(&[F::one(), F::one(), F::one(), F::one()]);
-            let public_values = [F::zero(); SP1_PROOF_NUM_PV_ELTS * 2].to_vec();
+            let alpha = EF::from_base_slice(&[F::ONE, F::ONE, F::ONE, F::ONE]);
+            let public_values = [F::ZERO; SP1_PROOF_NUM_PV_ELTS * 2].to_vec();
 
             let powers_of_alpha = alpha
                 .powers()
