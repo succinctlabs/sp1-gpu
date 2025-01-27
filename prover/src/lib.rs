@@ -34,7 +34,7 @@ mod tests {
 
     use p3_field::PrimeField32;
     use serial_test::serial;
-    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, RiscvAirId};
+    use sp1_core_executor::RiscvAirId;
     use sp1_core_machine::shape::create_dummy_program;
     use sp1_core_machine::shape::create_dummy_record;
     use sp1_core_machine::{io::SP1Stdin, riscv::RiscvAir};
@@ -44,6 +44,7 @@ mod tests {
     };
     use sp1_stark::shape::Shape;
     use sp1_stark::{Dom, MachineProver, StarkGenericConfig};
+    use test_artifacts::FIBONACCI_ELF;
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
