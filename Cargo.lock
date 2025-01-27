@@ -196,18 +196,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-json-abi"
-version = "0.8.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c357da577dfb56998d01f574d81ad7a1958d248740a7981b205d69d65a7da404"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-type-parser",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "alloy-json-rpc"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -429,26 +417,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-sol-type-parser"
-version = "0.8.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce13ff37285b0870d0a0746992a4ae48efaf34b766ae4c2640fa15e5305f8e73"
-dependencies = [
- "serde",
- "winnow 0.6.20",
-]
-
-[[package]]
 name = "alloy-sol-types"
 version = "0.8.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1174cafd6c6d810711b4e00383037bdb458efc4fe3dbafafa16567e0320c54d8"
 dependencies = [
- "alloy-json-abi",
  "alloy-primitives",
  "alloy-sol-macro",
  "const-hex",
- "serde",
 ]
 
 [[package]]
@@ -2377,9 +2353,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "1.1.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb8bc4c28d15ade99c7e90b219f30da4be5c88e586277e8cbe886beeb868ab2"
+checksum = "96512db27971c2c3eece70a1e106fbe6c87760234e31e8f7e5634912fe52794a"
 dependencies = [
  "serde",
  "typenum",
@@ -5790,8 +5766,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5802,8 +5778,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5840,15 +5816,15 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "bincode",
  "cbindgen",
  "cc",
  "cfg-if",
  "elliptic-curve",
- "generic-array 1.1.1",
+ "generic-array 1.1.0",
  "glob",
  "hashbrown 0.14.5",
  "hex",
@@ -5896,8 +5872,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5912,13 +5888,13 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "cfg-if",
  "dashu",
  "elliptic-curve",
- "generic-array 1.1.1",
+ "generic-array 1.1.0",
  "itertools 0.13.0",
  "k256",
  "num",
@@ -5934,8 +5910,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5943,8 +5919,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5962,8 +5938,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "bincode",
  "hex",
@@ -5979,15 +5955,17 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "anyhow",
  "bincode",
  "clap",
  "dirs",
  "downloader",
+ "enum-map",
  "eyre",
+ "hashbrown 0.14.5",
  "hex",
  "itertools 0.13.0",
  "lru",
@@ -6021,8 +5999,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6054,8 +6032,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6075,8 +6053,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6117,8 +6095,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6126,8 +6104,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6151,8 +6129,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6198,8 +6176,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6548,8 +6526,8 @@ dependencies = [
 
 [[package]]
 name = "test-artifacts"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=tqn%2Fprover-gas#afa1a77762defe8baa5fd9120feb6e74a2b49d67"
 dependencies = [
  "sp1-build",
 ]

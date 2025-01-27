@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+sp1-core-machine = { workspace = true }
 sp1-prover = { workspace = true }
 sp1-core-executor = { workspace = true }
-sp1-core-machine = { workspace = true, features = ["programs"] }
 sp1-stark = { workspace = true }
 tracing = "0.1.40"
 
@@ -19,7 +19,7 @@ clap = { version = "4.5.9", features = ["derive", "env"] }
 
 [dev-dependencies]
 p3-field = { workspace = true }
-sp1-prover = { workspace = true, features = ["export-tests"] }
+sp1-prover = { workspace = true }
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true }
 test-artifacts = { workspace = true }
