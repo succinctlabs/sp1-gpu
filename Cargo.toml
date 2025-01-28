@@ -19,14 +19,14 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev", features = [ "bigint-rug" ] } 
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
-test-artifacts = { git = "https://github.com/succinctlabs/sp1-wip", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1", branch = "dev", features = [ "bigint-rug" ] } 
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+test-artifacts = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
 
 # p3
 p3-interpolation = "=0.2.0-succinct"
@@ -52,15 +52,15 @@ p3-maybe-rayon = "=0.2.0-succinct"
 p3-bn254-fr = "=0.2.0-succinct"
 
 # for local development
-# sp1-core-executor = { path = "../sp1-wip/crates/core/executor", features = [
+# sp1-core-executor = { path = "../sp1/crates/core/executor", features = [
 #     "bigint-rug",
 # ] }
-# sp1-core-machine = { path = "../sp1-wip/crates/core/machine" }
-# sp1-prover = { path = "../sp1-wip/crates/prover", features = ["native-gnark"] }
-# sp1-recursion-core = { path = "../sp1-wip/crates/recursion/core" }
-# sp1-cuda = { path = "../sp1-wip/crates/cuda" }
-# sp1-stark = { path = "../sp1-wip/crates/stark" }
-# sp1-eval = { path = "../sp1-wip/crates/eval" }
+# sp1-core-machine = { path = "../sp1/crates/core/machine" }
+# sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
+# sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
+# sp1-cuda = { path = "../sp1/crates/cuda" }
+# sp1-stark = { path = "../sp1/crates/stark" }
+# sp1-eval = { path = "../sp1/crates/eval" }
 
 # p3-field = { path = "../Plonky3/field" }
 # p3-air = { path = "../Plonky3/air" }
