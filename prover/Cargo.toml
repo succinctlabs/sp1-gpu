@@ -27,7 +27,7 @@ p3-baby-bear = { workspace = true }
 sp1-stark = { workspace = true }
 serial_test = "3.1.1"
 
-[features]      
+[features]
 default = []
 debug = ["sp1-core-machine/debug"]
 
