@@ -313,7 +313,7 @@ mod tests {
         extension::BinomialExtensionField, AbstractExtensionField, AbstractField, TwoAdicField,
     };
     use p3_matrix::{dense::RowMajorMatrix, Matrix};
-    use sp1_core_executor::{programs::tests::FIBONACCI_ELF, Program};
+    use sp1_core_executor::Program;
     use sp1_core_machine::{riscv::RiscvAir, utils::log2_strict_usize};
     use sp1_stark::{
         air::{InteractionScope, MachineAir, SP1_PROOF_NUM_PV_ELTS},
@@ -325,6 +325,7 @@ mod tests {
 
     use rand::thread_rng;
 
+    use test_artifacts::FIBONACCI_ELF;
     use tracing::info;
 
     use crate::{
