@@ -36,3 +36,4 @@ prettytable = "0.10.0"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 jemallocator = "0.3.2"
+
