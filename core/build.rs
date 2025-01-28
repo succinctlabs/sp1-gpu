@@ -186,7 +186,10 @@ fn main() {
         cc_builder.flag("-lnvToolsExt");
         cc_builder.flag("-ldl");
         cc_builder.flag("--expt-relaxed-constexpr");
-        cc_builder.flag("-arch=sm_86");
+        let arch_override = env::var("MOONGATE_CUDA_ARCH").unwrap_or("sm_89".to_string());
+        println!("cargo::rerun-if-env-changed=MOONGATE_CUDA_ARCH");
+        println!("cargo::warning=[moongate] Using CUDA -arch={}", arch_override);
+        cc_builder.flag(format!("-arch={}", arch_override));
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
