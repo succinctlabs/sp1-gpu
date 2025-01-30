@@ -598,12 +598,11 @@ pub mod opening_gpu {
 mod tests {
     use crate::{
         device::memory::ToDevice, matrix::RowMajorMatrixDevice, stark::observe_device_buffer,
-        time::CudaInstant, univariate::subgroup_normalizer,
+        univariate::subgroup_normalizer,
     };
 
     use super::*;
     use crate::cuda_runtime::event::CudaEvent;
-    use p3_commit::Pcs;
     use p3_field::{extension::BinomialExtensionField, AbstractField};
     use p3_fri::TwoAdicFriPcsProof;
     use p3_matrix::dense::RowMajorMatrix;
