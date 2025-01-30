@@ -569,12 +569,12 @@ __global__ void computeValues(
 
             case 59:
                 DEBUG("FAssertZero: %d\n", instr.a);
-                folder.accumulator += folder.powersOfAlpha[folder.constraintIndex]*expr_f[instr.a];
+                folder.accumulator += folder.powersOfAlpha[folder.constraintIndex] * expr_f[instr.a];
                 folder.constraintIndex++;
                 break;
             case 60:
                 DEBUG("EAssertZero: %d\n", instr.a);
-                folder.accumulator += folder.powersOfAlpha[folder.constraintIndex]*expr_ef[instr.a];
+                folder.accumulator += folder.powersOfAlpha[folder.constraintIndex] * expr_ef[instr.a];
                 folder.constraintIndex++;
                 break;
         }

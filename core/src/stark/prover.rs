@@ -846,8 +846,8 @@ where
                     let chip_num_constraints = pk.constraints_map.get(&chip.name()).unwrap();
                     let powers_of_folding_challenge =
                         folding_challenge.powers().take(*chip_num_constraints).collect::<Vec<_>>();
-                    let mut powers_of_alpha_rev = powers_of_folding_challenge.clone();
-                    powers_of_alpha_rev.reverse();
+                    let mut powers_of_folding_challenge_rev = powers_of_folding_challenge.clone();
+                    powers_of_folding_challenge_rev.reverse();
                     let quotient_values = self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -858,7 +858,7 @@ where
                         &public_values_device,
                         local_cumulative_sum,
                         global_cumulative_sum,
-                        &powers_of_alpha_rev,
+                        &powers_of_folding_challenge_rev,
                         &permutation_challenges_device,
                     );
 
@@ -898,10 +898,11 @@ where
                     main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
 
                     let chip_num_constraints = pk.constraints_map.get(&chip.name()).unwrap();
+                    // println!("chip_num_constraints: {}", chip_num_constraints);
                     let powers_of_folding_challenge =
                         folding_challenge.powers().take(*chip_num_constraints).collect::<Vec<_>>();
-                    let mut powers_of_alpha_rev = powers_of_folding_challenge.clone();
-                    powers_of_alpha_rev.reverse();
+                    let mut powers_of_folding_challenge_rev = powers_of_folding_challenge.clone();
+                    powers_of_folding_challenge_rev.reverse();
                     self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -912,7 +913,7 @@ where
                         &public_values_device,
                         local_cumulative_sum,
                         global_cumulative_sum,
-                        &powers_of_alpha_rev,
+                        &powers_of_folding_challenge_rev,
                         &permutation_challenges_device,
                     )
                 }
