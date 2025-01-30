@@ -114,6 +114,8 @@ where
             )
             .unwrap();
             quotient_flat.set_max_width();
+            let powers_of_folding_challenge_device =
+                powers_of_folding_challenge.to_device_async(stream).unwrap();
             quotient_gpu::compute_values(
                 operations_device.as_ptr(),
                 operations.len(),
@@ -128,7 +130,7 @@ where
                 main_evaluations.view(),
                 permutation_evaluations.view(),
                 permutation_challenges.as_ptr(),
-                powers_of_folding_challenge.as_ptr(),
+                powers_of_folding_challenge_device.as_ptr(),
                 public_values.as_ptr(),
                 trace_domain_generator,
                 quotient_domain_generator,
