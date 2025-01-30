@@ -9,14 +9,16 @@ use p3_commit::{Mmcs, PolynomialSpace};
 use p3_field::{extension::BinomialExtensionField, AbstractExtensionField, TwoAdicField};
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
+use p3_uni_stark::{get_symbolic_constraints, SymbolicAirBuilder};
 use sp1_stark::septic_digest::SepticDigest;
 use sp1_stark::MachineChip;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
-    AirOpenedValues, Chip, ChipOpenedValues, Com, DebugConstraintBuilder, MachineProof,
-    MachineProver, MachineProvingKey, MachineRecord, PcsProverData, ProverConstraintFolder,
-    SP1CoreOpts, ShardCommitment, ShardMainData, ShardOpenedValues, ShardProof, StarkGenericConfig,
-    StarkMachine, StarkVerifyingKey, Val,
+    count_permutation_constraints, AirOpenedValues, Chip, ChipOpenedValues, Com,
+    DebugConstraintBuilder, MachineProof, MachineProver, MachineProvingKey, MachineRecord,
+    PcsProverData, ProverConstraintFolder, SP1CoreOpts, ShardCommitment, ShardMainData,
+    ShardOpenedValues, ShardProof, StarkGenericConfig, StarkMachine, StarkVerifyingKey, Val,
+    PROOF_MAX_NUM_PVS,
 };
 
 use itertools::Itertools;
@@ -145,6 +147,8 @@ where
     pub chip_ordering: HashMap<String, usize>,
     /// The preprocessed chip local only information.
     pub local_only: Vec<bool>,
+    /// The number of total constraints for each chip.
+    pub constraints_map: HashMap<String, usize>,
     pub phantom: PhantomData<C>,
 }
 
@@ -202,7 +206,8 @@ where
         + for<'a> Air<air::SymbolicProverFolder<'a>>
         + MachineAir<BabyBear>
         + DeviceAir<BabyBear>
-        + DevicePreprocessedAir<BabyBear>,
+        + DevicePreprocessedAir<BabyBear>
+        + for<'a> Air<SymbolicAirBuilder<BabyBear>>,
     // + for<'a> Air<DebugConstraintBuilder<'a, SC::Val, SC::Challenge>>,
     A::Record: MachineRecord<Config = SP1CoreOpts> + Sync,
     C: FriQueryProver<BabyBear, SC::ValMmcs, Matrix = ColMajorMatrixDevice<SC::Val>>
@@ -282,6 +287,7 @@ where
             data,
             chip_ordering,
             local_only: pk.local_only.clone(),
+            constraints_map: pk.constraints_map.clone(),
             phantom: PhantomData,
         }
     }
@@ -295,6 +301,7 @@ where
             traces: pk.traces.iter().map(|t| t.to_host()).collect(),
             chip_ordering: pk.chip_ordering.clone(),
             local_only: pk.local_only.clone(),
+            constraints_map: pk.constraints_map.clone(),
         }
     }
 
@@ -453,7 +460,7 @@ where
         let generate_traces_copy_span =
             tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
-        let mut named_preprocessed_data = self
+        let (named_preprocessed_data, num_constraints): (Vec<_>, Vec<_>) = self
             .machine()
             .chips()
             .par_iter()
@@ -477,8 +484,29 @@ where
                     chip.name()
                 );
 
-                (chip.name(), chip.local_only(), trace)
+                // Count the number of constraints.
+                let num_main_constraints = get_symbolic_constraints(
+                    &chip.air,
+                    chip.preprocessed_width(),
+                    PROOF_MAX_NUM_PVS,
+                )
+                .len();
+
+                let num_permutation_constraints = count_permutation_constraints(
+                    &chip.sends,
+                    &chip.receives,
+                    chip.logup_batch_size(),
+                    chip.air.commit_scope(),
+                );
+                (
+                    (chip.name(), chip.local_only(), trace),
+                    (name, num_main_constraints + num_permutation_constraints),
+                )
             })
+            .unzip();
+
+        let mut named_preprocessed_data = named_preprocessed_data
+            .into_iter()
             .filter(|(_, _, trace)| trace.is_some())
             .map(|(name, local_only, trace)| {
                 let trace = trace.unwrap();
@@ -516,6 +544,8 @@ where
             .map(|(i, (name, _, _))| (name.to_owned(), i))
             .collect::<HashMap<_, _>>();
 
+        let constraints_map: HashMap<_, _> = num_constraints.into_iter().collect();
+
         // Get the preprocessed traces
         let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
@@ -531,6 +561,7 @@ where
                 data,
                 chip_ordering: chip_ordering.clone(),
                 local_only: local_only.clone(),
+                constraints_map: constraints_map.clone(),
                 phantom: PhantomData,
             },
             StarkVerifyingKey {
@@ -551,7 +582,7 @@ where
         let generate_traces_copy_span =
             tracing::debug_span!("generate preprocessed traces and copy to device").entered();
 
-        let mut named_preprocessed_data = self
+        let (named_preprocessed_data, num_constraints): (Vec<_>, Vec<_>) = self
             .machine()
             .chips()
             .par_iter()
@@ -566,8 +597,27 @@ where
                     chip.name()
                 );
 
-                (chip.name(), chip.local_only(), prep_trace)
+                let num_main_constraints = get_symbolic_constraints(
+                    &chip.air,
+                    chip.preprocessed_width(),
+                    PROOF_MAX_NUM_PVS,
+                )
+                .len();
+                let num_permutation_constraints = count_permutation_constraints(
+                    &chip.sends,
+                    &chip.receives,
+                    chip.logup_batch_size(),
+                    chip.air.commit_scope(),
+                );
+                (
+                    (chip.name(), chip.local_only(), prep_trace),
+                    (chip.name(), num_main_constraints + num_permutation_constraints),
+                )
             })
+            .unzip();
+
+        let mut named_preprocessed_data = named_preprocessed_data
+            .into_iter()
             .filter(|(_, _, prep_trace)| prep_trace.is_some())
             .map(|(name, local_only, prep_trace)| {
                 let prep_trace = prep_trace.unwrap();
@@ -604,6 +654,8 @@ where
 
         commit_span.exit();
 
+        let constraints_map: HashMap<_, _> = num_constraints.into_iter().collect();
+
         // Get the preprocessed traces
         let traces = commitment_data.into_iter().map(|(_, trace, _)| trace).collect::<Vec<_>>();
 
@@ -616,6 +668,7 @@ where
             traces,
             data,
             chip_ordering: chip_ordering.clone(),
+            constraints_map: constraints_map.clone(),
             local_only,
             phantom: PhantomData,
         }
@@ -789,6 +842,12 @@ where
                     perm_eval.bit_reverse_rows().unwrap();
 
                     main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
+
+                    let chip_num_constraints = pk.constraints_map.get(&chip.name()).unwrap();
+                    let powers_of_folding_challenge =
+                        folding_challenge.powers().take(*chip_num_constraints).collect::<Vec<_>>();
+                    let mut powers_of_alpha_rev = powers_of_folding_challenge.clone();
+                    powers_of_alpha_rev.reverse();
                     let quotient_values = self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -799,7 +858,7 @@ where
                         &public_values_device,
                         local_cumulative_sum,
                         global_cumulative_sum,
-                        folding_challenge,
+                        &powers_of_alpha_rev,
                         &permutation_challenges_device,
                     );
 
@@ -837,6 +896,12 @@ where
                         .unwrap();
 
                     main_eval.stream().wait_event(&self.events.quotient_common_data_to_device)?;
+
+                    let chip_num_constraints = pk.constraints_map.get(&chip.name()).unwrap();
+                    let powers_of_folding_challenge =
+                        folding_challenge.powers().take(*chip_num_constraints).collect::<Vec<_>>();
+                    let mut powers_of_alpha_rev = powers_of_folding_challenge.clone();
+                    powers_of_alpha_rev.reverse();
                     self.quotient_generator.compute_values(
                         chip,
                         trace_domain,
@@ -847,7 +912,7 @@ where
                         &public_values_device,
                         local_cumulative_sum,
                         global_cumulative_sum,
-                        folding_challenge,
+                        &powers_of_alpha_rev,
                         &permutation_challenges_device,
                     )
                 }
