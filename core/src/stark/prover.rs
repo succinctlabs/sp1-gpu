@@ -1281,7 +1281,7 @@ where
     }
 }
 
-fn observe_device_buffer<SC: BabyBearFriConfig>(
+pub(crate) fn observe_device_buffer<SC: BabyBearFriConfig>(
     challenger: &mut SC::Challenger,
     buffer: &DeviceBuffer<BinomialExtensionField<BabyBear, 4>>,
 ) {

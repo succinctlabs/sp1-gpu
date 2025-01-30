@@ -593,3 +593,118 @@ pub mod opening_gpu {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        device::memory::ToDevice, matrix::RowMajorMatrixDevice, stark::observe_device_buffer,
+        time::CudaInstant, univariate::subgroup_normalizer,
+    };
+
+    use super::*;
+    use crate::cuda_runtime::event::CudaEvent;
+    use p3_commit::Pcs;
+    use p3_field::{extension::BinomialExtensionField, AbstractField};
+    use p3_fri::TwoAdicFriPcsProof;
+    use p3_matrix::dense::RowMajorMatrix;
+    use rand::thread_rng;
+    use sp1_stark::{
+        baby_bear_poseidon2::{BabyBearPoseidon2, ValMmcs},
+        StarkGenericConfig,
+    };
+
+    use crate::merkle_tree::Poseidon2BabyBearCommitter;
+
+    #[test]
+    fn test_fri_pcs() {
+        let log_blowup = 1;
+        let log_degree = 21;
+        let lde_log_height = log_degree + log_blowup;
+
+        type SC = BabyBearPoseidon2;
+        type F = BabyBear;
+        type EF = BinomialExtensionField<BabyBear, 4>;
+
+        let mut rng = thread_rng();
+
+        let main_stream = CudaStream::create().unwrap();
+
+        for total_degree in [21, 24, 27, 29] {
+            let width = 1 << (total_degree - log_degree);
+            let domain_normalizers = (0..26).map(subgroup_normalizer).collect::<Vec<BabyBear>>();
+            let opening_prover = FriOpeningProver::<SC>::new(domain_normalizers);
+
+            let trace = RowMajorMatrix::<BabyBear>::rand(&mut rng, 1 << log_degree, width);
+
+            let domain = TwoAdicMultiplicativeCoset::<BabyBear> {
+                log_n: log_degree,
+                shift: BabyBear::one(),
+            };
+            let trace = trace.to_device_async(&main_stream).unwrap().to_column_major();
+            let eval = (domain, &trace, CudaEvent::new().unwrap());
+            let pcs = TwoAdicFriCommitter::<SC, Poseidon2BabyBearCommitter>::new(log_blowup);
+
+            main_stream.synchronize().unwrap();
+            let time = std::time::Instant::now();
+            let (commit, prover_data) = pcs.commit(&[eval], &main_stream);
+
+            let config = SC::default();
+            let mut challenger = config.challenger();
+            challenger.observe(commit);
+            let zeta: EF = challenger.sample_ext_element();
+            let mut batched_openings =
+                DeviceBuffer::<EF>::with_capacity_in(1 << lde_log_height, &main_stream).unwrap();
+            unsafe {
+                batched_openings.set_max_len();
+                batched_openings.set(0).unwrap();
+            }
+            let open = opening_prover.eval(domain, &trace, zeta);
+            observe_device_buffer::<SC>(&mut challenger, &open);
+
+            let mut alpha_offset = EF::one();
+            let alpha = challenger.sample_ext_element();
+            let lde = &prover_data.matrices()[0];
+            opening_prover.batch_update(
+                &mut batched_openings,
+                lde,
+                BabyBear::generator(),
+                &open,
+                zeta,
+                alpha,
+                &mut alpha_offset,
+            );
+
+            let base_values = unsafe { batched_openings.flatten_to_base::<BabyBear>() };
+            let leaf_matrix = RowMajorMatrixDevice::new(
+                base_values,
+                2 * <EF as AbstractExtensionField<BabyBear>>::D,
+            )
+            .to_column_major();
+
+            let input_leaves = BTreeMap::from([(lde_log_height, leaf_matrix)]);
+
+            let (fri_proof, query_indices) = opening_prover.prove(
+                &pcs,
+                config.pcs().fri_config(),
+                input_leaves,
+                &mut challenger,
+                &main_stream,
+            );
+
+            let query_openings: Vec<Vec<BatchOpening<F, ValMmcs>>> =
+                pcs.mmcs_committer.query_open_batch(
+                    &query_indices,
+                    &[&prover_data],
+                    lde_log_height,
+                    false,
+                    &main_stream,
+                );
+
+            let opening_proof = TwoAdicFriPcsProof { fri_proof, query_openings };
+            main_stream.synchronize().unwrap();
+            let elapsed = time.elapsed();
+            println!("time for total degree {}: {:?}", total_degree, elapsed);
+            drop(opening_proof);
+        }
+    }
+}

@@ -23,7 +23,3 @@ http = "1.1.0"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 jemallocator = "0.3.2"
-
-[dev-dependencies]
-sp1-prover = { workspace = true, features = ["export-tests"] }
-sp1-core-executor = { workspace = true }

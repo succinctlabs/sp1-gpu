@@ -3540,7 +3540,6 @@ dependencies = [
  "p3-merkle-tree",
  "p3-poseidon2",
  "p3-symmetric",
- "p3-uni-stark",
  "p3-util",
  "pathdiff",
  "rand 0.8.5",
@@ -3551,7 +3550,6 @@ dependencies = [
  "sp1-core-machine",
  "sp1-recursion-core",
  "sp1-stark",
- "test-artifacts",
  "thiserror 1.0.69",
  "tracing",
  "tracing-subscriber",
@@ -3611,7 +3609,6 @@ dependencies = [
  "sp1-prover",
  "sp1-stark",
  "sysinfo 0.31.4",
- "test-artifacts",
  "tracing",
 ]
 
@@ -6544,14 +6541,6 @@ dependencies = [
  "dirs-next",
  "rustversion",
  "winapi",
-]
-
-[[package]]
-name = "test-artifacts"
-version = "4.0.0-rc.8"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=dev#bb346521cf385cf3d3811a02953db79148617013"
-dependencies = [
- "sp1-build",
 ]
 
 [[package]]

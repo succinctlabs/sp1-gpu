@@ -48,6 +48,4 @@ ignore = "0.4.23"
 [dev-dependencies]
 rand = "0.8.5"
 p3-fri = { workspace = true }
-p3-uni-stark = { workspace = true }
-test-artifacts = { workspace = true }
 serial_test = "3.1.1"
