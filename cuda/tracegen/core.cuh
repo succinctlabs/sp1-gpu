@@ -167,6 +167,8 @@ __global__ void core_global_generate_trace_decompress_kernel(
             cols.kind = bb31_t::from_canonical_u8(events[i].kind);
             cols.is_send = bb31_t::one() - bb31_t::from_bool(events[i].is_receive);
             cols.is_real = bb31_t::one();
+            cols.shard_16bit_limb = bb31_t::from_canonical_u32(events[i].message[0] & 0xFFFF);
+            cols.shard_8bit_limb = bb31_t::from_canonical_u32((events[i].message[0] >> 16) & 0xFF);
 
             // Populate the interaction.
             populate_global_interaction(

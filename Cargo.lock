@@ -196,18 +196,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-json-abi"
-version = "0.8.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24acd2f5ba97c7a320e67217274bc81fe3c3174b8e6144ec875d9d54e760e278"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-type-parser",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "alloy-json-rpc"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -428,26 +416,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-sol-type-parser"
-version = "0.8.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74e60b084fe1aef8acecda2743ff2d93c18ff3eb67a2d3b12f62582a1e66ef5e"
-dependencies = [
- "serde",
- "winnow 0.6.24",
-]
-
-[[package]]
 name = "alloy-sol-types"
 version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1382302752cd751efd275f4d6ef65877ddf61e0e6f5ac84ef4302b79a33a31a"
 dependencies = [
- "alloy-json-abi",
  "alloy-primitives",
  "alloy-sol-macro",
  "const-hex",
- "serde",
 ]
 
 [[package]]
@@ -5881,8 +5857,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5893,8 +5869,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -5931,8 +5907,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5988,8 +5964,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6004,8 +5980,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6026,8 +6002,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6035,8 +6011,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6054,8 +6030,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "bincode",
  "hex",
@@ -6071,8 +6047,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6113,8 +6089,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6146,8 +6122,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6167,8 +6143,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6210,8 +6186,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6219,8 +6195,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6244,8 +6220,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6291,8 +6267,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -6651,8 +6627,8 @@ dependencies = [
 
 [[package]]
 name = "test-artifacts"
-version = "4.0.0-rc.11"
-source = "git+https://github.com/succinctlabs/sp1-wip?branch=v5-wip#7927f30a221b51d4f9068dfb5ebf481963940073"
+version = "4.0.1"
+source = "git+https://github.com/succinctlabs/sp1-wip?branch=umadayal%2Fremove-cycle-limit#9efb2e2911829938709f302981ded19ea3d76978"
 dependencies = [
  "sp1-build",
 ]

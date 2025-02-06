@@ -15,7 +15,7 @@ __device__ void populate_global_interaction(GlobalInteractionOperation<bb31_t>* 
     for(uint32_t offset = 0 ; offset < 256 ; offset++) { 
         bb31_t m_trial[POSEIDON2_WIDTH];
         {
-            m_trial[0] = bb31_t::from_canonical_u32(event->message[0]) + bb31_t::from_canonical_u32(uint32_t(event->kind) << 16);
+            m_trial[0] = bb31_t::from_canonical_u32(event->message[0]) + bb31_t::from_canonical_u32(uint32_t(event->kind) << 24);
             m_trial[1] = bb31_t::from_canonical_u32(event->message[1]);
             m_trial[2] = bb31_t::from_canonical_u32(event->message[2]);
             m_trial[3] = bb31_t::from_canonical_u32(event->message[3]);
