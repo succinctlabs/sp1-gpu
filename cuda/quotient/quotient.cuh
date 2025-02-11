@@ -33,7 +33,7 @@ __global__ void computeValues(
     Matrix<Val> mainTraceOnQuotientDomain,
     Matrix<Val> permutationTraceOnQuotientDomain,
     Challenge* permChallenges,
-    Challenge alpha,
+    Challenge* powersOfAlpha,
     Val* publicValues,
     Val traceDomainGenerator,
     Val quotientDomaingenerator,
@@ -76,7 +76,8 @@ __global__ void computeValues(
     folder.isFirstRow = isFirstRow;
     folder.isLastRow = isLastRow;
     folder.isTransition = isTransition;
-    folder.alpha = alpha;
+    folder.powersOfAlpha = powersOfAlpha;
+    folder.constraintIndex = 0;
     folder.accumulator = Challenge::zero();
     folder.quotientIdx = quotientIdx;
     folder.quotientSize = quotientSize;
@@ -568,13 +569,13 @@ __global__ void computeValues(
 
             case 59:
                 DEBUG("FAssertZero: %d\n", instr.a);
-                folder.accumulator *= folder.alpha;
-                folder.accumulator += expr_f[instr.a];
+                folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_f[instr.a]);
+                folder.constraintIndex++;
                 break;
             case 60:
                 DEBUG("EAssertZero: %d\n", instr.a);
-                folder.accumulator *= folder.alpha;
-                folder.accumulator += expr_ef[instr.a];
+                folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_ef[instr.a]);
+                folder.constraintIndex++;
                 break;
         }
     }
@@ -605,7 +606,7 @@ extern "C" void computeValues(
     Matrix<bb31_t> mainTraceOnQuotientDomain,
     Matrix<bb31_t> permutationTraceOnQuotientDomain,
     bb31_extension_t* permChallenges,
-    bb31_extension_t alpha,
+    bb31_extension_t* powersOfAlpha,
     bb31_t* publicValues,
     bb31_t traceDomainGenerator,
     bb31_t quotientDomaingenerator,
@@ -630,7 +631,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,
@@ -652,7 +653,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,
@@ -674,7 +675,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,
@@ -696,7 +697,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,
@@ -718,7 +719,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,
@@ -740,7 +741,7 @@ extern "C" void computeValues(
                 mainTraceOnQuotientDomain,
                 permutationTraceOnQuotientDomain,
                 permChallenges,
-                alpha,
+                powersOfAlpha,
                 publicValues,
                 traceDomainGenerator,
                 quotientDomaingenerator,

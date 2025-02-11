@@ -55,7 +55,7 @@ pub(super) mod quotient_gpu {
             main_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
             permutation_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
             perm_challenges: *const BinomialExtensionField<BabyBear, 4>,
-            alpha: BinomialExtensionField<BabyBear, 4>,
+            powers_of_alpha: *const BinomialExtensionField<BabyBear, 4>,
             public_values: *const BabyBear,
             trace_domain_generator: BabyBear,
             quotient_domain_generator: BabyBear,

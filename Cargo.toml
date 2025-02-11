@@ -26,7 +26,6 @@ sp1-recursion-core = { version = "4.1.0" }
 sp1-cuda = { version = "4.1.0" }
 sp1-stark = { version = "4.1.0" }
 sp1-eval = { version = "4.1.0" }
-test-artifacts = { version = "4.1.0" }
 
 # p3
 p3-interpolation = "=0.2.0-succinct"

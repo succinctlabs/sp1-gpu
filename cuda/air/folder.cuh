@@ -13,7 +13,8 @@ struct ConstraintFolder {
     Val isFirstRow;
     Val isLastRow;
     Val isTransition;
-    Challenge alpha;
+    Challenge* powersOfAlpha;
+    size_t constraintIndex;
     Challenge accumulator;
     size_t nextStep;
     size_t quotientIdx;

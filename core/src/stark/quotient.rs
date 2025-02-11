@@ -93,7 +93,7 @@ where
         public_values: &DeviceBuffer<SC::Val>,
         local_cumulative_sum: SC::Challenge,
         global_cumulative_sum: SepticDigest<SC::Val>,
-        folding_challenge: SC::Challenge,
+        powers_of_folding_challenge: &[SC::Challenge],
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
         let stream = main_evaluations.stream();
@@ -114,6 +114,8 @@ where
             )
             .unwrap();
             quotient_flat.set_max_width();
+            let powers_of_folding_challenge_device =
+                powers_of_folding_challenge.to_device_async(stream).unwrap();
             quotient_gpu::compute_values(
                 operations_device.as_ptr(),
                 operations.len(),
@@ -128,7 +130,7 @@ where
                 main_evaluations.view(),
                 permutation_evaluations.view(),
                 permutation_challenges.as_ptr(),
-                folding_challenge,
+                powers_of_folding_challenge_device.as_ptr(),
                 public_values.as_ptr(),
                 trace_domain_generator,
                 quotient_domain_generator,
@@ -234,7 +236,7 @@ where
         main_data: (usize, &CpuProverData<SC>),
         permutation_data: (usize, &CpuProverData<SC>),
         permutation_challenges: &[SC::Challenge],
-        folding_challenge: SC::Challenge,
+        powers_of_folding_challenge: &Vec<SC::Challenge>,
         public_values: &[SC::Val],
         local_cumulative_sum: &SC::Challenge,
         global_cumulative_sum: &SepticDigest<SC::Val>,
@@ -282,7 +284,7 @@ where
             main_on_quotient_domain,
             perm_on_quotient_domain,
             &packed_perm_challenges,
-            folding_challenge,
+            powers_of_folding_challenge,
             public_values,
         );
 
@@ -323,9 +325,12 @@ mod tests {
         PackedChallenge, StarkGenericConfig,
     };
 
+    use sp1_prover::{components::CpuProverComponents, SP1Prover};
+
     use rand::thread_rng;
 
-    use test_artifacts::FIBONACCI_ELF;
+    const FIBONACCI_ELF: &[u8] =
+        include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
     use tracing::info;
 
     use crate::{
@@ -362,6 +367,8 @@ mod tests {
             info!("Id: {}", i);
 
             let program = Program::from(FIBONACCI_ELF).unwrap();
+            let prover = SP1Prover::<CpuProverComponents>::new();
+            let (_, pk, _, _) = prover.setup(FIBONACCI_ELF);
             let config = BabyBearPoseidon2::default();
             let pcs = config.pcs();
 
@@ -441,6 +448,13 @@ mod tests {
             let alpha = EF::from_base_slice(&[F::one(), F::one(), F::one(), F::one()]);
             let public_values = [F::zero(); SP1_PROOF_NUM_PV_ELTS * 2].to_vec();
 
+            let powers_of_alpha = alpha
+                .powers()
+                .take(*pk.constraints_map.get(&chip.name()).unwrap())
+                .collect::<Vec<_>>();
+            let mut powers_of_alpha_rev = powers_of_alpha.clone();
+            powers_of_alpha_rev.reverse();
+
             let start = std::time::Instant::now();
             let result = quotient_values::<BabyBearPoseidon2, _, _>(
                 chip,
@@ -452,7 +466,7 @@ mod tests {
                 main_trace_on_quotient_domain.clone(),
                 permutation_trace_on_quotient_domain.clone(),
                 &packed_permutation_challenges,
-                alpha,
+                &powers_of_alpha_rev,
                 &public_values,
             );
             let result_flat = RowMajorMatrix::new_col(result).flatten_to_base::<BabyBear>();
@@ -519,7 +533,7 @@ mod tests {
                     main_trace_on_quotient_domain_device.view(),
                     permutation_trace_on_quotient_domain_device.view(),
                     permutation_challenges_device.as_ptr(),
-                    alpha,
+                    powers_of_alpha_rev.as_ptr(),
                     public_values_device.as_ptr(),
                     trace_domain_generator,
                     quotient_domain_generator,

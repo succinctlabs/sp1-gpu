@@ -22,7 +22,6 @@ p3-field = { workspace = true }
 sp1-prover = { workspace = true }
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true }
-test-artifacts = { workspace = true }
 p3-baby-bear = { workspace = true }
 sp1-stark = { workspace = true }
 serial_test = "3.1.1"

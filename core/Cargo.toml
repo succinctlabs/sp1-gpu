@@ -15,10 +15,12 @@ rand = "0.8.5"
 p3-merkle-tree = { workspace = true }
 p3-matrix = { workspace = true }
 p3-commit = { workspace = true }
+p3-uni-stark = { workspace = true }
 itertools = "0.13.0"
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true, features = ["sys"] }
 sp1-stark = { workspace = true }
+sp1-prover = { workspace = true }
 sp1-recursion-core = { workspace = true, features = ["sys"] }
 p3-air = { workspace = true }
 air = { path = "../air" }
@@ -26,6 +28,7 @@ p3-challenger = { workspace = true }
 p3-fri = { workspace = true }
 p3-util = { workspace = true }
 p3-interpolation = { workspace = true }
+
 zkhash = "0.2.0"
 bincode = "1.3.3"
 
@@ -49,5 +52,4 @@ ignore = "0.4.23"
 rand = "0.8.5"
 p3-fri = { workspace = true }
 p3-uni-stark = { workspace = true }
-test-artifacts = { workspace = true }
 serial_test = "3.1.1"

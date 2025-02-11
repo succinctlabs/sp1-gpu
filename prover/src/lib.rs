@@ -44,7 +44,9 @@ mod tests {
     };
     use sp1_stark::shape::Shape;
     use sp1_stark::{Dom, MachineProver, StarkGenericConfig};
-    use test_artifacts::FIBONACCI_ELF;
+
+    const FIBONACCI_ELF: &[u8] =
+        include_bytes!("../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
 
     const TENDERMINT_BENCHMARK_ELF: &[u8] =
         include_bytes!("../../perf/programs/tendermint-benchmark/riscv32im-succinct-zkvm-elf");
