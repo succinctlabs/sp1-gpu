@@ -452,7 +452,9 @@ mod tests {
     use sp1_core_executor::Program;
     use sp1_core_machine::{memory::MemoryLocalChip, riscv::ByteChip};
     use sp1_stark::InteractionBuilder;
-    use test_artifacts::FIBONACCI_ELF;
+
+    const FIBONACCI_ELF: &[u8] =
+        include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
 
     type F = BabyBear;
     const D: usize = 4;

@@ -329,7 +329,8 @@ mod tests {
 
     use rand::thread_rng;
 
-    use test_artifacts::FIBONACCI_ELF;
+    const FIBONACCI_ELF: &[u8] =
+        include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
     use tracing::info;
 
     use crate::{
