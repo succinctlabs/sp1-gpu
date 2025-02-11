@@ -454,7 +454,7 @@ mod tests {
     use sp1_stark::InteractionBuilder;
 
     const FIBONACCI_ELF: &[u8] =
-        include_bytes!("../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
+        include_bytes!("../../../perf/programs/fibonacci/riscv32im-succinct-zkvm-elf");
 
     type F = BabyBear;
     const D: usize = 4;
