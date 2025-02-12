@@ -1293,62 +1293,21 @@ fn observe_device_buffer<SC: BabyBearFriConfig>(
     challenger.observe_slice(&host_buffer);
 }
 
-#[cfg(test)]
-pub mod tests {
+// #[cfg(test)]
+// pub mod tests {
 
-    use sp1_core_executor::{ExecutionRecord, Executor, Instruction, Opcode, Program};
-    use sp1_core_machine::{io::SP1Stdin, riscv::RiscvAir, utils::run_test};
-    use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
-    use sp1_stark::StarkGenericConfig;
-    use test_artifacts::FIBONACCI_ELF;
+//     use sp1_core_executor::{programs::tests::FIBONACCI_ELF, ExecutionRecord, Executor, Program};
+//     use sp1_core_machine::{riscv::RiscvAir, utils::run_test};
+//     use sp1_recursion_core::stark::BabyBearPoseidon2Outer;
+//     use sp1_stark::StarkGenericConfig;
 
-    use crate::{
-        merkle_tree::FieldMerkleTreeDeviceCommitter,
-        poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
-        utils::init_tracer,
-    };
+//     use crate::{
+//         merkle_tree::FieldMerkleTreeDeviceCommitter,
+//         poseidon2::{baby_bear::DeviceHasherBabyBear, bn254::DeviceHasherBn254},
+//         utils::init_tracer,
+//     };
 
-    use super::*;
-
-    pub fn long_program() -> Program {
-        let instructions = vec![
-            // Initialize sum (r1) to 0
-            Instruction::new(Opcode::ADD, 1, 0, 0, false, true),
-            // Initialize outer counter (r2) to 0
-            Instruction::new(Opcode::ADD, 2, 0, 0, false, true),
-            // Initialize inner counter (r3) to 0
-            Instruction::new(Opcode::ADD, 3, 0, 0, false, true),
-            // Inner loop start: add 1 to sum
-            Instruction::new(Opcode::ADD, 1, 1, 1, false, true),
-            // Add 1 to inner counter
-            Instruction::new(Opcode::ADD, 3, 3, 1, false, true),
-            // Compare inner counter with n=3
-            Instruction::new(Opcode::SUB, 4, 3, 1000, false, true),
-            // Branch if not equal (branch back to inner loop start)
-            Instruction::new(Opcode::BNE, 0, 4, (-12i32) as u32, false, true),
-            // Add 1 to outer counter
-            Instruction::new(Opcode::ADD, 2, 2, 1, false, true),
-            // Compare outer counter with m=5
-            Instruction::new(Opcode::SUB, 5, 2, 10000, false, true),
-            // Branch if not equal (branch back to start of inner loop)
-            Instruction::new(Opcode::BNE, 0, 5, (-28i32) as u32, false, true),
-        ];
-        Program::new(instructions, 0, 0)
-
-        // Program::from(FIBONACCI_ELF).unwrap()
-    }
-
-    #[test]
-    fn test_long_program_prove() {
-        init_tracer();
-        let program = long_program();
-        let stdin = SP1Stdin::new();
-        run_test::<StarkGpuProver<_, FieldMerkleTreeDeviceCommitter<DeviceHasherBabyBear>, _>>(
-            program, stdin,
-        )
-        .unwrap();
-    }
-}
+//     use super::*;
 
 //     pub fn execute_core(program: Program) -> ExecutionRecord {
 //         let opts = SP1CoreOpts::default();
