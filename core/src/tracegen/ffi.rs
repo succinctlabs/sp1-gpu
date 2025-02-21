@@ -17,12 +17,12 @@ use sp1_stark::septic_curve::SepticCurve;
 #[allow(unused_attributes)]
 #[link_name = "moongate"]
 extern "C" {
-    pub fn core_add_sub_generate_trace(
+    /*pub fn core_add_sub_generate_trace(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const AluEvent,
         nb_events: u32,
         stream: CudaStreamHandle,
-    );
+    );*/
 
     pub fn core_memory_local_generate_trace_round_1(
         trace: MatrixViewMutDevice<BabyBear>,

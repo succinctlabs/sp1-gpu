@@ -4,7 +4,7 @@ use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
 use sp1_core_machine::{
-    alu::AddSubChip, memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
+    memory::MemoryGlobalChip, memory::MemoryLocalChip, syscall::chip::SyscallChip,
 };
 use sp1_stark::septic_curve::SepticCurve;
 
@@ -18,7 +18,7 @@ use crate::{
 use super::DeviceAir;
 use crate::tracegen;
 
-impl DeviceAir<BabyBear> for AddSubChip {
+/*åimpl DeviceAir<BabyBear> for AddSubChip {
     fn generate_trace_device(
         &self,
         input: &Self::Record,
@@ -55,7 +55,7 @@ impl DeviceAir<BabyBear> for AddSubChip {
 
         Ok(Some(trace))
     }
-}
+}*/
 
 impl DeviceAir<BabyBear> for MemoryLocalChip {
     fn generate_trace_device(
@@ -163,7 +163,13 @@ impl DeviceAir<BabyBear> for SyscallChip {
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // Get the events for the chip.
         let events = match self.shard_kind() {
-            SyscallShardKind::Core => &input.syscall_events,
+            SyscallShardKind::Core => &input
+                .syscall_events
+                .iter()
+                .map(|(event, _)| event)
+                .filter(|e| e.syscall_code.should_send() == 1)
+                .copied()
+                .collect::<Vec<_>>(),
             SyscallShardKind::Precompile => &input
                 .precompile_events
                 .all_events()

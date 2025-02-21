@@ -19,7 +19,7 @@
 
 using namespace moongate;
 
-template<class T>
+/*template<class T>
 __global__ void core_add_sub_generate_trace_kernel(
     MatrixViewMutDevice<T> trace,
     const sp1_core_machine_sys::AluEvent* events,
@@ -63,7 +63,7 @@ extern "C" rustCudaError_t core_add_sub_generate_trace(
         );
 
     return CUDA_SUCCESS_MOON;
-}
+}*/
 
 __global__ void core_global_generate_trace_finalize_kernel(
     MatrixViewMutDevice<bb31_t> trace,

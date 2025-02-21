@@ -4,8 +4,6 @@ mod tracer;
 
 #[allow(unused_imports)]
 pub use nvtx::*;
-use sp1_core_executor::{ExecutionRecord, Executor, Program};
-use sp1_stark::SP1CoreOpts;
 #[allow(unused_imports)]
 pub use tracer::*;
 
