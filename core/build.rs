@@ -186,8 +186,12 @@ fn main() {
         cc_builder.flag("-lnvToolsExt");
         cc_builder.flag("-ldl");
         cc_builder.flag("--expt-relaxed-constexpr");
+
+        // Add architecture flags for broader support.
+        cc_builder.flag("-gencode=arch=compute_80,code=sm_80");
         cc_builder.flag("-gencode=arch=compute_86,code=sm_86");
         cc_builder.flag("-gencode=arch=compute_89,code=sm_89");
+        cc_builder.flag("-gencode=arch=compute_89,code=compute_89");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
