@@ -5,7 +5,10 @@ use p3_baby_bear::BabyBear;
 use p3_field::PrimeField32;
 use p3_matrix::dense::RowMajorMatrix;
 use sp1_core_machine::{
-    alu::AddSubChip, global::GlobalChip, memory::MemoryGlobalChip, memory::MemoryLocalChip,
+    alu::AddSubChip,
+    cpu::CpuChip,
+    global::GlobalChip,
+    memory::{MemoryGlobalChip, MemoryLocalChip},
     riscv::RiscvAir,
 };
 use sp1_recursion_core::machine::RecursionAir;
@@ -79,6 +82,7 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             RiscvAir::MemoryLocal(_) => None,
             RiscvAir::MemoryGlobalFinal(_) => None,
             RiscvAir::MemoryGlobalInit(_) => None,
+            RiscvAir::Cpu(_) => None,
             // RiscvAir::SyscallCore(_) => None,
             // RiscvAir::SyscallPrecompile(_) => None,
             RiscvAir::Global(_) => None,
@@ -92,12 +96,14 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
         output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        tracing::info!("riscv generate trace on device: {:?}", self);
         // We currently only support accelerating the `AddSubChip` and chips with global interaction.
         match self {
             RiscvAir::Add(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::MemoryLocal(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::MemoryGlobalFinal(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::MemoryGlobalInit(chip) => chip.generate_trace_device(input, output, stream),
+            RiscvAir::Cpu(chip) => chip.generate_trace_device(input, output, stream),
             // RiscvAir::SyscallCore(chip) => chip.generate_trace_device(input, output, stream),
             // RiscvAir::SyscallPrecompile(chip) => chip.generate_trace_device(input, output, stream),
             RiscvAir::Global(chip) => chip.generate_trace_device(input, output, stream),
@@ -118,6 +124,9 @@ impl DeviceAir<BabyBear> for RiscvAir<BabyBear> {
             }
             RiscvAir::MemoryGlobalInit(chip) => {
                 <MemoryGlobalChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
+            }
+            RiscvAir::Cpu(chip) => {
+                <CpuChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)
             }
             // RiscvAir::SyscallCore(chip) => {
             //     <SyscallChip as sp1_stark::air::MachineAir<BabyBear>>::num_rows(chip, input)

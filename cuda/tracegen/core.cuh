@@ -65,6 +65,51 @@ extern "C" rustCudaError_t core_add_sub_generate_trace(
     return CUDA_SUCCESS_MOON;
 }
 
+__global__ void core_cpu_generate_trace_kernel(
+    MatrixViewMutDevice<bb31_t> trace,
+    // const sp1_core_machine_sys::CpuEvent* events,
+    uintptr_t nb_events
+) {
+    // static const size_t COLUMNS =
+    //     sizeof(sp1_core_machine_sys::CpuCols<bb31_t>) / sizeof(bb31_t);
+
+    // int i = blockIdx.x * blockDim.x + threadIdx.x;
+    // for (; i < nb_events; i += blockDim.x * gridDim.x) {
+    //     sp1_core_machine_sys::CpuCols<bb31_t> cols;
+        // sp1_core_machine_sys::cpu::event_to_row<T>(events[i], cols);
+
+        // const T* arr = reinterpret_cast<T*>(&cols);
+        // for (size_t j = 0; j < COLUMNS; ++j) {
+        //     trace.values[i + j * trace.height] = arr[j];
+        // }
+    // }
+}
+
+extern "C" rustCudaError_t core_cpu_generate_trace(
+    MatrixViewMutDevice<bb31_t> trace,
+    // const sp1_core_machine_sys::CpuEvent* events,
+    uintptr_t nb_events,
+    CudaStreamHandle stream_handle
+) {
+    const cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_handle);
+    CUDA_OK(cudaMemsetAsync(
+        trace.values,
+        0,
+        trace.width * trace.height * sizeof(bb31_t),
+        stream
+    ));
+
+    // static const int M = 256;
+    // core_cpu_generate_trace_kernel<bb31_t>
+    //     <<<(trace.height - 1) / M + 1, M, 0, stream>>>(
+    //         trace,
+    //         events,
+    //         nb_events
+    //     );
+
+    return CUDA_SUCCESS_MOON;
+}
+
 __global__ void core_global_generate_trace_finalize_kernel(
     MatrixViewMutDevice<bb31_t> trace,
     bb31_septic_curve_t* cumulative_sums,

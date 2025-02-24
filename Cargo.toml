@@ -19,13 +19,20 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" } 
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" } 
+# sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+# sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/debug" }
+sp1-core-executor = { path = "../sp1-wip/crates/core/executor" } 
+sp1-core-machine = { path = "../sp1-wip/crates/core/machine" }
+sp1-prover = { path = "../sp1-wip/crates/prover" }
+sp1-recursion-core = { path = "../sp1-wip/crates/recursion/core" }
+sp1-cuda = { path = "../sp1-wip/crates/cuda" }
+sp1-stark = { path = "../sp1-wip/crates/stark" }
+sp1-eval = { path = "../sp1-wip/crates/eval" }
 
 # p3
 p3-interpolation = "=0.2.0-succinct"

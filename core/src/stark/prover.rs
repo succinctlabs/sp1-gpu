@@ -410,12 +410,12 @@ where
                     .map(|(job, stream)| {
                         let _span = span.enter();
                         match job {
-                            TraceGenerationJob::Host(name, mat) => {
-                                tracing::debug_span!("copy host trace to device", chip = name)
-                                    .in_scope(|| {
-                                        mat.to_device_async(stream).unwrap().to_column_major()
-                                    })
-                            }
+                            TraceGenerationJob::Host(name, mat) => tracing::debug_span!(
+                                "copy host trace to device",
+                                chip = name,
+                                size = mat.values.len()
+                            )
+                            .in_scope(|| mat.to_device_async(stream).unwrap().to_column_major()),
                             TraceGenerationJob::Device(chip, _) => {
                                 tracing::debug_span!("generate trace on device", chip = chip.name())
                                     .in_scope(|| {

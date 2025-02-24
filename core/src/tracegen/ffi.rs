@@ -24,6 +24,13 @@ extern "C" {
         stream: CudaStreamHandle,
     );
 
+    pub fn core_cpu_generate_trace(
+        trace: MatrixViewMutDevice<BabyBear>,
+        // events: *const CpuEvent,
+        nb_events: u32,
+        stream: CudaStreamHandle,
+    );
+
     pub fn core_memory_local_generate_trace_round_1(
         trace: MatrixViewMutDevice<BabyBear>,
         events: *const MemoryLocalEvent,

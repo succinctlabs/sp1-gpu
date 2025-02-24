@@ -1,5 +1,7 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
+use p3_field::AbstractField;
+use sp1_core_machine::cpu::CpuChip;
 use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
@@ -49,6 +51,36 @@ impl DeviceAir<BabyBear> for AddSubChip {
                 trace.view_mut(),
                 events.as_ptr(),
                 events.len() as u32,
+                stream.handle(),
+            );
+        }
+
+        Ok(Some(trace))
+    }
+}
+
+impl DeviceAir<BabyBear> for CpuChip {
+    fn generate_trace_device(
+        &self,
+        input: &Self::Record,
+        _: &mut Self::Record,
+        stream: &CudaStream,
+    ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
+        tracing::info!("cpu generate trace on device");
+        let width = <CpuChip as BaseAir<BabyBear>>::width(self);
+        let height = self.num_rows_device(input).unwrap();
+        // let data = vec![BabyBear::zero(); width * height];
+        let mut trace = ColMajorMatrixDevice::<BabyBear>::with_capacity_in(
+            <CpuChip as BaseAir<BabyBear>>::width(self),
+            height,
+            stream,
+        )?;
+        unsafe {
+            trace.set_max_width();
+            tracegen::ffi::core_cpu_generate_trace(
+                trace.view_mut(),
+                // events.as_ptr(),
+                input.cpu_events.len() as u32,
                 stream.handle(),
             );
         }
