@@ -96,6 +96,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let verify = !args.skip_verify;
     let stage = args.stage;
 
+    // // adhoc: how long does it take to read the file at program2.bin?
+    // let start_time = std::time::Instant::now();
+    // let program = std::fs::read("program2.bin").unwrap();
+    // println!(
+    //     "Time taken to read program2.bin: {:?}, program size: {}",
+    //     start_time.elapsed(),
+    //     program.len()
+    // );
+
+    // // adhoc: how long does it take to write the file to program3.bin?
+    // let start_time = std::time::Instant::now();
+    // std::fs::write("program3.bin", program).unwrap();
+    // println!("Time taken to write program3.bin: {:?}", start_time.elapsed());
+    // panic!();
+
     if args.program_path.is_some() && args.stdin_path.is_some() {
         let program = std::fs::read(args.program_path.unwrap()).unwrap();
         let stdin = std::fs::read(args.stdin_path.unwrap()).unwrap();

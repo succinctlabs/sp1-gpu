@@ -22,7 +22,15 @@ pub fn gpu_prover_opts() -> SP1ProverOpts {
     // Log the memory on CPU and GPU.
     tracing::info!("cpu_memory_gb={}, gpu_memory_gb={}", cpu_memory_gb, gpu_memory_gb);
 
-    SP1ProverOpts::gpu(cpu_memory_gb, gpu_memory_gb)
+    let mut prover_opts = SP1ProverOpts::gpu(cpu_memory_gb, gpu_memory_gb);
+    // prover_opts.core_opts.trace_gen_workers *= 4;
+    // prover_opts.core_opts.records_and_traces_channel_capacity *= 4;
+    // prover_opts.core_opts.checkpoints_channel_capacity *= 4;
+    // prover_opts.recursion_opts.checkpoints_channel_capacity *= 4;
+    // prover_opts.recursion_opts.trace_gen_workers *= 4;
+    // prover_opts.recursion_opts.records_and_traces_channel_capacity *= 4;
+
+    prover_opts
 }
 
 #[cfg(test)]
