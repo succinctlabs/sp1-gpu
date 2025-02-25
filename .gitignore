@@ -17,3 +17,6 @@ perf/proof-with-pis.bin
 core_proof.bin
 program.bin
 stdin.bin
+
+# log files
+/log

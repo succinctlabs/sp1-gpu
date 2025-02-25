@@ -1,9 +1,10 @@
 use core::fmt;
 use csv::Writer;
 use eyre::Result;
+use serde::{Deserialize, Serialize};
 use std::{io::Write, time::Duration};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measurement {
     pub name: String,
     pub cycles: usize,
