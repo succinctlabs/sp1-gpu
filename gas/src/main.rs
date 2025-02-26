@@ -222,52 +222,53 @@ where
 
     let program_name = key.clone();
 
-    let (measurement, matches) = tokio::try_join!(
-        async move {
-            let res = tokio::task::spawn_blocking(move || {
-                make_measurement(&prover, &key, &program, Some(stdin), opts, true, Stage::Wrap)
+    let measurement_task = async move {
+        let res = tokio::task::spawn_blocking(move || {
+            make_measurement(&prover, &key, &program, Some(stdin), opts, true, Stage::Wrap)
+        })
+        .await
+        .map_err(Report::from);
+        reload_logger(None);
+        drop(finished_trigger);
+        res
+    };
+
+    let matches_task = async move {
+        LinesStream::new(BufReader::new(r_log).lines())
+            .take_until_if(finished_tripwire)
+            .filter_map(|line_res| {
+                line_res
+                    .map(|line| {
+                        static LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
+                            Regex::new(r"proving shard (\d+) took (\d+) ns: (.*)").unwrap()
+                        });
+                        // Skip lines that do not match the regex
+                        let captures = LINE_RE.captures(&line)?;
+                        Some(captures.extract::<3>().1.map(|x| x.to_owned()))
+                    })
+                    .map_err(Report::from)
+                    .transpose()
             })
+            .map(|res| {
+                type ShardData = Option<(Vec<(RiscvAirId, usize)>, Vec<(RiscvAirId, usize)>)>;
+                let [ind_str, prove_str, data_str] = res?;
+                let (heights, fitted_shape) =
+                    ron::from_str::<ShardData>(&data_str)?.ok_or_eyre("should have shard data")?;
+                let shard = Shard {
+                    program: program_name.clone(),
+                    shard_index: ind_str.parse()?,
+                    core_proving_time_ns: prove_str.parse()?,
+                    heights,
+                    fitted_shape,
+                };
+                Ok(shard)
+            })
+            .collect::<Result<Vec<_>>>()
             .await
-            .map_err(Report::from);
-            reload_logger(None);
-            drop(finished_trigger);
-            res
-        },
-        async move {
-            LinesStream::new(BufReader::new(r_log).lines())
-                .take_until_if(finished_tripwire)
-                .filter_map(|line_res| {
-                    line_res
-                        .map(|line| {
-                            static LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
-                                Regex::new(r"proving shard (\d+) took (\d+) ns: (.*)").unwrap()
-                            });
-                            // Skip lines that do not match the regex
-                            let captures = LINE_RE.captures(&line)?;
-                            Some(captures.extract::<3>().1.map(|x| x.to_owned()))
-                        })
-                        .map_err(Report::from)
-                        .transpose()
-                })
-                .map(|res| {
-                    type ShardData = Option<(Vec<(RiscvAirId, usize)>, Vec<(RiscvAirId, usize)>)>;
-                    let [ind_str, prove_str, data_str] = res?;
-                    let (heights, fitted_shape) = ron::from_str::<ShardData>(&data_str)?
-                        .ok_or_eyre("should have shard data")?;
-                    let shard = Shard {
-                        program: program_name.clone(),
-                        shard_index: ind_str.parse()?,
-                        core_proving_time_ns: prove_str.parse()?,
-                        heights,
-                        fitted_shape,
-                    };
-                    Ok(shard)
-                })
-                .collect::<Result<Vec<_>>>()
-                .await
-                .map_err(Report::from)
-        }
-    )?;
+            .map_err(Report::from)
+    };
+
+    let (measurement, matches) = tokio::try_join!(measurement_task, matches_task)?;
 
     Ok((measurement, matches))
 }
