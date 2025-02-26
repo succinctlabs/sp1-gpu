@@ -118,19 +118,20 @@ async fn main() -> Result<()> {
     let config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
     let client = Arc::new(aws_sdk_s3::Client::new(&config));
 
-    let programs = s3_dirs
-        .into_iter()
-        .map(|dir| get_programs_in_dir(client.clone(), dir))
-        .collect::<tokio::task::JoinSet<_>>()
-        .join_all()
-        .await
-        .into_iter()
-        .flatten_ok()
-        .collect::<Result<Vec<_>>>()?;
-
+    let programs = if s3_dirs.is_empty() {
+        DEFAULT_PROGRAMS.map(|x| format!("v4/{x}")).to_vec()
+    } else {
+        s3_dirs
+            .into_iter()
+            .map(|dir| get_programs_in_dir(client.clone(), dir))
+            .collect::<tokio::task::JoinSet<_>>()
+            .join_all()
+            .await
+            .into_iter()
+            .flatten_ok()
+            .collect::<Result<Vec<_>>>()?
+    };
     tracing::info!("found programs {programs:?}");
-
-    // let programs = vec!["v4/fibonacci-20m"];
 
     let get_object = |key: String| async {
         Ok::<_, Report>(
@@ -272,3 +273,77 @@ where
 
     Ok((measurement, matches))
 }
+
+const DEFAULT_PROGRAMS: [&str; 71] = [
+    "blobstream-11220-11619",
+    "blobstream-11297-12243",
+    "blobstream-12620-13504",
+    "blobstream-12987-13378",
+    "blobstream-13375-14264",
+    "blobstream-1380-2098",
+    "blobstream-14446-14985",
+    "blobstream-14480-14869",
+    "blobstream-4644-5079",
+    "blobstream-6775-7063",
+    "blobstream-6945-7480",
+    "blobstream-8059-9043",
+    "chess",
+    "eddsa-verify",
+    "fibonacci",
+    "fibonacci-1b",
+    "fibonacci-200k",
+    "fibonacci-200m",
+    "fibonacci-20k",
+    "fibonacci-20m",
+    "fibonacci-2b",
+    "fibonacci-2m",
+    "fibonacci-400m",
+    "fibonacci-40m",
+    "fibonacci-4b",
+    "fibonacci-4m",
+    "helios",
+    "json",
+    "keccak256-100kb",
+    "keccak256-10mb",
+    "keccak256-1mb",
+    "keccak256-300kb",
+    "keccak256-3mb",
+    "loop-100k",
+    "loop-100m",
+    "loop-10m",
+    "loop-1m",
+    "loop-300m",
+    "loop-30m",
+    "loop-3m",
+    "op-succinct-chain-480-8710143-8710178",
+    "regex",
+    "rsp",
+    "rsp-20526626",
+    "rsp-20526627",
+    "rsp-20526629",
+    "rsp-20526630",
+    "rsp-20528708",
+    "rsp-20528709",
+    "rsp-20528710",
+    "rsp-20528711",
+    "rsp-20528712",
+    "sha256-100kb",
+    "sha256-10mb",
+    "sha256-1mb",
+    "sha256-300kb",
+    "sha256-3mb",
+    "ssz-withdrawals",
+    "tendermint",
+    "vector-16434-16718",
+    "vector-16495-17244",
+    "vector-18964-19165",
+    "vector-19220-19874",
+    "vector-22266-22712",
+    "vector-26830-27571",
+    "vector-28340-28600",
+    "vector-3695-4546",
+    "vector-4730-5428",
+    "vector-5809-5925",
+    "vector-9201-9801",
+    "vector-9844-10412",
+];

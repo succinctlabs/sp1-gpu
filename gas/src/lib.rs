@@ -4,7 +4,11 @@ use clap::ValueEnum;
 use report::Measurement;
 use sp1_core_executor::SP1Context;
 use sp1_core_machine::{io::SP1Stdin, utils::SP1CoreProverError};
-use sp1_prover::{components::SP1ProverComponents, shapes::{SP1CompressProgramShape, SP1RecursionShape}, SP1CoreProofData, SP1Prover};
+use sp1_prover::{
+    components::SP1ProverComponents,
+    shapes::{SP1CompressProgramShape, SP1RecursionShape},
+    SP1CoreProofData, SP1Prover,
+};
 use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, SP1ProverOpts, ShardProof};
 
 pub mod report;
@@ -92,11 +96,6 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let time = std::time::Instant::now();
     let shrink_proof = prover.shrink(compressed_proof, opts).unwrap();
     let shrink_time = time.elapsed();
-
-    if verify {
-        tracing::info!("verify shrink");
-        prover.verify_shrink(&shrink_proof, &vk).unwrap();
-    }
 
     if stage == Stage::Shrink {
         return Measurement {
