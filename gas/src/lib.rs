@@ -3,9 +3,9 @@ use std::time::Duration;
 use clap::ValueEnum;
 use report::Measurement;
 use sp1_core_executor::SP1Context;
-use sp1_core_machine::io::SP1Stdin;
-use sp1_prover::{components::SP1ProverComponents, SP1Prover};
-use sp1_stark::SP1ProverOpts;
+use sp1_core_machine::{io::SP1Stdin, utils::SP1CoreProverError};
+use sp1_prover::{components::SP1ProverComponents, shapes::{SP1CompressProgramShape, SP1RecursionShape}, SP1CoreProofData, SP1Prover};
+use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, SP1ProverOpts, ShardProof};
 
 pub mod report;
 
