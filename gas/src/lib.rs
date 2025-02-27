@@ -12,6 +12,7 @@ use sp1_prover::{
 use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, SP1ProverOpts, ShardProof};
 
 pub mod report;
+pub mod shard;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Stage {
@@ -27,7 +28,6 @@ pub fn make_measurement<C: SP1ProverComponents>(
     elf: &[u8],
     stdin: Option<SP1Stdin>,
     opts: SP1ProverOpts,
-    verify: bool,
     stage: Stage,
 ) -> Measurement {
     tracing::info!("Starting measurement for {}", name);
@@ -37,19 +37,18 @@ pub fn make_measurement<C: SP1ProverComponents>(
     tracing::info!("Setup elf");
     let (_pk_host, pk_device, program, vk) = prover.setup(elf);
 
+    let stdin = stdin.unwrap_or_default();
+
+    tracing::info!("execute");
+    prover.execute(elf, &stdin, SP1Context::default()).unwrap();
+
     tracing::info!("prove core");
     let time = std::time::Instant::now();
-    let mut stdin = stdin.unwrap_or_default();
     let core_proof = prover.prove_core(&pk_device, program, &stdin, opts, context).unwrap();
     let core_time = time.elapsed();
 
     let cycles = core_proof.cycles as usize;
     let num_shards = core_proof.proof.0.len();
-
-    if verify {
-        tracing::info!("verify core");
-        prover.verify(&core_proof.proof, &vk).unwrap();
-    }
 
     if stage == Stage::Core {
         return Measurement {
@@ -73,11 +72,6 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let time = std::time::Instant::now();
     let compressed_proof = prover.compress(&vk, core_proof, deferred_proofs, opts).unwrap();
     let compress_time = time.elapsed();
-
-    if verify {
-        tracing::info!("verify compress");
-        prover.verify_compressed(&compressed_proof, &vk).unwrap();
-    }
 
     if stage == Stage::Compress {
         return Measurement {
@@ -114,11 +108,6 @@ pub fn make_measurement<C: SP1ProverComponents>(
     let time = std::time::Instant::now();
     let wrapped_proof = prover.wrap_bn254(shrink_proof, opts).unwrap();
     let wrap_time = time.elapsed();
-
-    if verify {
-        tracing::info!("verify wrap");
-        prover.verify_wrap_bn254(&wrapped_proof, &vk).unwrap();
-    }
 
     Measurement {
         name: name.to_string(),

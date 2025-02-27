@@ -1,14 +1,14 @@
 use std::{
+    collections::HashMap,
+    convert::identity,
     future::Future,
     path::Path,
     sync::{Arc, LazyLock},
 };
 
-use enum_map::EnumMap;
-use itertools::Itertools;
-use moongate_gas::{make_measurement, report::Measurement, Stage};
+use itertools::{Either, Itertools};
+use moongate_gas::{make_measurement, report::Measurement, shard::*, Stage};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use sp1_core_executor::RiscvAirId;
 use sp1_core_machine::io::SP1Stdin;
 use sp1_prover::SP1Prover;
@@ -19,7 +19,7 @@ use moongate_gas::report::write_measurements_to_csv;
 
 use clap::Parser;
 
-use eyre::{OptionExt as _, Report, Result};
+use eyre::{Context, OptionExt as _, Report, Result};
 
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
@@ -45,7 +45,9 @@ struct Args {
 
 const BUCKET: &str = "sp1-testing-suite";
 
-fn setup_logger(central_logfile: impl AsRef<Path>) -> impl Fn(Option<WriteHalf<SimplexStream>>) {
+fn setup_logger(
+    central_logfile: impl AsRef<Path>,
+) -> impl Fn(Option<WriteHalf<SimplexStream>>) -> Result<()> {
     use std::sync::Mutex;
 
     use tracing::Level;
@@ -57,10 +59,12 @@ fn setup_logger(central_logfile: impl AsRef<Path>) -> impl Fn(Option<WriteHalf<S
         .with_writer(std::fs::File::create(central_logfile).unwrap())
         .with_filter(filter::Targets::new().with_target(env!("CARGO_CRATE_NAME"), Level::DEBUG));
     let stdout_layer = fmt::layer();
-    let file_layer = fmt::layer()
-        .with_ansi(false)
-        .with_writer(Mutex::new(OptionalWriter::none()))
-        .with_filter(filter::Targets::new().with_target("sp1_core_machine::utils", Level::DEBUG));
+    let file_layer =
+        fmt::layer().with_ansi(false).with_writer(Mutex::new(OptionalWriter::none())).with_filter(
+            filter::Targets::new()
+                .with_target("sp1_core_machine::utils", Level::DEBUG)
+                .with_target("sp1_prover", Level::DEBUG),
+        );
     let (file_layer, reload_handle) = reload::Layer::new(file_layer);
 
     tracing_subscriber::registry().with(crate_layer).with(stdout_layer).with(file_layer).init();
@@ -71,17 +75,8 @@ fn setup_logger(central_logfile: impl AsRef<Path>) -> impl Fn(Option<WriteHalf<S
                 *layer.inner_mut().writer_mut() =
                     Mutex::new(maybe_writer.map(|writer| SyncIoBridge::new(writer)).into());
             })
-            .unwrap();
+            .map_err(Report::from)
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Shard {
-    pub program: String,
-    pub shard_index: usize,
-    pub core_proving_time_ns: u64,
-    pub heights: Vec<(RiscvAirId, usize)>, // EnumMap<RiscvAirId, usize>,
-    pub fitted_shape: Vec<(RiscvAirId, usize)>, // EnumMap<RiscvAirId, usize>,
 }
 
 async fn get_programs_in_dir(client: Arc<aws_sdk_s3::Client>, dir: String) -> Result<Vec<String>> {
@@ -153,17 +148,26 @@ async fn main() -> Result<()> {
     let opts = gpu_prover_opts();
 
     // let mut measurements = vec![];
-    let measurements_filename = format!("{}/programs.log", log_dir);
-    let shards_filename = format!("{}/shards.log", log_dir);
-    tracing::info!("writing data to {measurements_filename} and {shards_filename}");
-    let mut measurements_file = tokio::fs::File::create(measurements_filename).await?;
-    let mut shards_file = tokio::fs::File::create(shards_filename).await?;
+    let measurements_filename = format!("{}/programs.csv", log_dir);
+    let shards_filename = format!("{}/shards.csv", log_dir);
+    let est_shards_filename = format!("{}/est_shards.csv", log_dir);
+    tracing::info!(
+        "writing data to {measurements_filename}, {shards_filename}, {est_shards_filename}"
+    );
+    let mut measurements_file = csv_async::AsyncSerializer::from_writer(
+        tokio::fs::File::create(measurements_filename).await?,
+    );
+    let mut shards_file =
+        csv_async::AsyncSerializer::from_writer(tokio::fs::File::create(shards_filename).await?);
+    let mut est_shards_file = csv_async::AsyncSerializer::from_writer(
+        tokio::fs::File::create(est_shards_filename).await?,
+    );
 
     for key in programs {
         tracing::info!("running {key}");
         // Ad-hoc retry.
         let mut i = 0;
-        let (measurement, shards) = loop {
+        let (measurement, shards, est_shards) = loop {
             let r =
                 process_program(prover.clone(), opts, &reload_logger, &get_object, key.to_owned())
                     .await;
@@ -172,20 +176,33 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     if i < 5 {
                         i += 1;
-                        tracing::warn!("attempt {i} of {key} failed");
+                        tracing::warn!("attempt {i} of {key} failed: {e}");
                     } else {
                         return Err(e);
                     }
                 }
             }
         };
-        measurements_file.write_all(serde_json::to_string(&measurement)?.as_bytes()).await?;
-        for shard in shards {
-            shards_file.write_all(serde_json::to_string(&shard)?.as_bytes()).await?;
-        }
 
-        tokio::try_join!(measurements_file.flush(), shards_file.flush())?;
-        shards_file.flush().await?;
+        tokio::try_join!(
+            async {
+                measurements_file.serialize(&measurement).await.unwrap();
+                measurements_file.flush().await
+            },
+            async {
+                for shard in &shards {
+                    shards_file.serialize(&shard).await.unwrap();
+                }
+                shards_file.flush().await
+            },
+            async {
+                for shard in &est_shards {
+                    est_shards_file.serialize(&shard).await.unwrap();
+                }
+                est_shards_file.flush().await
+            }
+        )?;
+
         tracing::info!("wrote data for {key}");
     }
     // reload_logger(None);
@@ -200,10 +217,10 @@ async fn main() -> Result<()> {
 async fn process_program<ObjFut>(
     prover: Arc<SP1Prover<GpuProverComponents>>,
     opts: SP1ProverOpts,
-    reload_logger: impl Fn(Option<WriteHalf<SimplexStream>>),
+    reload_logger: impl Fn(Option<WriteHalf<SimplexStream>>) -> Result<()>,
     get_object: impl Fn(String) -> ObjFut,
     key: String,
-) -> Result<(Measurement, Vec<Shard>)>
+) -> Result<(Measurement, Vec<ShardWithTime>, Vec<Shard>)>
 where
     ObjFut: Future<Output = Result<Bytes, Report>>,
 {
@@ -212,10 +229,16 @@ where
         get_object(format!("{}/stdin.bin", key))
     )?;
 
+    tracing::warn!("got program");
+
     let stdin = bincode::deserialize::<SP1Stdin>(&stdin)?;
 
+    tracing::warn!("deserialized");
+
     let (r_log, w_log) = tokio::io::simplex(16384);
-    reload_logger(Some(w_log));
+    reload_logger(Some(w_log))?;
+
+    tracing::warn!("reloaded logger");
 
     let prover = Arc::clone(&prover);
 
@@ -223,15 +246,20 @@ where
 
     let program_name = key.clone();
 
+    enum Match {
+        Truth([String; 3]),
+        Est([String; 2]),
+    }
+
     let measurement_task = async move {
         let res = tokio::task::spawn_blocking(move || {
-            make_measurement(&prover, &key, &program, Some(stdin), opts, true, Stage::Wrap)
+            make_measurement(&prover, &key, &program, Some(stdin), opts, Stage::Wrap)
         })
         .await
         .map_err(Report::from);
-        reload_logger(None);
+        reload_logger(None)?;
         drop(finished_trigger);
-        res
+        res.context("running make_measurement")
     };
 
     let matches_task = async move {
@@ -240,38 +268,60 @@ where
             .filter_map(|line_res| {
                 line_res
                     .map(|line| {
-                        static LINE_RE: LazyLock<Regex> = LazyLock::new(|| {
-                            Regex::new(r"proving shard (\d+) took (\d+) ns: (.*)").unwrap()
+                        static TRUTH_RE: LazyLock<Regex> = LazyLock::new(|| {
+                            Regex::new(r"proving shard (\d+) took (\d+) ns\. shape: (.*)").unwrap()
                         });
-                        // Skip lines that do not match the regex
-                        let captures = LINE_RE.captures(&line)?;
-                        Some(captures.extract::<3>().1.map(|x| x.to_owned()))
+                        static EST_RE: LazyLock<Regex> = LazyLock::new(|| {
+                            Regex::new(r"shape for estimated shard (\d+): (.*)").unwrap()
+                        });
+                        // Skip lines that do not match either regex.
+                        if let Some(captures) = TRUTH_RE.captures(&line) {
+                            Some(Match::Truth(captures.extract::<3>().1.map(|x| x.to_owned())))
+                        } else {
+                            EST_RE.captures(&line).map(|captures| {
+                                Match::Est(captures.extract::<2>().1.map(|x| x.to_owned()))
+                            })
+                        }
                     })
                     .map_err(Report::from)
                     .transpose()
             })
             .map(|res| {
-                type ShardData = Option<(Vec<(RiscvAirId, usize)>, Vec<(RiscvAirId, usize)>)>;
-                let [ind_str, prove_str, data_str] = res?;
-                let (heights, fitted_shape) =
-                    ron::from_str::<ShardData>(&data_str)?.ok_or_eyre("should have shard data")?;
-                let shard = Shard {
-                    program: program_name.clone(),
-                    shard_index: ind_str.parse()?,
-                    core_proving_time_ns: prove_str.parse()?,
-                    heights,
-                    fitted_shape,
-                };
-                Ok(shard)
+                Ok(match res? {
+                    Match::Truth([ind_str, prove_str, data_str]) => Either::Left(ShardWithTime {
+                        shard: Shard {
+                            program: program_name.clone(),
+                            shard_index: ind_str.parse().context("parsing true index")?,
+                            shape: ron::from_str::<Option<Vec<(RiscvAirId, usize)>>>(&data_str)
+                                .context("parsing true shape")?
+                                .ok_or_eyre("should have shard data")?
+                                .into_iter()
+                                .collect(),
+                        },
+                        core_proving_time_ns: prove_str.parse()?,
+                    }),
+                    Match::Est([ind_str, data_str]) => Either::Right(Shard {
+                        program: program_name.clone(),
+                        shard_index: ind_str.parse().context("parsing est index")?,
+                        shape: ron::from_str::<HashMap<RiscvAirId, usize>>(&data_str)
+                            .context("parsing est shape")?
+                            .into_iter()
+                            .collect(),
+                    }),
+                })
             })
             .collect::<Result<Vec<_>>>()
             .await
+            .map(|matches| matches.into_iter().partition_map(identity))
             .map_err(Report::from)
     };
 
-    let (measurement, matches) = tokio::try_join!(measurement_task, matches_task)?;
+    // Cannot cancel the first task.
+    let (measurement, matches) = tokio::join!(measurement_task, matches_task);
 
-    Ok((measurement, matches))
+    let (measurement, (true_shards, est_shards)) = (measurement?, matches?);
+
+    Ok((measurement, true_shards, est_shards))
 }
 
 const DEFAULT_PROGRAMS: &[&str] = &[
@@ -315,7 +365,7 @@ const DEFAULT_PROGRAMS: &[&str] = &[
     "loop-300m",
     "loop-30m",
     "loop-3m",
-    "op-succinct-chain-480-8710143-8710178",
+    // "op-succinct-chain-480-8710143-8710178",
     "regex",
     "rsp",
     "rsp-20526626",

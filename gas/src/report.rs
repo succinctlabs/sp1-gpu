@@ -4,15 +4,21 @@ use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::{io::Write, time::Duration};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde_with::serde_as]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Measurement {
     pub name: String,
     pub cycles: usize,
     pub num_shards: usize,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
     pub core_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
     pub compress_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
     pub shrink_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
     pub wrap_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
     pub core_proving_time: Duration,
 }
 
