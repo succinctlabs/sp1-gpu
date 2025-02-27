@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
     let client = Arc::new(aws_sdk_s3::Client::new(&config));
 
     let programs = if s3_dirs.is_empty() {
-        DEFAULT_PROGRAMS.map(|x| format!("v4/{x}")).to_vec()
+        DEFAULT_PROGRAMS.iter().map(|x| format!("v4/{x}")).collect()
     } else {
         s3_dirs
             .into_iter()
@@ -197,15 +197,15 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn process_program<Fut>(
+async fn process_program<ObjFut>(
     prover: Arc<SP1Prover<GpuProverComponents>>,
     opts: SP1ProverOpts,
     reload_logger: impl Fn(Option<WriteHalf<SimplexStream>>),
-    get_object: impl Fn(String) -> Fut,
+    get_object: impl Fn(String) -> ObjFut,
     key: String,
 ) -> Result<(Measurement, Vec<Shard>)>
 where
-    Fut: Future<Output = Result<Bytes, Report>>,
+    ObjFut: Future<Output = Result<Bytes, Report>>,
 {
     let (program, stdin) = tokio::try_join!(
         get_object(format!("{}/program.bin", key)),
@@ -274,7 +274,7 @@ where
     Ok((measurement, matches))
 }
 
-const DEFAULT_PROGRAMS: [&str; 71] = [
+const DEFAULT_PROGRAMS: &[&str] = &[
     "blobstream-11220-11619",
     "blobstream-11297-12243",
     "blobstream-12620-13504",
