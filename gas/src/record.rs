@@ -14,7 +14,7 @@ impl Serialize for ShardWithTime {
     where
         S: serde::Serializer,
     {
-        let mut row = serializer.serialize_struct("Outer", 3)?;
+        let mut row = serializer.serialize_struct("ShardWithTime", 3 + self.shard.shape.len())?;
         row.serialize_field("program", &self.shard.program)?;
         row.serialize_field("shard_index", &self.shard.shard_index)?;
         row.serialize_field("core_proving_time_ns", &self.core_proving_time_ns)?;
@@ -37,7 +37,7 @@ impl Serialize for Shard {
     where
         S: serde::Serializer,
     {
-        let mut row = serializer.serialize_struct("Outer", 3)?;
+        let mut row = serializer.serialize_struct("Shard", 2 + self.shape.len())?;
         row.serialize_field("program", &self.program)?;
         row.serialize_field("shard_index", &self.shard_index)?;
         for (k, v) in &self.shape {
@@ -45,4 +45,25 @@ impl Serialize for Shard {
         }
         row.end()
     }
+}
+
+use eyre::Result;
+use std::time::Duration;
+
+#[serde_with::serde_as]
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct Measurement {
+    pub name: String,
+    pub cycles: usize,
+    pub num_shards: usize,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
+    pub core_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
+    pub compress_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
+    pub shrink_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
+    pub wrap_time: Duration,
+    #[serde_as(as = "serde_with::DurationNanoSeconds")]
+    pub core_proving_time: Duration,
 }

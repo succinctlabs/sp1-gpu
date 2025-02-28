@@ -1,18 +1,14 @@
 use std::time::Duration;
 
 use clap::ValueEnum;
-use report::Measurement;
+use record::Measurement;
 use sp1_core_executor::SP1Context;
-use sp1_core_machine::{io::SP1Stdin, utils::SP1CoreProverError};
-use sp1_prover::{
-    components::SP1ProverComponents,
-    shapes::{SP1CompressProgramShape, SP1RecursionShape},
-    SP1CoreProofData, SP1Prover,
-};
-use sp1_stark::{baby_bear_poseidon2::BabyBearPoseidon2, SP1ProverOpts, ShardProof};
+use sp1_core_machine::io::SP1Stdin;
+use sp1_prover::{components::SP1ProverComponents, SP1Prover};
+use sp1_stark::SP1ProverOpts;
 
+pub mod record;
 pub mod report;
-pub mod shard;
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum Stage {
@@ -106,7 +102,7 @@ pub fn make_measurement<C: SP1ProverComponents>(
 
     tracing::info!("wrap");
     let time = std::time::Instant::now();
-    let wrapped_proof = prover.wrap_bn254(shrink_proof, opts).unwrap();
+    let _ = prover.wrap_bn254(shrink_proof, opts).unwrap();
     let wrap_time = time.elapsed();
 
     Measurement {

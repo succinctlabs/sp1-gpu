@@ -7,15 +7,13 @@ use std::{
 };
 
 use itertools::{Either, Itertools};
-use moongate_gas::{make_measurement, report::Measurement, shard::*, Stage};
+use moongate_gas::{make_measurement, record::Measurement, record::*, Stage};
 use regex::Regex;
 use sp1_core_executor::RiscvAirId;
 use sp1_core_machine::io::SP1Stdin;
 use sp1_prover::SP1Prover;
 
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
-
-use moongate_gas::report::write_measurements_to_csv;
 
 use clap::Parser;
 
@@ -24,7 +22,7 @@ use eyre::{Context, OptionExt as _, Report, Result};
 #[cfg(not(target_env = "msvc"))]
 use jemallocator::Jemalloc;
 use sp1_stark::SP1ProverOpts;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, SimplexStream, WriteHalf};
+use tokio::io::{AsyncBufReadExt, BufReader, SimplexStream, WriteHalf};
 use tokio_stream::{wrappers::LinesStream, StreamExt};
 use tokio_util::{bytes::Bytes, io::SyncIoBridge};
 use tracing_subscriber::fmt::writer::OptionalWriter;
