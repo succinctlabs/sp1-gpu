@@ -20,6 +20,7 @@ export RUST_LOG=debug
 export FIX_CORE_SHAPES=false
 export FIX_RECURSION_SHAPES=false
 export VERIFY_VK=false
+export SP1_ALLOW_DEPRECATED_HOOKS=true
 
 # Run moongate-perf
 RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx
