@@ -1,5 +1,6 @@
 use p3_air::BaseAir;
 use p3_baby_bear::BabyBear;
+use p3_field::PrimeField32;
 use sp1_core_machine::global::GlobalChip;
 use sp1_core_machine::memory::MemoryChipType;
 use sp1_core_machine::syscall::chip::SyscallShardKind;
@@ -216,7 +217,7 @@ impl DeviceAir<BabyBear> for GlobalChip {
     fn generate_trace_device(
         &self,
         input: &Self::Record,
-        _: &mut Self::Record,
+        output: &mut Self::Record,
         stream: &CudaStream,
     ) -> Result<Option<ColMajorMatrixDevice<BabyBear>>, CudaError> {
         // Get the events for the chip.
@@ -266,6 +267,13 @@ impl DeviceAir<BabyBear> for GlobalChip {
                 stream.handle(),
             );
         });
+
+        output.global_interaction_event_count = nb_events;
+        for i in 0..14 {
+            let index = (trace.width() - 14 + i) * trace.height() + trace.height() - 1;
+            let val = trace.values[index..index + 1].as_host_vec(trace.stream());
+            output.global_cumulative_sum[i] = val[0].as_canonical_u32();
+        }
 
         Ok(Some(trace))
     }

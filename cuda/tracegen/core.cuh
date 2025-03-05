@@ -93,8 +93,8 @@ __global__ void core_global_generate_trace_finalize_kernel(
         bb31_septic_curve_t point = bb31_septic_curve_t(point_x, point_y);
         
         for (int k = 0; k < 7; k++) {
-            cols.accumulation.cumulative_sum[0][0]._0[k] = sum.x.value[k];
-            cols.accumulation.cumulative_sum[0][1]._0[k] = sum.y.value[k];
+            cols.accumulation.cumulative_sum[0]._0[k] = sum.x.value[k];
+            cols.accumulation.cumulative_sum[1]._0[k] = sum.y.value[k];
         }
 
         sum += point;
@@ -108,7 +108,7 @@ __global__ void core_global_generate_trace_finalize_kernel(
 
         if (event_idx < nb_events) {
             for (int k = 0; k < 7; k++) {
-                cols.accumulation.sum_checker[0]._0[k] = bb31_t::zero();
+                cols.accumulation.sum_checker._0[k] = bb31_t::zero();
             }
         } else {
             bb31_septic_curve_t dummy =
@@ -118,13 +118,13 @@ __global__ void core_global_generate_trace_finalize_kernel(
                 cols.interaction.y_coordinate._0[k] = dummy.y.value[k];
             }
             bb31_septic_curve_t digest = bb31_septic_curve_t(
-                cols.accumulation.cumulative_sum[0][0]._0,
-                cols.accumulation.cumulative_sum[0][1]._0
+                cols.accumulation.cumulative_sum[0]._0,
+                cols.accumulation.cumulative_sum[1]._0
             );
             bb31_septic_extension_t sum_checker_x =
                 bb31_septic_curve_t::sum_checker_x(digest, dummy, digest);
             for (int k = 0; k < 7; k++) {
-                cols.accumulation.sum_checker[0]._0[k] =
+                cols.accumulation.sum_checker._0[k] =
                     sum_checker_x.value[k];
             }
         }    
@@ -169,6 +169,7 @@ __global__ void core_global_generate_trace_decompress_kernel(
             cols.is_real = bb31_t::one();
             cols.shard_16bit_limb = bb31_t::from_canonical_u32(events[i].message[0] & 0xFFFF);
             cols.shard_8bit_limb = bb31_t::from_canonical_u32((events[i].message[0] >> 16) & 0xFF);
+            cols.index = bb31_t::from_canonical_u32(i);
 
             // Populate the interaction.
             populate_global_interaction(
@@ -177,8 +178,8 @@ __global__ void core_global_generate_trace_decompress_kernel(
             ); 
 
             // Compute the running accumulator.
-            cols.accumulation.cumulative_sum[0][0] = cols.interaction.x_coordinate;
-            cols.accumulation.cumulative_sum[0][1] = cols.interaction.y_coordinate;
+            cols.accumulation.cumulative_sum[0] = cols.interaction.x_coordinate;
+            cols.accumulation.cumulative_sum[1] = cols.interaction.y_coordinate;
             bb31_septic_curve_t point = bb31_septic_curve_t(
                 cols.interaction.x_coordinate._0,
                 cols.interaction.y_coordinate._0
