@@ -394,28 +394,35 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
         }
         int event_idx = i;
         if (event_idx < nb_events) {
+            uint32_t prev_addr;
+            cols.index = F::from_canonical_u32(event_idx);
             if (i == 0) {
-                if (previous_addr == 0) {
-                    cols.is_prev_addr_zero.inverse = F::zero();
-                    cols.is_prev_addr_zero.result = F::one();
-                    cols.is_first_comp = F::zero();
-                } else {
-                    cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
-                    cols.is_prev_addr_zero.result = F::zero();
-                    cols.is_first_comp = F::one();
-                    for(int idx = 31 ; idx >= 0; idx--) {
-                        int prev_bit = (previous_addr >> idx) & 1;
-                        int cur_bit = (events[event_idx].addr >> idx) & 1;
-                        if (prev_bit == 0 && cur_bit == 1) {
-                            cols.lt_cols.bit_flags[idx] = F::one();
-                            break;
-                        }
-                    }
-                }
+                prev_addr = previous_addr;
+                cols.is_index_zero.inverse = F::zero();
+                cols.is_index_zero.result = F::one();
             } else {
-                cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
+                prev_addr = events[event_idx - 1].addr;
+                cols.is_index_zero.inverse = F::from_canonical_u32(event_idx).reciprocal();
+                cols.is_index_zero.result = F::zero();
+            }
+            cols.prev_addr = F::from_canonical_u32(prev_addr);
+            if (prev_addr == 0) {
+                cols.is_prev_addr_zero.inverse = F::zero();
+                cols.is_prev_addr_zero.result = F::one();
+            } else {
+                cols.is_prev_addr_zero.inverse = F::from_canonical_u32(prev_addr).reciprocal();
+                cols.is_prev_addr_zero.result = F::zero();
+            }
+            for(uintptr_t i = 0 ; i < 32 ; i++) {
+                cols.prev_addr_bits.bits[i] = F::from_canonical_u32((prev_addr >> i) & 1);
+            }
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_5 = cols.prev_addr_bits.bits[27] * cols.prev_addr_bits.bits[28];
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_6 = cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_5 * cols.prev_addr_bits.bits[29];
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_7 = cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_6 * cols.prev_addr_bits.bits[30];
+            if(prev_addr != 0 || i != 0) {
+                cols.is_comp = F::one();
                 for(int idx = 31 ; idx >= 0; idx--) {
-                    int prev_bit = (events[event_idx - 1].addr >> idx) & 1;
+                    int prev_bit = (prev_addr >> idx) & 1;
                     int cur_bit = (events[event_idx].addr >> idx) & 1;
                     if (prev_bit == 0 && cur_bit == 1) {
                         cols.lt_cols.bit_flags[idx] = F::one();
@@ -423,15 +430,12 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                     }
                 }
             }
+    
             sp1_core_machine_sys::memory_global::event_to_row<F, EF7>(
                 &events[event_idx],
                 is_receive,
                 &cols
             ); 
-        }
-    
-        if (nb_events >= 1 && i == nb_events - 1) {
-            cols.is_last_addr = F::one();
         }
         const F* arr = reinterpret_cast<F*>(&cols);
         for (size_t k = 0; k < MEMORY_INIT_COLUMNS; ++k) {
