@@ -365,7 +365,7 @@ where
         let mut trace_jobs: Vec<TraceGenerationJob<'_, SC, A>> = named_traces
             .into_iter()
             .map(|(name, mat)| TraceGenerationJob::Host(name, mat))
-            .chain(chips.into_iter().filter_map(|chip| {
+            .chain(chips.clone().into_iter().filter_map(|chip| {
                 Some(TraceGenerationJob::Device(chip, chip.air.num_rows_device(shard)?))
             }))
             .collect();
@@ -401,8 +401,8 @@ where
             })
             .collect::<Vec<_>>();
 
-        let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
-            .in_scope(|| {
+        let (mut traces, extra_info): (Vec<Self::DeviceMatrix>, Vec<A::Record>) =
+            tracing::debug_span!("generate trace accel").in_scope(|| {
                 let span = tracing::Span::current();
                 trace_jobs
                     .par_iter()
@@ -413,26 +413,48 @@ where
                             TraceGenerationJob::Host(name, mat) => {
                                 tracing::debug_span!("copy host trace to device", chip = name)
                                     .in_scope(|| {
-                                        mat.to_device_async(stream).unwrap().to_column_major()
+                                        (
+                                            mat.to_device_async(stream).unwrap().to_column_major(),
+                                            A::Record::default(),
+                                        )
                                     })
                             }
                             TraceGenerationJob::Device(chip, _) => {
                                 tracing::debug_span!("generate trace on device", chip = chip.name())
                                     .in_scope(|| {
-                                        chip.air
-                                            .generate_trace_device(
-                                                shard,
-                                                &mut A::Record::default(),
-                                                stream,
-                                            )
+                                        let mut output = A::Record::default();
+                                        let mat = chip
+                                            .air
+                                            .generate_trace_device(shard, &mut output, stream)
                                             .unwrap()
-                                            .unwrap()
+                                            .unwrap();
+                                        (mat, output)
                                     })
                             }
                         }
                     })
                     .collect()
             });
+
+        let global_index = trace_jobs.iter().position(|job| job.name() == "Global");
+        let global_controller_index =
+            trace_jobs.iter().position(|job| job.name() == "GlobalControl");
+
+        if let Some(global_index) = global_index {
+            let global_controller_index = global_controller_index.unwrap();
+            for chip in chips {
+                if chip.name() == "GlobalControl" {
+                    let global_controller_trace = chip
+                        .air
+                        .generate_trace_host(&extra_info[global_index], &mut A::Record::default())
+                        .unwrap();
+                    traces[global_controller_index] = global_controller_trace
+                        .to_device_async(self.chip_streams.get("GlobalControl").unwrap())
+                        .unwrap()
+                        .to_column_major();
+                }
+            }
+        }
 
         // Commit to the traces.
         let domains_and_traces = domains

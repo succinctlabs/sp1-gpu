@@ -93,8 +93,8 @@ __global__ void core_global_generate_trace_finalize_kernel(
         bb31_septic_curve_t point = bb31_septic_curve_t(point_x, point_y);
         
         for (int k = 0; k < 7; k++) {
-            cols.accumulation.cumulative_sum[0][0]._0[k] = sum.x.value[k];
-            cols.accumulation.cumulative_sum[0][1]._0[k] = sum.y.value[k];
+            cols.accumulation.cumulative_sum[0]._0[k] = sum.x.value[k];
+            cols.accumulation.cumulative_sum[1]._0[k] = sum.y.value[k];
         }
 
         sum += point;
@@ -108,7 +108,7 @@ __global__ void core_global_generate_trace_finalize_kernel(
 
         if (event_idx < nb_events) {
             for (int k = 0; k < 7; k++) {
-                cols.accumulation.sum_checker[0]._0[k] = bb31_t::zero();
+                cols.accumulation.sum_checker._0[k] = bb31_t::zero();
             }
         } else {
             bb31_septic_curve_t dummy =
@@ -118,13 +118,13 @@ __global__ void core_global_generate_trace_finalize_kernel(
                 cols.interaction.y_coordinate._0[k] = dummy.y.value[k];
             }
             bb31_septic_curve_t digest = bb31_septic_curve_t(
-                cols.accumulation.cumulative_sum[0][0]._0,
-                cols.accumulation.cumulative_sum[0][1]._0
+                cols.accumulation.cumulative_sum[0]._0,
+                cols.accumulation.cumulative_sum[1]._0
             );
             bb31_septic_extension_t sum_checker_x =
                 bb31_septic_curve_t::sum_checker_x(digest, dummy, digest);
             for (int k = 0; k < 7; k++) {
-                cols.accumulation.sum_checker[0]._0[k] =
+                cols.accumulation.sum_checker._0[k] =
                     sum_checker_x.value[k];
             }
         }    
@@ -169,6 +169,7 @@ __global__ void core_global_generate_trace_decompress_kernel(
             cols.is_real = bb31_t::one();
             cols.shard_16bit_limb = bb31_t::from_canonical_u32(events[i].message[0] & 0xFFFF);
             cols.shard_8bit_limb = bb31_t::from_canonical_u32((events[i].message[0] >> 16) & 0xFF);
+            cols.index = bb31_t::from_canonical_u32(i);
 
             // Populate the interaction.
             populate_global_interaction(
@@ -177,8 +178,8 @@ __global__ void core_global_generate_trace_decompress_kernel(
             ); 
 
             // Compute the running accumulator.
-            cols.accumulation.cumulative_sum[0][0] = cols.interaction.x_coordinate;
-            cols.accumulation.cumulative_sum[0][1] = cols.interaction.y_coordinate;
+            cols.accumulation.cumulative_sum[0] = cols.interaction.x_coordinate;
+            cols.accumulation.cumulative_sum[1] = cols.interaction.y_coordinate;
             bb31_septic_curve_t point = bb31_septic_curve_t(
                 cols.interaction.x_coordinate._0,
                 cols.interaction.y_coordinate._0
@@ -393,28 +394,35 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
         }
         int event_idx = i;
         if (event_idx < nb_events) {
+            uint32_t prev_addr;
+            cols.index = F::from_canonical_u32(event_idx);
             if (i == 0) {
-                if (previous_addr == 0) {
-                    cols.is_prev_addr_zero.inverse = F::zero();
-                    cols.is_prev_addr_zero.result = F::one();
-                    cols.is_first_comp = F::zero();
-                } else {
-                    cols.is_prev_addr_zero.inverse = F::from_canonical_u32(previous_addr).reciprocal();
-                    cols.is_prev_addr_zero.result = F::zero();
-                    cols.is_first_comp = F::one();
-                    for(int idx = 31 ; idx >= 0; idx--) {
-                        int prev_bit = (previous_addr >> idx) & 1;
-                        int cur_bit = (events[event_idx].addr >> idx) & 1;
-                        if (prev_bit == 0 && cur_bit == 1) {
-                            cols.lt_cols.bit_flags[idx] = F::one();
-                            break;
-                        }
-                    }
-                }
+                prev_addr = previous_addr;
+                cols.is_index_zero.inverse = F::zero();
+                cols.is_index_zero.result = F::one();
             } else {
-                cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
+                prev_addr = events[event_idx - 1].addr;
+                cols.is_index_zero.inverse = F::from_canonical_u32(event_idx).reciprocal();
+                cols.is_index_zero.result = F::zero();
+            }
+            cols.prev_addr = F::from_canonical_u32(prev_addr);
+            if (prev_addr == 0) {
+                cols.is_prev_addr_zero.inverse = F::zero();
+                cols.is_prev_addr_zero.result = F::one();
+            } else {
+                cols.is_prev_addr_zero.inverse = F::from_canonical_u32(prev_addr).reciprocal();
+                cols.is_prev_addr_zero.result = F::zero();
+            }
+            for(uintptr_t i = 0 ; i < 32 ; i++) {
+                cols.prev_addr_bits.bits[i] = F::from_canonical_u32((prev_addr >> i) & 1);
+            }
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_5 = cols.prev_addr_bits.bits[27] * cols.prev_addr_bits.bits[28];
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_6 = cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_5 * cols.prev_addr_bits.bits[29];
+            cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_7 = cols.prev_addr_bits.and_most_sig_byte_decomp_3_to_6 * cols.prev_addr_bits.bits[30];
+            if(prev_addr != 0 || i != 0) {
+                cols.is_comp = F::one();
                 for(int idx = 31 ; idx >= 0; idx--) {
-                    int prev_bit = (events[event_idx - 1].addr >> idx) & 1;
+                    int prev_bit = (prev_addr >> idx) & 1;
                     int cur_bit = (events[event_idx].addr >> idx) & 1;
                     if (prev_bit == 0 && cur_bit == 1) {
                         cols.lt_cols.bit_flags[idx] = F::one();
@@ -422,15 +430,12 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                     }
                 }
             }
+    
             sp1_core_machine_sys::memory_global::event_to_row<F, EF7>(
                 &events[event_idx],
                 is_receive,
                 &cols
             ); 
-        }
-    
-        if (nb_events >= 1 && i == nb_events - 1) {
-            cols.is_last_addr = F::one();
         }
         const F* arr = reinterpret_cast<F*>(&cols);
         for (size_t k = 0; k < MEMORY_INIT_COLUMNS; ++k) {

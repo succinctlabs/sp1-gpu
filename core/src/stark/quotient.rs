@@ -389,11 +389,11 @@ mod tests {
             let global_cumulative_sum = if chip.commit_scope() == InteractionScope::Local {
                 SepticDigest::<BabyBear>::zero()
             } else {
-                let main_trace_size = main.height() * main.width();
-                let last_row = &main.values[main_trace_size - 14..main_trace_size];
+                let width = main.width();
+                let first_row = &main.values[width - 14..width];
                 SepticDigest(SepticCurve {
-                    x: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i]),
-                    y: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i + 7]),
+                    x: SepticExtension::<BabyBear>::from_base_fn(|i| first_row[i]),
+                    y: SepticExtension::<BabyBear>::from_base_fn(|i| first_row[i + 7]),
                 })
             };
 
