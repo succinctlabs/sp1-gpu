@@ -14,6 +14,6 @@ pub use stats::*;
 pub fn execute_core(program: Program) -> ExecutionRecord {
     let opts = SP1CoreOpts::default();
     let mut runtime = Executor::new(program, opts);
-    runtime.run::<sp1_core_executor::Simple>().unwrap();
+    runtime.run().unwrap();
     *(runtime.record)
 }
