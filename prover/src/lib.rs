@@ -234,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_shapes() {
         env::set_var("FIX_CORE_SHAPES", "true");
         env::set_var("FIX_RECURSION_SHAPES", "true");

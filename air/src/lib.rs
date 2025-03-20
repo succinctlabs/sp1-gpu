@@ -254,7 +254,7 @@ mod tests {
         let machine = RiscvAir::machine(config);
         let chips = machine.chips();
         for chip in chips {
-            if chip.name() == "AddSub" {
+            if chip.name() == "Add" {
                 let (code, f_ctr, _, f_constants, ef_constants) = codegen_cuda_eval(chip);
                 println!("{:#?}", code);
                 println!("{}", f_ctr);
