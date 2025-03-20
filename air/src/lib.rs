@@ -20,11 +20,8 @@ use p3_baby_bear::BabyBear;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::FieldAlgebra;
 use p3_matrix::{dense::RowMajorMatrixView, stack::VerticalPair};
-use sp1_stark::septic_curve::SepticCurve;
-use sp1_stark::septic_extension::SepticExtension;
 use sp1_stark::{
     air::{EmptyMessageBuilder, MachineAir, MultiTableAirBuilder},
-    septic_digest::SepticDigest,
     Chip,
 };
 use sp1_stark::{AirOpenedValues, PROOF_MAX_NUM_PVS};
@@ -55,7 +52,6 @@ pub struct SymbolicProverFolder<'a> {
         VerticalPair<RowMajorMatrixView<'a, SymbolicVarEF>, RowMajorMatrixView<'a, SymbolicVarEF>>,
     pub perm_challenges: &'a [SymbolicVarEF],
     pub local_cumulative_sum: &'a SymbolicVarEF,
-    pub global_cumulative_sum: &'a SepticDigest<SymbolicVarF>,
     pub is_first_row: SymbolicVarF,
     pub is_last_row: SymbolicVarF,
     pub is_transition: SymbolicVarF,
@@ -127,14 +123,9 @@ impl<'a> PermutationAirBuilder for SymbolicProverFolder<'a> {
 }
 impl<'a> MultiTableAirBuilder<'a> for SymbolicProverFolder<'a> {
     type LocalSum = SymbolicVarEF;
-    type GlobalSum = SymbolicVarF;
 
     fn local_cumulative_sum(&self) -> &'a Self::LocalSum {
         self.local_cumulative_sum
-    }
-
-    fn global_cumulative_sum(&self) -> &'a SepticDigest<Self::GlobalSum> {
-        self.global_cumulative_sum
     }
 }
 
@@ -184,14 +175,6 @@ where
         perm: perm.view(),
         perm_challenges: &perm_challenges,
         local_cumulative_sum: &SymbolicVarEF::cumulative_sum(0),
-        global_cumulative_sum: &SepticDigest(SepticCurve {
-            x: SepticExtension(core::array::from_fn(|i| {
-                SymbolicVarF::global_cumulative_sum(i as u32)
-            })),
-            y: SepticExtension(core::array::from_fn(|i| {
-                SymbolicVarF::global_cumulative_sum((i + 7) as u32)
-            })),
-        }),
         public_values: &public_values,
         is_first_row: SymbolicVarF::is_first_row(),
         is_last_row: SymbolicVarF::is_last_row(),

@@ -804,11 +804,8 @@ where
             // Observe the permutation commitment.
             challenger.observe(permutation_commit.clone());
             for sums in cumulative_sums.iter() {
-                let local_sum = sums.0;
-                let global_sum = sums.1;
+                let local_sum = sums;
                 CanObserve::<BabyBear>::observe_slice(challenger, local_sum.as_base_slice());
-                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.x.0);
-                CanObserve::<BabyBear>::observe_slice(challenger, &global_sum.0.y.0);
             }
 
             // Get a challenge for folding the constraints.
@@ -840,8 +837,7 @@ where
                 let quotient_domain =
                     trace_domain.create_disjoint_domain(trace_domain.size() << log_quotient_degree);
 
-                let local_cumulative_sum = cumulative_sums[i].0;
-                let global_cumulative_sum = cumulative_sums[i].1;
+                let local_cumulative_sum = cumulative_sums[i];
 
                 // Get the evaluations on the quotient domain. If the LDE evalutions can be used, we
                 // just bit-reverse them to match the expected quotient kernel.
@@ -883,7 +879,6 @@ where
                         perm_eval,
                         &public_values_device,
                         local_cumulative_sum,
-                        global_cumulative_sum,
                         &powers_of_folding_challenge_rev,
                         &permutation_challenges_device,
                     );
@@ -938,7 +933,6 @@ where
                         &perm_eval,
                         &public_values_device,
                         local_cumulative_sum,
-                        global_cumulative_sum,
                         &powers_of_folding_challenge_rev,
                         &permutation_challenges_device,
                     )
@@ -1269,8 +1263,7 @@ where
                     main,
                     permutation,
                     quotient,
-                    local_cumulative_sum: cumulative_sums[i].0,
-                    global_cumulative_sum: cumulative_sums[i].1,
+                    local_cumulative_sum: cumulative_sums[i],
                     log_degree,
                 });
             }
@@ -1354,7 +1347,7 @@ where
         chips: &[&Chip<SC::Val, A>],
         main_traces: &[GpuMatrix<SC::Val>],
         random_elements: &[SC::Challenge],
-    ) -> Result<Vec<(GpuMatrix<SC::Val>, (SC::Challenge, SepticDigest<Val<SC>>))>, CudaError> {
+    ) -> Result<Vec<(GpuMatrix<SC::Val>, SC::Challenge)>, CudaError> {
         chips
             .iter()
             .zip(main_traces.iter())

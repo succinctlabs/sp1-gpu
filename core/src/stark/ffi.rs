@@ -33,7 +33,6 @@ pub(super) mod quotient_gpu {
     use air::instruction::Instruction16;
     use p3_baby_bear::BabyBear;
     use p3_field::extension::BinomialExtensionField;
-    use sp1_stark::septic_digest::SepticDigest;
 
     #[link_name = "quotient_gpu"]
     #[allow(unused_attributes)]
@@ -48,7 +47,6 @@ pub(super) mod quotient_gpu {
             eval_ef_constants: *const BinomialExtensionField<BabyBear, 4>,
             memory_size: usize,
             local_cumulative_sum: BinomialExtensionField<BabyBear, 4>,
-            global_cumulative_sum: SepticDigest<BabyBear>,
             trace_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             quotient_domain: TwoAdicMultiplicativeCosetDevice<BabyBear>,
             preprocessed_trace_on_quotient_domain: MatrixViewDevice<BabyBear>,
