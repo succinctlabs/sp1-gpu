@@ -413,6 +413,11 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                 cols.is_prev_addr_zero.inverse = F::from_canonical_u32(prev_addr).reciprocal();
                 cols.is_prev_addr_zero.result = F::zero();
             }
+            if (prev_addr == 0 && i != 0) {
+                cols.prev_valid = F::zero();
+            } else {
+                cols.prev_valid = F::one();
+            }
             for(uintptr_t i = 0 ; i < 32 ; i++) {
                 cols.prev_addr_bits.bits[i] = F::from_canonical_u32((prev_addr >> i) & 1);
             }

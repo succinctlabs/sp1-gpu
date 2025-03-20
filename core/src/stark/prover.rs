@@ -1,7 +1,5 @@
 use hashbrown::HashMap;
 
-use rayon::prelude::*;
-
 use p3_air::Air;
 use p3_baby_bear::BabyBear;
 use p3_challenger::{CanObserve, FieldChallenger};
@@ -10,8 +8,13 @@ use p3_field::{extension::BinomialExtensionField, Field, FieldExtensionAlgebra, 
 use p3_fri::TwoAdicFriPcsProof;
 use p3_matrix::{dense::RowMajorMatrix, Matrix};
 use p3_uni_stark::{get_symbolic_constraints, SymbolicAirBuilder};
+use rayon::prelude::*;
+use sp1_stark::air::PublicValues;
+use sp1_stark::septic_curve::SepticCurve;
 use sp1_stark::septic_digest::SepticDigest;
+use sp1_stark::septic_extension::SepticExtension;
 use sp1_stark::MachineChip;
+use sp1_stark::Word;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     count_permutation_constraints, AirOpenedValues, Chip, ChipOpenedValues, Com,
@@ -20,6 +23,7 @@ use sp1_stark::{
     ShardOpenedValues, ShardProof, StarkGenericConfig, StarkMachine, StarkVerifyingKey, Val,
     PROOF_MAX_NUM_PVS,
 };
+use std::borrow::BorrowMut;
 
 use itertools::Itertools;
 use tracing::info;
@@ -305,7 +309,7 @@ where
         }
     }
 
-    fn generate_traces(&self, record: &A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
+    fn generate_traces(&self, record: &mut A::Record) -> Vec<(String, RowMajorMatrix<Val<SC>>)> {
         let chips = self.shard_chips(record).collect::<Vec<_>>();
 
         chips
@@ -401,8 +405,8 @@ where
             })
             .collect::<Vec<_>>();
 
-        let (mut traces, extra_info): (Vec<Self::DeviceMatrix>, Vec<A::Record>) =
-            tracing::debug_span!("generate trace accel").in_scope(|| {
+        let traces: Vec<Self::DeviceMatrix> = tracing::debug_span!("generate trace accel")
+            .in_scope(|| {
                 let span = tracing::Span::current();
                 trace_jobs
                     .par_iter()
@@ -413,22 +417,20 @@ where
                             TraceGenerationJob::Host(name, mat) => {
                                 tracing::debug_span!("copy host trace to device", chip = name)
                                     .in_scope(|| {
-                                        (
-                                            mat.to_device_async(stream).unwrap().to_column_major(),
-                                            A::Record::default(),
-                                        )
+                                        mat.to_device_async(stream).unwrap().to_column_major()
                                     })
                             }
                             TraceGenerationJob::Device(chip, _) => {
                                 tracing::debug_span!("generate trace on device", chip = chip.name())
                                     .in_scope(|| {
-                                        let mut output = A::Record::default();
-                                        let mat = chip
-                                            .air
-                                            .generate_trace_device(shard, &mut output, stream)
+                                        chip.air
+                                            .generate_trace_device(
+                                                shard,
+                                                &mut A::Record::default(),
+                                                stream,
+                                            )
                                             .unwrap()
-                                            .unwrap();
-                                        (mat, output)
+                                            .unwrap()
                                     })
                             }
                         }
@@ -437,23 +439,26 @@ where
             });
 
         let global_index = trace_jobs.iter().position(|job| job.name() == "Global");
-        let global_controller_index =
-            trace_jobs.iter().position(|job| job.name() == "GlobalControl");
 
+        let public_values: &mut [Val<SC>] = &mut shard.public_values();
         if let Some(global_index) = global_index {
-            let global_controller_index = global_controller_index.unwrap();
-            for chip in chips {
-                if chip.name() == "GlobalControl" {
-                    let global_controller_trace = chip
-                        .air
-                        .generate_trace_host(&extra_info[global_index], &mut A::Record::default())
-                        .unwrap();
-                    traces[global_controller_index] = global_controller_trace
-                        .to_device_async(self.chip_streams.get("GlobalControl").unwrap())
-                        .unwrap()
-                        .to_column_major();
-                }
-            }
+            let main_trace = &traces[global_index];
+            let x = SepticExtension::<BabyBear>::from_base_fn(|i| {
+                let index =
+                    (main_trace.width() - 14 + i) * main_trace.height() + main_trace.height() - 1;
+                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
+                val[0]
+            });
+
+            let y = SepticExtension::<BabyBear>::from_base_fn(|i| {
+                let index =
+                    (main_trace.width() - 7 + i) * main_trace.height() + main_trace.height() - 1;
+                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
+                val[0]
+            });
+
+            let pv: &mut PublicValues<Word<Val<SC>>, Val<SC>> = public_values.borrow_mut();
+            pv.global_cumulative_sum = SepticDigest(SepticCurve { x, y });
         }
 
         // Commit to the traces.
@@ -472,8 +477,7 @@ where
             main_commit: commit,
             main_data: data,
             chip_ordering,
-            public_values: tracing::debug_span!("compute public values")
-                .in_scope(|| shard.public_values()),
+            public_values: public_values.to_vec(),
         })
     }
 
@@ -1313,7 +1317,7 @@ where
         pk.observe_into(challenger);
 
         let shard_proofs = records
-            .iter()
+            .iter_mut()
             .map(|record| {
                 let traces = self.generate_traces(record);
                 let shard_data = self.commit(record, traces);

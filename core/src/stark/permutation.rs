@@ -101,13 +101,15 @@ where
 
         if chip.commit_scope() == InteractionScope::Global {
             let x = SepticExtension::<BabyBear>::from_base_fn(|i| {
-                let index = (main_trace.width() - 14 + i) * main_trace.height();
+                let index =
+                    (main_trace.width() - 14 + i) * main_trace.height() + main_trace.height() - 1;
                 let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
                 val[0]
             });
 
             let y = SepticExtension::<BabyBear>::from_base_fn(|i| {
-                let index = (main_trace.width() - 7 + i) * main_trace.height();
+                let index =
+                    (main_trace.width() - 7 + i) * main_trace.height() + main_trace.height() - 1;
                 let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
                 val[0]
             });
