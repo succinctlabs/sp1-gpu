@@ -382,17 +382,6 @@ mod tests {
             let (perm, local_cumulative_sum) =
                 chip.generate_permutation_trace(prep.as_ref(), &main, &permutation_challenges);
 
-            let global_cumulative_sum = if chip.commit_scope() == InteractionScope::Local {
-                SepticDigest::<BabyBear>::zero()
-            } else {
-                let main_trace_size = main.width() * main.height();
-                let last_row = &main.values[main_trace_size - 14..main_trace_size];
-                SepticDigest(SepticCurve {
-                    x: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i]),
-                    y: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i + 7]),
-                })
-            };
-
             let degree = main.height();
             let log_degree = log2_strict_usize(degree);
             let log_quotient_degree = chip.log_quotient_degree();

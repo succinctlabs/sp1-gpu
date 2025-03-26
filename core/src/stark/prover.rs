@@ -14,7 +14,6 @@ use sp1_stark::septic_curve::SepticCurve;
 use sp1_stark::septic_digest::SepticDigest;
 use sp1_stark::septic_extension::SepticExtension;
 use sp1_stark::MachineChip;
-use sp1_stark::Word;
 use sp1_stark::{
     air::{InteractionScope, MachineAir, MachineProgram},
     count_permutation_constraints, AirOpenedValues, Chip, ChipOpenedValues, Com,
@@ -457,7 +456,7 @@ where
                 val[0]
             });
 
-            let pv: &mut PublicValues<Word<Val<SC>>, Val<SC>> = public_values.borrow_mut();
+            let pv: &mut PublicValues<[Val<SC>; 4], Val<SC>> = public_values.borrow_mut();
             pv.global_cumulative_sum = SepticDigest(SepticCurve { x, y });
         }
 
