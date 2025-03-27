@@ -22,7 +22,7 @@ export FIX_RECURSION_SHAPES=true
 export NO_COLOR=true
 
 # Run moongate-perf
-RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx
+RUST_BACKTRACE=full ~/.cargo/bin/cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx
 
 # Remove the downloaded files
 rm program.bin stdin.bin 
