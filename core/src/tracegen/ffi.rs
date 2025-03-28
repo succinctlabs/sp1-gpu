@@ -1,7 +1,6 @@
 use crate::cuda_runtime::stream::CudaStreamHandle;
 use crate::matrix::MatrixViewMutDevice;
 use p3_baby_bear::BabyBear;
-use sp1_core_executor::events::AluEvent;
 use sp1_core_executor::events::GlobalInteractionEvent;
 use sp1_core_executor::events::MemoryInitializeFinalizeEvent;
 use sp1_core_executor::events::MemoryLocalEvent;

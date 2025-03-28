@@ -16,7 +16,6 @@ pub enum SymbolicVarF {
     IsLastRow,
     IsTransition,
     PublicValue(u32),
-    GlobalCumulativeSum(u32),
 }
 
 impl SymbolicVarF {
@@ -61,10 +60,6 @@ impl SymbolicVarF {
         Self::PublicValue(idx)
     }
 
-    pub fn global_cumulative_sum(idx: u32) -> Self {
-        Self::GlobalCumulativeSum(idx)
-    }
-
     pub fn variant(&self) -> u8 {
         match self {
             Self::Empty => 0x00,
@@ -77,7 +72,6 @@ impl SymbolicVarF {
             Self::IsLastRow => 0x07,
             Self::IsTransition => 0x08,
             Self::PublicValue(_) => 0x09,
-            Self::GlobalCumulativeSum(_) => 0x0A,
         }
     }
 
@@ -93,7 +87,6 @@ impl SymbolicVarF {
             Self::IsLastRow => 0,
             Self::IsTransition => 0,
             Self::PublicValue(idx) => *idx,
-            Self::GlobalCumulativeSum(idx) => *idx,
         }
     }
 }

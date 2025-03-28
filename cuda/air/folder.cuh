@@ -9,7 +9,6 @@ struct ConstraintFolder {
     Matrix<Val> perm;
     Challenge* permChallenges;
     Challenge localCumulativeSum;
-    GlobalSum globalCumulativeSum;
     Val isFirstRow;
     Val isLastRow;
     Val isTransition;
@@ -45,13 +44,6 @@ struct ConstraintFolder {
                 return isTransition;
             case 9:
                 return publicValues[idx];
-            case 10:
-                if (idx < 7) {
-                    return globalCumulativeSum.point.x.value[idx];
-                }
-                else {
-                    return globalCumulativeSum.point.y.value[idx - 7];
-                }
         }
     }
 

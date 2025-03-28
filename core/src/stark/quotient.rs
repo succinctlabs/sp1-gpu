@@ -1,5 +1,5 @@
 use air::instruction::Instruction16;
-use sp1_stark::{septic_digest::SepticDigest, StarkGenericConfig};
+use sp1_stark::StarkGenericConfig;
 
 use p3_baby_bear::BabyBear;
 use p3_commit::{LagrangeSelectors, TwoAdicMultiplicativeCoset};
@@ -92,7 +92,6 @@ where
         permutation_evaluations: &ColMajorMatrixDevice<SC::Val>,
         public_values: &DeviceBuffer<SC::Val>,
         local_cumulative_sum: SC::Challenge,
-        global_cumulative_sum: SepticDigest<SC::Val>,
         powers_of_folding_challenge: &[SC::Challenge],
         permutation_challenges: &DeviceBuffer<SC::Challenge>,
     ) -> Result<DeviceQuotientValues<SC>, CudaError> {
@@ -123,7 +122,6 @@ where
                 eval_ef_constants_device.as_ptr(),
                 *f_ctr as usize,
                 local_cumulative_sum,
-                global_cumulative_sum,
                 trace_domain.to_device_async(stream).unwrap(),
                 quotient_domain.to_device_async(stream).unwrap(),
                 preprocessed_evaluations.view(),
@@ -239,7 +237,6 @@ where
         powers_of_folding_challenge: &Vec<SC::Challenge>,
         public_values: &[SC::Val],
         local_cumulative_sum: &SC::Challenge,
-        global_cumulative_sum: &SepticDigest<SC::Val>,
     ) -> QuotientValues<SC> {
         let log_quotient_degree = chip.log_quotient_degree();
 
@@ -277,7 +274,6 @@ where
         let quotient_values = quotient_values(
             chip,
             local_cumulative_sum,
-            global_cumulative_sum,
             trace_domain,
             quotient_domain,
             Some(prep_on_quotient_domain),
@@ -389,11 +385,11 @@ mod tests {
             let global_cumulative_sum = if chip.commit_scope() == InteractionScope::Local {
                 SepticDigest::<BabyBear>::zero()
             } else {
-                let width = main.width();
-                let first_row = &main.values[width - 14..width];
+                let main_trace_size = main.width() * main.height();
+                let last_row = &main.values[main_trace_size - 14..main_trace_size];
                 SepticDigest(SepticCurve {
-                    x: SepticExtension::<BabyBear>::from_base_fn(|i| first_row[i]),
-                    y: SepticExtension::<BabyBear>::from_base_fn(|i| first_row[i + 7]),
+                    x: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i]),
+                    y: SepticExtension::<BabyBear>::from_base_fn(|i| last_row[i + 7]),
                 })
             };
 
@@ -459,7 +455,6 @@ mod tests {
             let result = quotient_values::<BabyBearPoseidon2, _, _>(
                 chip,
                 &local_cumulative_sum,
-                &global_cumulative_sum,
                 trace_domain,
                 quotient_domain,
                 Some(preprocessed_trace_on_quotient_domain.clone()),
@@ -526,7 +521,6 @@ mod tests {
                     ef_constants_device.as_ptr(),
                     f_expr_ctr as usize,
                     local_cumulative_sum,
-                    global_cumulative_sum,
                     trace_domain_device,
                     quotient_domain_device,
                     preprocessed_trace_on_quotient_domain_device.view(),

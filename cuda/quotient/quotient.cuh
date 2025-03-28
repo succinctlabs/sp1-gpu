@@ -26,7 +26,6 @@ __global__ void computeValues(
     Val* evalConstantsF,
     Challenge* evalConstantsEF,
     Challenge localCumulativeSum,
-    GlobalSum globalCumulativeSum,
     TwoAdicMultiplicativeCoset<Val> traceDomain,
     TwoAdicMultiplicativeCoset<Val> quotientDomain,
     Matrix<Val> preprocessedTraceOnQuotientDomain,
@@ -72,7 +71,6 @@ __global__ void computeValues(
     folder.perm = permutationTraceOnQuotientDomain;
     folder.permChallenges = permChallenges;
     folder.localCumulativeSum = localCumulativeSum;
-    folder.globalCumulativeSum = globalCumulativeSum;
     folder.isFirstRow = isFirstRow;
     folder.isLastRow = isLastRow;
     folder.isTransition = isTransition;
@@ -599,7 +597,6 @@ extern "C" void computeValues(
     bb31_extension_t* evalConstantsEF,
     size_t memorySize,
     bb31_extension_t localCumulativeSum,
-    bb31_septic_digest_t globalCumulativeSum,
     TwoAdicMultiplicativeCoset<bb31_t> traceDomain,
     TwoAdicMultiplicativeCoset<bb31_t> quotientDomain,
     Matrix<bb31_t> preprocessedTraceOnQuotientDomain,
@@ -624,7 +621,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,
@@ -646,7 +642,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,
@@ -668,7 +663,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,
@@ -690,7 +684,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,
@@ -712,7 +705,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,
@@ -734,7 +726,6 @@ extern "C" void computeValues(
                 evalConstantsF,
                 evalConstantsEF,
                 localCumulativeSum,
-                globalCumulativeSum,
                 traceDomain,
                 quotientDomain,
                 preprocessedTraceOnQuotientDomain,

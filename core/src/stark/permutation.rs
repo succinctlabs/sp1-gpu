@@ -3,13 +3,7 @@ use std::{marker::PhantomData, ops::Mul};
 use p3_air::PairCol;
 use p3_baby_bear::BabyBear;
 use p3_field::{extension::BinomialExtensionField, Field, FieldExtensionAlgebra};
-use sp1_stark::{
-    air::{InteractionScope, MachineAir},
-    septic_curve::SepticCurve,
-    septic_digest::SepticDigest,
-    septic_extension::SepticExtension,
-    Chip, Interaction,
-};
+use sp1_stark::{air::MachineAir, Chip, Interaction};
 
 use crate::{
     cuda_runtime::stream::CudaStream,
@@ -38,13 +32,8 @@ where
         preprocessed_trace: Option<&ColMajorMatrixDevice<BabyBear>>,
         main_trace: &ColMajorMatrixDevice<BabyBear>,
         random_elements: &[BinomialExtensionField<BabyBear, 4>],
-    ) -> Result<
-        (
-            ColMajorMatrixDevice<BabyBear>,
-            (BinomialExtensionField<BabyBear, 4>, SepticDigest<BabyBear>),
-        ),
-        CudaError,
-    > {
+    ) -> Result<(ColMajorMatrixDevice<BabyBear>, BinomialExtensionField<BabyBear, 4>), CudaError>
+    {
         let stream = main_trace.stream();
         const D: usize = 4;
 
@@ -84,7 +73,6 @@ where
 
         // Retrieve the cumulative sums.
         let row_idx = permutation_trace.height() - 1;
-        let mut global_cumulative_sum = SepticDigest::<BabyBear>::zero();
         let mut local_cumulative_sum = Default::default();
 
         if num_interactions != 0 {
@@ -99,23 +87,7 @@ where
             local_cumulative_sum = cumulative_sum;
         }
 
-        if chip.commit_scope() == InteractionScope::Global {
-            let x = SepticExtension::<BabyBear>::from_base_fn(|i| {
-                let index = (main_trace.width() - 14 + i) * main_trace.height();
-                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
-                val[0]
-            });
-
-            let y = SepticExtension::<BabyBear>::from_base_fn(|i| {
-                let index = (main_trace.width() - 7 + i) * main_trace.height();
-                let val = main_trace.values[index..index + 1].as_host_vec(main_trace.stream());
-                val[0]
-            });
-
-            global_cumulative_sum = SepticDigest(SepticCurve { x, y });
-        }
-
-        Ok((permutation_trace, (local_cumulative_sum, global_cumulative_sum)))
+        Ok((permutation_trace, local_cumulative_sum))
     }
 }
 

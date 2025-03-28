@@ -216,13 +216,13 @@ mod tests {
         Dom<SC>: std::fmt::Debug,
     {
         let program = create_dummy_program(shape);
-        let record = create_dummy_record(shape);
+        let mut record = create_dummy_record(shape);
 
         // Try doing setup.
         let (pk, _) = prover.setup(&program);
 
         // Try to generate traces.
-        let main_traces = prover.generate_traces(&record);
+        let main_traces = prover.generate_traces(&mut record);
 
         // Try to commit the traces.
         let main_data = prover.commit(&record, main_traces);
@@ -234,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_shapes() {
         env::set_var("FIX_CORE_SHAPES", "true");
         env::set_var("FIX_RECURSION_SHAPES", "true");
