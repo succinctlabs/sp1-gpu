@@ -19,36 +19,36 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { version = "4.1.0" } 
-sp1-core-machine = { version = "4.1.0" }
-sp1-prover = { version = "4.1.0" }
-sp1-recursion-core = { version = "4.1.0" }
-sp1-cuda = { version = "4.1.0" }
-sp1-stark = { version = "4.1.0" }
-sp1-eval = { version = "4.1.0" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" } 
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "yuwen/initial-deferred-digest" }
 
 # p3
-p3-interpolation = "=0.2.0-succinct"
-p3-air = "=0.2.0-succinct"
-p3-field = "=0.2.0-succinct"
-p3-commit = "=0.2.0-succinct"
-p3-matrix = "=0.2.0-succinct"
-p3-baby-bear = "=0.2.0-succinct"
-p3-util = "=0.2.0-succinct"
-p3-challenger = "=0.2.0-succinct"
-p3-dft = "=0.2.0-succinct"
-p3-fri = "=0.2.0-succinct"
-p3-goldilocks = "=0.2.0-succinct"
-p3-keccak = "=0.2.0-succinct"
-p3-keccak-air = "=0.2.0-succinct"
-p3-blake3 = "=0.2.0-succinct"
-p3-mds = "=0.2.0-succinct"
-p3-merkle-tree = "=0.2.0-succinct"
-p3-poseidon2 = "=0.2.0-succinct"
-p3-symmetric = "=0.2.0-succinct"
-p3-uni-stark = "=0.2.0-succinct"
-p3-maybe-rayon = "=0.2.0-succinct"
-p3-bn254-fr = "=0.2.0-succinct"
+p3-interpolation = "=0.2.2-succinct"
+p3-air = "=0.2.2-succinct"
+p3-field = "=0.2.2-succinct"
+p3-commit = "=0.2.2-succinct"
+p3-matrix = "=0.2.2-succinct"
+p3-baby-bear = "=0.2.2-succinct"
+p3-util = "=0.2.2-succinct"
+p3-challenger = "=0.2.2-succinct"
+p3-dft = "=0.2.2-succinct"
+p3-fri = "=0.2.2-succinct"
+p3-goldilocks = "=0.2.2-succinct"
+p3-keccak = "=0.2.2-succinct"
+p3-keccak-air = "=0.2.2-succinct"
+p3-blake3 = "=0.2.2-succinct"
+p3-mds = "=0.2.2-succinct"
+p3-merkle-tree = "=0.2.2-succinct"
+p3-poseidon2 = "=0.2.2-succinct"
+p3-symmetric = "=0.2.2-succinct"
+p3-uni-stark = "=0.2.2-succinct"
+p3-maybe-rayon = "=0.2.2-succinct"
+p3-bn254-fr = "=0.2.2-succinct"
 
 # for local development
 # sp1-core-executor = { path = "../sp1/crates/core/executor", features = [
