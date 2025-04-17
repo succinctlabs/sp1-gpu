@@ -96,7 +96,7 @@ impl<'a> AirBuilder for SymbolicProverFolder<'a> {
     }
 }
 
-impl<'a> ExtensionBuilder for SymbolicProverFolder<'a> {
+impl ExtensionBuilder for SymbolicProverFolder<'_> {
     type EF = EF;
     type ExprEF = SymbolicExprEF;
     type VarEF = SymbolicVarEF;
@@ -137,13 +137,13 @@ impl<'a> MultiTableAirBuilder<'a> for SymbolicProverFolder<'a> {
     }
 }
 
-impl<'a> PairBuilder for SymbolicProverFolder<'a> {
+impl PairBuilder for SymbolicProverFolder<'_> {
     fn preprocessed(&self) -> Self::M {
         self.preprocessed
     }
 }
 
-impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
+impl AirBuilderWithPublicValues for SymbolicProverFolder<'_> {
     type PublicVar = SymbolicVarF;
 
     fn public_values(&self) -> &[Self::PublicVar] {
@@ -151,7 +151,7 @@ impl<'a> AirBuilderWithPublicValues for SymbolicProverFolder<'a> {
     }
 }
 
-impl<'a> EmptyMessageBuilder for SymbolicProverFolder<'a> {}
+impl EmptyMessageBuilder for SymbolicProverFolder<'_> {}
 
 /// Generates code in CUDA for evaluating the constraint polynomial on the device.
 pub fn codegen_cuda_eval<A>(chip: &Chip<F, A>) -> (Vec<Instruction16>, u32, u32, Vec<F>, Vec<EF>)

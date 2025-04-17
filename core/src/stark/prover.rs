@@ -336,7 +336,7 @@ where
             Device(&'b MachineChip<SC, A>, usize),
         }
 
-        impl<'b, SC, A> TraceGenerationJob<'b, SC, A>
+        impl<SC, A> TraceGenerationJob<'_, SC, A>
         where
             SC: BabyBearFriConfig,
             A: MachineAir<Val<SC>>,

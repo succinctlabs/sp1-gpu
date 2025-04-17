@@ -364,7 +364,7 @@ impl DeviceInteractions<BabyBear> {
     }
 }
 
-impl<'a> DeviceInteractionsView<'a, BabyBear> {
+impl DeviceInteractionsView<'_, BabyBear> {
     pub fn populate_permutation_rows_flattened(
         self,
         permutation: MatrixViewMutDevice<BabyBear>,
