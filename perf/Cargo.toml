@@ -16,7 +16,7 @@ moongate-core = { path = "../core" }
 
 tracing = "0.1.40"
 csv = "1.3.0"
-clap = { version = "4.5.7", features = ["derive", "env"] }
+clap = { version = "4.5.36", features = ["derive", "env"] }
 
 # tracing
 opentelemetry = "^0.23.0"
