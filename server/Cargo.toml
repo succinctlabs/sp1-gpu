@@ -8,6 +8,7 @@ sp1-prover = { workspace = true }
 sp1-core-executor = { workspace = true }
 sp1-core-machine = { workspace = true }
 sp1-cuda = { workspace = true }
+sp1-stark = { workspace = true }
 moongate-core = { path = "../core" }
 moongate-prover = { path = "../prover" }
 tokio = { version = "^1.38.0", features = ["full"] }

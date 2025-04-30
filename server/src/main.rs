@@ -21,6 +21,7 @@ use sp1_cuda::{
     ShrinkRequestPayload, StatelessProveCoreRequestPayload, WrapRequestPayload,
 };
 use sp1_prover::{DeviceProvingKey, SP1Prover};
+use sp1_stark::MachineProver;
 use tower_http::catch_panic::CatchPanicLayer;
 use twirp::{
     axum::{self},
@@ -36,12 +37,12 @@ static GLOBAL: Jemalloc = Jemalloc;
 
 struct ProvingContext {
     program: Program,
-    pk: DeviceProvingKey<GpuProverComponents>,
+    pk_d: DeviceProvingKey<GpuProverComponents>,
 }
 
 impl ProvingContext {
-    pub fn new(program: Program, pk: DeviceProvingKey<GpuProverComponents>) -> Self {
-        Self { program, pk }
+    pub fn new(program: Program, pk_d: DeviceProvingKey<GpuProverComponents>) -> Self {
+        Self { program, pk_d }
     }
 }
 
@@ -85,7 +86,7 @@ impl MoongateProverServer {
                 .as_ref()
                 .ok_or_else(|| internal("prover not ready".to_string()))?
                 .prove_core(
-                    &proving_context.pk,
+                    &proving_context.pk_d,
                     proving_context.program.clone(),
                     stdin,
                     gpu_prover_opts(),
@@ -186,16 +187,28 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
                     .map_err(|e| internal(format!("failed to deserialize {}", e)))
             })?;
 
-        let proving_context = match proving_contexts.entry(elf_to_hash(&payload.elf)) {
+        let proving_context = match proving_contexts.entry(elf_to_hash(&payload.pk.elf)) {
             Entry::Occupied(occupied) => occupied.into_mut(),
             Entry::Vacant(vacant) => {
-                let (_, pk_d, program, _) = tracing::info_span!("setup").in_scope(|| {
+                let program = tracing::info_span!("get program").in_scope(|| {
                     self.prover
                         .lock()
                         .unwrap()
                         .as_ref()
-                        .ok_or_else(|| internal("prover not ready".to_string()))
-                        .map(|prover| prover.setup(&payload.elf))
+                        .ok_or_else(|| internal("prover not ready"))
+                        .and_then(|prover| {
+                            prover
+                                .get_program(&payload.pk.elf)
+                                .map_err(|err| internal(format!("{err}")))
+                        })
+                })?;
+                let pk_d = tracing::info_span!("pk to device").in_scope(|| {
+                    self.prover
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .ok_or_else(|| internal("prover not ready"))
+                        .map(|prover| prover.core_prover.pk_to_device(&payload.pk.pk))
                 })?;
 
                 vacant.insert(Mutex::new(ProvingContext::new(program, pk_d)))
@@ -317,7 +330,7 @@ pub async fn main() {
         .fallback(twirp::server::not_found_handler)
         .layer(CatchPanicLayer::custom(handle_panic));
 
-    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3333").await.unwrap();
     if let Err(e) = axum::serve(tcp_listener, app).await {
         eprintln!("server error: {}", e);
     }
