@@ -330,7 +330,7 @@ pub async fn main() {
         .fallback(twirp::server::not_found_handler)
         .layer(CatchPanicLayer::custom(handle_panic));
 
-    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3333").await.unwrap();
+    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     if let Err(e) = axum::serve(tcp_listener, app).await {
         eprintln!("server error: {}", e);
     }
