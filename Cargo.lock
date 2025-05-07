@@ -3756,6 +3756,7 @@ dependencies = [
  "sp1-core-machine",
  "sp1-cuda",
  "sp1-prover",
+ "sp1-stark",
  "tokio",
  "tower-http",
  "tracing",
@@ -5985,7 +5986,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5997,7 +5998,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -6035,7 +6036,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -6090,7 +6091,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6106,7 +6107,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6127,7 +6128,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6136,7 +6137,7 @@ dependencies = [
 [[package]]
 name = "sp1-eval"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6155,7 +6156,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "bincode",
  "blake3",
@@ -6174,7 +6175,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6218,7 +6219,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6252,7 +6253,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6273,7 +6274,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6315,7 +6316,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6324,7 +6325,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6349,7 +6350,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6396,7 +6397,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "4.2.0"
-source = "git+https://github.com/succinctlabs/sp1?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
+source = "git+https://github.com/succinctlabs/sp1.git?rev=5dfcbeca7907aefe591fd9129d105830ff3b350c#5dfcbeca7907aefe591fd9129d105830ff3b350c"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
