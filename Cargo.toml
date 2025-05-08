@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { version = "4.2.0" } 
-sp1-core-machine = { version = "4.2.0" }
-sp1-prover = { version = "4.2.0" }
-sp1-recursion-core = { version = "4.2.0" }
-sp1-cuda = { version = "4.2.0" }
-sp1-stark = { version = "4.2.0" }
-sp1-eval = { version = "4.2.0" }
+# sp1-core-executor = { version = "4.2.0" } 
+# sp1-core-machine = { version = "4.2.0" }
+# sp1-prover = { version = "4.2.0" }
+# sp1-recursion-core = { version = "4.2.0" }
+# sp1-cuda = { version = "4.2.0" }
+# sp1-stark = { version = "4.2.0" }
+# sp1-eval = { version = "4.2.0" }
 
 # p3
 p3-interpolation = "=0.2.2-succinct"
@@ -51,15 +51,15 @@ p3-maybe-rayon = "=0.2.2-succinct"
 p3-bn254-fr = "=0.2.2-succinct"
 
 # for local development
-# sp1-core-executor = { path = "../sp1/crates/core/executor", features = [
-#     "bigint-rug",
-# ] }
-# sp1-core-machine = { path = "../sp1/crates/core/machine" }
-# sp1-prover = { path = "../sp1/crates/prover", features = ["native-gnark"] }
-# sp1-recursion-core = { path = "../sp1/crates/recursion/core" }
-# sp1-cuda = { path = "../sp1/crates/cuda" }
-# sp1-stark = { path = "../sp1/crates/stark" }
-# sp1-eval = { path = "../sp1/crates/eval" }
+sp1-core-executor = { path = "../sp1-wip/crates/core/executor", features = [
+    "bigint-rug",
+] }
+sp1-core-machine = { path = "../sp1-wip/crates/core/machine" }
+sp1-prover = { path = "../sp1-wip/crates/prover", features = ["native-gnark"] }
+sp1-recursion-core = { path = "../sp1-wip/crates/recursion/core" }
+sp1-cuda = { path = "../sp1-wip/crates/cuda" }
+sp1-stark = { path = "../sp1-wip/crates/stark" }
+sp1-eval = { path = "../sp1-wip/crates/eval" }
 
 # p3-field = { path = "../Plonky3/field" }
 # p3-air = { path = "../Plonky3/air" }
