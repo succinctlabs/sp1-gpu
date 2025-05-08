@@ -11,6 +11,13 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+# Define a TMPDIR on the same "filesystem" as /root for rustup
+ENV RUSTUP_TMPDIR=/root/rustup_tmp
+# For general temp operations, also good to ensure it's not on a different device
+ENV TMPDIR=${RUSTUP_TMPDIR}
+
+RUN mkdir -p /root/rustup_tmp
+
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
