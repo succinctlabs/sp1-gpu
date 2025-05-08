@@ -48,6 +48,7 @@ __global__ void foldEvenOddKernel(
     Matrix<F> output,
     Matrix<F> powers,
     F oneHalf,
+    EF beta_squared,
     bool inputExists
 ) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -58,7 +59,7 @@ __global__ void foldEvenOddKernel(
     if (idx >= output.height)
         return;
 
-    EF r0Even, r0Odd, r1Even, r1Odd, evenPower, oddPower;
+    EF r0Even, r0Odd, r1Even, r1Odd, evenPower, oddPower, inputEven, inputOdd;
     for (size_t k = 0; k < EF::D; k++) {
         r0Even.value[k] = evaluations.values[k * evaluations.height + evenIdx];
         r1Even.value[k] =
@@ -70,25 +71,24 @@ __global__ void foldEvenOddKernel(
 
         evenPower.value[k] = powers.values[k * powers.height + evenIdx];
         oddPower.value[k] = powers.values[k * powers.height + oddIdx];
+
+        if (inputExists) {
+            inputEven.value[k] = inputLeaves.values[k * inputLeaves.height + idx];
+            inputOdd.value[k] = inputLeaves.values[(k + EF::D) * inputLeaves.height + idx];
+        }
     }
 
     EF evenValue =
         (oneHalf + evenPower) * r0Even + (oneHalf - evenPower) * r1Even;
     EF oddValue = (oneHalf + oddPower) * r0Odd + (oneHalf - oddPower) * r1Odd;
+    if (inputExists) {
+        evenValue += beta_squared * inputEven;
+        oddValue += beta_squared * inputOdd;
+    }
 
     for (size_t k = 0; k < EF::D; k++) {
-        F outEven = evenValue.value[k];
-        F outOdd = oddValue.value[k];
-
-        if (inputExists) {
-            outEven =
-                outEven + inputLeaves.values[k * inputLeaves.height + idx];
-            outOdd = outOdd
-                + inputLeaves.values[(k + EF::D) * inputLeaves.height + idx];
-        }
-
-        output.values[k * output.height + idx] = outEven;
-        output.values[(k + EF::D) * output.height + idx] = outOdd;
+        output.values[k * output.height + idx] = evenValue.value[k];
+        output.values[(k + EF::D) * output.height + idx] = oddValue.value[k];
     }
 }
 
@@ -341,6 +341,7 @@ extern "C" void foldEvenOdd(
     Matrix<bb31_t> output,
     Matrix<bb31_t> powers,
     bb31_t oneHalf,
+    bb31_extension_t beta_squared,
     bool inputExists,
     cudaStream_t stream
 ) {
@@ -354,6 +355,7 @@ extern "C" void foldEvenOdd(
             output,
             powers,
             oneHalf,
+            beta_squared,
             inputExists
         );
 }
