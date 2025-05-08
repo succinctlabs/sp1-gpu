@@ -387,6 +387,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
     let g_inv = SC::Val::two_adic_generator(log2_strict_usize(evaluations.height()) + 1).inverse();
     let one_half = SC::Val::two().inverse();
     let half_beta = beta * one_half;
+    let beta_squared = beta * beta;
 
     let mut powers = shifted_powers::<SC>(g_inv, half_beta, evaluations.height(), stream);
     powers.bit_reverse_rows().unwrap();
@@ -403,6 +404,7 @@ pub fn fold_even_odd<SC: BabyBearFriConfig>(
             output.view_mut(),
             powers.view(),
             BabyBear::two().inverse(),
+            beta_squared,
             input_leaves.is_some(),
             stream.handle(),
         );
@@ -568,6 +570,7 @@ pub mod opening_gpu {
             output: MatrixViewMutDevice<F>,
             powers: MatrixViewDevice<F>,
             one_half: F,
+            beta_squared: EF,
             input_exists: bool,
             stream: CudaStreamHandle,
         );
