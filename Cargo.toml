@@ -19,36 +19,36 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" } 
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "dev" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" } 
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
 
 # p3
-p3-interpolation = "=0.2.2-succinct"
-p3-air = "=0.2.2-succinct"
-p3-field = "=0.2.2-succinct"
-p3-commit = "=0.2.2-succinct"
-p3-matrix = "=0.2.2-succinct"
-p3-baby-bear = "=0.2.2-succinct"
-p3-util = "=0.2.2-succinct"
-p3-challenger = "=0.2.2-succinct"
-p3-dft = "=0.2.2-succinct"
-p3-fri = "=0.2.2-succinct"
-p3-goldilocks = "=0.2.2-succinct"
-p3-keccak = "=0.2.2-succinct"
-p3-keccak-air = "=0.2.2-succinct"
-p3-blake3 = "=0.2.2-succinct"
-p3-mds = "=0.2.2-succinct"
-p3-merkle-tree = "=0.2.2-succinct"
-p3-poseidon2 = "=0.2.2-succinct"
-p3-symmetric = "=0.2.2-succinct"
-p3-uni-stark = "=0.2.2-succinct"
-p3-maybe-rayon = "=0.2.2-succinct"
-p3-bn254-fr = "=0.2.2-succinct"
+p3-interpolation = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-air = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-field = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-commit = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-matrix = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-baby-bear = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-util = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-challenger = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-dft = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-fri = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-goldilocks = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-keccak = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-keccak-air = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-blake3 = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-mds = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-merkle-tree = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-poseidon2 = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-symmetric = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-uni-stark = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-maybe-rayon = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
+p3-bn254-fr = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
 
 # for local development
 # sp1-core-executor = { path = "../sp1/crates/core/executor", features = [
