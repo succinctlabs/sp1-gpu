@@ -4830,7 +4830,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn 2.0.98",
@@ -5964,8 +5964,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-build"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5976,8 +5976,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-executor"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -6014,8 +6014,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-core-machine"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -6069,8 +6069,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-cuda"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6086,8 +6086,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-curves"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6107,8 +6107,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6116,8 +6116,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-eval"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6135,8 +6135,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "bincode",
  "blake3",
@@ -6154,8 +6154,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6198,8 +6198,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -6232,8 +6232,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -6253,8 +6253,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -6295,8 +6295,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6304,8 +6304,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6329,8 +6329,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "alloy-primitives",
  "alloy-signer",
@@ -6376,8 +6376,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-stark"
-version = "4.2.1"
-source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=chris%2Fp3-fix-shapes#e111aa3a501ed2db99f35c349db36f93e6751ae5"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1-wip.git?branch=min%2Fp3-fix#04cefc99338b71d2a2a299bb9e5cd2b66faaf1d2"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",

@@ -19,13 +19,13 @@ debug-assertions = true
 [workspace.dependencies]
 
 # sp1
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" } 
-sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
-sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
-sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
-sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "chris/p3-fix-shapes" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" } 
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-recursion-core = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-stark = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
+sp1-eval = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "min/p3-fix" }
 
 # p3
 p3-interpolation = { git = "https://github.com/succinctlabs/plonky3-private", branch = "min/p3-vuln-fix" }
