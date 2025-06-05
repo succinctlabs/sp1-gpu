@@ -136,7 +136,7 @@ mod tests {
             // Clone the original challenger because after grinding on device the internal state
             // of `challenger` will change.
             let mut original_challenger = challenger.clone();
-            let result = challenger.grind_device(bits, &stream);
+            let result = challenger.grind(bits, &stream);
 
             assert!(original_challenger.check_witness(bits, result));
 
