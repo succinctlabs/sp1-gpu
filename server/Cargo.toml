@@ -23,6 +23,7 @@ bytes = "1.7.2"
 serde_json = "1.0.128"
 http = "1.1.0"
 sha2 = "0.10.8"
+eyre = { workspace = true }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 jemallocator = "0.3.2"

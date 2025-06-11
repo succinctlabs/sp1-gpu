@@ -18,6 +18,8 @@ debug-assertions = true
 
 [workspace.dependencies]
 
+eyre = "0.6.12"
+
 # sp1
 sp1-core-executor = { version = "4.2.1" } 
 sp1-core-machine = { version = "4.2.1" }

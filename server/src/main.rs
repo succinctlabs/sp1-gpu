@@ -11,7 +11,9 @@ use http::{
     Response, StatusCode,
 };
 use http_body_util::Full;
-use moongate_core::utils::init_tracer;
+use moongate_core::{
+    cuda_runtime::stream::CudaStream, device::error::CudaError, utils::init_tracer,
+};
 use moongate_prover::{components::GpuProverComponents, gpu_prover_opts};
 use sha2::{Digest, Sha256};
 use sp1_core_executor::{Program, SP1Context};
@@ -53,25 +55,33 @@ struct MoongateProverServer {
 
 impl MoongateProverServer {
     /// Create a new [MoongateProverServer].
-    pub fn new() -> Self {
+    pub fn try_new() -> Result<Self, CudaError> {
         let server = Self {
             prover: Arc::new(Mutex::new(None)),
             proving_contexts: Arc::new(RwLock::new(HashMap::new())),
         };
-        server.init();
-        server
+        server.init()?;
+
+        Ok(server)
     }
 
     /// Initialize the prover lazily.
-    pub fn init(&self) {
+    pub fn init(&self) -> Result<(), CudaError> {
         tracing::debug!("initializing proving server...");
         let prover_mutex = Arc::clone(&self.prover);
+
+        // Check a channel to the GPU can be created and returns an error if not, instead of
+        // panicking in `SP1Prover::new()`.
+        CudaStream::create()?;
+
         std::thread::spawn(move || {
             let prover = SP1Prover::new();
             tracing::debug!("prover server initialized");
             let mut prover_lock = prover_mutex.lock().unwrap();
             *prover_lock = Some(prover);
         });
+
+        Ok(())
     }
 
     fn prove_core_internal(
@@ -316,10 +326,10 @@ fn handle_panic(err: Box<dyn Any + Send + 'static>) -> Response<Full<Bytes>> {
 }
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> eyre::Result<()> {
     init_tracer();
 
-    let server = MoongateProverServer::new();
+    let server = MoongateProverServer::try_new()?;
     let server = Arc::new(server);
 
     let twirp_routes =
@@ -331,9 +341,9 @@ pub async fn main() {
         .layer(CatchPanicLayer::custom(handle_panic));
 
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    if let Err(e) = axum::serve(tcp_listener, app).await {
-        eprintln!("server error: {}", e);
-    }
+    axum::serve(tcp_listener, app).await?;
+
+    Ok(())
 }
 
 fn elf_to_hash(elf: &[u8]) -> Vec<u8> {
