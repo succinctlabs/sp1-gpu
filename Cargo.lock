@@ -3130,6 +3130,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "bytes 1.10.0",
+ "eyre",
  "http 1.2.0",
  "http-body-util",
  "jemallocator",
