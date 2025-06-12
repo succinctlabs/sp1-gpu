@@ -15,6 +15,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC  apt-get install
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+RUN nvcc --version
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 

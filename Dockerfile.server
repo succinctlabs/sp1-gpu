@@ -39,6 +39,8 @@ RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh \
     && ssh-keyscan github.com >> /root/.ssh/known_hosts \
     && git config --global url."git@github.com:".insteadOf "https://github.com/"
 
+RUN nvcc --version
+
 # Build the Rust project
 RUN --mount=type=ssh CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build -p moongate-server --release
 
