@@ -190,6 +190,7 @@ fn main() {
         cc_builder.flag("-gencode=arch=compute_89,code=sm_89");
         cc_builder.flag("-gencode=arch=compute_89,code=compute_89");
         cc_builder.flag("-gencode=arch=compute_90,code=sm_90");
+        cc_builder.flag("-gencode=arch=compute_90,code=compute_90");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
