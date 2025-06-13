@@ -47,7 +47,7 @@ RUN df -h
 RUN --mount=type=ssh CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build -p moongate-server --release
 
 # Runtime stage
-FROM nvidia/cuda:12.9.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.5.1-runtime-ubuntu22.04
 
 # Copy the binary from the builder stage
 COPY --from=builder /usr/src/app/target/release/moongate-server /usr/local/bin/moongate-server
