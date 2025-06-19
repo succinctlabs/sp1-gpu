@@ -136,12 +136,23 @@ mod tests {
             // Clone the original challenger because after grinding on device the internal state
             // of `challenger` will change.
             let mut original_challenger = challenger.clone();
-            let result = challenger.grind_device(bits, &stream);
+            let result = challenger.grind(bits);
 
             assert!(original_challenger.check_witness(bits, result));
 
-            let mut original_challenger_2 = challenger_2.clone();
-            let result_2 = challenger_2.grind_device(bits, &stream);
+            let mut original_challenger_2: p3_challenger::DuplexChallenger<
+                BabyBear,
+                p3_poseidon2::Poseidon2<
+                    BabyBear,
+                    p3_poseidon2::Poseidon2ExternalMatrixGeneral,
+                    p3_baby_bear::DiffusionMatrixBabyBear,
+                    16,
+                    7,
+                >,
+                16,
+                8,
+            > = challenger_2.clone();
+            let result_2 = challenger_2.grind(bits);
 
             assert!(original_challenger_2.check_witness(bits, result_2));
 

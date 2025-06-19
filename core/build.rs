@@ -188,7 +188,10 @@ fn main() {
         cc_builder.flag("--expt-relaxed-constexpr");
         cc_builder.flag("-gencode=arch=compute_86,code=sm_86");
         cc_builder.flag("-gencode=arch=compute_89,code=sm_89");
-        cc_builder.flag("-gencode=arch=compute_89,code=compute_89");
+        cc_builder.flag("-gencode=arch=compute_90,code=sm_90");
+        cc_builder.flag("-gencode=arch=compute_100,code=sm_100");
+        cc_builder.flag("-gencode=arch=compute_120,code=sm_120");
+        cc_builder.flag("-gencode=arch=compute_120,code=compute_120");
 
         env::set_var("DEP_SPPARK_ROOT", "../sppark");
         if let Some(include) = env::var_os("DEP_SPPARK_ROOT") {
