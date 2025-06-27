@@ -83,7 +83,7 @@ __global__ void computeValues(
     folder.quotientSize = quotientSize;
     folder.nextStep = nextStep;
 
-    Val expr_f[MEMORY_SIZE];
+    Val expr_f[MEMORY_SIZE ];
     for (size_t i = 0; i < MEMORY_SIZE; i++) {
         expr_f[i] = Val {0};
     }
@@ -456,127 +456,127 @@ __global__ void computeValues(
                 expr_ef[instr.a] -= expr_ef[instr.b];
                 break;
 
-            case 43:
-                DEBUG(
-                    "EMulVC: %d <- %d * %d\n",
-                    instr.a,
-                    instr.b_variant,
-                    instr.b
-                );
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
-                    * evalConstantsEF[instr.c];
-                break;
-            case 44:
-                DEBUG(
-                    "EMulVV: %d <- (%d, %d) * (%d, %d)\n",
-                    instr.a,
-                    instr.b_variant,
-                    instr.b,
-                    instr.c_variant,
-                    instr.c
-                );
-                expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
-                    * folder.var_ef(instr.c_variant, instr.c);
-                break;
-            case 45:
-                DEBUG(
-                    "EMulVE: %d <- (%d, %d) * %d\n",
-                    instr.a,
-                    instr.b_variant,
-                    instr.b,
-                    instr.c
-                );
-                expr_ef[instr.a] =
-                    folder.var_ef(instr.b_variant, instr.b) * expr_ef[instr.c];
-                break;
+            // case 43:
+            //     DEBUG(
+            //         "EMulVC: %d <- %d * %d\n",
+            //         instr.a,
+            //         instr.b_variant,
+            //         instr.b
+            //     );
+            //     expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+            //         * evalConstantsEF[instr.c];
+            //     break;
+            // case 44:
+            //     DEBUG(
+            //         "EMulVV: %d <- (%d, %d) * (%d, %d)\n",
+            //         instr.a,
+            //         instr.b_variant,
+            //         instr.b,
+            //         instr.c_variant,
+            //         instr.c
+            //     );
+            //     expr_ef[instr.a] = folder.var_ef(instr.b_variant, instr.b)
+            //         * folder.var_ef(instr.c_variant, instr.c);
+            //     break;
+            // case 45:
+            //     DEBUG(
+            //         "EMulVE: %d <- (%d, %d) * %d\n",
+            //         instr.a,
+            //         instr.b_variant,
+            //         instr.b,
+            //         instr.c
+            //     );
+            //     expr_ef[instr.a] =
+            //         folder.var_ef(instr.b_variant, instr.b) * expr_ef[instr.c];
+            //     break;
 
-            case 46:
-                DEBUG(
-                    "EMulEC: %d <- %d * %d\n",
-                    instr.a,
-                    instr.b_variant,
-                    instr.b
-                );
-                expr_ef[instr.a] = expr_ef[instr.b] * evalConstantsEF[instr.b];
-                break;
-            case 47:
-                DEBUG(
-                    "EMulEV: %d <- %d * (%d, %d)\n",
-                    instr.a,
-                    instr.b,
-                    instr.c_variant,
-                    instr.c
-                );
-                expr_ef[instr.a] =
-                    expr_ef[instr.b] * folder.var_ef(instr.c_variant, instr.c);
-                break;
-            case 48:
-                DEBUG("EMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] * expr_ef[instr.c];
-                break;
-            case 49:
-                DEBUG("EMulAssignE: %d <- %d\n", instr.a, instr.b);
-                expr_ef[instr.a] *= expr_ef[instr.b];
-                break;
+            // case 46:
+            //     DEBUG(
+            //         "EMulEC: %d <- %d * %d\n",
+            //         instr.a,
+            //         instr.b_variant,
+            //         instr.b
+            //     );
+            //     expr_ef[instr.a] = expr_ef[instr.b] * evalConstantsEF[instr.b];
+            //     break;
+            // case 47:
+            //     DEBUG(
+            //         "EMulEV: %d <- %d * (%d, %d)\n",
+            //         instr.a,
+            //         instr.b,
+            //         instr.c_variant,
+            //         instr.c
+            //     );
+            //     expr_ef[instr.a] =
+            //         expr_ef[instr.b] * folder.var_ef(instr.c_variant, instr.c);
+            //     break;
+            // case 48:
+            //     DEBUG("EMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
+            //     expr_ef[instr.a] = expr_ef[instr.b] * expr_ef[instr.c];
+            //     break;
+            // case 49:
+            //     DEBUG("EMulAssignE: %d <- %d\n", instr.a, instr.b);
+            //     expr_ef[instr.a] *= expr_ef[instr.b];
+            //     break;
 
-            case 50:
-                DEBUG("ENegE: %d <- -%d\n", instr.a, instr.b);
-                expr_ef[instr.a] = Challenge::zero() - expr_ef[instr.b];
-                break;
+            // case 50:
+            //     DEBUG("ENegE: %d <- -%d\n", instr.a, instr.b);
+            //     expr_ef[instr.a] = Challenge::zero() - expr_ef[instr.b];
+            //     break;
 
-            case 51:
-                DEBUG("EFFromE: %d <- %d\n", instr.a, instr.b);
-                Challenge result;
-                result.value[0] = expr_f[instr.b];
-                result.value[1] = Val {0};
-                result.value[2] = Val {0};
-                result.value[3] = Val {0};
-                expr_ef[instr.a] = result;
-                break;
-            case 52:
-                DEBUG("EFAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] + expr_f[instr.c];
-                break;
-            case 53:
-                DEBUG("EFAddAssignE: %d <- %d\n", instr.a, instr.b);
-                expr_ef[instr.a] += expr_f[instr.b];
-                break;
-            case 54:
-                DEBUG("EFSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] - expr_f[instr.c];
-                break;
-            case 55:
-                DEBUG("EFSubAssignE: %d <- %d\n", instr.a, instr.b);
-                expr_ef[instr.a] -= expr_f[instr.b];
-                break;
-            case 56:
-                DEBUG("EFMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
-                expr_ef[instr.a] = expr_ef[instr.b] * expr_f[instr.c];
-                break;
-            case 57:
-                DEBUG("EFMulAssignE: %d <- %d\n", instr.a, instr.b);
-                expr_ef[instr.a] *= expr_f[instr.b];
-                break;
-            case 58:
-                DEBUG(
-                    "EFAsBaseSlice: %d <- (%d, %d)\n",
-                    instr.a,
-                    instr.b_variant,
-                    instr.b
-                );
-                // UNSUPPORTED
-                break;
+            // case 51:
+            //     DEBUG("EFFromE: %d <- %d\n", instr.a, instr.b);
+            //     Challenge result;
+            //     result.value[0] = expr_f[instr.b];
+            //     result.value[1] = Val {0};
+            //     result.value[2] = Val {0};
+            //     result.value[3] = Val {0};
+            //     expr_ef[instr.a] = result;
+            //     break;
+            // case 52:
+            //     DEBUG("EFAddEE: %d <- %d + %d\n", instr.a, instr.b, instr.c);
+            //     expr_ef[instr.a] = expr_ef[instr.b] + expr_f[instr.c];
+            //     break;
+            // case 53:
+            //     DEBUG("EFAddAssignE: %d <- %d\n", instr.a, instr.b);
+            //     expr_ef[instr.a] += expr_f[instr.b];
+            //     break;
+            // case 54:
+            //     DEBUG("EFSubEE: %d <- %d - %d\n", instr.a, instr.b, instr.c);
+            //     expr_ef[instr.a] = expr_ef[instr.b] - expr_f[instr.c];
+            //     break;
+            // case 55:
+            //     DEBUG("EFSubAssignE: %d <- %d\n", instr.a, instr.b);
+            //     expr_ef[instr.a] -= expr_f[instr.b];
+            //     break;
+            // case 56:
+            //     DEBUG("EFMulEE: %d <- %d * %d\n", instr.a, instr.b, instr.c);
+            //     expr_ef[instr.a] = expr_ef[instr.b] * expr_f[instr.c];
+            //     break;
+            // case 57:
+            //     DEBUG("EFMulAssignE: %d <- %d\n", instr.a, instr.b);
+            //     expr_ef[instr.a] *= expr_f[instr.b];
+            //     break;
+            // case 58:
+            //     DEBUG(
+            //         "EFAsBaseSlice: %d <- (%d, %d)\n",
+            //         instr.a,
+            //         instr.b_variant,
+            //         instr.b
+            //     );
+            //     // UNSUPPORTED
+            //     break;
 
-            case 59:
-                DEBUG("FAssertZero: %d\n", instr.a);
-                folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_f[instr.a]);
-                folder.constraintIndex++;
-                break;
-            case 60:
-                DEBUG("EAssertZero: %d\n", instr.a);
-                folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_ef[instr.a]);
-                folder.constraintIndex++;
-                break;
+            // case 59:
+            //     DEBUG("FAssertZero: %d\n", instr.a);
+            //     folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_f[instr.a]);
+            //     folder.constraintIndex++;
+            //     break;
+            // case 60:
+            //     DEBUG("EAssertZero: %d\n", instr.a);
+            //     folder.accumulator += (folder.powersOfAlpha[folder.constraintIndex] * expr_ef[instr.a]);
+            //     folder.constraintIndex++;
+            //     break;
         }
     }
 

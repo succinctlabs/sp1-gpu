@@ -114,6 +114,7 @@ where
             )
             .unwrap();
             quotient_flat.set_max_width();
+            quotient_flat.values.set(0).unwrap();
             let powers_of_folding_challenge_device =
                 powers_of_folding_challenge.to_device_async(stream).unwrap();
             quotient_gpu::compute_values(
