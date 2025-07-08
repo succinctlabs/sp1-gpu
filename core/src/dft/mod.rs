@@ -195,12 +195,12 @@ mod tests {
             let time = Instant::now();
             unsafe { dft.dft_batch_device(mat_d.view_mut(), mat_d.stream()) }.unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu dft time log degree {log_d}: {gpu_time:?}");
 
             let time = Instant::now();
             let expected_value = p3_dft.dft_batch(mat_h).to_row_major_matrix();
             let cpu_time = time.elapsed();
-            println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu dft time log degree {log_d}: {cpu_time:?}");
 
             let results = mat_d.to_host();
             mat_d.stream().synchronize().unwrap();
@@ -233,12 +233,12 @@ mod tests {
             let time = Instant::now();
             unsafe { dft.dft_device(&mut d_values[..], log_d, &stream) }.unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu dft time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu dft time log degree {log_d}: {gpu_time:?}");
 
             let time = Instant::now();
             let expected_value = p3_dft.dft(values);
             let cpu_time = time.elapsed();
-            println!("Cpu dft time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu dft time log degree {log_d}: {cpu_time:?}");
 
             let mut values_back = vec![BabyBear::zero(); d];
             stream.synchronize().unwrap();
@@ -269,12 +269,12 @@ mod tests {
             let time = Instant::now();
             unsafe { dft.idft_device(&mut d_values[..], log_d, &stream) }.unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu idft time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu idft time log degree {log_d}: {gpu_time:?}");
 
             let time = Instant::now();
             let expected_value = p3_dft.idft(values);
             let cpu_time = time.elapsed();
-            println!("Cpu idft time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu idft time log degree {log_d}: {cpu_time:?}");
 
             stream.synchronize().unwrap();
             let mut values_back = vec![BabyBear::zero(); d];
@@ -315,12 +315,12 @@ mod tests {
             }
             .unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu lde time log degree {log_d}: {gpu_time:?}");
 
             let time = Instant::now();
             let expected_value = p3_dft.coset_lde(values, log_blowup, BabyBear::generator());
             let cpu_time = time.elapsed();
-            println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu lde time log degree {log_d}: {cpu_time:?}");
 
             let mut values_back = vec![BabyBear::zero(); ext_d];
             d_values[0..ext_d].copy_into_host(&mut values_back, &stream);
@@ -363,7 +363,7 @@ mod tests {
             }
             .unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu lde time log degree {log_d}: {gpu_time:?}");
 
             let mat_h_clone = mat_h.clone();
             let time = Instant::now();
@@ -371,7 +371,7 @@ mod tests {
                 .coset_lde_batch(mat_h_clone, log_blowup, BabyBear::generator() * shift)
                 .to_row_major_matrix();
             let cpu_time = time.elapsed();
-            println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu lde time log degree {log_d}: {cpu_time:?}");
 
             let values_back = mat_d.to_host();
 
@@ -411,7 +411,7 @@ mod tests {
             }
             .unwrap();
             let gpu_time = time.elapsed();
-            println!("Gpu lde time log degree {}: {:?}", log_d, gpu_time);
+            println!("Gpu lde time log degree {log_d}: {gpu_time:?}");
 
             let mat_h_clone = mat_h.clone();
             let time = Instant::now();
@@ -420,7 +420,7 @@ mod tests {
                 .bit_reverse_rows()
                 .to_row_major_matrix();
             let cpu_time = time.elapsed();
-            println!("Cpu lde time log degree {}: {:?}", log_d, cpu_time);
+            println!("Cpu lde time log degree {log_d}: {cpu_time:?}");
 
             let values_back = mat_d.to_host();
             mat_d.stream().synchronize().unwrap();

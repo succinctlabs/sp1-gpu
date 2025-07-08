@@ -74,9 +74,9 @@ fn test_device_extension() {
     let div_h = div.to_host();
 
     for (i, (a, b, add, sub, mul, div)) in izip!(a_h, b_h, add_h, sub_h, mul_h, div_h).enumerate() {
-        assert_eq!(a + b, add, "i={}", i);
-        assert_eq!(a - b, sub, "i={}", i);
-        assert_eq!(a * b, mul, "i={}", i);
-        assert_eq!(a / b, div, "i={}", i);
+        assert_eq!(a + b, add, "i={i}");
+        assert_eq!(a - b, sub, "i={i}");
+        assert_eq!(a * b, mul, "i={i}");
+        assert_eq!(a / b, div, "i={i}");
     }
 }

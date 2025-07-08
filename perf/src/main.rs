@@ -102,14 +102,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let stdin: SP1Stdin = bincode::deserialize(&stdin).unwrap();
         let measurement =
             make_measurement(&prover, "Custom", &program, Some(stdin), opts, verify, stage);
-        println!("{}", measurement);
+        println!("{measurement}");
         return Ok(());
     }
 
     let mut measurements = vec![];
     for (name, elf) in named_programs {
         let measurement = make_measurement(&prover, name, elf, None, opts, verify, stage);
-        println!("{}", measurement);
+        println!("{measurement}");
         measurements.push(measurement);
     }
 

@@ -66,7 +66,7 @@ mod tests {
                 .zip(res_h)
                 .enumerate()
             {
-                assert_eq!(exp, res, "at index {}", i);
+                assert_eq!(exp, res, "at index {i}");
             }
         }
     }
@@ -96,7 +96,7 @@ mod tests {
                 .zip(res_h)
                 .enumerate()
             {
-                assert_eq!(exp, res, "at index {}", i);
+                assert_eq!(exp, res, "at index {i}");
             }
         }
     }

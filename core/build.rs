@@ -50,7 +50,7 @@ fn main() {
                 break dir;
             }
             if !dir.pop() {
-                panic!("OUT_DIR does not have parent called \"target\": {:?}", out_dir);
+                panic!("OUT_DIR does not have parent called \"target\": {out_dir:?}");
             }
         }
     };
@@ -134,7 +134,7 @@ fn main() {
         Err(cbindgen::Error::ParseSyntaxError { .. }) => {
             // Ignore parse errors so rust-analyzer can run.
         }
-        Err(e) => panic!("{:?}", e),
+        Err(e) => panic!("{e:?}"),
     }
 
     // Copy the headers to the include directory and symlink them to the fixed include directory.
@@ -165,7 +165,7 @@ fn main() {
         let cuda_version =
             std::process::Command::new(nvcc).arg("--version").output().expect("impossible");
         if !cuda_version.status.success() {
-            panic!("{:?}", cuda_version);
+            panic!("{cuda_version:?}");
         }
         let cuda_version = String::from_utf8(cuda_version.stdout).unwrap();
         let x =
@@ -175,7 +175,7 @@ fn main() {
             cuda_version[x..].find(',').expect("can't parse \"release X.Y,\" in --version output");
         let v = cuda_version[x..x + y].parse::<f32>().unwrap();
         if v < 12.0 {
-            panic!("Unsupported CUDA version {} < 12.0", v);
+            panic!("Unsupported CUDA version {v} < 12.0");
         }
 
         // Use the `cc` crate to build the library and statically link it to the crate.

@@ -286,7 +286,7 @@ mod tests {
         let time = stream.now().unwrap();
         buffer.extend_from_host_slice(&data);
         let elapsed = stream.elapsed(&time).unwrap();
-        println!("{:?}", elapsed);
+        println!("{elapsed:?}");
         stream.synchronize().unwrap();
     }
 
@@ -304,7 +304,7 @@ mod tests {
             let end = CudaEvent::new().unwrap();
             stream.record(&end).unwrap();
             let elapsed = stream.elapsed(&time).unwrap();
-            println!("{:?}", elapsed);
+            println!("{elapsed:?}");
         }
     }
 

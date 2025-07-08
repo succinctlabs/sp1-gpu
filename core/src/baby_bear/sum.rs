@@ -91,7 +91,7 @@ mod tests {
         let mut rng = thread_rng();
 
         for input_log_size in 12..31 {
-            println!("Input log size: {}", input_log_size);
+            println!("Input log size: {input_log_size}");
             let input_size = 1 << input_log_size;
             let input_host = (0..input_size).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
 
@@ -107,14 +107,14 @@ mod tests {
             input_device.sum(result.as_mut_ptr()).unwrap();
             input_device.stream().synchronize().unwrap();
             let elapsed = time.elapsed();
-            println!("Device time: {:?}", elapsed);
+            println!("Device time: {elapsed:?}");
 
             let sum_device = result.to_host()[0];
 
             let time = Instant::now();
             let sum_host = input_host.iter().copied().sum::<BabyBear>();
             let elapsed = time.elapsed();
-            println!("host time: {:?}", elapsed);
+            println!("host time: {elapsed:?}");
 
             assert_eq!(sum_device, sum_host);
 
@@ -128,7 +128,7 @@ mod tests {
 
         for input_log_height in 12..24 {
             for width in [50, 100, 150, 200] {
-                println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+                println!("(Input log height, input width) : ({input_log_height}, {width})");
                 let input_height = 1 << input_log_height;
                 let input_host =
                     (0..input_height * width).map(|_| rng.gen::<BabyBear>()).collect::<Vec<_>>();
@@ -150,7 +150,7 @@ mod tests {
                 input_device.column_sum(&mut results).unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();
-                println!("Device time: {:?}", elapsed);
+                println!("Device time: {elapsed:?}");
 
                 let sums_device = results.to_host();
 
@@ -162,10 +162,10 @@ mod tests {
                     }
                 }
                 let elapsed = time.elapsed();
-                println!("host time: {:?}", elapsed);
+                println!("host time: {elapsed:?}");
 
                 for (i, (elem, expected)) in sums_device.into_iter().zip(column_sums).enumerate() {
-                    assert_eq!(elem, expected, "failed at column {}", i);
+                    assert_eq!(elem, expected, "failed at column {i}");
                 }
 
                 println!("------------------------");
@@ -180,7 +180,7 @@ mod tests {
         type EF = BinomialExtensionField<BabyBear, 4>;
         for input_log_height in 16..22 {
             for width in [10, 50, 100, 200] {
-                println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+                println!("(Input log height, input width) : ({input_log_height}, {width})");
                 let input_height = 1 << input_log_height;
                 let input_host =
                     (0..input_height * width).map(|_| rng.gen::<EF>()).collect::<Vec<_>>();
@@ -205,7 +205,7 @@ mod tests {
                 input_device.column_sum(&mut results).unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();
-                println!("Device time: {:?}", elapsed);
+                println!("Device time: {elapsed:?}");
 
                 let sums_device = results.to_host();
 
@@ -217,10 +217,10 @@ mod tests {
                     }
                 }
                 let elapsed = time.elapsed();
-                println!("host time: {:?}", elapsed);
+                println!("host time: {elapsed:?}");
 
                 for (i, (elem, expected)) in sums_device.into_iter().zip(column_sums).enumerate() {
-                    assert_eq!(elem, expected, "failed at column {}", i);
+                    assert_eq!(elem, expected, "failed at column {i}");
                 }
 
                 println!("------------------------");
@@ -233,7 +233,7 @@ mod tests {
         let mut rng = thread_rng();
 
         for input_log_size in 12..29 {
-            println!("Input log size: {}", input_log_size);
+            println!("Input log size: {input_log_size}");
             let input_size = 1 << input_log_size;
             let input_host = (0..input_size)
                 .map(|_| rng.gen::<BinomialExtensionField<BabyBear, 4>>())
@@ -251,7 +251,7 @@ mod tests {
             input_device.sum(result.as_mut_ptr()).unwrap();
             input_device.stream().synchronize().unwrap();
             let elapsed = time.elapsed();
-            println!("Device time: {:?}", elapsed);
+            println!("Device time: {elapsed:?}");
 
             let sum_device = result.to_host()[0];
 
@@ -259,7 +259,7 @@ mod tests {
             let sum_host =
                 input_host.par_iter().copied().sum::<BinomialExtensionField<BabyBear, 4>>();
             let elapsed = time.elapsed();
-            println!("host time: {:?}", elapsed);
+            println!("host time: {elapsed:?}");
 
             assert_eq!(sum_device, sum_host);
 

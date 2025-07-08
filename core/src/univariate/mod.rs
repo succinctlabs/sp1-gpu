@@ -87,9 +87,9 @@ mod tests {
 
         let input_height = 1 << input_log_height;
         let domain_normalizer = subgroup_normalizer(input_log_height);
-        println!("domain normalizer {}", domain_normalizer);
+        println!("domain normalizer {domain_normalizer}");
 
-        println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+        println!("(Input log height, input width) : ({input_log_height}, {width})");
         let input_host = (0..input_height * width).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
 
         let input_host = RowMajorMatrix::new(input_host, width);
@@ -110,7 +110,7 @@ mod tests {
         input_device.eval(&mut results, domain_normalizer, F::one(), point).unwrap();
         input_device.stream().synchronize().unwrap();
         let elapsed = time.elapsed();
-        println!("Device time: {:?}", elapsed);
+        println!("Device time: {elapsed:?}");
     }
 
     #[test]
@@ -124,13 +124,13 @@ mod tests {
         for input_log_height in 16..26 {
             let input_height = 1 << input_log_height;
             let domain_normalizer = subgroup_normalizer(input_log_height);
-            println!("domain normalizer {}", domain_normalizer);
+            println!("domain normalizer {domain_normalizer}");
 
             for width in [1, 50, 100, 200, 400] {
                 if input_log_height > 22 && width > 50 {
                     continue;
                 }
-                println!("(Input log height, input width) : ({}, {})", input_log_height, width);
+                println!("(Input log height, input width) : ({input_log_height}, {width})");
                 let input_host =
                     (0..input_height * width).map(|_| rng.gen::<F>()).collect::<Vec<_>>();
 
@@ -154,7 +154,7 @@ mod tests {
                     .unwrap();
                 input_device.stream().synchronize().unwrap();
                 let elapsed = time.elapsed();
-                println!("Device time: {:?}", elapsed);
+                println!("Device time: {elapsed:?}");
 
                 // If the input height is small enough, compare the evaluations to cpu values.
                 if input_log_height < 18 {
@@ -190,7 +190,7 @@ mod tests {
                     for (idx, (value, expected)) in
                         device_openings.into_iter().zip_eq(openings_for_point).enumerate()
                     {
-                        assert_eq!(value, expected, "failed at column {}", idx);
+                        assert_eq!(value, expected, "failed at column {idx}");
                     }
                 }
             }

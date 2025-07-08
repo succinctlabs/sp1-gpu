@@ -235,10 +235,10 @@ mod tests {
         for chip in chips {
             if chip.name() == "AddSub" {
                 let (code, f_ctr, _, f_constants, ef_constants) = codegen_cuda_eval(chip);
-                println!("{:#?}", code);
-                println!("{}", f_ctr);
-                println!("{:?}", f_constants);
-                println!("{:?}", ef_constants);
+                println!("{code:#?}");
+                println!("{f_ctr}");
+                println!("{f_constants:?}");
+                println!("{ef_constants:?}");
                 return;
             }
         }

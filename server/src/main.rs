@@ -102,11 +102,11 @@ impl MoongateProverServer {
                     gpu_prover_opts(),
                     SP1Context::default(),
                 )
-                .map_err(|e| internal(format!("failed to prove core {}", e)))
+                .map_err(|e| internal(format!("failed to prove core {e}")))
         })?;
 
         let result = tracing::info_span!("serialize proof result").in_scope(|| {
-            bincode::serialize(&result).map_err(|e| internal(format!("failed to serialize {}", e)))
+            bincode::serialize(&result).map_err(|e| internal(format!("failed to serialize {e}")))
         })?;
 
         Ok(sp1_cuda::proto::api::ProveCoreResponse { result })
@@ -129,7 +129,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::SetupRequest,
     ) -> Result<sp1_cuda::proto::api::SetupResponse, twirp::TwirpErrorResponse> {
         let payload: SetupRequestPayload = bincode::deserialize(&req.data)
-            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to deserialize {e}")))?;
 
         let (pk, pk_d, program, vk) = tracing::info_span!("setup").in_scope(|| {
             self.prover
@@ -142,12 +142,12 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
 
         self.proving_contexts
             .write()
-            .map_err(|e| internal(format!("{}", e)))?
+            .map_err(|e| internal(format!("{e}")))?
             .insert(elf_to_hash(&payload.elf), Mutex::new(ProvingContext::new(program, pk_d)));
 
         let response = SetupResponsePayload { pk, vk };
         let result = bincode::serialize(&response)
-            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to serialize {e}")))?;
 
         Ok(sp1_cuda::proto::api::SetupResponse { result })
     }
@@ -158,7 +158,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::ProveCoreRequest,
     ) -> Result<sp1_cuda::proto::api::ProveCoreResponse, twirp::TwirpErrorResponse> {
         let proving_contexts =
-            self.proving_contexts.read().map_err(|e| internal(format!("{}", e)))?;
+            self.proving_contexts.read().map_err(|e| internal(format!("{e}")))?;
 
         if proving_contexts.len() > 1 {
             return Err(internal(
@@ -172,12 +172,12 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .ok_or_else(|| internal("proving key and program not provided"))?
             .1
             .lock()
-            .map_err(|e| internal(format!("{}", e)))?;
+            .map_err(|e| internal(format!("{e}")))?;
 
         let payload: ProveCoreRequestPayload = tracing::info_span!("deserializing proof request")
             .in_scope(|| {
             bincode::deserialize(&req.data)
-                .map_err(|e| internal(format!("failed to deserialize {}", e)))
+                .map_err(|e| internal(format!("failed to deserialize {e}")))
         })?;
 
         self.prove_core_internal(&proving_context, &payload.stdin)
@@ -189,12 +189,12 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::ProveCoreRequest,
     ) -> Result<sp1_cuda::proto::api::ProveCoreResponse, twirp::TwirpErrorResponse> {
         let mut proving_contexts =
-            self.proving_contexts.write().map_err(|e| internal(format!("{}", e)))?;
+            self.proving_contexts.write().map_err(|e| internal(format!("{e}")))?;
 
         let payload: StatelessProveCoreRequestPayload =
             tracing::info_span!("deserializing proof request").in_scope(|| {
                 bincode::deserialize(&req.data)
-                    .map_err(|e| internal(format!("failed to deserialize {}", e)))
+                    .map_err(|e| internal(format!("failed to deserialize {e}")))
             })?;
 
         let proving_context = match proving_contexts.entry(elf_to_hash(&payload.pk.elf)) {
@@ -225,7 +225,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             }
         };
 
-        let proving_context = proving_context.get_mut().map_err(|e| internal(format!("{}", e)))?;
+        let proving_context = proving_context.get_mut().map_err(|e| internal(format!("{e}")))?;
 
         self.prove_core_internal(proving_context, &payload.stdin)
     }
@@ -236,7 +236,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::CompressRequest,
     ) -> Result<sp1_cuda::proto::api::CompressResponse, twirp::TwirpErrorResponse> {
         let payload: CompressRequestPayload = bincode::deserialize(&req.data)
-            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to deserialize {e}")))?;
 
         let result = self
             .prover
@@ -245,10 +245,10 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .as_ref()
             .ok_or_else(|| internal("prover not ready".to_string()))?
             .compress(&payload.vk, payload.proof, payload.deferred_proofs, gpu_prover_opts())
-            .map_err(|e| internal(format!("failed to prove compress {}", e)))?;
+            .map_err(|e| internal(format!("failed to prove compress {e}")))?;
 
         let result = bincode::serialize(&result)
-            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to serialize {e}")))?;
 
         Ok(sp1_cuda::proto::api::CompressResponse { result })
     }
@@ -259,7 +259,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::ShrinkRequest,
     ) -> Result<sp1_cuda::proto::api::ShrinkResponse, twirp::TwirpErrorResponse> {
         let payload: ShrinkRequestPayload = bincode::deserialize(&req.data)
-            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to deserialize {e}")))?;
 
         let result = self
             .prover
@@ -268,10 +268,10 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .as_ref()
             .ok_or_else(|| internal("prover not ready".to_string()))?
             .shrink(payload.reduced_proof, gpu_prover_opts())
-            .map_err(|e| internal(format!("failed to prove shrink {}", e)))?;
+            .map_err(|e| internal(format!("failed to prove shrink {e}")))?;
 
         let result = bincode::serialize(&result)
-            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to serialize {e}")))?;
 
         Ok(sp1_cuda::proto::api::ShrinkResponse { result })
     }
@@ -282,7 +282,7 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
         req: sp1_cuda::proto::api::WrapRequest,
     ) -> Result<sp1_cuda::proto::api::WrapResponse, twirp::TwirpErrorResponse> {
         let payload: WrapRequestPayload = bincode::deserialize(&req.data)
-            .map_err(|e| internal(format!("failed to deserialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to deserialize {e}")))?;
 
         let result = self
             .prover
@@ -291,10 +291,10 @@ impl sp1_cuda::proto::api::ProverService for MoongateProverServer {
             .as_ref()
             .ok_or_else(|| internal("prover not ready".to_string()))?
             .wrap_bn254(payload.reduced_proof, gpu_prover_opts())
-            .map_err(|e| internal(format!("failed to prove wrap {}", e)))?;
+            .map_err(|e| internal(format!("failed to prove wrap {e}")))?;
 
         let result = bincode::serialize(&result)
-            .map_err(|e| internal(format!("failed to serialize {}", e)))?;
+            .map_err(|e| internal(format!("failed to serialize {e}")))?;
 
         Ok(sp1_cuda::proto::api::WrapResponse { result })
     }
@@ -308,7 +308,7 @@ fn handle_panic(err: Box<dyn Any + Send + 'static>) -> Response<Full<Bytes>> {
     } else {
         "Unknown panic message".to_string()
     };
-    println!("panic: {}", details);
+    println!("panic: {details}");
 
     let body = serde_json::json!({
         "error": {

@@ -512,7 +512,7 @@ mod tests {
             )
             .unwrap();
         let elapsed = time.elapsed().unwrap();
-        println!("Device generate_permutation_trace: {:?}", elapsed);
+        println!("Device generate_permutation_trace: {elapsed:?}");
 
         let perm_h = perm_d.to_host();
 
@@ -534,7 +534,7 @@ mod tests {
         for (i, (exp, res)) in
             expected_perm_trace.values.iter().zip(perm_h.values.iter()).enumerate()
         {
-            assert_eq!(exp, res, "at index {}", i);
+            assert_eq!(exp, res, "at index {i}");
         }
     }
 

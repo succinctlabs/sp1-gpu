@@ -167,7 +167,7 @@ mod tests {
         let start = crate::time::CudaInstant::now().unwrap();
         let mat_d_col = mat_d.to_column_major();
         let cpu_time = start.elapsed().unwrap();
-        println!("time: {:?}", cpu_time);
+        println!("time: {cpu_time:?}");
 
         let mat_d_h = mat_d_col.to_host();
 
@@ -190,7 +190,7 @@ mod tests {
         let start = crate::time::CudaInstant::now().unwrap();
         let mad_d_col = matrix_d.to_column_major_blowup(log_blowup);
         let time = start.elapsed().unwrap();
-        println!("time: {:?}", time);
+        println!("time: {time:?}");
 
         assert_eq!(mad_d_col.height(), ext_height);
         assert_eq!(mad_d_col.width(), width);
@@ -212,9 +212,7 @@ mod tests {
                 assert_eq!(
                     col[ext_height - height + i],
                     matrix_h.get(i, j),
-                    "row {}, col {}",
-                    i,
-                    j
+                    "row {i}, col {j}"
                 );
             }
         }

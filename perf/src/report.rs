@@ -121,6 +121,6 @@ impl fmt::Display for Measurement {
         }
 
         table.set_format(*prettytable::format::consts::FORMAT_NO_LINESEP_WITH_TITLE);
-        write!(f, "{}", table)
+        write!(f, "{table}")
     }
 }

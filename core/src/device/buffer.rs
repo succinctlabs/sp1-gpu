@@ -177,8 +177,7 @@ impl<T: Copy> DeviceBuffer<T> {
         #[track_caller]
         fn len_mismatch_fail(dst_len: usize, src_len: usize) -> ! {
             panic!(
-                "source slice length ({}) does not match destination slice length ({})",
-                src_len, dst_len,
+                "source slice length ({src_len}) does not match destination slice length ({dst_len})",
             );
         }
 
@@ -201,8 +200,7 @@ impl<T: Copy> DeviceBuffer<T> {
         #[track_caller]
         fn len_mismatch_fail(dst_len: usize, src_len: usize) -> ! {
             panic!(
-                "source slice length ({}) does not match destination slice length ({})",
-                src_len, dst_len,
+                "source slice length ({src_len}) does not match destination slice length ({dst_len})",
             );
         }
 
@@ -237,8 +235,7 @@ impl<T: Copy> DeviceBuffer<T> {
         #[track_caller]
         fn capacity_fail(dst_len: usize, src_len: usize, cap: usize) -> ! {
             panic!(
-                "source slice length ({}) too long for buffer of length ({}) and capacity ({})",
-                src_len, dst_len, cap
+                "source slice length ({src_len}) too long for buffer of length ({dst_len}) and capacity ({cap})"
             );
         }
 
@@ -270,8 +267,7 @@ impl<T: Copy> DeviceBuffer<T> {
         #[track_caller]
         fn capacity_fail(dst_len: usize, src_len: usize, cap: usize) -> ! {
             panic!(
-                "source slice length ({}) too long for buffer of length ({}) and capacity ({})",
-                src_len, dst_len, cap
+                "source slice length ({src_len}) too long for buffer of length ({dst_len}) and capacity ({cap})"
             );
         }
 

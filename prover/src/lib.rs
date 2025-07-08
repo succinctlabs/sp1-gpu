@@ -69,7 +69,7 @@ mod tests {
     #[serial]
     fn test_gpu_prover_opts() {
         let opts = gpu_prover_opts();
-        println!("{:?}", opts);
+        println!("{opts:?}");
     }
 
     // #[test]
@@ -261,7 +261,7 @@ mod tests {
             // if i <= *blacklist.last().unwrap() {
             //     continue;
             // }
-            println!("finished shape: id={}, shape={:?}", i, shape);
+            println!("finished shape: id={i}, shape={shape:?}");
             try_generate_dummy_proof(&prover.core_prover, &shape);
         }
     }

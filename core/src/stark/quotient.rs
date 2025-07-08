@@ -546,7 +546,7 @@ mod tests {
 
             for (j, (exp, res)) in result_flat.values.into_iter().zip_eq(data.values).enumerate() {
                 // if j == 0 {
-                assert_eq!(exp, res, "failed at row {}", j);
+                assert_eq!(exp, res, "failed at row {j}");
                 // }
             }
         }
