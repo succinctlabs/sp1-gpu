@@ -209,11 +209,7 @@ mod tests {
 
         for (j, col) in mad_d_to_h.chunks(ext_height).enumerate() {
             for i in 0..height {
-                assert_eq!(
-                    col[ext_height - height + i],
-                    matrix_h.get(i, j),
-                    "row {i}, col {j}"
-                );
+                assert_eq!(col[ext_height - height + i], matrix_h.get(i, j), "row {i}, col {j}");
             }
         }
     }
