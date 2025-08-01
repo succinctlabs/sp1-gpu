@@ -19,6 +19,7 @@ aws s3 cp s3://sp1-testing-suite/$s3_path/stdin.bin stdin.bin
 export RUST_LOG=debug
 export FIX_CORE_SHAPES=true
 export FIX_RECURSION_SHAPES=true
+export SP1_ALLOW_DEPRECATED_HOOKS=true
 
 # Run moongate-perf
 RUST_BACKTRACE=full cargo run -p moongate-perf --release -- --program-path program.bin --stdin-path stdin.bin --stage $stage --trace nvtx
