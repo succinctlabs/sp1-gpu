@@ -410,7 +410,7 @@ __global__ void core_memory_global_generate_trace_decompress_kernel(
                     }
                 }
             } else {
-                cols.is_next_comp = F::from_canonical_u32(events[event_idx - 1].used);
+                cols.is_next_comp = F::one();
                 for(int idx = 31 ; idx >= 0; idx--) {
                     int prev_bit = (events[event_idx - 1].addr >> idx) & 1;
                     int cur_bit = (events[event_idx].addr >> idx) & 1;
