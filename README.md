@@ -1,4 +1,18 @@
-# moongate
+<div align="center">
+
+![SP1 Cluster](./.github/assets/header.png)
+
+[![Github Actions][gha-badge]][gha-url] [![Telegram Chat][tg-badge]][tg-url] [![Docs][docs-badge]][docs-url]
+
+The official GPU prover implementation for SP1, written in CUDA.
+
+[gha-badge]: https://img.shields.io/github/actions/workflow/status/succinctlabs/cluster/docker.yml?branch=main
+[gha-url]: https://github.com/succinctlabs/cluster/actions
+[tg-badge]: https://img.shields.io/endpoint?color=neon&logo=telegram&label=chat&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2F%2BAzG4ws-kD24yMGYx
+[tg-url]: https://t.me/+AzG4ws-kD24yMGYx
+[docs-badge]: https://img.shields.io/github/deployments/succinctlabs/cluster/Production?label=docs
+[docs-url]: https://cluster-docs.succinct.xyz
+</div>
 
 ## Profiling
 
