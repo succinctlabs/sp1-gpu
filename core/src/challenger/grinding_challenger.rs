@@ -21,8 +21,19 @@ pub trait DeviceGrindingChallenger: GrindingChallenger {
     fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness;
 }
 
+lazy_static::lazy_static! {
+    static ref DISABLE_GRIND_DEVICE: bool = std::env::var("MOONGATE_DISABLE_GRIND_DEVICE")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+}
+
 impl DeviceGrindingChallenger for InnerChallenger {
     fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness {
+        if *DISABLE_GRIND_DEVICE {
+            return self.grind(bits);
+        }
+
         // Initialize the result and move it to the device.
         let result = vec![BabyBear::zero()];
         let mut result_d = result.to_device_async(stream).unwrap();
