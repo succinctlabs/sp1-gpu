@@ -21,8 +21,19 @@ pub trait DeviceGrindingChallenger: GrindingChallenger {
     fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness;
 }
 
+lazy_static::lazy_static! {
+    static ref DISABLE_GRIND_DEVICE: bool = std::env::var("MOONGATE_DISABLE_GRIND_DEVICE")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+}
+
 impl DeviceGrindingChallenger for InnerChallenger {
     fn grind_device(&mut self, bits: usize, stream: &CudaStream) -> Self::Witness {
+        if *DISABLE_GRIND_DEVICE {
+            return self.grind(bits);
+        }
+
         // Initialize the result and move it to the device.
         let result = vec![BabyBear::zero()];
         let mut result_d = result.to_device_async(stream).unwrap();
@@ -136,23 +147,12 @@ mod tests {
             // Clone the original challenger because after grinding on device the internal state
             // of `challenger` will change.
             let mut original_challenger = challenger.clone();
-            let result = challenger.grind(bits);
+            let result = challenger.grind_device(bits, &stream);
 
             assert!(original_challenger.check_witness(bits, result));
 
-            let mut original_challenger_2: p3_challenger::DuplexChallenger<
-                BabyBear,
-                p3_poseidon2::Poseidon2<
-                    BabyBear,
-                    p3_poseidon2::Poseidon2ExternalMatrixGeneral,
-                    p3_baby_bear::DiffusionMatrixBabyBear,
-                    16,
-                    7,
-                >,
-                16,
-                8,
-            > = challenger_2.clone();
-            let result_2 = challenger_2.grind(bits);
+            let mut original_challenger_2 = challenger_2.clone();
+            let result_2 = challenger_2.grind_device(bits, &stream);
 
             assert!(original_challenger_2.check_witness(bits, result_2));
 
