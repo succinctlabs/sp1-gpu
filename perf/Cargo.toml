@@ -25,7 +25,7 @@ opentelemetry_sdk = { version = "^0.23.0", features = [
     "rt-tokio",
     "logs_level_enabled",
 ] }
-opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
+opentelemetry-stdout = { version = "0.30.0", features = ["trace"] }
 opentelemetry-otlp = { version = "^0.16.0", features = ["default", "logs"] }
 tracing-opentelemetry = "^0.24"
 opentelemetry-appender-tracing = "0.4.0"
