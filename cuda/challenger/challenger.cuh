@@ -143,7 +143,7 @@ __global__ void grind(
     bb31_t* input_buffer,
     bb31_t* sponge_state,
     bb31_t* output_buffer,
-    int* found_flag,
+    volatile int* found_flag,
     size_t input_buffer_size,
     size_t output_buffer_size,
     size_t bits,
@@ -210,7 +210,7 @@ __global__ void grind(
             out[0] = witness;
 
             // Set the flag to 1 so that other threads can stop.
-            atomicExch(found_flag, 1);
+            atomicExch((int*)found_flag, 1);
             // Ensure that the flag is set before the return statement, so other threads can see it.
             __threadfence();
             return;
