@@ -33,7 +33,7 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Runs-On Runner
         uses: ./.github/actions/runs-on
@@ -105,7 +105,7 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # - name: Setup Self-Hosted Runner
       #   uses: ./.github/actions/self-hosted
@@ -176,7 +176,7 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Commented out because the latency of the docker buildx cache is high enough 
       # with the EC2 builder that it's a wash.  Can be added back in if the toolchain gets complex.
