@@ -1,5 +1,5 @@
 # Start with a base image that includes CUDA
-FROM nvidia/cuda:12.5.1-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:13.0.1-devel-ubuntu22.04 AS builder
 
 # Install necessary packages
 RUN apt-get update && apt-get install -y \
@@ -43,7 +43,7 @@ RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh \
 RUN --mount=type=ssh CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build -p moongate-server --release
 
 # Runtime stage
-FROM nvidia/cuda:12.5.1-runtime-ubuntu22.04
+FROM nvidia/cuda:13.0.1-runtime-ubuntu22.04
 
 # Copy the binary from the builder stage
 COPY --from=builder /usr/src/app/target/release/moongate-server /usr/local/bin/moongate-server
